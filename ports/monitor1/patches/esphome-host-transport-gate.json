@@ -1,0 +1,18 @@
+{
+  "sdk_version": "2026.10.1",
+  "macro": "USE_CGS1_TRANSPORT_GATE",
+  "source_sha256": {
+    "components/api/api_server.h": "e5c6492534b9231760c7940a9ad2c8be3da10fdf447f6f738e509db854a7a306",
+    "components/api/api_server.cpp": "04493ab169d14da679ede65e526cf00606d94fbbb51bc78ec37e23b7d6be758f",
+    "components/esphome/ota/ota_esphome.h": "c5c2935e5bd71f511f0b4ba6bfb950b4b9afadfd26dd2260aae175e6548753c9",
+    "components/esphome/ota/ota_esphome.cpp": "f6d513760e165c440aa6d14b7f4081b08ff569b3eb1cb3fb678ce4428274592d"
+  },
+  "patched_sha256": {
+    "components/api/api_server.h": "eacbbcb422f9ee6475281996450a4f8927bbb37a34f61fcaf3b0662dabab0d8f",
+    "components/api/api_server.cpp": "de6b8426eb764ef81f51e92dd4b36e1c5d184db1cee0746c84221cf77d9fe53e",
+    "components/esphome/ota/ota_esphome.h": "36c61f27df4341e1535f2440bc726069bd39694ee153d0311116d9d7313b5052",
+    "components/esphome/ota/ota_esphome.cpp": "a5e321c49dacd1c71d39918d88da5e32ad762aa535aff0a66733f89c55964d93"
+  },
+  "patch_sha256": "32d12852a8879f841d47e77df48db9968452f18a408eff4bf7dcbece29bcba39",
+  "scope": "CGS1 isolated host SDK only; no auth/backend changes"
+}

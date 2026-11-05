@@ -1,0 +1,4 @@
+#!/bin/sh
+# ESPHome's AR override names an executable, so keep 'zig ar' in a wrapper.
+base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$base/.venv/bin/python" -m ziglang ar "$@"

@@ -1,0 +1,56 @@
+# Full-runtime export contract for the existing stock-bridge HA device.
+# This package is metadata only: it neither grants takeover/boot authority nor
+# selects a driver/supervisor. Never run this identity alongside the existing
+# bridge on the same device; bounded trials keep their separate MAC/port.
+substitutions:
+  cgs1_node_name: qingping-cgs1-stock-bridge
+  cgs1_friendly_name: Qingping CGS1 Stock Bridge
+  cgs1_api_mac: "02:00:00:00:00:01"
+esphome:
+  name: ${cgs1_node_name}
+  friendly_name: ${cgs1_friendly_name}
+host:
+  mac_address: ${cgs1_api_mac}
+api:
+  port: 6053
+
+sensor:
+  # Extend the real SenseAir CO2 output, preserving its fresh-value timeout.
+  # No display-only HA value can enter these physical measurement exports.
+  - id: !extend s8_co2_driver
+    co2:
+      name: CO2
+      icon: ""
+  - id: !extend ui_temperature
+    name: Temperature
+    accuracy_decimals: 1
+  - id: !extend ui_humidity
+    name: Humidity
+    accuracy_decimals: 1
+  - id: !extend ui_pm25
+    name: PM2.5
+    accuracy_decimals: 0
+  - id: !extend ui_voc
+    name: TVOC stock estimate
+    # Match the existing HA metadata as well as its ppm scale. This remains
+    # the documented stock-equivalent estimate, not a newly calibrated sensor.
+    device_class: ""
+  - platform: uptime
+    name: System uptime
+    entity_category: diagnostic
+    update_interval: 10s
+  - platform: template
+    name: Stock response age
+    entity_category: diagnostic
+    state_class: measurement
+    unit_of_measurement: s
+    accuracy_decimals: 0
+    update_interval: 5s
+    # Full mode does not query SnowApp. Keep this historical diagnostic
+    # explicitly unavailable rather than relabel a native sample as stock.
+    lambda: return NAN;
+
+text_sensor:
+  - platform: version
+    name: ESPHome version
+    hide_timestamp: false

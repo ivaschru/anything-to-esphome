@@ -1,0 +1,166 @@
+# Shared native UI settings: both the ARM trial and isolated macOS API QA
+# import this package, so touch/API/persistence paths are tested together.
+esphome:
+  includes:
+    - ha_source_cache.h
+    - ha_sources_runtime.h
+  on_loop:
+    - lambda: cgs1_ha::sources.loop(*id(panel));
+  on_boot:
+    - priority: -100
+      then:
+        - lambda: |-
+            id(panel).set_saver_action([](const std::string &mode) {
+              auto call = id(idle_screen).make_call();
+              call.set_option(mode);
+              call.perform();
+            });
+            id(panel).set_brightness_action([](float value) {
+              auto call = id(display_brightness).make_call(); call.set_value(value); call.perform();
+            });
+            id(panel).set_night_brightness_action([](float value) {
+              auto call = id(night_brightness).make_call(); call.set_value(value); call.perform();
+            });
+            id(panel).set_idle_action([](float value) {
+              auto call = id(idle_delay).make_call(); call.set_value(value); call.perform();
+            });
+            id(panel).set_night_action([](bool enabled) {
+              if (enabled) id(night_mode).turn_on(); else id(night_mode).turn_off();
+            });
+            id(panel).set_ha_action([](bool enabled) {
+              auto call = id(display_readings).make_call();
+              call.set_option(enabled ? "HA + местный резерв" : "Сенсоры");
+              call.perform();
+            });
+
+select:
+  - platform: template
+    name: Idle screen
+    id: idle_screen
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    initial_option: "CO₂ + температура"
+    options:
+      - "CO₂ + температура"
+      - "Только CO₂"
+      - "Часы + показатели"
+      - "Ночной режим"
+      - "Выключенный экран"
+    on_value:
+      then:
+        - lambda: id(panel).set_saver_mode(x);
+  - platform: template
+    name: Display readings
+    id: display_readings
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Сенсоры"
+    options: ["Сенсоры", "HA + местный резерв"]
+    on_value:
+      then:
+        - lambda: |-
+            const bool enabled = x == "HA + местный резерв";
+            id(panel).set_ha_mode(enabled);
+            cgs1_ha::sources.set_enabled(enabled);
+
+number:
+  - platform: template
+    name: Idle screen delay
+    id: idle_delay
+    entity_category: config
+    unit_of_measurement: s
+    min_value: 5
+    max_value: 600
+    step: 5
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - lambda: id(panel).set_idle_seconds(x);
+  - platform: template
+    name: Display brightness
+    id: display_brightness
+    entity_category: config
+    unit_of_measurement: "%"
+    min_value: 1
+    max_value: 100
+    step: 1
+    initial_value: 10
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - lambda: id(panel).set_brightness_percent(x);
+  - platform: template
+    name: Night brightness
+    id: night_brightness
+    entity_category: config
+    unit_of_measurement: "%"
+    min_value: 0.1
+    max_value: 10
+    step: 0.1
+    initial_value: 0.5
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - lambda: id(panel).set_night_brightness_percent(x);
+
+switch:
+  - platform: template
+    name: Night mode
+    id: night_mode
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - lambda: id(panel).set_night_mode(true);
+    turn_off_action:
+      - lambda: id(panel).set_night_mode(false);
+
+text:
+  - platform: cgs1_source
+    id: ha_co2_entity
+    name: "CO2 display source"
+    entity_category: config
+    on_value:
+      then:
+        - lambda: cgs1_ha::sources.configure(0, x);
+  - platform: cgs1_source
+    id: ha_temperature_entity
+    name: "Temperature display source"
+    entity_category: config
+    on_value:
+      then:
+        - lambda: cgs1_ha::sources.configure(1, x);
+  - platform: cgs1_source
+    id: ha_humidity_entity
+    name: "Humidity display source"
+    entity_category: config
+    on_value:
+      then:
+        - lambda: cgs1_ha::sources.configure(2, x);
+  - platform: cgs1_source
+    id: ha_pm25_entity
+    name: "PM25 display source"
+    entity_category: config
+    on_value:
+      then:
+        - lambda: cgs1_ha::sources.configure(3, x);
+  - platform: cgs1_source
+    id: ha_tvoc_entity
+    name: "TVOC display source"
+    entity_category: config
+    on_value:
+      then:
+        - lambda: cgs1_ha::sources.configure(4, x);
+
+text_sensor:
+  - platform: template
+    name: HA display sources status
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return cgs1_ha::sources.diagnostic();

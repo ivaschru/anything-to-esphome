@@ -1,0 +1,366 @@
+# One authenticated transport, no SSH/ADB listener or arbitrary shell command.
+# The exact artifact manifest is supplied by the parent build configuration.
+esphome:
+  includes:
+    - trial_staging.h
+    - network_preflight.h
+    - network_trial_coordinator.h
+    - thermal_seed_codec.h
+    - thermal_model.h
+    - display_ownership.h
+    - display_handoff_settle.h
+    - diagnostic_text.h
+    - independent_pm_power.h
+    - pm_uart_pinmux.h
+    - wifi_control_inspect.h
+    - wifi_saved_profiles.h
+    - wifi_daemon_inspect.h
+    - wifi_version_logging.h
+    - dhcp_owner_inspect.h
+    - network_ipv4_inspect.h
+    - dhcp_lease_proof.h
+    - dhcp_ipv4_packet.h
+    - dhcp_packet_capture.h
+    - dhcp_capture_probe.h
+    - wifi_boot_baseline.h
+    - gateway_echo.h
+    - gateway_probe.h
+    - supervisor_wifi_private_root.h
+    - supervisor_image_types.h
+    - supervisor_image.h
+    - supervisor_process_tree.h
+    - supervisor_kernel_probe.h
+    - bluetooth_inventory.h
+    - bluetooth_vendor_binary.h
+    - wpa_vendor_binary.h
+    - wpa_vendor_privacy.h
+    - busybox_vendor_binary.h
+    - dhcp_wait_inspect.h
+    # Diagnostic-only static glibc symbol/code inspection. No extra command,
+    # address parameter, process-memory range or signal is exposed.
+    - libc_vendor_binary.h
+    - libc_select_code.h
+    - dhcp_renew_once.h
+api:
+  actions:
+    # One fixed SIGUSR1 to the freshly verified BOUND wlan0 owner only after
+    # an active passive capture and recent same-association gateway proof.
+    # Repeat reconciles the same object; status never sends a signal.
+    - action: native_trial_dhcp_renew_once
+      supports_response: only
+      then:
+        - lambda: id(maintenance).renew_dhcp_once();
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_renew_report(root);
+    - action: native_trial_dhcp_renew_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_renew_report(root);
+    # Read only the fixed immutable vendor executable for offline disassembly.
+    # No filename/PID/address input, configuration/process-memory reads, program
+    # execution or logger setting. One bounded snapshot per bridge process.
+    - action: native_trial_wifi_vendor_capture
+      supports_response: only
+      then:
+        - lambda: id(maintenance).capture_wifi_vendor_program();
+        - api.respond:
+            data: !lambda id(maintenance).wifi_vendor_report(root);
+    - action: native_trial_wifi_vendor_page
+      variables:
+        page: int
+        generation: int
+      supports_response: only
+      then:
+        - lambda: id(maintenance).wifi_vendor_page(page, generation);
+        - api.respond:
+            data: !lambda id(maintenance).wifi_vendor_report(root);
+    - action: native_trial_wifi_vendor_release
+      supports_response: only
+      then:
+        - lambda: id(maintenance).release_wifi_vendor_program();
+        - api.respond:
+            data: !lambda id(maintenance).wifi_vendor_report(root);
+    # Fixed immutable BusyBox code only, bound to the actual wlan0 DHCP owner.
+    # No execution, signals, config/process memory or argument export.
+    - action: native_trial_dhcp_vendor_capture
+      supports_response: only
+      then:
+        - lambda: id(maintenance).capture_dhcp_vendor_program();
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_vendor_report(root);
+    - action: native_trial_dhcp_vendor_page
+      variables:
+        page: int
+        generation: int
+      supports_response: only
+      then:
+        - lambda: id(maintenance).dhcp_vendor_page(page, generation);
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_vendor_report(root);
+    - action: native_trial_dhcp_vendor_release
+      supports_response: only
+      then:
+        - lambda: id(maintenance).release_dhcp_vendor_program();
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_vendor_report(root);
+    # One fixed ICMP Echo to the verified on-link wlan0 gateway, within 2 s.
+    # No destination/payload/interface input or retry, DHCP signal, DNS or
+    # network settings writes. Repeated START reconciles the same attempt.
+    - action: native_trial_gateway_probe_start
+      supports_response: only
+      then:
+        - lambda: id(maintenance).start_gateway_probe();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).gateway_probe_report(root);
+    - action: native_trial_gateway_probe_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(maintenance).gateway_probe_report(root);
+    - action: native_trial_gateway_probe_stop
+      supports_response: only
+      then:
+        - lambda: id(maintenance).stop_gateway_probe();
+        - api.respond:
+            data: !lambda id(maintenance).gateway_probe_report(root);
+    # A fixed 60-second passive session, started at most once per bridge
+    # process. STATUS never starts/extends it; STOP is always safe. No remote
+    # interface, filter, path, PID, packet or duration input is accepted.
+    - action: native_trial_dhcp_capture_start
+      supports_response: only
+      then:
+        - lambda: id(maintenance).start_dhcp_capture();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).dhcp_capture_report(root);
+    - action: native_trial_dhcp_capture_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_capture_report(root);
+    - action: native_trial_dhcp_capture_stop
+      supports_response: only
+      then:
+        - lambda: id(maintenance).stop_dhcp_capture();
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_capture_report(root);
+    # Fixed metadata only: known DHCP process births/typed flags, exact vendor
+    # launcher fingerprint and canonical private directory modes. No argv,
+    # environment, hostname/options, unknown file hashes or signal command.
+    - action: native_trial_dhcp_owner_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_dhcp_owner();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).dhcp_owner_report(root);
+    # Literal GET version / argument-free LOG_LEVEL only, no generic GET or
+    # logger setter. Daemon/socket identity is fenced before and after reads.
+    - action: native_trial_wifi_version_logging
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_wifi_version_logging();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).wifi_version_logging_report(root);
+    # Only the two reviewed non-secret 32-bit logger flags, after exact image,
+    # owner and immutable inode checks. No PID/address/path or logger setter.
+    - action: native_trial_wifi_privacy_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_wifi_privacy();
+        - api.respond:
+            data: !lambda id(maintenance).wifi_privacy_report(root);
+    # Read-only exact DHCP owner/state and kernel-selected select input timer.
+    # No PID/address/path, raw register output, signal or network writer.
+    - action: native_trial_dhcp_wait_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_dhcp_wait();
+        - api.respond:
+            data: !lambda id(maintenance).dhcp_wait_report(root);
+    # Read another page from the last captured immutable metadata snapshot.
+    # Page/generation coordinates cannot select a file, command or device.
+    # Fixed source capture for offline disassembly, never execution. No path
+    # argument or generic file read; pages bind to one bounded RAM snapshot.
+    - action: native_trial_bluetooth_vendor_capture
+      supports_response: only
+      then:
+        - lambda: id(maintenance).capture_bluetooth_vendor_wrapper();
+        - api.respond:
+            data: !lambda id(maintenance).bluetooth_vendor_report(root);
+    - action: native_trial_bluetooth_vendor_page
+      variables:
+        page: int
+        generation: int
+      supports_response: only
+      then:
+        - lambda: id(maintenance).bluetooth_vendor_page(page, generation);
+        - api.respond:
+            data: !lambda id(maintenance).bluetooth_vendor_report(root);
+
+    - action: native_trial_bluetooth_page
+      supports_response: only
+      variables:
+        page: int
+        generation: int
+      then:
+        - lambda: id(maintenance).bluetooth_page(page, generation);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).bluetooth_report(root);
+    # Fixed metadata only: sysfs HCI/rfkill/SDIO/module identities and presence
+    # of known stack tools. No radio socket, scan, UART or configuration read.
+    - action: native_trial_bluetooth_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_bluetooth();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).bluetooth_report(root);
+    # Fixed own-descendant capability/self-image probe. No PID/path/command
+    # argument, no stock signals and no sensor/network/boot setting writes.
+    - action: native_trial_supervisor_kernel_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_supervisor_kernel();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).supervisor_kernel_report(root);
+    - action: native_trial_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_begin
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+      then:
+        - lambda: id(maintenance).begin(job, kind);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_chunk
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+        offset: int
+        hex_data: string
+      then:
+        - lambda: id(maintenance).chunk(job, kind, offset, hex_data);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_seal
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+      then:
+        - lambda: id(maintenance).seal(job, kind);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_discard
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(maintenance).discard(job);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_prepare
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(maintenance).prepare(job);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_launch
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(maintenance).launch(job);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_recover
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(maintenance).recover(job);
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    - action: native_trial_diagnostics
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(maintenance).diagnostics(root);
+    - action: native_trial_display_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_display();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).display_report(root);
+    - action: native_trial_cleanup_miio
+      supports_response: only
+      then:
+        - lambda: id(maintenance).cleanup_miio();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).report(root);
+    # Read two fixed kernel values only; this action exposes no power write.
+    - action: native_trial_pm_hardware_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_pm_hardware();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).pm_hardware_report(root);
+    # Read-only PING/STATUS and fixed socket metadata. No credential getter,
+    # command parameter or network mutation is available through this action.
+    - action: native_trial_wifi_inspect
+      supports_response: only
+      then:
+        - lambda: id(maintenance).inspect_wifi();
+        - api.respond:
+            success: !lambda return id(maintenance).ok();
+            error_message: !lambda return id(maintenance).error();
+            data: !lambda id(maintenance).wifi_report(root);

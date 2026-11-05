@@ -1,0 +1,34 @@
+# Used by the guarded ARM runtime and a hardware-free Native API fixture.
+# Stock's validated flag initializes the runtime; ESPHome must NOT issue its
+# usual default OFF command before that initialization or restore a stale ON.
+# Opt-in durable full mode restores its separately validated saved choice only
+# AFTER guarded PM setup. Keep DISABLED here: all shared RAM/trial profiles and
+# template component setup must remain free from early hardware commands.
+substitutions:
+  pm_runtime: cgs1_pm::trial
+switch:
+  - platform: template
+    name: PM sensor
+    id: native_pm_power
+    icon: mdi:air-filter
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return ${pm_runtime}.enabled();
+    turn_on_action:
+      - lambda: |-
+          ${pm_runtime}.request(true);
+          id(native_pm_power).publish_state(${pm_runtime}.enabled());
+    turn_off_action:
+      - lambda: |-
+          ${pm_runtime}.request(false);
+          id(native_pm_power).publish_state(${pm_runtime}.enabled());
+
+binary_sensor:
+  - platform: template
+    name: PM control available
+    entity_category: diagnostic
+    lambda: return ${pm_runtime}.available();
+  - platform: template
+    name: PM ready
+    entity_category: diagnostic
+    lambda: return ${pm_runtime}.fresh_ready();

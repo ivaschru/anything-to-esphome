@@ -1,0 +1,22 @@
+# Permanent durable full UI with saved-network startup and the local Wi-Fi
+# editor. Requires a freshly matched hard0 guardian and ordinary core release
+# installer. This file never installs itself or changes vendor init/bootloader.
+packages:
+  full: !include native-ui-full-durable.yaml
+esphome:
+  build_path: build/qingping-cgs1-full-native-network
+  includes:
+    - wifi_request.h
+    - wifi_local_flow.h
+    - native_wifi_ui_runtime.h
+    - native_wifi_scan.h
+    - wifi_boot_flow.h
+  on_loop:
+    - lambda: cgs1_native_wifi_ui::loop(*id(panel));
+api:
+  actions:
+    - action: full_native_wifi_boot_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda cgs1_native_wifi_ui::report(root);

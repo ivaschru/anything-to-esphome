@@ -1,0 +1,30 @@
+# CGS1 co2_type=3: kernel-backed SCD40; apply only after hardware identification.
+esphome:
+  includes:
+    - scd40_kernel.h
+uart:
+  - id: !remove s8_uart
+sensor:
+  - id: !remove s8_co2_driver
+  - platform: template
+    id: ui_co2
+    # native-ha-identity extends the nested S8 output. Removing its parent
+    # also removes that extension, so the replacement explicitly keeps the
+    # same public name/object-id contract as the bridge and the S8 profile.
+    name: CO2
+    device_class: carbon_dioxide
+    unit_of_measurement: ppm
+    state_class: measurement
+    accuracy_decimals: 0
+    force_update: true
+    update_interval: 3s
+    # The kernel can return no new sample between measurement cycles or while
+    # the vendor reader is using it. As with the S8 profile, publish only new
+    # valid samples and expire the last one after 15 s. Do not fabricate a new
+    # sample timestamp by republishing a cached concentration every 3 s.
+    filters:
+      - timeout: 15s
+    lambda: |-
+      const auto sample = cgs1_scd40::read();
+      if (sample.ok) return sample.co2;
+      return {};

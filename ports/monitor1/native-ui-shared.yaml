@@ -1,0 +1,153 @@
+# Shared native sensor/UI definitions. This file grants no hardware ownership.
+# Each caller must supply its own early guard and startup lifecycle.
+esphome:
+  name: qingping-cgs1-native-ui-trial
+  friendly_name: Qingping CGS1 Native UI Trial
+  # One compiler worker keeps the 16 GiB development Mac responsive.
+  compile_process_limit: 1
+  includes:
+    - checkpoint_epoch.h
+    - monotonic_cadence.h
+    - direct_trial.h
+    - direct_peripheral_probe.h
+    - direct_pm_protocol.h
+    - direct_voc_probe.h
+    - direct_voc_protocol.h
+    - thermal_model.h
+    - thermal_runtime.h
+    - thermal_state_codec.h
+    - thermal_state_store.h
+    - thermal_lifecycle.h
+    - thermal_seed_codec.h
+    - trial_restart_record.h
+  on_loop:
+    - lambda: cgs1_direct_trial::peripheral.loop(id(pm_uart));
+    - lambda: cgs1_direct_trial::voc.loop();
+    - lambda: |-
+        cgs1_thermal::runtime.set_screen(id(panel).screen_is_on(), id(panel).effective_brightness());
+        cgs1_thermal::runtime.loop();
+
+packages:
+  ui_controls: !include ui-controls.yaml
+
+host:
+  mac_address: "02:00:00:00:00:01"
+
+logger:
+  level: INFO
+
+api:
+  port: 6054
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [cgs1_panel, cgs1_source]
+
+uart:
+  - id: s8_uart
+    port: /dev/ttyS0
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+  - id: pm_uart
+    port: /dev/ttyS2
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+
+font: !include ui-fonts.yaml
+
+sensor:
+  - platform: senseair
+    id: s8_co2_driver
+    uart_id: s8_uart
+    co2:
+      id: ui_co2
+      name: Direct CO2
+      force_update: true
+      # SenseAir retains the previous state after read failures. Expire it
+      # explicitly so a disconnected probe cannot look like fresh room air.
+      filters:
+        - timeout: 15s
+    update_interval: 3s
+  - platform: template
+    id: ui_temperature
+    name: Direct temperature
+    device_class: temperature
+    unit_of_measurement: "°C"
+    state_class: measurement
+    force_update: true
+    update_interval: 1s
+    lambda: return cgs1_thermal::runtime.temperature();
+  - platform: template
+    id: ui_humidity
+    name: Direct humidity
+    device_class: humidity
+    unit_of_measurement: "%"
+    state_class: measurement
+    force_update: true
+    update_interval: 1s
+    lambda: return cgs1_thermal::runtime.humidity();
+  - platform: template
+    name: Raw temperature
+    entity_category: diagnostic
+    device_class: temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: return cgs1_thermal::runtime.raw_temperature();
+  - platform: template
+    name: Raw humidity
+    entity_category: diagnostic
+    device_class: humidity
+    unit_of_measurement: "%"
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: return cgs1_thermal::runtime.raw_humidity();
+  - platform: template
+    id: ui_pm25
+    name: Direct PM25
+    device_class: pm25
+    unit_of_measurement: "µg/m³"
+    state_class: measurement
+    force_update: true
+    update_interval: 1s
+    lambda: return cgs1_direct_trial::peripheral.pm25();
+  - platform: template
+    id: ui_voc
+    name: Direct TVOC estimate
+    device_class: volatile_organic_compounds_parts
+    unit_of_measurement: ppm
+    accuracy_decimals: 3
+    state_class: measurement
+    force_update: true
+    update_interval: 1s
+    lambda: return cgs1_direct_trial::voc.estimate();
+
+display:
+  - platform: cgs1_panel
+    id: panel
+    font_small: ui_small
+    font_value: ui_value
+    font_big: ui_big
+    font_label: ui_label
+    font_body: ui_body
+    font_title: ui_title
+    font_detail: ui_detail
+    font_saver: ui_saver
+    font_temperature: ui_temperature_font
+    co2_sensor: ui_co2
+    temperature_sensor: ui_temperature
+    humidity_sensor: ui_humidity
+    pm25_sensor: ui_pm25
+    voc_sensor: ui_voc
+    # No seed or invalid collector -> unavailable, never raw T labelled ambient.
+    raw_temperature: false
+    ha_sources: true

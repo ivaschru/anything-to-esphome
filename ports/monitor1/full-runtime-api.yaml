@@ -1,0 +1,217 @@
+# Same authenticated bridge transport; fixed two-image staging/launch only.
+esphome:
+  includes:
+    - supervisor_ram_budget.h
+    - supervisor_full_diagnostics.h
+    - supervisor_full_diagnostics_json.h
+    - supervisor_full_state_metadata.h
+    - supervisor_full_reclaim.h
+    - display_ownership.h
+    - display_handoff_settle.h
+    - independent_pm_power.h
+    - network_preflight.h
+    - pm_uart_pinmux.h
+    - stock_pm_control.h
+    - supervisor_bootstrap_codec.h
+    - supervisor_bridge_policy.h
+    - supervisor_channel.h
+    - supervisor_client.h
+    - supervisor_control_channel.h
+    - supervisor_full_coordinator.h
+    - supervisor_returned_session.h
+    - post_return_wifi_link.h
+    - post_return_network_recovery.h
+    - dhcp_renew_once.h
+    - dhcp_wait_inspect.h
+    - busybox_vendor_binary.h
+    - libc_select_code.h
+    - libc_vendor_binary.h
+    - gateway_probe.h
+    - gateway_echo.h
+    # The post-return reader decodes its own private transaction and inspects
+    # the canonical Store. ESPHome copies includes individually, so keep the
+    # complete local codec closure instead of relying on an old build tree.
+    - checkpoint_epoch.h
+    - wifi_commit_decision.h
+    - wifi_guard_plan.h
+    - wifi_guard_recovery.h
+    - wifi_private_store.h
+    - wifi_profile_prepare.h
+    - wifi_switch_transaction.h
+    - supervisor_full_materialize.h
+    - supervisor_full_plan.h
+    - supervisor_image.h
+    - supervisor_image_types.h
+    - supervisor_process_tree.h
+    - supervisor_recovery_effects.h
+    - supervisor_network_receipt.h
+    - supervisor_wifi_private_root.h
+    - wifi_store_install.h
+    - trial_staging.h
+    - full_release_store.h
+    - full_boot_flow.h
+    - core_reboot_flow.h
+    - core_display_admission.h
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [cgs1_full_runtime]
+api:
+  actions:
+    - action: full_runtime_reboot_core_device
+      supports_response: only
+      variables:
+        expected_boot_id: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).reboot_core_device(expected_boot_id, root);
+    - action: full_runtime_install_core_release
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).install_core_release(job, root);
+    - action: full_runtime_set_core_boot_mode
+      supports_response: only
+      variables:
+        enabled: bool
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).set_core_boot_mode(enabled, root);
+    - action: full_runtime_start_installed_core
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).start_installed_core(root);
+    - action: full_runtime_new_session
+      supports_response: only
+      variables:
+        previous_job: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).new_session(previous_job, root);
+    - action: full_runtime_purge_inactive_cache
+      supports_response: only
+      variables:
+        job: string
+        native_sha256: string
+        guardian_sha256: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).purge_inactive_cache(job, native_sha256, guardian_sha256, root);
+    - action: full_runtime_inspect_start
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).inspect_start(root);
+    - action: full_runtime_install_wifi_store
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).install_wifi_store(root);
+    - action: full_runtime_diagnostic_page
+      supports_response: only
+      variables:
+        job: string
+        file_index: int
+        page_index: int
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).diagnostic_page(job, file_index, page_index, root);
+    - action: full_runtime_retire
+      supports_response: only
+      variables:
+        job: string
+        native_sha256: string
+        guardian_sha256: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).retire(job, native_sha256, guardian_sha256, root);
+    - action: full_runtime_reclaim
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).reclaim(job, root);
+    # A distinct, one-use upload-deduplication actor. The two exact pinned
+    # materialized ELFs survive. This action cannot retire a program or grant
+    # recovery/launch authority, even when a historical receipt is missing.
+    - action: full_runtime_deduplicate_uploads
+      supports_response: only
+      variables:
+        job: string
+        native_sha256: string
+        guardian_sha256: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).deduplicate_uploads(job, native_sha256, guardian_sha256, root);
+    - action: full_runtime_diagnostics
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).diagnostics(job, root);
+    - action: full_runtime_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).report(root);
+    - action: full_runtime_begin
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+      then:
+        - lambda: id(full_runtime).begin(job, kind);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);
+    - action: full_runtime_chunk
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+        offset: int
+        hex_data: string
+      then:
+        - lambda: id(full_runtime).chunk(job, kind, offset, hex_data);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);
+    - action: full_runtime_seal
+      supports_response: only
+      variables:
+        job: string
+        kind: string
+      then:
+        - lambda: id(full_runtime).seal(job, kind);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);
+    - action: full_runtime_prepare
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(full_runtime).prepare(job);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);
+    - action: full_runtime_launch
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(full_runtime).launch(job);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);

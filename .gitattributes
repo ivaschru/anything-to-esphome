@@ -1,0 +1,4 @@
+# Preserve third-party licenses and patch context verbatim; their whitespace
+# is not a newly introduced source-style error.
+ports/*/fonts/OFL.txt -whitespace
+ports/monitor1/patches/*.patch -whitespace

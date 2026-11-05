@@ -1,0 +1,162 @@
+# Full-native candidate: only the sealed-plan/dual-guardian runner may start it.
+# Generate the compiled guardian pin first. This is not a standalone installer.
+packages:
+  shared: !include native-ui-shared.yaml
+  identity: !include native-ha-identity.yaml
+  pm_controls: !include independent-pm-controls.yaml
+  guardian_release: !include build/full-native-release.yaml
+substitutions:
+  cgs1_node_name: qingping-cgs1-stock-bridge
+  cgs1_friendly_name: Qingping CGS1 Stock Bridge
+  cgs1_api_mac: "02:00:00:00:00:01"
+  pm_runtime: cgs1_full::pm
+  durable_full_state: "false"
+esphome:
+  name: ${cgs1_node_name}
+  friendly_name: ${cgs1_friendly_name}
+  build_path: build/qingping-cgs1-full-native
+  includes:
+    - device_profile.h
+    - checkpoint_epoch.h
+    - direct_peripheral_probe.h
+    - direct_pm_protocol.h
+    - full_native_runtime.h
+    - native_full_state.h
+    - native_preferences_snapshot.h
+    - native_preferences_store.h
+    - native_pm_choice.h
+    - pm_choice_commit.h
+    - full_pm_power.h
+    - independent_pm_power.h
+    - monotonic_cadence.h
+    - network_preflight.h
+    - pm_uart_pinmux.h
+    - supervisor_bootstrap_codec.h
+    - supervisor_channel.h
+    - supervisor_client.h
+    - supervisor_full_plan.h
+    - supervisor_image.h
+    - supervisor_image_types.h
+    - supervisor_native_bootstrap.h
+    - supervisor_native_session.h
+    - supervisor_peer_bootstrap.h
+    - supervisor_pm_current.h
+    - supervisor_process_tree.h
+    - supervisor_recovery_effects.h
+    - supervisor_sdk_ota.h
+    - supervisor_sdk_restart.h
+    - supervisor_twin_client.h
+    - thermal_lifecycle.h
+    - thermal_model.h
+    - thermal_runtime.h
+    - thermal_seed_codec.h
+    - thermal_state_codec.h
+    - thermal_state_store.h
+    - native_wifi_transaction.h
+    - native_wifi_forward.h
+    - wifi_forward_flow.h
+    - wifi_guard_retirement.h
+    - wifi_forward_refresh.h
+    - wifi_forward_connectivity.h
+    - wifi_guard_plan.h
+    - wifi_profile_prepare.h
+    - wifi_switch_transaction.h
+    - wifi_saved_profiles.h
+    - wifi_control_inspect.h
+    - wifi_private_store.h
+    - wifi_commit_decision.h
+    - gateway_echo.h
+    - dhcp_ipv4_packet.h
+    - dhcp_lease_proof.h
+    - network_ipv4_inspect.h
+    - dhcp_capture_probe.h
+    - wifi_boot_baseline.h
+    - wifi_daemon_inspect.h
+    - dhcp_owner_inspect.h
+    - supervisor_wifi_private_root.h
+    - dhcp_packet_capture.h
+    - wifi_forward_select.h
+    - wifi_forward_step.h
+    - dhcp_renew_once.h
+    - gateway_probe.h
+    - dhcp_wait_inspect.h
+    - libc_select_code.h
+    - libc_vendor_binary.h
+    - busybox_vendor_binary.h
+    - wifi_forward_association.h
+    - native_wifi_retirement.h
+    - wifi_guard_retirement_files.h
+    - wifi_retirement_scope.h
+    - wifi_guard_record_files.h
+    - wifi_guard_records.h
+    - wifi_guard_retirement_ack_files.h
+    - wifi_guard_retirement_intent_file.h
+    - wifi_guard_retirement_record.h
+    - wifi_guard_retirement_ack.h
+    - native_wifi_scope.h
+    - wpa_vendor_no_connect.h
+    - wpa_vendor_privacy.h
+    - wifi_version_logging.h
+    - wpa_vendor_binary.h
+    - wifi_forward_restore.h
+    - native_wifi_prepare.h
+    - wifi_prepare_authority.h
+    - native_wifi_plan.h
+    - wifi_scan_results.h
+    - supervisor_network_receipt.h
+  on_boot:
+    - priority: 1300
+      then:
+        - lambda: |-
+            if (!cgs1_full::early("${guardian_sha256}", *id(full_native_ota), ${durable_full_state})) std::_Exit(73);
+            id(panel).set_full_display_authority(cgs1_full::display_authority());
+    - priority: -110
+      then:
+        - lambda: |-
+            if (!cgs1_full::setup_pm(id(pm_uart))) std::_Exit(73);
+            id(panel).set_pm_action([](bool enabled) {
+              if (enabled) id(native_pm_power).turn_on(); else id(native_pm_power).turn_off();
+            });
+            id(native_pm_power).publish_state(cgs1_full::pm.enabled());
+  on_loop:
+    - lambda: cgs1_full::loop(*id(panel));
+  on_shutdown:
+    - then:
+        - lambda: cgs1_full::before_shutdown();
+host:
+  mac_address: ${cgs1_api_mac}
+# The two independent guardians own this child's startup, exec/OTA leases and
+# stock fallback. SDK Safe Mode writes its boot counter before App.setup(),
+# earlier than our priority1300 bootstrap, and can return before registering
+# that bootstrap. Disable it ONLY for this guarded full profile; the separate
+# stock-preserving bridge keeps its ordinary SDK recovery behavior.
+safe_mode:
+  disabled: true
+logger:
+  level: WARN
+api:
+  port: 6053
+  actions:
+    - action: full_native_restart
+      supports_response: status
+      then:
+        - api.respond:
+            success: !lambda return cgs1_full::request_restart();
+    - action: full_native_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda cgs1_full::report(root, *id(panel));
+    - action: full_native_return_to_stock
+      supports_response: status
+      then:
+        - api.respond:
+            success: !lambda return cgs1_full::request_return();
+ota:
+  - platform: esphome
+    id: full_native_ota
+    port: 3232
+    encryption:
+    on_begin:
+      - lambda: return;
+sha256:
