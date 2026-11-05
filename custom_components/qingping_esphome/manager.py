@@ -25,6 +25,7 @@ from .image import SLOTS, mac_normalize, personalize, private_ipv4
 from .relay import Relay, Session
 
 DOMAIN = "qingping_esphome"
+TEMPLATE_ROOT = Path(__file__).parent / "firmware"
 
 
 class Manager:
@@ -109,14 +110,14 @@ class Manager:
             raise ValueError("SSID должен помещаться в 32 байта, пароль — в 63")
         if any(c in ssid + password for c in ('"', '\\', '\r', '\n', '\0')):
             raise ValueError("Кавычки, обратный слеш и переносы пока не поддержаны stock BLE setup")
-        root = Path(__file__).parent / "firmware"
+        root = TEMPLATE_ROOT
         manifest_path = root / "lite-template.json"
         if not manifest_path.is_file():
             raise ValueError("В релизе нет firmware template; установите полный release ZIP")
         manifest = await self.hass.async_add_executor_job(lambda: json.loads(manifest_path.read_text()))
         template = await self.hass.async_add_executor_job((root / "lite-template.bin").read_bytes)
         psk = secrets.token_bytes(32)
-        name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)
+        name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)[:9]
         values = {"ssid": ssid, "wifi_password": password, "name": name,
                   "ap_ssid": "Qingping-" + mac[-6:], "ap_password": secrets.token_hex(8),
                   "ota_password": secrets.token_hex(16), "noise_psk": psk}
@@ -161,7 +162,7 @@ class Manager:
                 client = APIClient(session.peer, 6053, "", noise_psk=session.noise_key,
                                    client_info="Qingping HACS installation check")
                 try:
-                    await asyncio.wait_for(client.connect(login=True), 6)
+                    await asyncio.wait_for(client.connect(login=True, log_errors=False), 6)
                     break
                 except Exception as error:
                     # Read-only retries never resend the factory OTA command.
