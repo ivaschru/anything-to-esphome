@@ -131,6 +131,7 @@ class Relay:
         self.sessions: dict[str, Session] = {}
         self.firmware_url, self.before_send = firmware_url, before_send
         self.server = None
+        self.connections = set()
 
     async def start(self, port):
         self.server = await asyncio.start_server(self.handle, "0.0.0.0", port, limit=MAX_PACKET + 8)
@@ -209,6 +210,12 @@ class Relay:
 
     async def handle(self, reader, writer):
         session = None
+        # Bound even unauthenticated idle clients before reading their CONNECT.
+        # Installation sessions are few; this listener is not a general broker.
+        if len(self.connections) >= 8:
+            writer.close()
+            return
+        self.connections.add(writer)
         try:
             peer = writer.get_extra_info("peername")[0]
             private_ipv4(peer)
@@ -252,10 +259,11 @@ class Relay:
                 elif kind == 14: break
                 else: raise ValueError("Unsupported session MQTT packet")
                 await writer.drain()
-        except (asyncio.IncompleteReadError, TimeoutError, ConnectionError, ValueError, OSError):
+        except (asyncio.IncompleteReadError, TimeoutError, ConnectionError, ValueError, OSError, TypeError, RecursionError):
             # Do not log arbitrary MQTT/JSON data: it may contain user settings.
             pass
         finally:
+            self.connections.discard(writer)
             if session and session.writer is writer:
                 session.writer = None; session.subscribed = False
             writer.close()
