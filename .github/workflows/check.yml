@@ -90,6 +90,14 @@ jobs:
         # Build/run only on the disposable hosted runner. No USB mapping,
         # device, HA connection, image publication or local Mac VM is used.
         run: docker build --platform linux/${{ matrix.architecture }} -t qingping-usb-ci apps/monitor1_usb
+      - name: Check pinned build SDK in the actual app image
+        # Public requirements and a synthetic C program only. Run on the
+        # disposable CI runner with one CPU/2GiB, never a Mac VM or monitor.
+        run: |
+          docker run --rm --platform linux/${{ matrix.architecture }} --cpus=1 --memory=2g \
+            -v "$PWD/ports/monitor1/requirements.txt:/public-requirements.txt:ro" \
+            -v "$PWD/tools/monitor1-usb/check_build_environment.py:/check-build.py:ro" \
+            qingping-usb-ci python3 /check-build.py
       - name: Verify real container startup and ingress refusal
         run: |
           docker run -d --platform linux/${{ matrix.architecture }} --name qingping-usb-ci --network none --tmpfs /data qingping-usb-ci

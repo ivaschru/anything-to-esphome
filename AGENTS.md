@@ -36,6 +36,18 @@ separate even though the HACS wizard is shared.
   Preserve private 0600/0700 inputs and the eight-job limit without pruning
   keys/recovery/history. No compiler or GUI device writer is enabled by this
   profile step. Run tests/test_usb_preparation.py and the imported Node test.
+- Companion private builds consume an owner-bound build intent before spawn,
+  fetch only the exact reviewed public source commit and use the canonical
+  build_candidate controller. Never accept source refs, commands, paths or
+  environment from HTTP. One CPU/nice10, one global flock, 6GiB initial free,
+  512MiB stop floor and a two-hour bound apply. Incomplete durable history
+  blocks new builds even after restart; never adopt a serialized PID or retry.
+  Retire only a creator-owned unreaped process group (Linux WNOWAIT). Keys,
+  vendor inputs, logs and programs stay private; status is allowlisted and
+  built_not_installed never changes readiness or enables a USB writer.
+  CI checks the actual multiarch image SDK with public requirements and a
+  synthetic ARM32 program, never private firmware/vendor Qt or hardware QA.
+
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
   creator-owned intent/fork, nonblocking child identity before gate release,

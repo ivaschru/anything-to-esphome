@@ -18,7 +18,7 @@ mode resolves the exact installed companion from Supervisor metadata and opens
 its native admin ingress page. Missing/stopped apps produce instructions;
 the integration never installs, starts or configures an app automatically.
 
-**This is not yet a complete flashing app.** It prepares a private profile but does not compile or
+**This is not yet a complete flashing app.** It prepares a private profile and builds matched private firmware, but does not
 upload a program, run the bounded trial, activate firmware,
 reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.
 The explicit engineering writer/trial remains separate in
@@ -83,7 +83,44 @@ preserved rather than treated as safe deletion candidates.
 A prepared profile is **not built or installed firmware**. Archive identity is
 an untrusted historical claim; every future device operation still requires its
 own live USB identity/source checks. A browser capture never invents ADB's
-native USB path. Compilation and writer/trial GUI integration remain pending.
+native USB path. The build action below is available. Writer/trial GUI integration remains pending.
+
+## Build on the HA server
+
+With a prepared job selected, choose **Build private firmware**. The same
+HA companion builds for either cable location; the monitor need not stay
+connected during compilation. No compiler/VM runs on the browser computer.
+
+The worker fetches the fixed reviewed public commit
+`e09440f9fa36da2aaad16212734879bb6304f6d2`, creates its isolated pinned SDK and
+calls the canonical `build_candidate.py`. It links your verified private Qt
+input and individual profile, builds the matched guardian/native/bridge and
+initial trial guardian, then checks the actual output hashes. Private inputs,
+programs and logs stay in this app's `/data/jobs`; no public build service or
+GitHub artifact receives them. Internet downloads are public source/tools only.
+
+The worker uses one logical CPU with nice 10 and sequential compilation.
+It requires 6 GiB free before starting, stops its own process group if free
+space falls below 512 MiB, and has a two-hour total bound. The minimum free
+space check is not a storage reservation. An incomplete older build also
+blocks a new build after restart; a PID file never authorizes adoption or a
+second process. Existing jobs, keys and logs are preserved on failure.
+
+Starting consumes a durable intent before the worker is created. Lost replies
+are reconciled with status reads only. Closing/reopening the page does not
+restart a build: select the saved job and check its state. An app restart can
+make a still-running old build unverified until its own terminal receipt is
+available; do not start a replacement or delete its history.
+
+**Built is not installed.** The writer/trial GUI and real first-install
+qualification are still unfinished. Neither a complete compile nor a synthetic
+SDK/container test establishes device compatibility, live USB authority,
+Bluetooth proxy support or safe activation. Monitor 2 stays unverified.
+
+The pinned [Zig 0.14.1 distribution](https://pypi.org/project/ziglang/0.14.1/#files)
+provides musllinux wheels for both ARM64 and x86-64. CI separately checks the
+actual companion image's pinned SDK imports and compiles a synthetic ARM32
+program; this check uses no monitor, vendor Qt library or private firmware.
 
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;

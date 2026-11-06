@@ -1,9 +1,10 @@
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations} from "./usb-probe-bundle.mjs";
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
 let pendingPreparation, preparationReady=false;
 let storedJobs=[];
+let buildState, buildTimer;
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -18,7 +19,16 @@ function translate() {
   $("preparation-result").textContent=preparationReady ? text("profile_prepared") : "";
   renderDevices();
   renderJobs();
+  renderBuild();
 }
+function renderBuild() {
+  $("build-controls").hidden=!preparationReady;
+  $("build-firmware").disabled=busy || !preparationReady || (buildState && buildState.state!=="not_started");
+  $("build-status").disabled=busy || !pendingPreparation;
+  $("build-result").textContent=buildState ? text("build_"+buildState.state)+
+    (buildState.state==="building" ? " "+text("build_phase_"+buildState.phase) : "") : "";
+}
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -28,10 +38,11 @@ function controls() {
   $("preparation-status").hidden=!pendingPreparation;
   $("refresh-jobs").disabled=$("saved-job").disabled=busy;
   $("ha-picker").hidden = $("transport").value !== "ha";
+  renderBuild();
 }
 function clear() {$("identity").replaceChildren(); $("status").textContent = $("error").textContent = "";lastError = lastStatus = null;
   captureProgress=undefined;$("capture-progress").hidden=true;$("capture-progress").removeAttribute("value");
-  pendingPreparation=undefined;preparationReady=false;$("preparation-result").textContent="";$("saved-job").value="";}
+  pendingPreparation=undefined;preparationReady=false;$("preparation-result").textContent="";$("saved-job").value="";resetBuild();}
 function renderJobs() {
   const selected=$("saved-job").value;$("saved-job").replaceChildren();
   const initial=document.createElement("option");initial.value="";initial.textContent=text("choose_preparation");$("saved-job").append(initial);
@@ -145,6 +156,7 @@ $("prepare-profile").onclick=async()=>{
     storedJobs=[...storedJobs.filter(item=>item.job_id!==job.job_id),job];renderJobs();$("saved-job").value=job.job_id;
     preparationReady=true;lastStatus=null;$("status").textContent="";
     $("preparation-result").textContent=text("profile_prepared");
+    buildState={state:"not_started"};
   } catch(error) {lastStatus=null;$("status").textContent="";lastError=error.code || "failed";$("error").textContent=text(lastError);}
   finally {probe=undefined;busy=false;captureProgress=undefined;$("capture-progress").hidden=true;controls();}
 };
@@ -155,6 +167,7 @@ async function checkPreparation() {
     await readPrepared(rpc,pendingPreparation.id,pendingPreparation.transport);
     preparationReady=true;lastStatus=null;$("status").textContent="";
     $("preparation-result").textContent=text("profile_prepared");
+    await checkBuild(false);
   } catch {lastError="usb_preparation_unverified";$("error").textContent=text(lastError);}
   finally {busy=false;controls();}
 }
@@ -164,7 +177,7 @@ $("saved-job").onchange=async()=>{
   const job=storedJobs.find(item=>item.job_id===$("saved-job").value);
   pendingPreparation=job ? {id:job.job_id,transport:job.transport} : undefined;
   if(job) $("friendly-name").value=job.friendly_name;
-  preparationReady=false;$("preparation-result").textContent="";controls();
+  preparationReady=false;$("preparation-result").textContent="";resetBuild();controls();
   if(pendingPreparation) await checkPreparation();
 };
 async function loadPreparations() {
@@ -182,7 +195,32 @@ async function loadPreparations() {
 $("refresh-jobs").onclick=()=>loadPreparations();
 $("friendly-name").oninput=()=>{
   if(busy) return;
-  pendingPreparation=undefined;preparationReady=false;$("saved-job").value="";$("preparation-result").textContent="";controls();
+  pendingPreparation=undefined;preparationReady=false;$("saved-job").value="";$("preparation-result").textContent="";resetBuild();controls();
 };
-window.addEventListener("pagehide",()=>{void probe?.close().catch(()=>{});});
+async function checkBuild(manual=true) {
+  if(!pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  clearTimeout(buildTimer);
+  try {
+    const result=await readBuild(rpc,id);
+    if(pendingPreparation?.id!==id) return;
+    buildState=result;renderBuild();
+    // Poll only the same explicitly selected active job. A reload does not
+    // select or restart work; owner selection performs GET status only.
+    if(result.state==="building") buildTimer=setTimeout(()=>void checkBuild(),5000);
+  } catch {if(pendingPreparation?.id===id) {buildState={state:"build_unverified"};renderBuild();}}
+  finally {if(manual) {busy=false;controls();}}
+}
+$("build-status").onclick=()=>checkBuild();
+$("build-firmware").onclick=async()=>{
+  if(busy || !preparationReady || !pendingPreparation || (buildState && buildState.state!=="not_started")) return;
+  busy=true;controls();clearTimeout(buildTimer);lastError=null;$("error").textContent="";
+  try {
+    buildState=await startBuild(rpc,pendingPreparation.id);renderBuild();
+    if(buildState.state==="building") buildTimer=setTimeout(()=>void checkBuild(),5000);
+  } catch(error) {lastError=error.code || "usb_build_unverified";$("error").textContent=text(lastError);}
+  finally {busy=false;controls();}
+};
+window.addEventListener("pagehide",()=>{clearTimeout(buildTimer);void probe?.close().catch(()=>{});});
 translate();controls();void loadPreparations(); // Owner metadata only; no USB or writer resumes.
