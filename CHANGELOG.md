@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: pure policy первого ограниченного stock-bridge trial с обоими
+  opt-out, проверкой owned child, fixed deadline и свежих Noise-показаний;
+  execution adapter/guardian и физическая квалификация ещё не выполнены
+
 - Monitor 1: отдельный experimental disabled script writer/rollback с новым
   consumed intent, marker и независимым whole-scope readback; оба opt-out
   сохраняются, activation и аппаратная квалификация ещё не выполнены

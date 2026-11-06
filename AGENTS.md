@@ -44,6 +44,13 @@ separate even though the HACS wizard is shared.
   Preserve command-substitution exit status explicitly; PID output followed by
   a failed scan is not success. CI exercises only rewritten temporary paths as
   real Linux/root; never run production-path replacement commands on a host.
+  `initial_bridge_trial_policy.py` is pure policy, not an executable guardian
+  or activation route. Preserve both opt-outs, absent autostart/Wi-Fi/prefs
+  stores and private RAM scope. A future device timer must own/reap only its
+  kernel child with parent-death TERM and child-only OOM protection; never
+  adopt a PID or reuse the retrying launcher. Fixed deadline, one TERM/KILL,
+  recent exact authenticated wire updates and clean reap are independent
+  gates. Source RAM floors and fixtures are not measured hardware proof.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

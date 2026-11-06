@@ -204,6 +204,50 @@ separate Linux/root fixture maps every device path into a private temporary
 tree to exercise real guard/copy/hash/syntax/rename operations. Host fixtures
 do not establish NAND durability, boot behavior or a physical installation.
 
+## 8. First bounded stock-bridge trial policy (no execution adapter yet)
+
+`initial_bridge_trial_policy.py` defines admission and outcome for the next
+stage without device, filesystem, process, signal or API IO. **It is not an
+activation command or a working trial guardian.** The simulated observations
+in its tests are not a fresh device review or a hardware result.
+
+Both exact boot scripts must already be committed, and **both persistent
+disable flags remain set throughout**. The first trial must not use the
+retrying boot launcher. It requires a separate one-shot device-side guardian
+with a fixed 60-second monotonic deadline, independent of the host connection.
+The guardian may terminate/reap only its actual unreaped kernel child, with
+child parent-death SIGTERM and child-only `oom_score_adj=1000` armed before
+exec. The stock/watchdog PID identities are explicitly excluded. No adoption
+of a PID from a file or from an ADB response is allowed.
+
+The policy additionally requires an absent full-release store, persistent
+preferences and Wi-Fi store, absent boot-launcher RAM lock, free API/OTA
+listeners, and a private verified RAM workspace. This matters because the
+production bridge has native core autostart enabled: a pre-existing release
+store could otherwise start a second mode during a headless trial. Nothing
+in this step permits enabling the PM extension or stopping stock processes.
+
+Two authenticated API batches must match the exact API MAC/node and contain
+four independent CO2/T/RH/tVOC wire-update generations, at least 10 seconds
+apart. Values must be finite and valid, with a fresh stock response. A recent
+batch is required at the deadline; cached early values do not qualify the
+trial. A normal TERM and independent exact-child reap with a clean/TERM exit,
+both flags and the whole stock scope unchanged, can qualify only this bounded
+trial. An early exit, crash, stale proof, changed scope or forced stop cannot.
+
+TERM has a five-second grace, then at most one KILL of that same held child;
+failure to reap in another five seconds seals reconciliation without repeated
+signals. Start is also single-issue: a delayed ACK or host timeout never
+restarts or extends the trial. A future transport must consume/fsync a new
+immutable trial intent before issuing the guardian; the pure policy does not
+persist one or grant process authority.
+
+Source admission uses 32 MiB initial RAM, an 8 MiB running/data floor and a
+64 KiB log cap. These are conservative gates, **not a measured guarantee of
+enough memory on a monitor**. A matching guardian/collector, measured process
+footprint, disconnect/fallback tests and physical qualification are still
+required. HACS CGS1 remains `source_only`.
+
 ## Remaining activation and hardware gates
 
 The preparation tools stop before device writes; experimental disabled staging
