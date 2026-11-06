@@ -340,3 +340,10 @@ separate even though the HACS wizard is shared.
   shutdown. Run tests/test_pm_polling_policy.py for this boundary. Release
   templates carry pm_policy and the exact PM source SHA; package_release rejects
   an old policy or mismatched source even when the binary checksum is valid.
+
+- Installer-only releases use `python tools/prepare_release_template.py` to
+  reuse the exact public v0.1.3 Lite pair only with matching committed Lite
+  tree/compiler/personalizer pins. Dirty or missing source and a failed asset
+  read refuse; clean changed source uses the ordinary pinned compiler. Never
+  overwrite existing output, substitute a private build or separate a binary
+  from its matching manifest. Build/package from a clean committed snapshot.
