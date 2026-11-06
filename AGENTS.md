@@ -20,6 +20,12 @@ separate even though the HACS wizard is shared.
   The HACS Monitor 1 card opens computer WebUSB without the app. Server USB
   resolves the exact installed URL/slug and uses native admin ingress;
   never infer a repository ID, install/start an app, or log ingress credentials.
+  The capture action reads only the nine generated preflight files, verifies
+  local byte counts/SHA and rechecks source/identity after copying. Keep the
+  archive private, fixed-member USTAR with 0600 files/0700 directories, never
+  a public firmware asset or full-NAND claim. Server temporary copies vanish
+  and the global USB lease covers delivery. Browser RECV stays bounded and
+  memory-only; it must not invent native get-devpath or native-plan authority.
 
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep

@@ -3,8 +3,8 @@
 
 No device or private capture is opened. --check compares bytes without writing.
 The browser probe is not the complete Python capture/apply controller: it
-exports only filtered identity and verified source status, never a backup or
-new install authority.
+exports filtered identity, fixed recovery-file pins and read-only capture
+metadata. A capture is not new install authority or a complete NAND backup.
 """
 import argparse
 import importlib
@@ -33,6 +33,7 @@ def specification():
     files = []
     for path, (digest, size) in preflight.FILES.items():
         files.append({
+            "path": path, "sha256": digest, "size": size,
             "command": "test ! -L " + path + "\ntest -f " + path +
                        "\nstat -c '%s %h' " + path + "\nsha256sum " + path,
             "expected": f"{size} 1\n{digest} {path}",
