@@ -21,6 +21,14 @@ finally:
     sys.path.pop(0)
 
 
+def localize_device_paths(command, root):
+    # Match a leading absolute path, not another component inside that path:
+    # /data/etc must become ROOT/data/etc, never ROOT/data/ROOT/etc. '#' is
+    # allowed before /proc for the shell's ${link#/proc/} prefix removal.
+    return re.sub(r"(?<![A-Za-z0-9_./-])/(?:usr/lib|data|proc|sys|lib|etc)(?=/|$)",
+                  lambda match: str(root) + match[0], command)
+
+
 class WriterAdb(fixtures.ReviewAdb):
     def __init__(self, stock):
         super().__init__(stock)
@@ -122,6 +130,11 @@ class DisabledWriterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             writer.inline_guard(plan, observed, "commit_disabled", "bad;command")
 
+    def test_isolated_fixture_rewrites_only_path_roots_once(self):
+        root = Path("/tmp/isolated-device")
+        self.assertEqual(localize_device_paths("stat /data/etc/init.d /usr/lib/libc; pid=${link#/proc/}; /bin/sh", root),
+                         "stat /tmp/isolated-device/data/etc/init.d /tmp/isolated-device/usr/lib/libc; pid=${link#/tmp/isolated-device/proc/}; /bin/sh")
+
     @unittest.skipUnless(sys.platform.startswith("linux") and os.geteuid() == 0,
                          "Real Linux/root metadata; CI runs an explicit disposable root fixture")
     def test_real_atomic_replacement_in_an_isolated_filesystem_keeps_recovery_sources(self):
@@ -164,7 +177,7 @@ class DisabledWriterTests(unittest.TestCase):
             for _ in action.operations:
                 operation = action.issue(observed)
                 command = writer.replacement_command(plan, observed, direction, nonce, operation)
-                command = re.sub(r"/(?:usr/lib|data|proc|sys|lib|etc)(?=/|$)", lambda match: str(root) + match[0], command)
+                command = localize_device_paths(command, root)
                 # Global durability is a device QA item; don't flush unrelated
                 # host filesystems. Real copy/hash/rename are still executed.
                 command = re.sub(r"(?m)^sync$", ":", command)
