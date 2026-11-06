@@ -112,6 +112,9 @@ class Session:
     state: str = "waiting_for_device"
     progress: int = 0
     error: str | None = None
+    transport: str = "browser"
+    provisioning_started: bool = False
+    provisioned: bool = False
 
     @property
     def up(self): return f"qingping/{self.mac}/up"
@@ -126,6 +129,8 @@ class Session:
         return {"id": self.id, "mac": self.mac, "name": self.name,
                 "state": self.state, "progress": self.progress,
                 "sent": self.sent, "armed": self.armed, "downloaded": self.downloaded,
+                "transport": self.transport, "provisioning_started": self.provisioning_started,
+                "provisioned": self.provisioned,
                 "error_code": self.error,
                 "error": MESSAGES.get(self.error, MESSAGES["operation_failed"]) if self.error else None}
 

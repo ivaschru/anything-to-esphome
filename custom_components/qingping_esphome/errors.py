@@ -4,6 +4,17 @@ The browser localizes codes in place when its language changes. English is
 also provided for older clients and for tools that do not use the panel.
 """
 MESSAGES = {
+    "ha_bluetooth_unavailable": "Home Assistant has no connectable Bluetooth adapter or proxy. Configure one, or use this device's Bluetooth.",
+    "ha_bluetooth_not_found": "Home Assistant cannot reach this monitor. Enable pairing mode near an adapter or active proxy and search again.",
+    "ha_bluetooth_busy": "Bluetooth discovery or this monitor is already in use. Wait for the current operation to finish.",
+    "ha_bluetooth_failed": "Home Assistant Bluetooth setup did not finish. Check the session and monitor before starting a new setup.",
+    "ha_bluetooth_selection_expired": "The Home Assistant Bluetooth selection expired or belongs to another user. Select the monitor again.",
+    "ha_bluetooth_setup_started": "Bluetooth setup has already started for this session. Check its status; it has not been repeated.",
+    "ha_bluetooth_setup_incomplete": "Home Assistant has not confirmed Bluetooth setup. Check the session before continuing.",
+    "selected_changed": "The selected monitor changed.",
+    "ble_packet_length": "The settings do not fit in the stock Bluetooth packet.",
+    "ble_rejected": "The monitor rejected setup. No new firmware was sent; check pairing mode.",
+    "ble_ack_timeout": "Setup was not acknowledged. Check the session before retrying.",
     "operation_failed": "The operation did not finish. Check the session before retrying.",
     "unauthorized": "Home Assistant administrator access is required.",
     "not_loaded": "The integration is not running.",

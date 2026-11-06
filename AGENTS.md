@@ -216,6 +216,19 @@ separate even though the HACS wizard is shared.
 - The owner chose to retain the three advertised-name Bluetooth prefixes for
   now (2026-11-06). Do not expand to acceptAllDevices without a new decision.
   An empty filtered picker does not prove that all nearby BLE is invisible.
+- Lite setup offers browser Bluetooth and HA Bluetooth as explicit transports.
+  HA uses the shared Bluetooth APIs and connectable BLEDevice resolution, so
+  local adapters and active GATT proxies share one path; never start a private
+  scanner or imply that passive-only proxies can connect. Browser mode keeps
+  requestDevice in its original click and needs Chrome/HTTPS. HA mode needs
+  neither Web Bluetooth nor a browser radio. Keep the same three name prefixes.
+  Selection is a bounded, owner-scoped identity read with immediate disconnect;
+  before provisioning reconnect and recheck model/version/hardware/factory MAC.
+  Reserve setup before awaiting, never replay writes, and gate arm until setup
+  has completed. A disconnected WebSocket never arms OTA; unload cancels owned
+  tasks and releases connections. This route is source-tested, not yet hardware
+  qualified. Run tests/test_ha_bluetooth.py with the real HA SDK plus that SDK's
+  Bluetooth/USB manifest requirements, and node tests/test_ha_transport.mjs.
 - A loaded installer/panel needs no duplicate config entry. Explain its zero
   device count: physical monitors belong to ESPHome. Follow Marketplace's
   actual restart requirement rather than prescribing restart unconditionally.
