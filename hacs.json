@@ -3,5 +3,6 @@
   "homeassistant": "2026.10.2",
   "render_readme": true,
   "zip_release": true,
-  "filename": "qingping_esphome.zip"
+  "filename": "qingping_esphome.zip",
+  "hide_default_branch": true
 }

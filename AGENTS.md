@@ -38,3 +38,7 @@ separate even though the HACS wizard is shared.
 - Monitor 1 is a source snapshot, not yet a universal release builder.
   Do not remove missing-manifest checks or copy private release pins to make
   full YAML compile. Monitor 2 remains disabled until hardware verification.
+- Normal HACS installs must have a non-prerelease tag with the ZIP asset.
+  Keep hide_default_branch=true: zip_release cannot install a source branch
+  without its own release asset. Hyphenated beta/rc tags remain prereleases;
+  numeric stable tags must not inherit an unconditional --prerelease flag.
