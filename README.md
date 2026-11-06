@@ -162,3 +162,10 @@ is not affiliated with Qingping, Xiaomi or ESPHome.
 Lite is based on [nemethhh/esphome-qingping-cgdn1](https://github.com/nemethhh/esphome-qingping-cgdn1).
 The stock BLE/MQTT flow is described by [bitrate16/qingping](https://github.com/bitrate16/qingping).
 Component provenance and licenses are in [NOTICE](NOTICE.md).
+
+### Lite firmware in v0.1.3
+
+The rebuilt template keeps GPIO13 HIGH when PM is OFF, preserving CO₂
+communication. PM OFF stops polling and marks PM readings unavailable; it does
+not stop the fan. HACS updates the installer only: devices already running
+ESPHome are not reflashed automatically.

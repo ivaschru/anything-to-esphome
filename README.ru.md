@@ -167,3 +167,10 @@ python -m venv .venv
 Lite основан на [nemethhh/esphome-qingping-cgdn1](https://github.com/nemethhh/esphome-qingping-cgdn1).
 Описание заводского BLE/MQTT-пути: [bitrate16/qingping](https://github.com/bitrate16/qingping).
 Лицензии и происхождение компонентов — в [NOTICE](NOTICE.md).
+
+### Прошивка Lite в v0.1.3
+
+Пересобранный шаблон сохраняет GPIO13 HIGH при PM OFF, чтобы не прерывать связь
+с CO₂. PM OFF останавливает опрос и делает показания PM недоступными;
+вентилятор продолжает работать. Обновление HACS меняет только установщик:
+уже прошитые ESPHome приборы автоматически не перепрошиваются.

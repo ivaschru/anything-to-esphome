@@ -103,7 +103,9 @@ captive_portal: !remove
     output.mkdir(exist_ok=True)
     (output / "lite-template.bin").write_bytes(binary)
     (output / "lite-template.json").write_text(json.dumps({
-        "model": "CGDN1", "ui": "2026.11.04-ui25", "font": "Inter (OFL)",
+        "pm_policy": "polling-only-gpio13-high-v1",
+        "pm_source_sha256": hashlib.sha256((ROOT / "ports/lite/components/cgdn1_pm/cgdn1_pm.h").read_bytes()).hexdigest(),
+        "model": "CGDN1", "ui": "2026.11.06-ui25-polling1", "font": "Inter (OFL)",
         "esphome": "2026.9.1", "size": len(binary), "sha256": digest,
         "slots": counts, "format": "esp32-app-fixed-slots-v1",
     }, indent=2) + "\n")

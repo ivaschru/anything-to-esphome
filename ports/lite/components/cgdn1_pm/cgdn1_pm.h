@@ -8,9 +8,11 @@
 namespace esphome::cgdn1_pm {
 static constexpr const char *TAG = "cgdn1_pm";
 
-// This requests a GPIO level; our child board does NOT achieve physical PM-off.
-// The stock power latch remains owned by cgdn1_boot. GPIO18 is deliberately not
-// touched: the two independent CGDN1 projects disagree on its exact function.
+// PM OFF is a measurement preference, not permission to cut a sensor supply.
+// GPIO13 LOW can also interrupt CO2 communication on supported CGDN1 boards.
+// Keep its known-working HIGH state for both restored and runtime OFF; suspend
+// only PM polling and publish unavailable values. This does not stop the fan.
+// Whole-board shutdown stays exclusively in cgdn1_boot; GPIO18 is untouched.
 class Cgdn1Pm : public Component {
  public:
   void set_reader(pmsa003i::PMSA003IComponent *reader) { reader_ = reader; }
@@ -43,7 +45,7 @@ class Cgdn1Pm : public Component {
     apply_();
   }
   void dump_config() override {
-    ESP_LOGCONFIG("cgdn1_pm", "PM control request: %s; readings: %s; warmup: %u ms",
+    ESP_LOGCONFIG("cgdn1_pm", "PM polling: %s; readings: %s; warmup: %u ms; GPIO13 HIGH",
                   enabled_ ? "ON" : "OFF", ready_ ? "ready" : "unavailable", (unsigned) warmup_ms_);
     LOG_PIN("  Enable pin: ", enable_pin_);
   }
@@ -58,8 +60,10 @@ class Cgdn1Pm : public Component {
     reader_->stop_poller();
     ready_ = false;
     invalidate_();
-    enable_pin_->digital_write(enabled_);
-    ESP_LOGI("cgdn1_pm", "PM control request %s", enabled_ ? "ON (warming up)" : "OFF");
+    // Restore/rapid toggles must never cut the rail under asynchronous CO2
+    // setup or a pending measurement. Polling and rail ownership are separate.
+    enable_pin_->digital_write(true);
+    ESP_LOGI("cgdn1_pm", "PM polling %s; GPIO13 HIGH", enabled_ ? "ON (warming up)" : "OFF");
     if (!enabled_) {
       reader_->status_clear_warning();  // deliberately stopped polling does not imply an I2C failure
       return;
