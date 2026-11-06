@@ -36,6 +36,11 @@ separate even though the HACS wizard is shared.
   Local ADB reap failures are recorded separately and must not skip exact
   owned-forward cleanup or mask the trial's consumed outcome. Never retry a
   launch because host cleanup is unverified or log raw subprocess errors.
+  `stage_commit_trial_adb.py` composes the existing prepared-plan operations,
+  checking trial prerequisites before staging. Keep every step's original
+  receipt/collector; prior or partial history refuses the whole sequence.
+  No automatic resume/rollback, permanent activation or GUI write route is
+  added. A bounded sequence result never promotes installation_ready.
 
 
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection

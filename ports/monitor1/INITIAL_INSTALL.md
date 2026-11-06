@@ -11,6 +11,12 @@ building blocks described below, keeps both opt-outs and stops its own child
 independently of the host. The historical building-block sections do not grant
 an alternative launch path. Trial success still does not activate installation.
 
+For an already built, matched private plan on a fresh target,
+`stage_commit_trial_adb.py` now composes the existing disabled stage, disabled
+script commit and bounded trial. See [USB_TRIAL.md](USB_TRIAL.md) for the
+experimental command and read-only status. It adds no permanent activation
+or replay authority and refuses all previous operation receipts.
+
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
 CO2 type **2 (S8)** or **3 (SCD40)**. The two types select different native
 backends. Monitor 2, SCD30, other firmware and unknown board revisions are
