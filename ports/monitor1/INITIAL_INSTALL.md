@@ -361,6 +361,39 @@ fixtures exercise private tmpfs creation/readback, stale/partial records,
 tamper refusal, creator identity and two processes racing for exactly one
 marker. Host fsync/readback is not a physical NAND/power-loss guarantee.
 
+### Device-side pre-intent filesystem scope
+
+`initial_trial_filesystem.h` implements the read-only filesystem portion of a
+future device collector. Production walks only `/data/.esphome-cgs1` from the
+root descriptor, opening each directory without following symlinks. Data and
+the private root must be the same ext4 filesystem, with the exact expected
+root device/inode. Independent fresh walks before and after content checks
+must still point at the held root; a renamed old directory is not current.
+
+The fixed nine staged payload entries must match their exact private plan
+size/SHA, root ownership, one link and staging mode. Both empty 0600 opt-outs,
+the exact `install.intent` plan binding and the exact private commit-lock
+owner are checked by bytes and metadata. Complete bounded directory listings
+must contain only that initial set, and only `owner` inside the commit lock.
+This positively rejects autostart stores, partial replacement debris,
+rollback history, prior trial markers and unknown files. Nothing is removed,
+repaired, chmodded, executed or created. Reads use no-atime descriptors.
+
+The reader seals after observed replacement, changed bytes/mode/owner/link,
+incomplete reads or another open attempt; putting old bytes back does not
+revive it. A returned read directory fd needs another complete readback.
+Creating the actual trial marker intentionally invalidates this strict
+pre-intent observation. The future guardian needs a separately joined
+claimed/live scope with actual bound intent proof, not an ignore-marker flag.
+
+This does not validate a host receipt's terminal state, admit arbitrary plan
+pins, inspect vendor files or collect device/USB/boot/stock/resource scope.
+Those independent gates still precede any launch. Linux/root fixtures only
+construct private tmpfs trees; they exercise exact listings, pins, markers,
+flags, hardlinks/symlinks, payload/ancestor replacement and permanent refusal.
+The compile-time tmpfs fixture seam cannot override production paths at
+runtime. This remains source-only engineering without a device write.
+
 ### Admitted child-entry source
 
 `initial_trial_exec.h` prepares only an inert child entry from the read-only

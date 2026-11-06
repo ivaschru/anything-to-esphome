@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only pre-intent filesystem scope связывает named root,
+  payload/flags/plan/commit markers и отказывает неизвестной истории;
+  full device collector/guardian и аппаратная установка ещё не готовы
+
 - Monitor 1: отдельный admitted child-entry source с RAM cwd/preferences,
   фиксированными argv/env и очисткой унаследованных fd; hosted exec только
   собственного fixture, standalone guardian и hardware install ещё не готовы
