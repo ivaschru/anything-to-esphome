@@ -222,10 +222,10 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         # HA 2026.11 added the module as a third positional argument; in
         # 2026.10 that position is the scan interval. Adapt only this test's
         # private platform factory while exercising the same real pipeline.
-        platform_args = {"key": entry.entry_id, "platform_type": "qingping_esphome"}
+        platform_args = {}
         if "platform" in inspect.signature(component._async_init_entity_platform).parameters:
             platform_args["platform"] = update_module
-        platform = component._async_init_entity_platform(**platform_args)
+        platform = component._async_init_entity_platform(entry.entry_id, "qingping_esphome", **platform_args)
         platform.config_entry = entry
         # Translations are a separate contract below. This fixture exercises
         # HA's real entity/device registry, state and admin service pipeline.
