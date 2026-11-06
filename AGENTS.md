@@ -20,6 +20,12 @@ separate even though the HACS wizard is shared.
   required, installation_ready=false and the unconsumed intent; its requested
   free-space budget is not measured capacity. Do not manufacture a USB capture
   to promote a compile fixture into a target or installation result.
+  `stage_install_adb.py` is experimental and not hardware qualified: explicit
+  --stage creates only a new disabled own root, consumes/fsyncs one host intent
+  before writing, checks actual ext4 headroom, pushes each file once and leaves
+  vendor scripts unchanged. --status only reconciles; lost ACK never permits
+  retry or receipt removal. No launch/preload/signal/boot/full activation. Keep
+  this route outside HACS until independent staging/commit/rollback QA exists.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

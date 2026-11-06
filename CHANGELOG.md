@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: экспериментальный USB staging только в новый disabled private
+  каталог, consumed intent до записи, проверка ext4/места и read-only status;
+  vendor scripts/процессы не меняются, аппаратная проверка ещё не выполнена
+
 - Monitor 1: offline install plan связывает private capture/profile/source и
   настоящие ELF/helper/bootstrap pins, сохраняет recoverable payload и явные
   границы будущего live CAS; это ещё не запись или активация на приборе

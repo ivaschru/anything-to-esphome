@@ -1,7 +1,8 @@
 # Initial CGS1 installation preparation
 
-**Read-only capture and local patch preparation are available. Device apply
-and the HACS CGS1 installation route are still unavailable.** Do not treat
+**Read-only capture, local patch/plan preparation and experimental disabled
+staging source are available. Vendor commit/activation and the HACS CGS1
+installation route are still unavailable.** Do not treat
 the commands below as a complete flashing instruction or an upgrade tool.
 
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
@@ -103,14 +104,42 @@ Both real S8/SCD40 source candidates have passed this planner's separate
 offline source/ELF/helper-pin audit without inventing a USB capture. Full join
 and rejection tests use explicitly simulated inputs, not a physical monitor.
 
-## Remaining apply and hardware gates
+## 5. Experimental disabled staging source
 
-The public preparation tools deliberately stop before device writes. The
-next implementation needs a target-bound install plan with fresh live CAS,
-private recoverable backup, measured resource headroom and one consumed
-intent; no automatic retry after an ambiguous write. Staging/atomic replacement
-must preserve private permissions and the original scripts, with stock opt-out
-and a verified rollback before activation.
+`stage_install_adb.py` implements the next **unqualified engineering stage**.
+Its `--stage` operation requires the exact private plan directory, its full
+SHA-256 and the selected USB serial. It checks the live USB/WLAN/firmware/CO2,
+same captured boot, nine factory files, absent own root and measured ext4 data
+headroom. A durable `O_EXCL` host receipt consumes the intent before the first
+device write. Every file has one SYNC push and exact remote readback.
+
+The only write destination is a newly created private `/data/.esphome-cgs1`.
+Both bridge and PM-extension disable flags exist before any executable arrives.
+Vendor startup/watchdog remain byte-identical. No program runs, no process is
+signalled, no preload or boot/full-mode flag is enabled, and no reboot occurs.
+Native/guardian binaries remain on the host instead of consuming duplicate
+NAND space. The staged bridge/helper/source/backups are inert until a separate
+reviewed commit and activation flow exists.
+
+After a timeout or lost push ACK, the operation stays consumed and the private
+state is retained. `--status` performs read-only reconciliation against that
+exact plan/receipt/USB target; it never permits a retry, deletes files or clears
+an intent. A partial/foreign root, different boot or corrupted staged file
+requires review. Do not remove a receipt or create a new plan merely to rerun
+an ambiguous transfer.
+
+Host tests cover disabled staging, unchanged vendor files, capacity refusal,
+lost ACK and no retry, using an in-memory ADB/filesystem adapter. **The new
+staging code has not been run on a physical monitor and is not a validated
+installation command.** It remains outside the HACS admission path.
+
+## Remaining commit/activation and hardware gates
+
+The preparation tools stop before device writes; experimental disabled staging
+has its own separate explicit operation. Remaining work is the fresh guarded
+vendor-script CAS/atomic replacement, rollback and activation flow, preserving
+private permissions and both original scripts. An offline plan or staged
+directory does not authorize replay, script replacement or activation.
 
 Activation needs independent checks that the optional PM extension returns
 to stock on failure, the bridge owns only its own child, sensor readings and
