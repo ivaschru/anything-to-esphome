@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only primitives для exact ARM image fd/hash/xattr и пустого
+  private tmpfs; подмена/неполное чтение закрывают admission, execution и
+  post-exec protection остаются отдельными неподтверждёнными этапами
+
 - Monitor 1: Linux one-shot child primitive с preparation gate, child-only
   OOM/PDEATHSIG и bounded TERM/KILL; отдельный kernel fixture без запуска
   firmware, transport/ELF admission и standalone guardian ещё не подключены

@@ -275,6 +275,53 @@ set-id/file-capability exec transitions can clear PDEATHSIG; the future ELF
 admission must exclude them. Raising the experimental child's OOM preference
 does not cap memory or guarantee that stock survives every OOM condition.
 
+### Read-only image and initial RAM admission
+
+`initial_trial_admission.h` adds separate read-only building blocks. A trusted
+root fd must match the independently captured directory device/inode, root
+ownership, private mode and ext4 filesystem. Only its fixed `program` entry
+is opened, read-only, no-follow and no-atime. Initial mode must be exactly
+0700 with one link; the exact private manifest size/SHA and ARM32 hard-float
+header must match. Held and named metadata, timestamps, full hash and xattr
+reports are checked again before returning a close-on-exec read descriptor.
+Replacement, unlink, hardlink, permission/owner change, changed bytes or a
+reported file capability seal the observation. Restoring old bytes or
+reopening that same object cannot revive the old observation.
+The reader never changes permissions, strips xattrs, repairs or executes it.
+
+Capability inspection requires a successful bounded attribute-name listing
+plus the absent-attribute result for `security.capability`. Unsupported,
+denied, malformed or changed results are refusals; even an empty present
+capability is rejected. The [getxattr contract](https://man7.org/linux/man-pages/man2/getxattr.2.html)
+also allows ENODATA for hidden/inaccessible metadata. Consequently these
+checks report what the admitted root caller can observe: they do not prove
+that an LSM cannot hide an attribute, or that PDEATHSIG survives exec on the
+vendor kernel. Those remain explicit qualification gates, not a permission
+to run on uncertain metadata.
+
+The initial RAM reader separately requires an empty private root-owned tmpfs
+with exact directory identity and at least 8 MiB filesystem headroom. It
+returns only a read directory fd. A future entry must use it for the RAM cwd,
+set `ESPHOME_PREFDIR=./prefs`, and clear inherited loader/environment state.
+Once preferences exist this initial-only empty-directory proof no longer
+applies; live monitoring needs its own narrower ownership checks. A tmpfs
+free-space result is not MemAvailable, a measured process footprint or proof
+that the canonical RAM job path remains unchanged.
+
+These readers neither create a job nor establish the named install root,
+stock/watchdog session, disable flags, transport, boot or consumed trial
+intent. Their fds are not standalone exec authority. A future device-side
+collector/guardian must join those checks immediately before the admitted
+fd-based exec, and independently prove post-exec protection. On glibc 2.23
+the [fexecve implementation](https://man7.org/linux/man-pages/man3/fexecve.3.html)
+uses mounted `/proc`; a modern execveat-only assumption is unsuitable.
+
+Linux/root fixtures use only fabricated ARM headers and private `/dev/shm`
+files to exercise hash/fd/identity/mode/xattr/replacement/RAM rejections.
+No ELF is executed. A tmpfs-specific test type does not change the production
+ext4 alias or introduce a runtime filesystem override. This is still source
+preparation, outside HACS and without physical initial-install proof.
+
 ## Remaining activation and hardware gates
 
 The preparation tools stop before device writes; experimental disabled staging

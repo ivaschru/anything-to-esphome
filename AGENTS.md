@@ -58,6 +58,13 @@ separate even though the HACS wizard is shared.
   exclude credential changes and set-id/file capabilities that clear PDEATHSIG.
   Test it only as the explicit Linux/root synthetic fixture. Never disable
   assertions in that executable fixture or replace hardware QA with its result.
+  `initial_trial_admission.h` returns only read fds: exact private ext4 root,
+  fixed ARM program/hash/metadata and observed no-capability report; a
+  separate initial-only empty tmpfs reader checks identity/budget. Never
+  repair/strip attrs or treat unsupported/hidden metadata as exec permission.
+  These fds do not establish the named root, live stock scope or trial intent;
+  keep LSM visibility and post-exec PDEATHSIG as explicit hardware gates.
+  RAM free space is not MemAvailable. No runtime filesystem override exists.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

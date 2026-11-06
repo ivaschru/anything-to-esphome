@@ -69,6 +69,13 @@ class Monitor1Tests(unittest.TestCase):
 
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root fd/xattr/tmpfs admission fixture; CI runs its explicit root step",
+    )
+    def test_initial_trial_image_and_ram_admission_is_read_only(self):
+        self.run_cpp("test_initial_trial_admission.cpp", crypto=True)
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root-owned Store fixture; CI runs an explicit root step",
     )
     def test_native_wifi_request_preserves_other_networks(self):
