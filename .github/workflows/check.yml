@@ -23,6 +23,9 @@ jobs:
       - run: node tests/test_compatibility.mjs
       - run: node tests/test_i18n.mjs
       - run: node tests/test_ha_transport.mjs
+      - run: node tests/test_usb_probe.mjs
+      - run: node tests/test_usb_companion.mjs
+      - run: python tools/monitor1-usb/generate_contract.py --check
       - name: MCU 4.2.1 receive-only parser (no hardware)
         run: |
           mkdir -p .build
@@ -65,3 +68,43 @@ jobs:
         with:
           category: integration
           ignore: brands
+
+  usb-companion:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: docker/setup-qemu-action@v3
+      - name: Verify offline browser bundle reproducibility
+        run: |
+          npm ci --prefix tools/monitor1-usb --ignore-scripts --no-audit --no-fund
+          node tools/monitor1-usb/build.mjs
+          git diff --exit-code -- custom_components/qingping_esphome/frontend/usb-probe-bundle.mjs custom_components/qingping_esphome/frontend/usb-probe-NOTICES.txt apps/monitor1_usb/rootfs/static/usb-probe-bundle.mjs apps/monitor1_usb/rootfs/static/usb-probe-NOTICES.txt
+      - name: Build the experimental USB companion
+        # Build/run only on the disposable hosted runner. No USB mapping,
+        # device, HA connection, image publication or local Mac VM is used.
+        run: docker build --platform linux/${{ matrix.architecture }} -t qingping-usb-ci apps/monitor1_usb
+      - name: Verify real container startup and ingress refusal
+        run: |
+          docker run -d --platform linux/${{ matrix.architecture }} --name qingping-usb-ci --network none --tmpfs /data qingping-usb-ci
+          trap 'docker rm -f qingping-usb-ci >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if docker exec qingping-usb-ci python3 -c 'import urllib.request, urllib.error; r=urllib.request.urlopen("http://127.0.0.1:8099/")' >/dev/null 2>&1; then
+              echo 'Unauthenticated local access unexpectedly succeeded'; exit 1
+            fi
+            if docker exec qingping-usb-ci python3 -c 'import urllib.request, urllib.error
+          try: urllib.request.urlopen("http://127.0.0.1:8099/")
+          except urllib.error.HTTPError as error:
+              assert error.code == 403
+              raise SystemExit(0)
+          raise SystemExit(1)' >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1

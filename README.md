@@ -13,6 +13,11 @@ Monitor 2 has no verified firmware port yet.
 
 ## Compatibility
 
+Monitor 1 also has an experimental [USB connection companion](apps/monitor1_usb/):
+choose a cable on the computer (WebUSB) or on the HA server. This first step
+only checks the selected stock device; it is not yet the complete flashing
+wizard and does not change the installation status below.
+
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
