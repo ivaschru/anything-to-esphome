@@ -54,7 +54,7 @@ export const MESSAGES = {
     "footer": "The Lite installer runs locally through Home Assistant.",
     "source": "Source code",
     "development": "Development",
-    "developer_name": "Vladislav Ivashchenko",
+    "developer_name": "Vladislav Ivaschenko",
     "monitor1_title": "Monitor 1 port",
     "monitor2_title": "Monitor 2 profile",
     "monitor1_info": "CGS1 variants with SenseAir S8 and SCD40 have been tested. Initial installation uses a separate USB/ADB process; the common wizard is not ready. The Lite image is incompatible.",
