@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: разделены обновление уже установленного runtime и незавершённый
+  первый USB/ADB-путь; публикация проверенных исходников не ждёт нового
+  установщика, дополнительный initial guardian не требуется обычной OTA
+
 - Monitor 1: actual guardian self-image/birth evidence и live reader join
   со stock scanner только для actual caller, без copied-image/PID whitelist;
   native fixtures отдельно, запуск guardian и hardware qualification не готовы

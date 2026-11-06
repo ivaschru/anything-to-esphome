@@ -158,6 +158,11 @@ separate even though the HACS wizard is shared.
   replace missing trial artifacts with fake ones. `stock-bridge-release.yaml`
   uses the ordinary FullRuntime gates without the legacy engineering trial
   API. Hardware QA and the HACS USB/ADB pipeline are still separate work.
+  Keep publication of verified runtime sources and upgrades of existing
+  installs separate from the unfinished initial USB/HACS route. Its missing
+  activation code is not a reason to withhold the runtime source. A first
+  trial is experimental before ordinary availability; changing a readiness
+  flag cannot supply the missing implementation or its hardware evidence.
 
 - `ports/monitor1/build_pm_helper.py` is build-only. It requires an explicit
   independently verified stock QtCore SHA and the isolated CGS1 environment;
