@@ -27,6 +27,7 @@ separate even though the HACS wizard is shared.
   and the global USB lease covers delivery. Browser RECV stays bounded and
   memory-only; it must not invent native get-devpath or native-plan authority.
 
+
 - Companion profile preparation creates an owner-bound private job and an
   immutable intent before generating a Noise key. Keep fixed USTAR input
   validation, fresh native/browser capture and live-recheck-required semantics.
@@ -35,7 +36,6 @@ separate even though the HACS wizard is shared.
   Preserve private 0600/0700 inputs and the eight-job limit without pruning
   keys/recovery/history. No compiler or GUI device writer is enabled by this
   profile step. Run tests/test_usb_preparation.py and the imported Node test.
-
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
   creator-owned intent/fork, nonblocking child identity before gate release,
@@ -301,7 +301,7 @@ separate even though the HACS wizard is shared.
   and direct routing when hiding navigation. README.md is English by default;
   README.ru.md is its Russian counterpart, with reciprocal language links.
   The panel footer keeps the source-code link and a separate developer credit
-  to https://ivasch.ru/ with the owner's name; localize the credit label in
+  to https://ivasch.ru/ with the owner's name; localize both label and name in
   place, keeping both external links independent of installation state.
 
 - Stock 4.2.1 is an external-MCU variant under `ports/lite-mcu421/`, not an
