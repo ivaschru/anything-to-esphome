@@ -180,7 +180,7 @@ class QingpingPanel extends HTMLElement {
       <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
       <section class="box sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></section>
-      <footer><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></footer></main>`;
+      <footer><div><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></div><div><span data-i18n="development"></span> – <a href="https://ivasch.ru/" target="_blank" rel="noopener noreferrer">Владислав Иващенко</a></div></footer></main>`;
     this.$ = selector => this.shadowRoot.querySelector(selector);
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.onclick = () => this.selectModel(button.dataset.model));
     this.$("#language").onchange = event => {
