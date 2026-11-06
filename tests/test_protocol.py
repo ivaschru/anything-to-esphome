@@ -19,9 +19,9 @@ relay = importlib.import_module("qingping_test.relay")
 catalog = importlib.import_module("qingping_test.catalog")
 
 
-def fixture():
+def fixture(extra=b""):
     header = bytearray(24); header[0:2] = bytes((0xE9, 1)); header[23] = 1
-    content = b"\0".join(image.SLOTS.values()) + b"\0"
+    content = b"\0".join(image.SLOTS.values()) + b"\0" + extra
     data = header + struct.pack("<II", 0x3F400020, len(content)) + content
     checksum = 0xEF
     for value in content: checksum ^= value

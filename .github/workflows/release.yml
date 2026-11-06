@@ -20,10 +20,17 @@ jobs:
       - run: python tools/prepare_release_template.py
       - run: python -m unittest discover -s tests -v
       - run: python tools/package_release.py
+      - name: Build the stable model-specific firmware update catalog
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+        # Reuse an unchanged firmware entry; changed images require a new UI
+        # version/revision. Never index prerelease or unpublished branch bytes.
+        run: python tools/build_firmware_catalog.py --tag "$GITHUB_REF_NAME" --check-previous
       - uses: actions/upload-artifact@v4
         with:
           name: qingping-esphome
-          path: .build/qingping_esphome.zip
+          path: |
+            .build/qingping_esphome.zip
+            .build/firmware-release/**
       - if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
@@ -39,5 +46,11 @@ jobs:
               *-*) prerelease=true ;;
               *) prerelease=false ;;
             esac
-            gh release create "$GITHUB_REF_NAME" .build/qingping_esphome.zip --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md --prerelease="$prerelease"
+            assets=(.build/qingping_esphome.zip)
+            if [ "$prerelease" = false ]; then
+              assets+=(".build/firmware-release/$GITHUB_REF_NAME/firmware-catalog.json"
+                       ".build/firmware-release/$GITHUB_REF_NAME/lite-template.bin"
+                       ".build/firmware-release/$GITHUB_REF_NAME/lite-template.json")
+            fi
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md --prerelease="$prerelease"
           fi

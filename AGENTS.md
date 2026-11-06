@@ -283,6 +283,31 @@ separate even though the HACS wizard is shared.
   authorizes diagnosis/package fixes, not installation, configuration or a
   restart of their HA. Read-only HA diagnostics are explicitly allowed;
   mutations and direct/manual fixes require a new direct request.
+- Native HA firmware updates live in `update.py`, `firmware_catalog.py`,
+  `firmware_update.py` and `native_ota.py`. Keep one standard UpdateEntity per
+  verified installer record, exact MAC association, administrator-only install
+  and six-hour public catalog checks. Never auto-install during discovery.
+  Only the qualified direct-I2C Lite has an executable update backend; public
+  metadata cannot enable MCU/CGS1/Monitor2 or adopt a private firmware version.
+  Preserve original keys and Wi-Fi/AP slots in the private atomic Store, never
+  ConfigEntry options/state/logs. Old v1 records require the explicit HA profile
+  form; its old random AP password is unrecoverable, so replacement needs the
+  form's acknowledgement. New installs retain the complete profile.
+  Fresh encrypted identity/settings/USB preflight and a durable consumed intent
+  precede exactly one encrypted APP transfer. ACK loss/restart/unload never
+  authorizes resend. Pending attempts may only reconcile by read-only checks;
+  repeated physical sources and unchanged settings are required for verified.
+  No bootloader/NVS write, plaintext fallback, automatic rollback or reset of
+  consumed history. UI notification failure cannot undo a committed journal.
+  Run test_firmware*.py with the real supported HA SDK and independent Noise
+  loopback responder; these are not hardware OTA qualification.
+- `firmware/releases.json` owns profile-local version/revision, independent of
+  HACS. `tools/build_firmware_catalog.py --tag vX.Y.Z --check-previous` validates
+  the public template/manifest/UI literal and exports a new stable catalog plus
+  both immutable assets. Changed bytes require a higher revision and new UI
+  version; unchanged firmware retains its previous entry/URLs. Stable release
+  CI publishes the catalog and public pair beside the ZIP; no private build,
+  prerelease promotion or overwrite of existing output/release is allowed.
 - The owner chose to retain the three advertised-name Bluetooth prefixes for
   now (2026-11-06). Do not expand to acceptAllDevices without a new decision.
   An empty filtered picker does not prove that all nearby BLE is invisible.

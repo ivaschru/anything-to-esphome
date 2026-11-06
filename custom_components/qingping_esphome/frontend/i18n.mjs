@@ -4,6 +4,7 @@
  */
 export const MESSAGES = {
   "en": {
+    "firmware_update_busy": "A firmware operation is already running. Wait for it to finish.",
     "session_closed": "No firmware was sent. Enable the large Wi-Fi icon again before starting a new setup.",
     "tagline": "One project. A separate profile for each monitor",
     "language": "Language",
@@ -96,6 +97,7 @@ export const MESSAGES = {
     "profile_mcu421": "Lite 4.2.1 uses a separate MCU. Startup and power control are still under investigation; no installation image is available. Settings have not changed."
   },
   "ru": {
+    "firmware_update_busy": "Уже выполняется операция с прошивкой. Дождитесь её завершения.",
     "session_closed": "Прошивка не отправлялась. Для новой настройки снова включите большой значок Wi-Fi.",
     "tagline": "Один проект. Отдельный профиль для каждого прибора",
     "language": "Язык",

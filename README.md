@@ -141,6 +141,62 @@ Replacing stock firmware can require opening the case after an early boot
 failure. USB supplies power, not data. The stock bootloader is preserved, but
 no full backup is created and later OTA may overwrite the remaining stock app.
 
+## Firmware updates in Home Assistant
+
+The integration now provides one standard **Firmware** update entity per
+verified installer-managed Lite. New releases appear in **Settings → System
+→ Updates**, alongside other Home Assistant updates. This requires a release
+containing this feature and its public `firmware-catalog.json`; source changes
+alone do not make a release available. The catalog is checked every six hours;
+refresh the update entity to check sooner. Installation starts only when an
+administrator presses **Update**.
+
+Firmware has its own version and a revision for each hardware profile. Updating
+the HACS integration alone does not create a firmware update. The first backend
+is for **Lite / CGDN1, direct-I2C, HW 0001, originally stock 4.5.8**. MCU Lite,
+Monitor 1 S8/SCD40 and Monitor 2 require separate qualified image and update
+backends. A shared model name does not make their images interchangeable.
+
+For new installations, HA retains the original Wi-Fi, fallback AP and API/OTA
+keys in its private, atomic installer journal. Keep HA backups private: they
+can include this journal. An update downloads only a public template from an
+immutable GitHub release, checks its SHA-256 and manifest, then personalizes it
+inside HA. Private images and credentials never go to GitHub. The native API
+must confirm the exact MAC/name, the managed firmware version, USB power and
+the saved settings before one encrypted app-only transfer. After reboot, HA
+checks settings and repeated real CO₂/raw T/raw RH readings. Bootloader,
+partition layout and NVS are not rewritten; there is no automatic rollback or
+claim of a complete firmware backup.
+
+Older installer records do not contain Wi-Fi/AP values. Use **Qingping ESPHome
+→ Configure → Prepare an older installation for updates** before installation
+is enabled. Enter the current Wi-Fi and explicitly choose the fallback AP
+credentials for the next update: the old random AP password cannot be recovered
+through the normal API. API and OTA keys are retained. Saving this profile does
+not change the device. Private/manual firmware is not silently adopted.
+
+A consumed update attempt survives an HA restart. After a lost acknowledgement,
+another press of **Update** only verifies that same attempt; it never resends
+the image. Keep the device powered. If the old firmware remains, inspect the
+attempt before any separate, explicitly authorized recovery. Repeated button
+presses cannot clear this guard.
+
+### Publishing firmware
+
+Use a clean committed snapshot. Prepare the public template with
+`tools/prepare_release_template.py`, then package the integration. Update
+`firmware/releases.json` only for a firmware change: increase its profile-local
+revision and the native UI version together. The builder verifies that version
+is actually present in the matching binary. Keep the currently qualified
+production PM policy; private fan experiments are not public release assets.
+
+`python tools/build_firmware_catalog.py --tag vX.Y.Z --check-previous` creates
+the catalog, public BIN and original manifest in a new
+`.build/firmware-release/vX.Y.Z/` directory. An installer-only release retains
+the previous firmware entry and immutable URLs. The stable-tag workflow uploads
+all three assets alongside the HACS ZIP. Prereleases do not become the stable
+catalog, and existing release files must never be overwritten.
+
 ## Development
 
 Sources live in `custom_components/qingping_esphome/` and `ports/`.

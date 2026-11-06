@@ -1,11 +1,13 @@
 """An administrator-only HACS panel and local first-install transport."""
 from pathlib import Path
+import json
 
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.const import Platform
 
 from .catalog import CATALOG
 from .manager import DOMAIN, Manager
@@ -44,6 +46,19 @@ async def async_setup_entry(hass, entry):
     except OSError as error:
         raise ConfigEntryNotReady("Could not open local ports; integration network options are available") from error
     hass.data[DOMAIN] = manager
+    try:
+        return await _async_setup_loaded_entry(hass, entry, manager)
+    except BaseException:
+        # A platform/translation/setup failure must not leave stock listeners
+        # or an owned update task alive when HA retries this config entry.
+        hass.data.pop(DOMAIN, None)
+        await manager.stop()
+        if DOMAIN in hass.data.get(frontend.DATA_PANELS, {}):
+            frontend.async_remove_panel(hass, DOMAIN)
+        raise
+
+
+async def _async_setup_loaded_entry(hass, entry, manager):
     marker = DOMAIN + "_registered"
     if not hass.data.get(marker):
         await hass.http.async_register_static_paths([
@@ -59,6 +74,11 @@ async def async_setup_entry(hass, entry):
     # HA rewrites homeassistant:// links to the current frontend origin, so
     # this works through local URLs, reverse proxies and remote HTTPS alike.
     register_installer_device(hass, entry)
+    from .firmware_update import FirmwareUpdates
+    version = await hass.async_add_executor_job(
+        lambda: json.loads((Path(__file__).parent / "manifest.json").read_text())["version"])
+    manager.updates = FirmwareUpdates(manager, version)
+    await hass.config_entries.async_forward_entry_setups(entry, [Platform.UPDATE])
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
@@ -74,6 +94,8 @@ async def async_reload_entry(hass, entry):
 
 
 async def async_unload_entry(hass, entry):
+    if not await hass.config_entries.async_unload_platforms(entry, [Platform.UPDATE]):
+        return False
     manager = hass.data.pop(DOMAIN)
     await manager.stop()
     frontend.async_remove_panel(hass, DOMAIN)

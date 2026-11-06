@@ -4,6 +4,7 @@ The browser localizes codes in place when its language changes. English is
 also provided for older clients and for tools that do not use the panel.
 """
 MESSAGES = {
+    "firmware_update_busy": "A firmware operation is already running. Wait for it to finish.",
     "ha_bluetooth_unavailable": "Home Assistant has no connectable Bluetooth adapter or proxy. Configure one, or use this device's Bluetooth.",
     "ha_bluetooth_not_found": "Home Assistant cannot reach this monitor. Enable pairing mode near an adapter or active proxy and search again.",
     "ha_bluetooth_busy": "Bluetooth discovery or this monitor is already in use. Wait for the current operation to finish.",

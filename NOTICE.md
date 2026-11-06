@@ -15,3 +15,9 @@ ESPHome build process, not copied from a private device backup.
 The HACS integration, personalization/relay code, local UI additions and CGS1
 port are distributed under this repository's MIT license. Third-party works
 retain their original rights and licenses.
+
+The native OTA adapter follows the ESPHome 2026.9.1 OTA protocol documented in
+[esphome/espota2.py](https://github.com/esphome/esphome/blob/2026.9.1/esphome/espota2.py).
+ESPHome is MIT-licensed, copyright ESPHome contributors. The adapter implements
+that wire protocol using Home Assistant's aioesphomeapi Noise implementation;
+the project does not bundle another copy of the ESPHome uploader or SDK.

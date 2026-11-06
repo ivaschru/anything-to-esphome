@@ -1,0 +1,60 @@
+"""Publisher tests: independent model revisions and immutable public assets."""
+import copy
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+import unittest
+
+from test_protocol import fixture, image
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("firmware_publisher", ROOT / "tools/build_firmware_catalog.py")
+publisher = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(publisher)
+
+
+class FirmwarePublisherTests(unittest.TestCase):
+    def pair(self, version):
+        binary = fixture(version.encode() + b"\0")
+        manifest = json.dumps({"model": "CGDN1", "format": "esp32-app-fixed-slots-v1",
+            "ui": version, "size": len(binary), "sha256": hashlib.sha256(binary).hexdigest(),
+            "slots": {key: binary.count(marker) for key, marker in image.SLOTS.items()}}).encode()
+        return binary, manifest
+
+    def metadata(self, version="test-ui-1", revision=1):
+        return {"lite": {"version": version, "revision": revision, "backend": "esp32-noise-app-v1",
+                         "minimum_integration": "0.1.5", "summary": "Public Lite firmware"}}
+
+    def test_installer_release_retains_exact_previous_firmware_entry(self):
+        binary, manifest = self.pair("test-ui-1")
+        old = publisher.build("v0.1.5", self.metadata(), binary, manifest)
+        new = publisher.build("v0.1.6", self.metadata(), binary, manifest, old)
+        self.assertEqual(new, old)
+        self.assertIn("/v0.1.5/", new["releases"]["lite"]["image"]["url"])
+
+    def test_changed_image_needs_new_native_version_and_profile_revision(self):
+        binary, manifest = self.pair("test-ui-1")
+        old = publisher.build("v0.1.5", self.metadata(), binary, manifest)
+        changed, changed_manifest = self.pair("test-ui-2")
+        with self.assertRaises(ValueError):
+            publisher.build("v0.1.6", self.metadata("test-ui-2", 1), changed, changed_manifest, old)
+        new = publisher.build("v0.1.6", self.metadata("test-ui-2", 2), changed, changed_manifest, old)
+        self.assertEqual(new["releases"]["lite"]["revision"], 2)
+        self.assertEqual(old["releases"]["lite"]["revision"], 1)
+        self.assertIn("/v0.1.6/", new["releases"]["lite"]["image"]["url"])
+        # Editing metadata alone cannot manufacture an update for identical bytes.
+        with self.assertRaises(ValueError):
+            publisher.build("v0.1.6", self.metadata("test-ui-1", 2), binary, manifest, old)
+
+    def test_mismatched_pair_prerelease_or_unqualified_model_refused(self):
+        binary, manifest = self.pair("test-ui-1")
+        for tag in ("main", "v0.1.5-beta", "v0.1.5/other"):
+            with self.assertRaises(ValueError): publisher.build(tag, self.metadata(), binary, manifest)
+        data = json.loads(manifest); data["sha256"] = "0" * 64
+        with self.assertRaises(ValueError): publisher.build("v0.1.5", self.metadata(), binary, json.dumps(data).encode())
+        data = copy.deepcopy(self.metadata()); data["monitor1-s8"] = data.pop("lite")
+        with self.assertRaises(ValueError): publisher.build("v0.1.5", data, binary, manifest)
+
+
+if __name__ == "__main__": unittest.main()
