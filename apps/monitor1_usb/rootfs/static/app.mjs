@@ -1,7 +1,9 @@
-import {createProbe, strings, downloadCapture} from "./usb-probe-bundle.mjs";
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
+let pendingPreparation, preparationReady=false;
+let storedJobs=[];
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -13,15 +15,35 @@ function translate() {
   if (lastStatus === "copying" && captureProgress !== undefined)
     $("status").textContent = text("copying") + ` ${captureProgress}/9`;
   $("capture-progress").setAttribute("aria-label", text("copying"));
+  $("preparation-result").textContent=preparationReady ? text("profile_prepared") : "";
   renderDevices();
+  renderJobs();
 }
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
+  $("prepare-profile").disabled=$("capture").disabled;
+  $("friendly-name").disabled=busy;
+  $("preparation-status").disabled=busy;
+  $("preparation-status").hidden=!pendingPreparation;
+  $("refresh-jobs").disabled=$("saved-job").disabled=busy;
   $("ha-picker").hidden = $("transport").value !== "ha";
 }
 function clear() {$("identity").replaceChildren(); $("status").textContent = $("error").textContent = "";lastError = lastStatus = null;
-  captureProgress=undefined;$("capture-progress").hidden=true;$("capture-progress").removeAttribute("value");}
+  captureProgress=undefined;$("capture-progress").hidden=true;$("capture-progress").removeAttribute("value");
+  pendingPreparation=undefined;preparationReady=false;$("preparation-result").textContent="";$("saved-job").value="";}
+function renderJobs() {
+  const selected=$("saved-job").value;$("saved-job").replaceChildren();
+  const initial=document.createElement("option");initial.value="";initial.textContent=text("choose_preparation");$("saved-job").append(initial);
+  for(const job of storedJobs) {
+    const option=document.createElement("option");option.value=job.job_id;
+    option.textContent=job.friendly_name+" · "+(job.co2_type===2 ? "S8" : "SCD40")+" · …"+job.node_name.slice(-4)+
+      (job.stage==="preparation_unverified" ? " · "+text("preparation_pending") : "");
+    $("saved-job").append(option);
+  }
+  if(storedJobs.some(job=>job.job_id===selected)) $("saved-job").value=selected;
+  $("saved-job").hidden=$("saved-job-label").hidden=storedJobs.length===0;
+}
 function renderDevices() {
   const selected = $("device").value;
   $("device").replaceChildren();
@@ -34,7 +56,7 @@ function renderDevices() {
 async function rpc(operation, data, binary=false) {
   const response = await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
-    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(binary ? 250000 : 70000)});
+    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(binary || operation==="prepare" ? 250000 : 70000)});
   if (binary && response.ok) {
     const length=Number(response.headers.get("Content-Length"));
     if (response.headers.get("Content-Type") !== "application/x-tar" || !Number.isInteger(length) ||
@@ -101,5 +123,66 @@ async function inspect(capture=false) {
 }
 $("inspect").onclick=()=>inspect();
 $("capture").onclick=()=>inspect(true);
+$("prepare-profile").onclick=async()=>{
+  if (busy) return;
+  const name=$("friendly-name").value;
+  if (!name.trim()) {lastError="usb_profile_name_invalid";$("error").textContent=text(lastError);$("friendly-name").focus();return;}
+  busy=true;clear();
+  pendingPreparation={id:crypto.randomUUID().replaceAll("-",""),
+    transport:$("transport").value==="browser" ? "browser_usb" : "ha_usb"};
+  controls();lastStatus="preparing_profile";$("status").textContent=text(lastStatus);
+  try {
+    let source;
+    if ($("transport").value==="browser") {
+      probe=createProbe();$("capture-progress").hidden=false;
+      const result=await probe.capture(done=>{
+        captureProgress=done;$("capture-progress").value=done;$("status").textContent=text("copying")+` ${done}/9`;
+      }); // Synchronous native picker, before the first await.
+      source={archive:result.archive};
+    } else source={serial:$("device").value};
+    captureProgress=undefined;$("capture-progress").hidden=true;$("status").textContent=text("preparing_profile");
+    const job=await prepareProfile(rpc,pendingPreparation.id,name,source);
+    storedJobs=[...storedJobs.filter(item=>item.job_id!==job.job_id),job];renderJobs();$("saved-job").value=job.job_id;
+    preparationReady=true;lastStatus=null;$("status").textContent="";
+    $("preparation-result").textContent=text("profile_prepared");
+  } catch(error) {lastStatus=null;$("status").textContent="";lastError=error.code || "failed";$("error").textContent=text(lastError);}
+  finally {probe=undefined;busy=false;captureProgress=undefined;$("capture-progress").hidden=true;controls();}
+};
+async function checkPreparation() {
+  if(busy || !pendingPreparation) return;
+  busy=true;controls();lastError=null;$("error").textContent="";
+  try {
+    await readPrepared(rpc,pendingPreparation.id,pendingPreparation.transport);
+    preparationReady=true;lastStatus=null;$("status").textContent="";
+    $("preparation-result").textContent=text("profile_prepared");
+  } catch {lastError="usb_preparation_unverified";$("error").textContent=text(lastError);}
+  finally {busy=false;controls();}
+}
+$("preparation-status").onclick=()=>checkPreparation();
+$("saved-job").onchange=async()=>{
+  if(busy) return;
+  const job=storedJobs.find(item=>item.job_id===$("saved-job").value);
+  pendingPreparation=job ? {id:job.job_id,transport:job.transport} : undefined;
+  if(job) $("friendly-name").value=job.friendly_name;
+  preparationReady=false;$("preparation-result").textContent="";controls();
+  if(pendingPreparation) await checkPreparation();
+};
+async function loadPreparations() {
+  if(busy) return;
+  busy=true;controls();
+  try {
+    storedJobs=await savedPreparations(rpc);renderJobs();
+    if(pendingPreparation && !storedJobs.some(job=>job.job_id===pendingPreparation.id && job.stage==="profile_prepared")) {
+      preparationReady=false;$("preparation-result").textContent="";
+    }
+  }
+  catch {lastError="usb_job_list_failed";$("error").textContent=text(lastError);}
+  finally {busy=false;controls();}
+}
+$("refresh-jobs").onclick=()=>loadPreparations();
+$("friendly-name").oninput=()=>{
+  if(busy) return;
+  pendingPreparation=undefined;preparationReady=false;$("saved-job").value="";$("preparation-result").textContent="";controls();
+};
 window.addEventListener("pagehide",()=>{void probe?.close().catch(()=>{});});
-translate();controls();
+translate();controls();void loadPreparations(); // Owner metadata only; no USB or writer resumes.

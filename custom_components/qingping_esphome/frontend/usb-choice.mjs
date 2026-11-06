@@ -20,6 +20,7 @@ class UsbChoice extends HTMLElement {
       <select id="location"><option value="browser" data-label="computer"></option><option value="ha" data-label="server"></option></select>
       <p id="help" class="muted"></p><p class="muted" data-label="boundary"></p>
       <button id="check" data-label="inspect"></button> <button id="capture" class="secondary" data-label="capture"></button>
+      <button id="prepare" class="secondary" data-label="open_preparation"></button>
       <p class="muted" data-label="capture_help"></p><progress id="progress" max="9" hidden></progress>
       <p id="status" role="status" aria-live="polite"></p><p id="error" role="alert"></p><dl id="identity"></dl>
       <a href="https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb" target="_blank" rel="noreferrer" data-label="docs"></a>`;
@@ -28,6 +29,7 @@ class UsbChoice extends HTMLElement {
     this.$("location").onchange=()=>{if (!this.busy){this.clear();this.translate();}};
     this.$("check").onclick=()=>this.inspect();
     this.$("capture").onclick=()=>this.inspect(true);
+    this.$("prepare").onclick=()=>this.openPreparation();
     this.translate();
   }
   disconnectedCallback() {void this.probe?.close().catch(()=>{});}
@@ -40,6 +42,7 @@ class UsbChoice extends HTMLElement {
     this.$("help").textContent=this.text(this.$("location").value === "ha" ? "ha_help" : "browser_help");
     this.$("check").textContent=this.text(this.$("location").value === "ha" ? "open_companion" : "inspect");
     this.$("capture").hidden=this.$("location").value === "ha";
+    this.$("prepare").hidden=this.$("location").value === "ha";
     this.$("progress").setAttribute("aria-label",this.text("copying"));
     if (this.status) this.$("status").textContent=this.text(this.status);
     if (this.status === "copying" && this.completed !== undefined) this.$("status").textContent+=` ${this.completed}/9`;
@@ -47,16 +50,12 @@ class UsbChoice extends HTMLElement {
   }
   async inspect(capture=false) {
     if (this.busy) return;
-    this.busy=true;this.clear();this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=true;
+    this.busy=true;this.clear();this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=true;
     this.status=capture ? "copying" : "checking";this.$("status").textContent=this.text(this.status);
     if (capture) this.$("progress").hidden=false;
     try {
       if (this.$("location").value === "ha") {
-        const {path,session}=await companionPath(this._hass);
-        // Same session-cookie contract as HA's own ingress frontend. Session
-        // only, exact first-party path, no application storage or logging.
-        document.cookie=`ingress_session=${session};path=/api/hassio_ingress/;SameSite=Strict${location.protocol === "https:" ? ";Secure" : ""}`;
-        window.location.assign(path);
+        await this.openCompanion();
         return;
       }
       this.probe=createProbe();
@@ -73,7 +72,21 @@ class UsbChoice extends HTMLElement {
     } catch(error) {
       this.status=null;this.$("status").textContent="";this.error=error.code || "failed";this.$("error").textContent=this.text(this.error);
     } finally {this.probe=undefined;this.busy=false;this.completed=undefined;this.$("progress").hidden=true;
-      this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=false;}
+      this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=false;}
+  }
+  async openCompanion() {
+    const {path,session}=await companionPath(this._hass);
+    // Same session-cookie contract as HA's own ingress frontend. Session
+    // only, exact first-party path, no application storage or logging.
+    document.cookie=`ingress_session=${session};path=/api/hassio_ingress/;SameSite=Strict${location.protocol === "https:" ? ";Secure" : ""}`;
+    window.location.assign(path);
+  }
+  async openPreparation() {
+    if (this.busy) return;
+    this.busy=true;this.clear();this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=true;
+    try {await this.openCompanion();}
+    catch(error) {this.error=error.code || "failed";this.$("error").textContent=this.text(this.error);}
+    finally {this.busy=false;this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=false;}
   }
 }
 customElements.define("qingping-usb-choice",UsbChoice);

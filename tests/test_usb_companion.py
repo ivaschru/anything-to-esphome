@@ -2,13 +2,16 @@
 import importlib.util
 from pathlib import Path
 import re
+import sys
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("qingping_usb_companion", ROOT / "apps/monitor1_usb/rootfs/server.py")
 companion = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(companion)
+with patch.object(sys, "path", [str(ROOT / "apps/monitor1_usb/rootfs"), *sys.path]):
+    spec.loader.exec_module(companion)
 
 
 class FixtureAdb:

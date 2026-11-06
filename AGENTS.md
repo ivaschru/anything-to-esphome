@@ -27,6 +27,15 @@ separate even though the HACS wizard is shared.
   and the global USB lease covers delivery. Browser RECV stays bounded and
   memory-only; it must not invent native get-devpath or native-plan authority.
 
+- Companion profile preparation creates an owner-bound private job and an
+  immutable intent before generating a Noise key. Keep fixed USTAR input
+  validation, fresh native/browser capture and live-recheck-required semantics.
+  HTTP returns only redacted status/list metadata. Lost replies/reloads may
+  read the same job, never POST again, rekey or auto-resume a partial intent.
+  Preserve private 0600/0700 inputs and the eight-job limit without pruning
+  keys/recovery/history. No compiler or GUI device writer is enabled by this
+  profile step. Run tests/test_usb_preparation.py and the imported Node test.
+
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
   creator-owned intent/fork, nonblocking child identity before gate release,

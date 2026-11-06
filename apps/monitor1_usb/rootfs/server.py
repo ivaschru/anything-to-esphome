@@ -6,6 +6,7 @@ TCP daemon listener on the LAN or Home Assistant API access exists here.
 Browser USB uses the same source contract in the offline frontend bundle.
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import base64
 import hmac
 import hashlib
 import io
@@ -21,6 +22,8 @@ import tempfile
 import threading
 import time
 import uuid
+
+from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, available_jobs
 
 HERE = Path(__file__).resolve().parent
 SERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -187,8 +190,9 @@ class UsbReads:
 
 
 class Companion:
-    def __init__(self, usb=None):
+    def __init__(self, usb=None, job_root=Path("/data/jobs")):
         self.usb = usb or UsbReads()
+        self.job_root = job_root
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -255,6 +259,49 @@ class Companion:
         finally:
             self.device_lock.release()
 
+    def prepare(self, user, nonce, read_input, deliver):
+        self.session(user, nonce)
+        if not self.device_lock.acquire(blocking=False):
+            raise Refusal("usb_busy")
+        try:
+            # Authenticate and reserve the global budget BEFORE reading the
+            # bounded upload. No parallel large request bodies/captures build
+            # up behind a slow client; a disconnect releases the lease.
+            data = read_input()
+            common = {"request_id", "friendly_name"}
+            if not isinstance(data, dict) or set(data) not in (common | {"serial"}, common | {"capture"}):
+                raise Refusal("usb_request_invalid")
+            request_id = data["request_id"]
+            if not isinstance(request_id, str) or not USER.fullmatch(request_id):
+                raise Refusal("usb_request_invalid")
+            # A consumed request is not resumed/re-executed, including a
+            # private partial job. GET /jobs/id is the only reconciliation.
+            path = self.job_root / request_id
+            if path.exists() or path.is_symlink():
+                raise PreparationError("usb_preparation_unverified")
+            if "serial" in data:
+                self.selected(user, nonce, data["serial"], "prepare:" + request_id)
+                archive = self.usb.capture(data["serial"])
+            else:
+                encoded = data["capture"]
+                if not isinstance(encoded, str) or not 0 < len(encoded) <= 4 * ((MAX_ARCHIVE + 2) // 3):
+                    raise Refusal("usb_request_invalid")
+                try:
+                    archive = base64.b64decode(encoded, validate=True)
+                except Exception:
+                    raise Refusal("usb_request_invalid") from None
+            return deliver(prepare_job(archive, self.job_root, user, data["friendly_name"], CONTRACT, request_id))
+        finally:
+            self.device_lock.release()
+
+    def status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return job_status(self.job_root, job_id, user)
+
+    def jobs(self, user, nonce):
+        self.session(user, nonce)
+        return available_jobs(self.job_root, user)
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -300,8 +347,13 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/devices":
                 devices = self.server.companion.discover(user, self.headers.get("X-Qingping-Nonce"))
                 return self.reply(200, {"devices": devices})
+            if self.path == "/jobs":
+                return self.reply(200, self.server.companion.jobs(user, self.headers.get("X-Qingping-Nonce")))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})", self.path)
+            if match:
+                return self.reply(200, self.server.companion.status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             self.reply(404, {"error_code": "usb_not_found"})
-        except Refusal as error:
+        except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
         except Exception:
             self.reply(400, {"error_code": "usb_operation_failed"})
@@ -309,13 +361,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture"):
+            if self.path not in ("/inspect", "/capture", "/prepare"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
             size = self.headers.get("Content-Length", "")
-            if not size.isdigit() or not 0 < int(size) <= 256:
+            limit = 24 * 1024 * 1024 if self.path == "/prepare" else 256
+            if not size.isdigit() or not 0 < int(size) <= limit:
                 raise Refusal("usb_request_invalid")
+            if self.path == "/prepare":
+                return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
+                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
             data = json.loads(self.rfile.read(int(size)))
             if not isinstance(data, dict) or set(data) != {"serial"}:
                 raise Refusal("usb_request_invalid")
@@ -324,10 +380,25 @@ class Handler(BaseHTTPRequestHandler):
                     lambda archive: self.reply(200, archive, "application/x-tar"))
             result = self.server.companion.inspect(user, self.headers.get("X-Qingping-Nonce"), data["serial"])
             self.reply(200, result)
-        except Refusal as error:
+        except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
         except Exception:
             self.reply(400, {"error_code": "usb_operation_failed"})
+
+    def json_body(self, size):
+        deadline, body = time.monotonic() + 90, bytearray()
+        while len(body) < size:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise Refusal("usb_request_timeout")
+            if getattr(self, "connection", None) is not None:
+                self.connection.settimeout(remaining)
+            chunk = self.rfile.read1(min(65536, size - len(body)))
+            if not chunk:
+                raise Refusal("usb_request_invalid")
+            body.extend(chunk)
+        from preparation import unique_json
+        return unique_json(bytes(body))
 
 
 class Server(ThreadingHTTPServer):
@@ -337,11 +408,11 @@ class Server(ThreadingHTTPServer):
 
 def main():
     os.umask(0o077)
-    directory = Path("/data/adb")
-    directory.mkdir(mode=0o700, exist_ok=True)
-    if (directory.resolve() != directory or not directory.is_dir() or
-            directory.stat().st_uid != os.getuid() or directory.stat().st_mode & 0o777 != 0o700):
-        raise SystemExit("Private companion ADB directory is required")
+    for directory in (Path("/data/adb"), Path("/data/jobs")):
+        directory.mkdir(mode=0o700, exist_ok=True)
+        if (directory.resolve() != directory or not directory.is_dir() or
+                directory.stat().st_uid != os.getuid() or directory.stat().st_mode & 0o777 != 0o700):
+            raise SystemExit("Private companion data directories are required")
     server = Server(("0.0.0.0", 8099), Handler)
     server.daemon_threads = True
     server.companion = Companion()
