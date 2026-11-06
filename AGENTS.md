@@ -15,6 +15,11 @@ separate even though the HACS wizard is shared.
   the final shell completion sentinel as well as the host exit code. Existing
   installs are refused; do not use this tool to upgrade or prune them. These
   steps still need guarded write/CAS/activation and physical verification.
+  `prepare_install.py` only assembles a private offline plan, rehashing capture,
+  source/ELF/helper/patched scripts and exact profile binding. Keep live CAS
+  required, installation_ready=false and the unconsumed intent; its requested
+  free-space budget is not measured capacity. Do not manufacture a USB capture
+  to promote a compile fixture into a target or installation result.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

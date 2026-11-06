@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: offline install plan связывает private capture/profile/source и
+  настоящие ELF/helper/bootstrap pins, сохраняет recoverable payload и явные
+  границы будущего live CAS; это ещё не запись или активация на приборе
+
 - Monitor 1: read-only USB/ADB preflight с точной идентификацией и частным
   копированием фиксированных recovery-файлов; исходный startup hook восстановлен,
   обе полные startup/watchdog SHA воспроизводятся локально без записи на прибор

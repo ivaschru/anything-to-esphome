@@ -75,6 +75,34 @@ WLAN/API identities, the correct CO2 backend and private Noise key handling.
 Source commits, helper, guardian, native and bridge must remain matched.
 The compiler does not select a device or grant installation authority.
 
+## 4. Assemble an offline target-bound plan
+
+```sh
+ports/monitor1/.venv/bin/python ports/monitor1/prepare_install.py \
+  --capture "$PWD/ports/monitor1/build/initial-capture-first" \
+  --candidate "$PWD/ports/monitor1/build/candidate-first" \
+  --patches "$PWD/ports/monitor1/build/bootstrap-first" \
+  --profile "$PWD/ports/monitor1/build/profile.json" \
+  --output "$PWD/ports/monitor1/build/install-plan-first"
+```
+
+The plan joins the exact capture identity/CO2/Qt, the private profile digest,
+the complete candidate source closure, ARM/ABI-checked programs, actual PM
+helper and exact bootstrap outputs. It reads all recovery files back before
+assembling a fresh private payload. Tampered, missing, mismatched or incomplete
+inputs fail before an output plan is created. Neither the Noise key nor the
+profile body is copied into `plan.json`; the compiled programs remain private.
+
+The result records file hashes, exact before/after script changes, captured
+USB/boot identity and a conservative free-data-space request. This request is
+**not a measured resource result**. There is no live target read in this step,
+no consumed install intent and no executable apply/activation instruction.
+`installation_ready` stays false; even a valid plan requires fresh live CAS.
+
+Both real S8/SCD40 source candidates have passed this planner's separate
+offline source/ELF/helper-pin audit without inventing a USB capture. Full join
+and rejection tests use explicitly simulated inputs, not a physical monitor.
+
 ## Remaining apply and hardware gates
 
 The public preparation tools deliberately stop before device writes. The
