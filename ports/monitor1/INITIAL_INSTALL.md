@@ -1,8 +1,8 @@
 # Initial CGS1 installation preparation
 
-**Read-only capture, local patch/plan preparation and experimental disabled
-staging source are available. Vendor commit/activation and the HACS CGS1
-installation route are still unavailable.** Do not treat
+**Engineering sources cover capture, local patch/plan preparation, disabled
+staging and disabled script commit/rollback. Writers are not hardware qualified;
+activation and the HACS CGS1 installation route remain unavailable.** Do not treat
 the commands below as a complete flashing instruction or an upgrade tool.
 
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
@@ -166,21 +166,51 @@ are distinguished from kernel threads/exited tasks using the upstream Linux
 
 The private `review.json` includes captured scope and possible disabled
 transactions. It always records `installation_ready=false` and
-`executable_writer_available=false`. It does not consume a new intent, change
+`review_grants_write_authority=false`. It does not consume a new intent, change
 a script, authorize activation or make an old capture valid after a reboot.
 Tests cover all four known script combinations, process/root/source drift,
 lost acknowledgement and the actual read-only scanner against an isolated
 fake proc tree. None is a physical installation result.
 
-## Remaining commit/activation and hardware gates
+## 7. Experimental disabled commit/rollback adapter
+
+`commit_disabled_install.py` now binds that policy to fixed USB shell
+operations. It is **not hardware qualified**, stays outside HACS, and does
+not activate a monitor. Its separate `--commit-disabled` and
+`--rollback-disabled` operations require the exact private plan/SHA/USB scope.
+Each direction consumes its own durable exclusive receipt before the first
+write and claims a permanent private operation marker on-device. Rollback
+also requires the matching prior own commit receipt and remote marker.
+
+The adapter reads a fresh complete review before every issue and after every
+replacement. It rechecks the scope again inside the same shell before the
+rename. Only the exact startup/watchdog source and target pairs are accepted.
+It preserves the recovery source, copies to a private same-filesystem temporary,
+checks `sh -n` and SHA, syncs, repeats scope/CAS checks, atomically renames, then
+syncs again. This is two independently checked file replacements; both disable
+flags stay set in every known intermediate combination.
+
+Command completion alone cannot acknowledge a replacement. The policy needs
+a new whole-scope observation proving exactly the issued change. A lost ACK
+seals the receipt even if the rename already happened; it never resends or
+automatically rolls back. Use the **read-only disabled review** to establish
+the resulting known pair. Any rollback is a separate explicit operation with
+its own intent, never an error handler or cleanup. Do not remove receipts or
+operation markers to bypass a refusal.
+
+Tests cover commit, separate rollback, a lost ACK after rename, no resend,
+exact source/path admission and failed command-substitution propagation. A
+separate Linux/root fixture maps every device path into a private temporary
+tree to exercise real guard/copy/hash/syntax/rename operations. Host fixtures
+do not establish NAND durability, boot behavior or a physical installation.
+
+## Remaining activation and hardware gates
 
 The preparation tools stop before device writes; experimental disabled staging
-has its own separate explicit operation. Remaining work is the fresh guarded
-vendor-script CAS/atomic replacement, rollback and activation flow, preserving
-private permissions and both original scripts. The read-only collector and
-pure transaction policy prepare this boundary; an executable adapter is still
-missing. An offline plan, staged directory or review does not authorize replay,
-script replacement or activation.
+and script transactions each have their own separate explicit operations.
+Physical qualification and the independent activation flow remain unfinished.
+An offline plan, staged directory or review does not authorize replay, script
+replacement or activation.
 
 Activation needs independent checks that the optional PM extension returns
 to stock on failure, the bridge owns only its own child, sensor readings and

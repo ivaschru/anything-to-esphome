@@ -34,9 +34,10 @@ installation. This is source reconstruction proof, not a new device install.
 
 **Copying these files is not a complete installation.** The
 [initial-install preparation](../INITIAL_INSTALL.md) now has fixed-file
-read-only capture and local exact patch generation. It still needs a matched
-Qt helper, device write/CAS/backup handling, bounded activation and a verified
-stock fallback. Compiling or preparing a patch does not bypass those stages.
+capture, local exact patch generation and experimental disabled staging/CAS
+sources. Matching the Qt helper, qualifying writes/backup/rollback on hardware,
+bounded activation and verified stock fallback remain separate requirements.
+Compiling or preparing a patch does not bypass those stages.
 
 The inspected stock startup applies a recursive `chmod` to `/data/*`. The
 existing installation uses a hidden private directory and the reviewed hook;

@@ -35,6 +35,15 @@ separate even though the HACS wizard is shared.
   Failed maps/userspace-exe inspection is never absence; generic argv/INI/env
   stay on-device. No writer/activation authority follows from a review or host
   fixture. HACS/source_only and all existing runtime gates remain unchanged.
+  `commit_disabled_install.py` is an unqualified separate adapter: exact
+  --commit-disabled/--rollback-disabled, direction-specific consumed/fsynced
+  intent and permanent private marker, fresh whole-scope collector and inline
+  checks, fixed copy/sh-n/SHA/sync/atomic rename, independent readback. Keep
+  both opt-outs and recovery sources, no activation. Lost ACK never retries
+  or auto-rolls back; rollback needs a matching prior own commit/remote marker.
+  Preserve command-substitution exit status explicitly; PID output followed by
+  a failed scan is not success. CI exercises only rewritten temporary paths as
+  real Linux/root; never run production-path replacement commands on a host.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

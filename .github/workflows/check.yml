@@ -15,7 +15,9 @@ jobs:
         # This fixture intentionally exercises the production root-only Store
         # contract. Run it explicitly on the disposable hosted runner, rather
         # than weakening ownership checks or asking local developers for sudo.
-        run: sudo --preserve-env=LD_LIBRARY_PATH,PKG_CONFIG_PATH -- "$(command -v python)" -m unittest discover -s tests -p test_monitor1.py -v
+        # Disabled replacement QA rewrites every path into an isolated tree;
+        # no production launcher, firmware program or device is executed.
+        run: sudo --preserve-env=LD_LIBRARY_PATH,PKG_CONFIG_PATH -- "$(command -v python)" -m unittest discover -s tests -p 'test_monitor1*.py' -v
       - run: python -m compileall -q custom_components tools
       - run: node --check custom_components/qingping_esphome/frontend/panel.js
       - run: node tests/test_compatibility.mjs

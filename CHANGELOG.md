@@ -2,9 +2,13 @@
 
 ## Не выпущено
 
+- Monitor 1: отдельный experimental disabled script writer/rollback с новым
+  consumed intent, marker и независимым whole-scope readback; оба opt-out
+  сохраняются, activation и аппаратная квалификация ещё не выполнены
+
 - Monitor 1: pure disabled commit/rollback policy и read-only review staged
   scope/процессов, отказ неизвестным/неполным состояниям и повторным writes;
-  исполнитель vendor replacements и аппаратная проверка ещё отсутствуют
+  они подготавливают отдельный experimental writer, не дают write authority
 
 - Monitor 1: экспериментальный USB staging только в новый disabled private
   каталог, consumed intent до записи, проверка ext4/места и read-only status;

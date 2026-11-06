@@ -22,9 +22,9 @@ import stage_install_adb as staging
 PROCESS_SCAN = r"""count=0
 for link in /proc/[0-9]*/exe; do
     count=$((count+1))
-    [ "$count" -le 4096 ]
+    [ "$count" -le 4096 ] || exit 1
     pid=${link#/proc/}; pid=${pid%/exe}
-    case "$pid" in ''|*[!0-9]*) exit 1;; esac
+    case "$pid" in (''|*[!0-9]*) exit 1;; esac
     if executable=$(readlink "$link" 2>/dev/null); then
         :
     else
@@ -37,20 +37,22 @@ for link in /proc/[0-9]*/exe; do
             [ ! -d "/proc/$pid" ] && continue
             exit 1
         fi
-        case "$2" in ''|*[!0-9]*) exit 1;; esac
-        case "$1" in Z|X|x) continue;; esac
+        case "$2" in (''|*[!0-9]*) exit 1;; esac
+        case "$1" in (Z|X|x) continue;; esac
         [ "$(($2 & 2097152))" -ne 0 ] || exit 1
         continue
     fi
     case "$executable" in
-        /data/.esphome-cgs1/*) exit 1;;
-        /data/bin/SnowApp) printf '%s\n' "$pid";;
+        (/data/.esphome-cgs1/*) exit 1;;
+        (/data/bin/SnowApp) printf '%s\n' "$pid";;
     esac
 done"""
 # Linux v3.10 PF_KTHREAD=0x00200000, exported as stat field 9 (the seventh
 # token after comm). Sources: https://github.com/torvalds/linux/blob/v3.10/include/linux/sched.h
 # and https://github.com/torvalds/linux/blob/v3.10/fs/proc/array.c . This only
 # classifies a missing exe link; it neither loads a module nor changes a task.
+# Optional '(' before case patterns is POSIX and also keeps older /bin/sh
+# parsers from treating a pattern's ')' as the end of a nested $(scan).
 
 
 def parse_process(text, expected_pid, expected_executable):
@@ -210,7 +212,7 @@ def collect(adb, directory, expected_sha):
         raise ValueError("Disabled scope is not admissible for either known transaction")
     return {"schema_version": 1, "stage": "read_only_disabled_review", "hardware_contacted": True,
             "device_writes": 0, "installed": False, "installation_ready": False,
-            "executable_writer_available": False, "plan_sha256": expected_sha,
+            "review_grants_write_authority": False, "plan_sha256": expected_sha,
             "snapshot": asdict(observed), "options": options}
 
 
@@ -228,7 +230,7 @@ def main():
     with os.fdopen(fd, "w") as stream:
         json.dump(report, stream, indent=2)
         stream.write("\n")
-    print(json.dumps({key: report[key] for key in ("stage", "device_writes", "installation_ready", "executable_writer_available")}))
+    print(json.dumps({key: report[key] for key in ("stage", "device_writes", "installation_ready", "review_grants_write_authority")}))
 
 
 if __name__ == "__main__":

@@ -94,7 +94,7 @@ class DisabledReviewTests(unittest.TestCase):
         self.assertEqual((len(self.adb.writes), len(self.adb.pushes)), before)
         self.assertEqual(report["device_writes"], 0)
         self.assertFalse(report["installation_ready"])
-        self.assertFalse(report["executable_writer_available"])
+        self.assertFalse(report["review_grants_write_authority"])
         self.assertTrue(report["options"]["commit_disabled"]["admissible_for_review"])
         self.assertFalse(report["options"]["rollback_disabled"]["admissible_for_review"])
         self.assertEqual(report["snapshot"]["stock_process"][:2], (50, 100))
