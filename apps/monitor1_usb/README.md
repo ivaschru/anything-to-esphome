@@ -1,6 +1,6 @@
-# Monitor 1 USB companion — experimental connection check
+# Monitor 1 USB companion — experimental preparation
 
-This app implements two experimental **read-only connection paths** on its page:
+This app implements two experimental **read-only preparation paths** on its page:
 
 - **Computer USB:** Chrome/Edge WebUSB talks directly to the selected monitor.
 - **Home Assistant server USB:** the app's local ADB reads the selected USB
@@ -18,8 +18,8 @@ mode resolves the exact installed companion from Supervisor metadata and opens
 its native admin ingress page. Missing/stopped apps produce instructions;
 the integration never installs, starts or configures an app automatically.
 
-**This is not yet a complete flashing app.** It does not capture backups,
-build a profile, upload a program, run the bounded trial, activate firmware,
+**This is not yet a complete flashing app.** It does not build a profile,
+upload a program, run the bounded trial, activate firmware,
 reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.
 The explicit engineering writer/trial remains separate in
 [USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md). Source tests, a container
@@ -32,12 +32,31 @@ app/add-on repository, separate from the HACS integration release:
 
 1. In Settings → Apps (Add-ons) → app store → Repositories, add
    https://github.com/ivaschru/qingping-esphome
-2. Install **Qingping USB (experimental check)** and start it manually.
+2. Install **Qingping USB (experimental preparation)** and start it manually.
    It is built locally by Supervisor; no firmware image is downloaded.
 3. Select Open Web UI as an administrator.
 4. Connect the USB-C **data** cable to the chosen computer/server. Enable
    ADB on the stock monitor if needed, then restore its real Wi-Fi connection.
 5. Choose the USB location and perform the read-only check.
+6. Use **Save original files** to download nine fixed recovery/build files
+   and a verified identity/hash report. Capture performs its own fresh check;
+   computer mode opens a fresh native USB picker. Nothing is installed.
+
+The private `qingping-cgs1-capture.tar` uses regular files with mode 0600
+and directories with mode 0700. It contains original vendor binaries and
+device identifiers: keep it private and never publish it as a firmware asset.
+It is a fixed build/recovery set, not a full NAND or user-data backup.
+Every copy has a fixed size/SHA, followed by fresh source/identity checks;
+an incomplete or changed capture offers no partial archive. Server copies
+exist only in a private temporary folder and the owned download response;
+the global USB lease remains held until delivery finishes. Browser copies
+stay in memory until the local download; no upload or browser persistence.
+
+Server capture includes the actual native USB path and canonical preflight
+report. The browser cannot observe ADB's native `get-devpath`: it records a
+separate browser capture stage, never invents that field and cannot be used
+as an ordinary native ADB plan without the future browser transport adapter.
+Neither archive creates or reopens an install/launch/OTA intent.
 
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;

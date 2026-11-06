@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Ingress-only, read-only Monitor 1 USB companion.
 
-Only generated fixed reads can reach ADB. No generic shell, push, activation,
+Only generated fixed reads/pulls can reach ADB. No generic shell, push, activation,
 TCP daemon listener on the LAN or Home Assistant API access exists here.
 Browser USB uses the same source contract in the offline frontend bundle.
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import re
 import secrets
 import subprocess
+import stat
+import tarfile
+import tempfile
 import threading
 import time
 import uuid
@@ -28,10 +33,11 @@ class Refusal(Exception):
 
 
 class UsbReads:
-    def __init__(self, executable="adb", run=subprocess.run):
+    def __init__(self, executable="adb", run=subprocess.run, capture_root=Path("/data/adb")):
         self.executable, self.run = executable, run
+        self.capture_root = capture_root
 
-    def command(self, arguments, deadline):
+    def command(self, arguments, deadline, read_timeout=10):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise Refusal("usb_read_timeout")
@@ -40,7 +46,7 @@ class UsbReads:
             # and the integration's environment. The server listens only on
             # localhost; no -a/-H/tcpip/reverse/forward operation is exposed.
             result = self.run([self.executable, *arguments], capture_output=True,
-                timeout=min(10, remaining), check=False,
+                timeout=min(read_timeout, remaining), check=False,
                 env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/adb",
                      "ADB_SERVER_SOCKET": "tcp:localhost:5037"})
         except Exception:
@@ -86,8 +92,8 @@ class UsbReads:
             raise Refusal("usb_read_incomplete")
         return data[:-len(suffix)].decode("ascii").strip()
 
-    def inspect(self, serial):
-        deadline = time.monotonic() + 60
+    def inspect(self, serial, deadline=None):
+        deadline = time.monotonic() + 60 if deadline is None else deadline
         transport = self.transport(serial, deadline)
         identity = {step["name"]: self.read(serial, step["command"], deadline) for step in CONTRACT["identity"]}
         if (identity["uid"] != "0" or identity["arch"] != "armv7l" or
@@ -109,6 +115,75 @@ class UsbReads:
         return {"model": "CGS1", "stock_version": "4.1.8_0287", "co2_type": int(identity["co2_type"]),
                 "wlan_mac": mac, "boot_id": identity["boot_id"], "transport": "ha_usb",
                 "source_checked": True, "installation_ready": False}
+
+    def capture(self, serial):
+        """Copy only the nine generated fixed files; no recursive pull/INI.
+
+        The directory is private and temporary. Copies are bounded and hashed
+        locally, then all source/identity checks run again before any archive
+        can leave the request. A failed capture never returns partial bytes.
+        """
+        deadline = time.monotonic() + 240
+        transport = self.transport(serial, deadline)
+        before = self.inspect(serial, deadline)
+        root = self.capture_root
+        metadata = root.lstat()
+        if (root.resolve() != root or not stat.S_ISDIR(metadata.st_mode) or
+                metadata.st_uid != os.getuid() or stat.S_IMODE(metadata.st_mode) != 0o700):
+            raise Refusal("usb_capture_unverified")
+        contents = {}
+        total = sum(file["size"] for file in CONTRACT["files"])
+        if len(CONTRACT["files"]) != 9 or not 0 < total <= 32 * 1024 * 1024:
+            raise Refusal("usb_capture_unverified")
+        with tempfile.TemporaryDirectory(prefix="capture-", dir=root) as temporary:
+            for file in CONTRACT["files"]:
+                source = file["path"]  # Generated constants, never HTTP paths.
+                destination = Path(temporary) / source.lstrip("/")
+                destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                os.close(fd)
+                self.command(["-s", serial, "pull", source, str(destination)], deadline, read_timeout=30)
+                destination.chmod(0o600, follow_symlinks=False)
+                fd = os.open(destination, os.O_RDONLY | os.O_NOFOLLOW)
+                with os.fdopen(fd, "rb") as stream:
+                    metadata = os.fstat(stream.fileno())
+                    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1 or
+                            metadata.st_size != file["size"]):
+                        raise Refusal("usb_capture_unverified")
+                    data = stream.read(file["size"] + 1)
+                if len(data) != file["size"] or hashlib.sha256(data).hexdigest() != file["sha256"]:
+                    raise Refusal("usb_capture_unverified")
+                contents[source.lstrip("/")] = data
+            after = self.inspect(serial, deadline)
+            if before != after or self.transport(serial, deadline) != transport:
+                raise Refusal("usb_transport_changed")
+        report = {"schema_version": 1, "stage": "read_only_capture_complete", "hardware_contacted": True,
+                  "device_writes": 0, "installation_ready": False, "installed": False,
+                  "usb_serial": serial, "usb_transport": transport.decode("ascii"),
+                  "wlan_mac": before["wlan_mac"], "co2_type": before["co2_type"],
+                  "boot_id": before["boot_id"], "stock_version": before["stock_version"],
+                  "files": {file["path"]: {"sha256": file["sha256"], "size": file["size"]}
+                            for file in CONTRACT["files"]},
+                  "limitations": ["Fixed recovery/build file set, not a full NAND or user-data backup",
+                                  "No installation, activation, stock fallback or boot test performed"]}
+        contents["result.json"] = (json.dumps(report, indent=2) + "\n").encode()
+        output = io.BytesIO()
+        # Fixed private USTAR entries, no symlinks, executable bits, owner
+        # names or caller-selected members. Never publish these vendor bytes.
+        with tarfile.open(fileobj=output, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+            directories = {"qingping-cgs1-capture"}
+            for name in contents:
+                parent = Path("qingping-cgs1-capture") / name
+                directories.update(str(value) for value in parent.parents if str(value) != ".")
+            for name in sorted(directories):
+                info = tarfile.TarInfo(name + "/")
+                info.type, info.mode = tarfile.DIRTYPE, 0o700
+                archive.addfile(info)
+            for name, data in contents.items():
+                info = tarfile.TarInfo("qingping-cgs1-capture/" + name)
+                info.mode, info.size = 0o600, len(data)
+                archive.addfile(info, io.BytesIO(data))
+        return output.getvalue()
 
 
 class Companion:
@@ -135,18 +210,33 @@ class Companion:
                 raise Refusal("usb_unauthorized")
         return value
 
-    def inspect(self, user, nonce, serial):
+    def selected(self, user, nonce, serial, operation):
         value = self.session(user, nonce)
         if not isinstance(serial, str) or not SERIAL.fullmatch(serial):
             raise Refusal("usb_selection_invalid")
         with self.lock:
-            if serial in value[2]:
+            key = operation + ":" + serial
+            if key in value[2]:
                 raise Refusal("usb_selection_consumed")
-            value[2].add(serial)  # Before first USB read, even on timeout/disconnect.
+            value[2].add(key)  # Before first USB read, even on timeout/disconnect.
+
+    def inspect(self, user, nonce, serial):
+        self.selected(user, nonce, serial, "inspect")
         if not self.device_lock.acquire(blocking=False):
             raise Refusal("usb_busy")
         try:
             return self.usb.inspect(serial)
+        finally:
+            self.device_lock.release()
+
+    def capture(self, user, nonce, serial, deliver):
+        self.selected(user, nonce, serial, "capture")
+        if not self.device_lock.acquire(blocking=False):
+            raise Refusal("usb_busy")
+        try:
+            # Keep the global lease until the response finishes too. A slow
+            # ingress client cannot retain many simultaneous binary archives.
+            return deliver(self.usb.capture(serial))
         finally:
             self.device_lock.release()
 
@@ -188,6 +278,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if content_type == "application/x-tar":
+            self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-capture.tar"')
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'")
         self.end_headers()
@@ -217,7 +309,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path != "/inspect":
+            if self.path not in ("/inspect", "/capture"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -227,6 +319,9 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(int(size)))
             if not isinstance(data, dict) or set(data) != {"serial"}:
                 raise Refusal("usb_request_invalid")
+            if self.path == "/capture":
+                return self.server.companion.capture(user, self.headers.get("X-Qingping-Nonce"), data["serial"],
+                    lambda archive: self.reply(200, archive, "application/x-tar"))
             result = self.server.companion.inspect(user, self.headers.get("X-Qingping-Nonce"), data["serial"])
             self.reply(200, result)
         except Refusal as error:

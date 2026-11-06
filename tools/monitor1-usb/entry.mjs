@@ -3,6 +3,7 @@ import {AdbDaemonWebUsbDeviceManager} from "@yume-chan/adb-daemon-webusb";
 import {BrowserUsbProbe} from "../../custom_components/qingping_esphome/frontend/usb-probe.mjs";
 import {contract} from "../../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs";
 export {strings} from "../../custom_components/qingping_esphome/frontend/usb-labels.mjs";
+export {downloadCapture} from "../../custom_components/qingping_esphome/frontend/usb-capture.mjs";
 
 /** A fresh store for one selection only, with no browser persistence. */
 function ephemeralCredentials() {
