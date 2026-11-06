@@ -1,0 +1,12 @@
+{
+  "sdk_version": "2026.10.1",
+  "macro": "CGS1_COMPACT_HOST_MD5",
+  "original_sha256": {
+    "md5.h": "1575e66673d2ac218d2eea3f9389be8f4faeaafdacdf087b0ecd4a1d99d64d2a",
+    "md5.cpp": "a0e5a5000695c314af4aa1cdbfd0fb59903b8c23fdcbbd324825d65b19f705e0"
+  },
+  "patched_sha256": {
+    "md5.h": "ae3cd48d27b202f8e2979fa1b4258e20aff9ef38be8d3d0bd75813d3e37b93f4",
+    "md5.cpp": "7b94924e482bd5863492986b17a4fa1f7ff61d9845d6dfdd776238b2cee1e30b"
+  }
+}

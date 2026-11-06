@@ -34,7 +34,7 @@ class RunnerWifiRecoveryReceipt final:public NetworkRecoveryReceipt {
       // an unassociated baseline promises the exact enabled flags, not a
       // connection, address, or a newly invented CURRENT profile.
       okay=backend.catalog(profiles) && cgs1_wifi_recovery::shape(*plan,profiles,journal_.bound_candidate(),false) &&
-        (plan->catalog_mode==cgs1_wifi_prepare::CatalogMode::UNASSOCIATED?
+        (cgs1_wifi_prepare::unassociated(plan->catalog_mode)?
           cgs1_wifi_recovery::unassociated_flags_restored(*plan,profiles):
           cgs1_wifi_recovery::restored_flags(*plan,profiles));
     }

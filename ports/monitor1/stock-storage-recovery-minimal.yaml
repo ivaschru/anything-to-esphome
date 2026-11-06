@@ -1,0 +1,55 @@
+# Temporary recovery only. Stock UI/acquisition remain in their vendor
+# processes. HA's ordinary physical exports are temporarily absent until the
+# matched full bridge replaces this image after cleanup. No fake readings.
+# Both inspection AND exact old-program deletion are available in this image.
+packages:
+  release: !include host-release-optimization.yaml
+  power: !include power-telemetry.yaml
+substitutions:
+  cgs1_node_name: qingping-cgs1-stock-bridge
+  cgs1_friendly_name: Qingping CGS1 Stock Bridge
+  cgs1_api_mac: "02:00:00:00:00:01"
+  cgs1_storage_protected_pair: unbound
+esphome:
+  name: ${cgs1_node_name}
+  friendly_name: ${cgs1_friendly_name}
+  compile_process_limit: 1
+  build_flags:
+    # Only this temporary profile chooses the tested compact MD5 backend.
+    # Noise authentication/encryption and SHA-256 file verification stay on.
+    - -DCGS1_COMPACT_HOST_MD5
+  includes:
+    - device_profile.h
+    - network_preflight.h
+    - storage_audit.h
+    - storage_release_prune.h
+host:
+  mac_address: ${cgs1_api_mac}
+logger:
+  level: WARN
+json:
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+  actions:
+    - action: storage_audit
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda cgs1_storage::audit(root);
+    - action: storage_prune_release
+      supports_response: only
+      variables:
+        release_id: string
+        native_inode: string
+        guardian_inode: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              cgs1_storage::prune(release_id, native_inode, guardian_inode,
+                "${cgs1_storage_protected_pair}", root);
+ota:
+  - platform: esphome
+    encryption:
+    port: 3232

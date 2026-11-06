@@ -39,7 +39,7 @@ class FullRuntime : public Component {
     boot_backend_.owner=this;
     reboot_backend_.owner=this;
     reboot_flow_=std::make_unique<RebootFlow>(reboot_backend_);
-    boot_flow_=std::make_unique<BootFlow>(boot_backend_);
+    boot_flow_=std::make_unique<BootFlow>(boot_backend_,VENDOR_STARTUP_SETTLE_MS);
     // Missing/invalid own mode leaves stock running. Setup never creates a
     // directory or infers activation from merely finding installed files.
     bool enabled=false;
@@ -111,7 +111,7 @@ class FullRuntime : public Component {
       root["error"]="enabled_unattempted_installed_core_required";return;
     }
     installed_start_requested_=true;
-    boot_flow_=std::make_unique<BootFlow>(boot_backend_);
+    boot_flow_=std::make_unique<BootFlow>(boot_backend_,VENDOR_STARTUP_SETTLE_MS);
     boot_flow_->start(true,cgs1_supervisor::clock_ms());root["ok"]=true;
   }
   void reboot_core_device(StringRef expected_boot_id,JsonObject root) {
@@ -470,6 +470,14 @@ class FullRuntime : public Component {
     cgs1_supervisor::FullBootQueue prepare_and_launch(){return owner->boot_launch_();}
   };
   using BootFlow=cgs1_supervisor::FullBootFlow<BootBackend>;
+  // On the measured CGS1 boot SnowApp was ready at ~8s but its miio child
+  // appeared at ~46s and inherited DRM after the earlier 15s admission.
+  // Give that ordinary startup a full minute before consuming a native boot
+  // attempt. Exact current-owner checks and the separately bound one-shot
+  // repair still run afterward; unknown/late conflicts continue to refuse.
+  // This also permits offline boots: readiness does not require a cloud or
+  // Wi-Fi connection. The scheduler's existing 180s total bound is unchanged.
+  static constexpr uint64_t VENDOR_STARTUP_SETTLE_MS=60000;
   BootBackend boot_backend_;std::unique_ptr<BootFlow>boot_flow_;
   bool core_release_autostart_{false},installed_start_requested_{false};
   bool boot_return_handled_{false},boot_return_mode_saved_{false};

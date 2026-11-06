@@ -4,6 +4,199 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- Bootstrap launchers and startup-hook.sh match the existing StockInspection
+  fingerprints. `bootstrap_patches.py` reproduces both complete installed
+  script digests from the exact private factory originals; no vendor scripts
+  are distributed. Keep bytes/process names coupled to those gates. Syntax
+  checks use sh -n, never execution of production-path scripts on a host.
+  `preflight_adb.py` is an initial-install read-only USB capture, not an apply
+  route: explicit WLAN/CO2, boot/transport and before/after fixed-file pins,
+  private output, no INI/credential dump or arbitrary command. Old adbd needs
+  the final shell completion sentinel as well as the host exit code. Existing
+  installs are refused; do not use this tool to upgrade or prune them. These
+  steps still need guarded write/CAS/activation and physical verification.
+  `prepare_install.py` only assembles a private offline plan, rehashing capture,
+  source/ELF/helper/patched scripts and exact profile binding. Keep live CAS
+  required, installation_ready=false and the unconsumed intent; its requested
+  free-space budget is not measured capacity. Do not manufacture a USB capture
+  to promote a compile fixture into a target or installation result.
+  `stage_install_adb.py` is experimental and not hardware qualified: explicit
+  --stage creates only a new disabled own root, consumes/fsyncs one host intent
+  before writing, checks actual ext4 headroom, pushes each file once and leaves
+  vendor scripts unchanged. --status only reconciles; lost ACK never permits
+  retry or receipt removal. No launch/preload/signal/boot/full activation. Keep
+  this route outside HACS until independent staging/commit/rollback QA exists.
+  Disabled vendor transitions live in the pure `disabled_commit_policy.py`:
+  factory-only forward, separate exact partial rollback, both opt-outs, plan/
+  inode/boot/USB/source/process fencing, one issue and independent readback.
+  `review_disabled_install.py` is read-only and hardware unqualified. Require
+  the actual successful stage receipt, complete fixed source/vendor hashes,
+  unique live stock/watchdog scope and actual absent own code/PM mapping.
+  Failed maps/userspace-exe inspection is never absence; generic argv/INI/env
+  stay on-device. No writer/activation authority follows from a review or host
+  fixture. HACS/source_only and all existing runtime gates remain unchanged.
+  `commit_disabled_install.py` is an unqualified separate adapter: exact
+  --commit-disabled/--rollback-disabled, direction-specific consumed/fsynced
+  intent and permanent private marker, fresh whole-scope collector and inline
+  checks, fixed copy/sh-n/SHA/sync/atomic rename, independent readback. Keep
+  both opt-outs and recovery sources, no activation. Lost ACK never retries
+  or auto-rolls back; rollback needs a matching prior own commit/remote marker.
+  Preserve command-substitution exit status explicitly; PID output followed by
+  a failed scan is not success. CI exercises only rewritten temporary paths as
+  real Linux/root; never run production-path replacement commands on a host.
+  `initial_bridge_trial_policy.py` is pure policy, not an executable guardian
+  or activation route. Preserve both opt-outs, absent autostart/Wi-Fi/prefs
+  stores and private RAM scope. A future device timer must own/reap only its
+  kernel child with parent-death TERM and child-only OOM protection; never
+  adopt a PID or reuse the retrying launcher. Fixed deadline, one TERM/KILL,
+  recent exact authenticated wire updates and clean reap are independent
+  gates. Source RAM floors and fixtures are not measured hardware proof.
+  `initial_trial_child.h` is only a standalone guardian's child primitive:
+  fork gate, own-child OOM/PDEATHSIG, exclusive wait/reap, fixed 60/5/5s.
+  No CLI/production integration or ELF/scope/intent admission exists there.
+  Keep callbacks out of ordinary device flows; future exec admission must
+  exclude credential changes and set-id/file capabilities that clear PDEATHSIG.
+  Test it only as the explicit Linux/root synthetic fixture. Never disable
+  assertions in that executable fixture or replace hardware QA with its result.
+  `initial_trial_admission.h` returns only read fds: exact private ext4 root,
+  fixed ARM program/hash/metadata and observed no-capability report; a
+  separate initial-only empty tmpfs reader checks identity/budget. Never
+  repair/strip attrs or treat unsupported/hidden metadata as exec permission.
+  These fds do not establish the named root, live stock scope or trial intent;
+  keep LSM visibility and post-exec PDEATHSIG as explicit hardware gates.
+  RAM free space is not MemAvailable. No runtime filesystem override exists.
+  The child primitive sets/reads back child-only no_new_privs before entry;
+  policy requires its ACK. Keep parent OOM/NNP unchanged. Hosted fd-exec of
+  the synthetic fixture proves only that helper on that kernel/libc, never
+  a monitor ELF, vendor glibc 2.23 or complete guardian protection.
+  review_initial_trial.py is a read-only host join: terminal commit receipt/
+  owner marker, full fresh scope, positive absence listings, TCP4/6, empty RAM
+  scratch and conservative MemFree. It never creates/starts a job and reports
+  image_fd_admitted=false; policy binds RAM inode/device and needs the actual
+  device fd reader before start. No cache/swap credit or fabricated guardian.
+  initial_trial_intent.h is a separate own-root writer primitive, not a
+  launch tool. Keep fixed O_EXCL filename, consumed-before-write attempt,
+  exact boot/root/creator binding, file+directory fsync/readback and no
+  adoption/retry/unlink. One parent-process fork grant is consumed before
+  fork; existing/partial markers never become new authority through a nonce.
+  Its tmpfs fixture does not qualify device NAND, named scope or firmware.
+  initial_trial_exec.h is an inert admitted child-entry building block, not
+  a launcher. Keep fixed RAM cwd/preferences, exact argv/environment, null
+  stdio and complete child-only inherited-fd closure before fexecve. Require
+  the actual protected child and recheck image/RAM readers. It does not join
+  live device scope or consume intent; no standalone guardian/HACS activation.
+  Native hosted exec tests run only their own private fixture ELF, never ARM
+  firmware or a monitor. Preserve the production ARM/ext4 admission boundary.
+  initial_trial_filesystem.h is the read-only filesystem scope:
+  fixed no-follow /data/root walks, exact payload/flags/plan+commit markers,
+  complete positive listings and persistent inode/metadata/byte checks.
+  Unknown files, partial markers and history are preserved/refused, never
+  cleaned or ignored. A new trial marker needs one explicit acknowledgement
+  of the actual creator-owned intent bound to this root/plan/bridge; no flag,
+  reopened actor or serialized proof can bypass the initial listing. Recheck
+  every original pin before rebasing only the known directory metadata delta.
+  The intent must outlive the reader; claimed checks belong to the creator,
+  not its fork child. Acknowledgement never grants a fork or launch.
+  It does not collect stock/vendor/device/boot/resources or authorize launch.
+  initial_trial_resources.h is pre-start read-only kernel resource evidence:
+  fixed procfs fd reads, unique MemTotal/MemFree in KiB, no cache/swap credit,
+  and both complete TCP tables refusing API/OTA local ports in every state.
+  Missing/malformed/oversized/stale reads return only refusal, never a cached
+  positive. Export no socket tables/peer addresses. The one-second observation
+  window is checked after IO; it is not a hard syscall timeout, RAM guarantee
+  or port reservation. Running-child/resource ownership still needs its join.
+  initial_trial_device.h is read-only identity evidence: exact physical WLAN,
+  boot, CO2 type, armv7l and stock version; fixed ext4/procfs/sysfs fd reads,
+  bounded INI filtering and persistent refusal on replacement/failed reads.
+  Keep kernel sysfs class-link allowance separate from no-follow data/proc
+  ancestors and final files. No raw INI/password export, runtime root/CPU
+  override, USB proof, process/launch authority or hardware qualification.
+  initial_trial_stock.h is pre-start read-only procfs evidence: unique exact
+  stock/watchdog birth/parent, actual exe inode vs admitted SnowApp/fixed RO
+  BusyBox, complete scans/cmdline/maps and no known NAND/RAM executable/mapping.
+  Never treat an unreadable live userspace exe or failed maps read as absent.
+  No PID adoption, signal, runtime proc/path override or trial authority.
+  Keep observation IO off the future independent stop-deadline loop; the
+  post-read freshness limit is not a syscall timeout or hardware proof.
+  initial_trial_ram_scope.h binds the fixed named pre-existing empty tmpfs
+  job and positively lists /tmp for the boot-launcher lock's absence. Keep
+  root-owned sticky /tmp, exact job inode/metadata and complete bounded reads;
+  preserve unrelated entries, refuse unknown job contents/history and never
+  create/repair/prune a directory. Its read fd grants no fork/exec authority.
+  initial_trial_scope.h joins the actual fixed readers from one exact
+  binding, deriving image/RAM fds from its verified named roots. Two resource
+  reads bracket complete scope rechecks; clear all evidence on failure and
+  never revive a refusal. The five-second frame is post-read freshness, not
+  an IO timeout or timer. Only the actual creator's matching plan/root/bridge/
+  boot/RAM record can be acknowledged; the intent must outlive the scope.
+  Inert entry preparation is not host USB/plan authentication, guardian
+  self-image admission, fork permission, launch or hardware qualification.
+  initial_trial_self.h is a separate read-only actual guardian image reader:
+  fixed named private tmpfs program, exact size/SHA/ARM/capability report and
+  actual /proc self birth/exe inode/path. A copied binary or reported PID never
+  grants a relationship. Refusal is permanent, inherited fork objects fail,
+  and the stock scanner can join only the live reader for its actual caller;
+  default scans still refuse every own executable. No child/fork permission.
+  Native hosted
+  self-exec is a separate compile-time fixture type, never a production path,
+  filesystem, architecture or PID override. Keep reads off the stop timer.
+  initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
+  through no-follow root-owned directory/file fds. Keep the host/device pin
+  contract test, complete hash/metadata/named-inode rechecks and persistent
+  refusal. Factory scripts, symlink ancestors and writable vendor paths are
+  not admitted. Only a compile-time non-ext4 fixture can substitute synthetic
+  pins/root; no production override, write, exec, shell or repair exists.
+  Its verified stock read fd only joins the separate stock-session reader;
+  file evidence is not a complete guardian or launch authority. Unknown
+  vendor layout remains a qualification blocker.
+
+- `build_candidate.py` is an experimental private CGS1 build controller,
+  not installation authority. It archives one committed source revision,
+  creates its own pinned SDK and matches actual PM/guardian/native/bridge
+  digests. Keep the explicit 0600 profile, separate S8/SCD40, required release
+  manifests and installation_ready=false. Never copy dirty deployments or
+  replace missing trial artifacts with fake ones. `stock-bridge-release.yaml`
+  uses the ordinary FullRuntime gates without the legacy engineering trial
+  API. Hardware QA and the HACS USB/ADB pipeline are still separate work.
+  Keep publication of verified runtime sources and upgrades of existing
+  installs separate from the unfinished initial USB/HACS route. Its missing
+  activation code is not a reason to withhold the runtime source. A first
+  trial is experimental before ordinary availability; changing a readiness
+  flag cannot supply the missing implementation or its hardware evidence.
+
+- `ports/monitor1/build_pm_helper.py` is build-only. It requires an explicit
+  independently verified stock QtCore SHA and the isolated CGS1 environment;
+  outputs/logs stay private in a fresh ignored build directory. Public Qt
+  headers are pinned; vendor Qt libraries and rebuilt helpers are not release
+  assets. Preserve ARM/glibc/input checks and never install the mock/test .so
+  or infer loader authority from a successful build. See PM_HELPER_BUILD.md.
+
+- CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
+  hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
+  probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach
+  to an apparently free tty or reuse the FIQ console. A real host tracker/GATT
+  backend and lifecycle proof are also needed before exposing a proxy toggle.
+
+- Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
+  tests. Power is read-only kernel capacity/voltage/status, never a guessed
+  percentage. Keep sealed UNASSOCIATED_MANUAL distinct from saved replay,
+  both guardians, private Store/CAS and no-SELECT rollback. No password API.
+  The tiny recovery has inventory AND exact old-program prune; protect an
+  explicitly bound working pair, preserve user files, verify local backups,
+  and consume each release intent before deletion. Its compact SDK MD5
+  backend is opt-in only; Noise/OTA and SHA-256 stay enabled. Normal profiles
+  retain EVP. Production core startup settle is 60s with the same 180s total
+  bound and strict DRM gates. See ports/monitor1/POWER_WIFI_RECOVERY.md.
+  Separate existing private S8/SCD40 deployments passed power exports,
+  normal return, software auto boot and HA readback. Preserve the distinction
+  between that runtime proof and the still-unqualified public initial route;
+  no fresh installation or absent-AP/battery-transition proof follows.
+  These sources do not enable the still-missing universal CGS1 installer or
+  establish physical absent-AP, battery-transition, BLE or Monitor 2 proof.
+  The planner fixture needs actual Linux/root Store ownership; CI runs its
+  explicit hosted-runner root step. Never remove that production check to
+  make a non-root local test pass or invoke sudo from the test wrapper.
+
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
   Store only the language preference in localStorage. Translate text nodes in
   place: never rebuild the form, repeat setup, disconnect BLE or restart a
@@ -88,9 +281,11 @@ separate even though the HACS wizard is shared.
 - The HA frontend uses HA HTTPS/WebSocket authentication. Stock MQTT uses
   port 1886 and a dedicated LAN HTTP listener uses port 1887 by default;
   do not expose either port on a public interface/router forward.
-- Monitor 1 is a source snapshot, not yet a universal release builder.
-  Do not remove missing-manifest checks or copy private release pins to make
-  full YAML compile. Monitor 2 remains disabled until hardware verification.
+- Monitor 1 has an experimental build-only candidate controller; separate
+  SCD40 and S8 source compiles passed with matching artifact pins.
+  This does not enable the universal installer. Do not remove missing-manifest
+  checks or copy private release pins to make full YAML compile. Monitor 2
+  remains disabled until hardware verification.
 - Normal HACS installs must have a non-prerelease tag with the ZIP asset.
   Keep hide_default_branch=true: zip_release cannot install a source branch
   without its own release asset. Hyphenated beta/rc tags remain prereleases;

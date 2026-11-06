@@ -1,0 +1,34 @@
+# A temporary stock-preserving recovery bridge, not a full UI release. Its
+# inventory and prune actions touch only fixed own executable files. Prune
+# protects the compiled working pair and requires exact audited file inodes.
+# Keeping Noise API/OTA plus the existing sensor/PM bridge allows the ordinary
+# matched full release to replace this bridge after storage is understood.
+packages:
+  stock: !include stock-bridge.yaml
+substitutions:
+  # An intentionally invalid default prevents cleanup in an unbound build.
+  cgs1_storage_protected_pair: unbound
+esphome:
+  includes:
+    - network_preflight.h
+    - storage_audit.h
+    - storage_release_prune.h
+api:
+  actions:
+    - action: storage_audit
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              cgs1_storage::audit(root);
+    - action: storage_prune_release
+      supports_response: only
+      variables:
+        release_id: string
+        native_inode: string
+        guardian_inode: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              cgs1_storage::prune(release_id, native_inode, guardian_inode,
+                "${cgs1_storage_protected_pair}", root);

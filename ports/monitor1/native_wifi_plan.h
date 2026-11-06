@@ -61,7 +61,7 @@ class NativeBootPlanSource final {
 
 template<class Scope,class Source=NativePlanSource,
     cgs1_wifi_prepare::CatalogMode Mode=cgs1_wifi_prepare::CatalogMode::CONNECTED,
-    bool BootReplay=false>class PlanBuilder {
+    bool BootReplay=false,bool Interactive=false>class PlanBuilder {
  public:
   explicit PlanBuilder(Scope&scope):scope_(scope){}
   PlanBuilder(const PlanBuilder&)=delete;PlanBuilder&operator=(const PlanBuilder&)=delete;
@@ -81,7 +81,7 @@ template<class Scope,class Source=NativePlanSource,
   bool build_(const cgs1_wifi_private::Network*requested,cgs1_wifi_guard::Plan&out) {
     if(attempted_){error_=PlanError::CONSUMED;return false;}
     attempted_=true;
-    if(requested && (BootReplay || !requested->ssid_size || requested->ssid_size>32))return fail_(PlanError::REQUEST);
+    if((Interactive && !requested) || (requested && (BootReplay || !requested->ssid_size || requested->ssid_size>32)))return fail_(PlanError::REQUEST);
     cgs1_wifi_guard::Plan plan;
     if(!scope_.identify_plan(plan))return fail_(PlanError::SCOPE);
     plan.catalog_mode=Mode;
@@ -93,10 +93,11 @@ template<class Scope,class Source=NativePlanSource,
         baseline.daemon.process.pid<2 || baseline.daemon.process.pid>2147483647 ||
         !baseline.daemon.process.start || !baseline.daemon.socket_inode)return fail_(PlanError::SNAPSHOT);
     const auto observed=cgs1_wifi_boot::classify(baseline.association,baseline.profiles);
-    if constexpr(BootReplay) {
+    if constexpr(BootReplay || Interactive) {
       if(observed==cgs1_wifi_boot::Baseline::UNSUPPORTED)return fail_(PlanError::SNAPSHOT);
       plan.catalog_mode=observed==cgs1_wifi_boot::Baseline::CONNECTED?
-        cgs1_wifi_prepare::CatalogMode::CONNECTED:cgs1_wifi_prepare::CatalogMode::UNASSOCIATED;
+        cgs1_wifi_prepare::CatalogMode::CONNECTED:(Interactive?
+          cgs1_wifi_prepare::CatalogMode::UNASSOCIATED_MANUAL:cgs1_wifi_prepare::CatalogMode::UNASSOCIATED);
     }
     if(!cgs1_wifi_prepare::supported_catalog(baseline.profiles,plan.catalog_mode))return fail_(PlanError::SNAPSHOT);
     // Match the sealed baseline semantics to the actual STATUS/catalog join.
@@ -177,13 +178,17 @@ template<class Scope,class Source=NativePlanSource,
 } // namespace cgs1_wifi_request
 
 namespace cgs1_supervisor {
-using NativeWifiPlanBuilder=cgs1_wifi_request::PlanBuilder<NativeWifiScope>;
+// One stable read_boot capture classifies a local request. A failed read
+// never falls through to a more permissive second source/connection mode.
+using NativeWifiPlanBuilder=cgs1_wifi_request::PlanBuilder<NativeWifiScope,
+  cgs1_wifi_request::NativeBootPlanSource,cgs1_wifi_prepare::CatalogMode::CONNECTED,false,true>;
 // The boot builder has no user-request path. It classifies ONE stable actual
 // capture and binds the selected mode plus exactly the saved ordered record.
 using NativeBootWifiPlanBuilder=cgs1_wifi_request::PlanBuilder<NativeWifiScope,
   cgs1_wifi_request::NativeBootPlanSource,cgs1_wifi_prepare::CatalogMode::CONNECTED,true>;
-// SOURCE-only compile target. No ordinary transaction/runtime calls this
-// alias; FilePreparationAuthority still refuses UNASSOCIATED before arming.
+// Legacy source-only adapter; ordinary UI uses the single-capture interactive
+// builder above. Guardian authority separately validates saved versus manual
+// unassociated plans before arming either transaction.
 using NativeUnassociatedWifiPlanBuilder=cgs1_wifi_request::PlanBuilder<NativeWifiScope,
   cgs1_wifi_request::NativeUnassociatedPlanSource,cgs1_wifi_prepare::CatalogMode::UNASSOCIATED>;
 } // namespace cgs1_supervisor

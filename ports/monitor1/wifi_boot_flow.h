@@ -12,7 +12,7 @@
 #include <memory>
 
 namespace cgs1_wifi_boot {
-enum class Stage {WAITING,APPLYING,NO_RECORD,ALREADY_CONNECTED,SAVED,UNAVAILABLE,RETURNING};
+enum class Stage {WAITING,APPLYING,NO_RECORD,ALREADY_CONNECTED,SAVED,UNAVAILABLE,RETURNING,DEFERRED};
 template<class Factory,class Clock=cgs1_wifi_forward::FlowClock>class Controller final {
  public:
   using Transaction=typename Factory::Transaction;
@@ -20,7 +20,7 @@ template<class Factory,class Clock=cgs1_wifi_forward::FlowClock>class Controller
   Controller(const Controller&)=delete;Controller&operator=(const Controller&)=delete;
   Stage stage()const{return stage_;}
   bool finished()const{return stage_==Stage::NO_RECORD || stage_==Stage::ALREADY_CONNECTED ||
-    stage_==Stage::SAVED || stage_==Stage::UNAVAILABLE;}
+    stage_==Stage::SAVED || stage_==Stage::UNAVAILABLE || stage_==Stage::DEFERRED;}
   bool return_required()const{return stage_==Stage::RETURNING;}
   unsigned observations()const{return observations_;}
   cgs1_wifi_forward::FlowStage flow_stage()const {
@@ -46,6 +46,7 @@ template<class Factory,class Clock=cgs1_wifi_forward::FlowClock>class Controller
         stage_=error==cgs1_wifi_request::PlanError::SAVED_RECORD?Stage::NO_RECORD:Stage::UNAVAILABLE;
         return;
       }
+      if(transaction_->saved_deferred()){stage_=Stage::DEFERRED;return;}
       if(transaction_->saved_skipped()){stage_=Stage::ALREADY_CONNECTED;return;}
       stage_=Stage::APPLYING;
     }

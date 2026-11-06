@@ -1,6 +1,8 @@
 # Full-native candidate: only the sealed-plan/dual-guardian runner may start it.
 # Generate the compiled guardian pin first. This is not a standalone installer.
 packages:
+  power: !include power-telemetry.yaml
+  release: !include host-release-optimization.yaml
   shared: !include native-ui-shared.yaml
   identity: !include native-ha-identity.yaml
   pm_controls: !include independent-pm-controls.yaml

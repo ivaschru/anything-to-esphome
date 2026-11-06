@@ -1,0 +1,61 @@
+# Shared export names keep stock/full HA identities identical. This package
+# reads the kernel gauge and never takes ownership of charging or T/RH logic.
+esphome:
+  includes:
+    - power_supply.h
+sensor:
+  - platform: template
+    id: cgs1_battery_level
+    name: Battery level
+    device_class: battery
+    state_class: measurement
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    force_update: true
+    update_interval: never
+  - platform: template
+    id: cgs1_battery_voltage
+    name: Battery voltage
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: V
+    accuracy_decimals: 3
+    entity_category: diagnostic
+    force_update: true
+    update_interval: never
+binary_sensor:
+  - platform: template
+    id: cgs1_battery_charging
+    name: Battery charging
+    device_class: battery_charging
+    entity_category: diagnostic
+  - platform: template
+    id: cgs1_external_power
+    name: External power
+    device_class: power
+    entity_category: diagnostic
+  - platform: template
+    id: cgs1_power_available
+    name: Power telemetry available
+    entity_category: diagnostic
+text_sensor:
+  - platform: template
+    id: cgs1_battery_status
+    name: Battery status
+    entity_category: diagnostic
+    update_interval: never
+interval:
+  - interval: 10s
+    then:
+      - lambda: |-
+          const auto sample = cgs1_power::read();
+          id(cgs1_battery_level).publish_state(sample.capacity);
+          id(cgs1_battery_voltage).publish_state(sample.voltage);
+          id(cgs1_battery_status).publish_state(cgs1_power::label(sample.status));
+          id(cgs1_power_available).publish_state(sample.complete());
+          // Binary unknown is distinct from false: a failed read must not
+          // continue advertising the previous charge/power state forever.
+          if (sample.status_valid()) id(cgs1_battery_charging).publish_state(sample.charging());
+          else id(cgs1_battery_charging).invalidate_state();
+          if (sample.external_known()) id(cgs1_external_power).publish_state(sample.external());
+          else id(cgs1_external_power).invalidate_state();

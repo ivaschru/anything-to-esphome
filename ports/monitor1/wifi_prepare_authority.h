@@ -225,7 +225,7 @@ template<class Scope>class FilePreparationAuthority {
   bool request_matches_(const cgs1_wifi_private::Network&network)const {
     if(!network.ssid_size || network.ssid_size>32)return false;
     for(size_t index=0;index<plan_.decision.desired.size();++index) {
-      if(index && plan_.catalog_mode==CatalogMode::UNASSOCIATED)return false;
+      if(index && unassociated(plan_.catalog_mode))return false;
       const auto&expected=plan_.decision.desired[index];
       if(expected.ssid_size!=network.ssid_size)continue;
       unsigned difference=0;
@@ -237,7 +237,8 @@ template<class Scope>class FilePreparationAuthority {
   }
   bool mode_admitted_()const {
     return plan_.catalog_mode==CatalogMode::CONNECTED ||
-      (plan_.catalog_mode==CatalogMode::UNASSOCIATED && cgs1_wifi_decision::saved_replay(plan_.decision));
+      (plan_.catalog_mode==CatalogMode::UNASSOCIATED && cgs1_wifi_decision::saved_replay(plan_.decision)) ||
+      (plan_.catalog_mode==CatalogMode::UNASSOCIATED_MANUAL && cgs1_wifi_decision::manual_update(plan_.decision));
   }
   bool clean_generation_()const {
     // All previous generation files must already have been retired by the

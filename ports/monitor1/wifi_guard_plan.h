@@ -116,7 +116,7 @@ inline bool decode(const Bytes &encoded,Plan &out) {
   if(!input.text(16,p.full_session) || !input.text(36,p.boot_id) || !input.number(8,p.created_ms) ||
       !input.number(8,p.deadline_ms) || !input.number(4,pid) || !input.number(8,p.daemon_start) ||
       !input.number(8,p.socket_inode) || !input.text(16,p.decision.transaction) ||
-      !input.number(1,mode) || mode>1 || !input.number(1,count) || count>=32)return false;
+      !input.number(1,mode) || mode>2 || !input.number(1,count) || count>=32)return false;
   p.catalog_mode=static_cast<cgs1_wifi_prepare::CatalogMode>(mode);
   p.daemon_pid=uint32_t(pid);p.original.reserve(size_t(count));
   for(size_t i=0;i<count;++i) {

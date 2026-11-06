@@ -11,7 +11,8 @@ enum class FullBootStage:uint8_t {MORE,READY,FAILED};
 enum class FullBootQueue:uint8_t {WAIT_FOR_STOCK,QUEUED,FAILED,WAIT_FOR_DISPLAY};
 template<class Backend> class FullBootFlow {
  public:
-  explicit FullBootFlow(Backend &backend):backend_(backend){}
+  explicit FullBootFlow(Backend &backend,uint64_t startup_settle_ms=15000)
+      :backend_(backend),startup_settle_ms_(startup_settle_ms){}
   void start(bool enabled,uint64_t now) {
     if(started_)return;
     started_=true;started_at_=now;
@@ -21,9 +22,10 @@ template<class Backend> class FullBootFlow {
     if(state_==FullBootState::DISABLED || state_==FullBootState::QUEUED || state_==FullBootState::REFUSED)return;
     if(!now || now<started_at_ || now-started_at_>180000){state_=FullBootState::REFUSED;return;}
     if(state_==FullBootState::WAITING) {
-      // Vendor services get an initial 15 seconds. Subsequent readiness reads
-      // are paced to once per second; failure cannot queue a takeover.
-      if(now-started_at_<15000 || (last_read_ && now-last_read_<1000))return;
+      // The caller may require a longer initial vendor startup window. This
+      // only postpones readiness reads; it does not extend the 180s deadline,
+      // consume another attempt or relax any later DRM/process capture.
+      if(now-started_at_<startup_settle_ms_ || (last_read_ && now-last_read_<1000))return;
       last_read_=now;
       if(!backend_.ready())return;
       state_=FullBootState::REFUSED; // Fail closed BEFORE durable intent.
@@ -54,7 +56,7 @@ template<class Backend> class FullBootFlow {
     if(state_==FullBootState::WAITING || state_==FullBootState::STAGING)state_=FullBootState::DISABLED;
   }
  private:
-  Backend &backend_;FullBootState state_{FullBootState::DISABLED};
+  Backend &backend_;uint64_t startup_settle_ms_;FullBootState state_{FullBootState::DISABLED};
   bool started_{false};uint64_t started_at_{0},last_read_{0},last_prepare_{0};
 };
 } // namespace cgs1_supervisor
