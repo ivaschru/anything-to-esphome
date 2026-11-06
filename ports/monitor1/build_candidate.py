@@ -253,6 +253,16 @@ def main():
                     ("CGS1_ESPHOME_NODE_NAME", profile["node_name"]),
                     ("CGS1_EXPECTED_PM_HELPER_SHA", helper_sha))))
             (source / "secrets.yaml").write_text("api_encryption_key: " + json.dumps(profile["api_encryption_key"]) + "\n")
+            # First-install USB trials use a separate bounded executable,
+            # never the production retrying boot launcher or full-UI guardian.
+            # It contains no profile/Noise secret and stays on the host until
+            # the explicit trial adapter uploads it into a fresh private RAM job.
+            run("initial-trial-guardian", [source / "zig-cxx", "-std=c++17", "-Os", "-Wall", "-Wextra", "-Werror",
+                                          "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
+                                          source / "initial_bridge_trial_main.cpp", "-lcrypto", "-o",
+                                          output / "initial-trial-guardian-program"], 240)
+            initial_guardian = program_spec(output / "initial-trial-guardian-program")
+            (output / "initial-trial-guardian-program").chmod(0o600)
             run("guardian", [source / "zig-cxx", "-std=c++17", "-Os", "-Wall", "-Wextra", "-Werror",
                              "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections",
                              "-include" + str(source / "device_profile_generated.h"),
@@ -281,7 +291,7 @@ def main():
             for name in ("native-program", "guardian-program", "bridge-program"):
                 (output / name).chmod(0o600)
             report.update(complete_build=True, stage="built_not_installed", artifacts={**manifest, "bridge-program": bridge},
-                          pm_helper=helper["artifacts"]["pm_qt_bridge.so"])
+                          pm_helper=helper["artifacts"]["pm_qt_bridge.so"], initial_trial_guardian=initial_guardian)
         finally:
             (output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"complete_build": True, "installation_ready": False, "hardware_contacted": False}))

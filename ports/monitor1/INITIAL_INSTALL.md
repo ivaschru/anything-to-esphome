@@ -5,6 +5,12 @@ staging and disabled script commit/rollback. Writers are not hardware qualified;
 activation and the HACS CGS1 installation route remain unavailable.** Do not treat
 the commands below as a complete flashing instruction or an upgrade tool.
 
+The next executable step is now available separately as the experimental
+[bounded USB bridge trial](USB_TRIAL.md). It composes the readers/intent/child
+building blocks described below, keeps both opt-outs and stops its own child
+independently of the host. The historical building-block sections do not grant
+an alternative launch path. Trial success still does not activate installation.
+
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
 CO2 type **2 (S8)** or **3 (SCD40)**. The two types select different native
 backends. Monitor 2, SCD30, other firmware and unknown board revisions are
