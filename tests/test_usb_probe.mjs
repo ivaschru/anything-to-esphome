@@ -113,3 +113,4 @@ for (const identity of [{version: "unknown"}, {co2_type: "1"}, {arch: "aarch64"}
 console.log("Browser USB: fixed source/identity reads, synchronous picker, no replay/writes, bounded/later cleanup passed");
 await import("./test_usb_capture.mjs");
 await import("./test_usb_preparation.mjs");
+await import("./test_usb_build.mjs");

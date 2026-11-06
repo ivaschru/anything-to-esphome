@@ -24,6 +24,7 @@ import time
 import uuid
 
 from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, available_jobs
+from build_worker import Builds
 
 HERE = Path(__file__).resolve().parent
 SERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -193,6 +194,7 @@ class Companion:
     def __init__(self, usb=None, job_root=Path("/data/jobs")):
         self.usb = usb or UsbReads()
         self.job_root = job_root
+        self.builds = Builds(job_root, CONTRACT)
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -212,6 +214,10 @@ class Companion:
             value = self.sessions.get(nonce)
             if value is None or not hmac.compare_digest(value[0], user) or time.monotonic() - value[1] >= 1800:
                 raise Refusal("usb_unauthorized")
+            # Authenticated status polling keeps a long build page usable.
+            # An idle/expired page still needs a new nonce from native ingress;
+            # neither a worker nor an unauthenticated request can renew it.
+            value[1] = time.monotonic()
         return value
 
     def selected(self, user, nonce, serial, operation):
@@ -302,6 +308,14 @@ class Companion:
         self.session(user, nonce)
         return available_jobs(self.job_root, user)
 
+    def build(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.builds.start(user, job_id)
+
+    def build_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.builds.status(user, job_id)
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -352,6 +366,9 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})", self.path)
             if match:
                 return self.reply(200, self.server.companion.status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/build", self.path)
+            if match:
+                return self.reply(200, self.server.companion.build_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             self.reply(404, {"error_code": "usb_not_found"})
         except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
@@ -361,7 +378,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -372,6 +389,12 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/prepare":
                 return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+            if self.path == "/build":
+                self.server.companion.session(user, self.headers.get("X-Qingping-Nonce"))
+                data = self.json_body(int(size))
+                if not isinstance(data, dict) or set(data) != {"job_id"}:
+                    raise Refusal("usb_request_invalid")
+                return self.reply(200, self.server.companion.build(user, self.headers.get("X-Qingping-Nonce"), data["job_id"]))
             data = json.loads(self.rfile.read(int(size)))
             if not isinstance(data, dict) or set(data) != {"serial"}:
                 raise Refusal("usb_request_invalid")
