@@ -60,7 +60,7 @@ class ImageTests(unittest.TestCase):
         for address in ("127.0.0.1", "169.254.1.1", "192.0.2.2", "100.64.0.1", "0.0.0.0", "8.8.8.8", "::1"):
             with self.subTest(address=address), self.assertRaises(ValueError): image.private_ipv4(address)
         self.assertEqual(image.private_ipv4("192.168.1.10"), "192.168.1.10")
-        for profile, model, version in (("monitor2", "CGS2", "4.5.8"), ("lite", "CGS1", "4.5.8"), ("lite", "CGDN1", "9.0.0")):
+        for profile, model, version in (("monitor2", "CGS2", "4.5.8"), ("lite", "CGS1", "4.5.8"), ("lite", "CGDN1", "9.0.0"), ("lite", "CGDN1", "4.2.1"), ("lite-mcu421", "CGDN1", "4.2.1")):
             with self.assertRaises(ValueError): catalog.admission(profile, model, version)
 
     def test_release_template_if_present(self):

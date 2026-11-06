@@ -13,6 +13,12 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q custom_components tools
       - run: node --check custom_components/qingping_esphome/frontend/panel.js
+      - run: node tests/test_compatibility.mjs
+      - name: MCU 4.2.1 receive-only parser (no hardware)
+        run: |
+          mkdir -p .build
+          c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/test_mcu421.cpp -o .build/test_mcu421
+          .build/test_mcu421
   hassfest:
     runs-on: ubuntu-latest
     steps:

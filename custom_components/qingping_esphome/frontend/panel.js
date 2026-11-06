@@ -4,6 +4,8 @@
  * sequential and acknowledged, while the HA backend independently verifies
  * the stock MQTT MAC/version before consuming its one firmware command.
  */
+import {requireLiteProfile} from "./compatibility.mjs";
+
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
 const INFO = "0000180a-0000-1000-8000-00805f9b34fb";
 const characteristic = n => `${n.toString(16).padStart(8, "0")}-0000-1000-8000-00805f9b34fb`;
@@ -178,7 +180,10 @@ class QingpingPanel extends HTMLElement {
     };
     this.session = sessionStorage.getItem("qingping-installer-session");
     if (this.session) { this.busy = true; this.$("#connect").disabled = true; this.startPolling(); }
-    this.rpc("catalog").catch(error => this.fail(error));
+    // Retain the same catalog for this page; the backend still checks a fresh
+    // request independently. Await this promise before showing the flash form.
+    this.catalogReady = this.rpc("catalog").then(result => { this.catalog = result.models; });
+    this.catalogReady.catch(error => this.fail(error));
   }
 
   selectModel(model) {
@@ -192,17 +197,23 @@ class QingpingPanel extends HTMLElement {
 
   async connect() {
     this.$("#error").textContent = ""; this.$("#connect").disabled = true;
+    // Selecting an unsupported second device must not leave the previous
+    // supported device's form/identity armed and available for submission.
+    this.identity = null; this.profile = null;
+    this.$("#form").classList.add("hidden");
     this.stock?.disconnect(); this.stock = new StockConnection();
     try {
-      const identity = await this.stock.connect(); this.identity = identity;
+      const identity = await this.stock.connect();
+      // requestDevice above must keep the click's transient user activation;
+      // do not put a network wait in front of Chrome's Bluetooth picker.
+      await this.catalogReady;
       this.$("#identity").replaceChildren(...[identity.model, "stock " + identity.stock_version, "HW " + identity.hardware, identity.mac].map(value => {
         const e = document.createElement("span"); e.textContent = value; return e;
       }));
-      if (identity.model !== "CGDN1" || identity.stock_version !== "4.5.8" || identity.hardware !== "0001") {
-        throw new Error("Эта аппаратная/заводская версия ещё не поддержана мастером. Настройки не менялись");
-      }
+      this.profile = requireLiteProfile(this.catalog, identity);
+      this.identity = identity;
       this.$("#form").classList.remove("hidden");
-    } catch (error) { this.fail(error); }
+    } catch (error) { this.stock.disconnect(); this.fail(error); }
     finally { this.$("#connect").disabled = false; }
   }
 
@@ -211,13 +222,14 @@ class QingpingPanel extends HTMLElement {
 
   async flash() {
     if (this.busy) return;
+    if (!this.identity || !this.profile) return;
     this.busy = true; this.$("#flash").disabled = true; this.$("#connect").disabled = true;
     this.$("#error").textContent = "";
     const ssid = this.$("#ssid").value, password = this.$("#password").value;
     try {
       this.provisioning = true;
       this.message("Готовим индивидуальную прошивку в Home Assistant");
-      const result = await this.rpc("create", {data: {...this.identity, profile: "lite", ssid, wifi_password: password, usb: this.$("#usb").checked}});
+      const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ssid, wifi_password: password, usb: this.$("#usb").checked}});
       this.session = result.id;
       // Session ID is not an authorization credential; HA checks its owner.
       sessionStorage.setItem("qingping-installer-session", this.session);

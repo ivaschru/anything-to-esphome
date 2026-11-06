@@ -4,6 +4,17 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- Stock 4.2.1 is an external-MCU variant under `ports/lite-mcu421/`, not an
+  additional allowed version of the direct-I2C 4.5.8 image. Its catalog entry
+  is `in_development`, with no firmware asset. Do not enable installation
+  before startup/ACK, power pins and measurement semantics are established.
+  `protocol.h` is receive-only research code, not an ESPHome UART driver.
+  Run the ASan/UBSan C++ test and `node tests/test_compatibility.mjs` after
+  changing this protocol/profile boundary; CI runs both without hardware.
+  Frontend admission uses the backend catalog and must keep requestDevice in
+  the original click activation, before any network wait. Invalidate the old
+  identity/form before each new selection; backend admission is independent.
+
 - The owner installs and updates this integration manually. An error report
   authorizes diagnosis/package fixes, not installation, configuration or a
   restart of their HA. Read-only HA diagnostics are explicitly allowed;
