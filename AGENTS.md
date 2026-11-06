@@ -95,3 +95,10 @@ separate even though the HACS wizard is shared.
   Keep hide_default_branch=true: zip_release cannot install a source branch
   without its own release asset. Hyphenated beta/rc tags remain prereleases;
   numeric stable tags must not inherit an unconditional --prerelease flag.
+
+- Production PM OFF is polling-only: always keep GPIO13 HIGH, including restored
+  OFF before asynchronous CO2 setup and rapid ON/OFF. Never claim fan-stop.
+  Preserve reader cancellation, invalidation and warmup; cgdn1_boot owns board
+  shutdown. Run tests/test_pm_polling_policy.py for this boundary. Release
+  templates carry pm_policy and the exact PM source SHA; package_release rejects
+  an old policy or mismatched source even when the binary checksum is valid.

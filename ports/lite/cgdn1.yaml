@@ -232,11 +232,11 @@ button:
     on_press:
       - lambda: id(boot).boot_other_slot();
 
-# PM pin request. GPIO13 follows noxend/qingping-cgdn1's pm_sensor.c.
-# Physical power-off is NOT established on our child board; GPIO18 stays unchanged.
-# The power controller runs after PMSA003I's boot probe, applies the restored
-# switch, suspends reads while off and invalidates all three PM values. Every
-# power-on waits 30 s for airflow before the first measurement.
+# PM OFF stops polling only. GPIO13 must remain HIGH: LOW can interrupt CO2
+# communication as well. This switch does not stop the fan or cut sensor power.
+# GPIO18 and whole-board shutdown ownership remain unchanged. After the reader's
+# boot probe, apply the restored polling preference and invalidate OFF values.
+# Each ON waits 30 s before measurements; an intervening OFF cancels that wait.
 cgdn1_pm:
   id: pm_power
   reader_id: pm_reader
