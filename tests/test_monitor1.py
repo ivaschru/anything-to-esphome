@@ -98,6 +98,16 @@ class Monitor1Tests(unittest.TestCase):
     def test_initial_trial_resource_parsers_reject_cache_credit_and_occupied_ports(self):
         self.run_cpp("test_initial_trial_resources.cpp")
 
+    def test_initial_device_identity_parsers_keep_co2_and_boot_scope_exact(self):
+        self.run_cpp("test_initial_trial_device.cpp")
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root read-only identity fd fixture; CI runs its explicit root step",
+    )
+    def test_initial_device_identity_requires_unchanged_fixed_files_and_mounts(self):
+        self.run_cpp("test_initial_trial_device_linux.cpp", crypto=True)
+
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root read-only resource fd fixture; CI runs its explicit root step",

@@ -498,6 +498,36 @@ reads only private tmpfs files and tests full reads, missing/changed/oversized
 tables, symlinks/FIFOs/wrong ownership and refusal after a previous positive.
 It does not inspect a monitor or prove vendor procfs/runtime performance.
 
+### Fixed device identity before the trial
+
+`initial_trial_device.h` checks the exact selected physical WLAN MAC, CO2
+type 2/3, boot UUID, `armv7l` machine and stock `4.1.8_0287` version. It
+reads only four fixed identity/configuration files. The credential-bearing
+INI stays inside the device reader; only the CO2 comparison and a fixed
+refusal category are available to its caller. Duplicate CO2 settings or
+target sections, unsupported profiles, malformed identities and incomplete
+reads refuse. No network choice, password write or controller operation is
+provided.
+
+The Linux reader requires root, exact ext4/procfs/sysfs mounts, root-owned
+non-writable ancestors/files, single-link regular files, complete bounded
+reads and stable metadata/named inodes. Only fixed sysfs class ancestors
+follow kernel-created symlinks; data/proc ancestors and final files do not.
+It independently walks the final parent again, binds the `/data` inode,
+and permanently refuses after a failed or changed observation. Replacing
+a configuration file with identical bytes does not keep the old admission.
+Synthetic roots/CPU strings exist only on a compile-time non-production
+type; there is no production path or architecture override.
+
+Portable parsers and Linux/root tmpfs fixtures cover both CO2 values,
+duplicates, wrong boot/MAC/version/CPU, oversized files, links, FIFO,
+ownership/modes and replacement after a positive observation. The tests
+never read a real INI or sysfs device. An ARM/glibc source compile is still
+only a source check: the exact stock filesystem layout and metadata have
+not been qualified for this new reader on a monitor. This does not replace
+fresh host USB/serial admission, the missing live stock/watchdog collector,
+or the complete guardian and running-child ownership join.
+
 ### Host-side joined pre-trial review
 
 review_initial_trial.py is a read-only engineering review, not the missing

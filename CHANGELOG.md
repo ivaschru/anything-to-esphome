@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only device identity reader для exact WLAN/boot/CO2/stock
+  с fixed filesystem scope и отказом подменённым/неполным данным;
+  INI не экспортируется, initial guardian и hardware install ещё не готовы
+
 - Monitor 1: read-only fd-проверка девяти штатных файлов после disabled commit,
   связанная с host pins; подмена пути/байтов/metadata закрывает проверку,
   запуск и аппаратная квалификация остаются отдельными этапами

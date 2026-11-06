@@ -105,6 +105,12 @@ separate even though the HACS wizard is shared.
   positive. Export no socket tables/peer addresses. The one-second observation
   window is checked after IO; it is not a hard syscall timeout, RAM guarantee
   or port reservation. Running-child/resource ownership still needs its join.
+  initial_trial_device.h is read-only identity evidence: exact physical WLAN,
+  boot, CO2 type, armv7l and stock version; fixed ext4/procfs/sysfs fd reads,
+  bounded INI filtering and persistent refusal on replacement/failed reads.
+  Keep kernel sysfs class-link allowance separate from no-follow data/proc
+  ancestors and final files. No raw INI/password export, runtime root/CPU
+  override, USB proof, process/launch authority or hardware qualification.
   initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
   through no-follow root-owned directory/file fds. Keep the host/device pin
   contract test, complete hash/metadata/named-inode rechecks and persistent
