@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: joined read-only pre-start scope связывает actual device/vendor/
+  filesystem/stock/RAM/image/resource readers и creator intent с exact boot/RAM;
+  full guardian, host authentication и hardware launch остаются отдельными
+
 - Monitor 1: named pre-existing RAM scope и positive absence boot-lock check;
   stock collector также отказывает known RAM executables/maps, без создания
   каталогов, очистки истории, запуска или изменения hardware readiness

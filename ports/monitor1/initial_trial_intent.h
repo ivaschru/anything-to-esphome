@@ -102,6 +102,15 @@ template<long FilesystemMagic=0xef53> class BasicInitialTrialIntent {
     return current() && identity_.device==root.device && identity_.inode==root.inode &&
       binding_.plan_id==plan_id && binding_.plan_sha256==plan_sha256 && binding_.bridge_sha256==bridge_sha256;
   }
+  bool matches_prestart_binding(const DirectoryIdentity &root,const std::string &plan_id,
+      const std::string &plan_sha256,const std::string &bridge_sha256,const std::string &boot_id,
+      const DirectoryIdentity &ram) {
+    // The joined scope must not acknowledge an otherwise matching record
+    // for a DIFFERENT RAM job/boot. This observes the same creator's claimed
+    // record; it neither authenticates the guardian binary nor grants a fork.
+    return matches_filesystem_binding(root,plan_id,plan_sha256,bridge_sha256) &&
+      binding_.boot_id==boot_id && binding_.ram.device==ram.device && binding_.ram.inode==ram.inode;
+  }
  private:
   int root_{-1},record_{-1};DirectoryIdentity identity_{};IntentBinding binding_{};
   cgs1_supervisor::ProcessStamp guardian_{};struct stat snapshot_{};

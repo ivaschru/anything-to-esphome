@@ -120,6 +120,13 @@ class Monitor1Tests(unittest.TestCase):
 
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root complete pre-start join fixture; CI runs its explicit root step",
+    )
+    def test_initial_prestart_scope_joins_named_fds_device_stock_resources_and_creator_intent(self):
+        self.run_cpp("test_initial_trial_scope.cpp", crypto=True)
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root read-only identity fd fixture; CI runs its explicit root step",
     )
     def test_initial_device_identity_requires_unchanged_fixed_files_and_mounts(self):

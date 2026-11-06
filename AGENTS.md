@@ -123,6 +123,14 @@ separate even though the HACS wizard is shared.
   root-owned sticky /tmp, exact job inode/metadata and complete bounded reads;
   preserve unrelated entries, refuse unknown job contents/history and never
   create/repair/prune a directory. Its read fd grants no fork/exec authority.
+  initial_trial_scope.h joins the actual fixed readers from one exact
+  binding, deriving image/RAM fds from its verified named roots. Two resource
+  reads bracket complete scope rechecks; clear all evidence on failure and
+  never revive a refusal. The five-second frame is post-read freshness, not
+  an IO timeout or timer. Only the actual creator's matching plan/root/bridge/
+  boot/RAM record can be acknowledged; the intent must outlive the scope.
+  Inert entry preparation is not host USB/plan authentication, guardian
+  self-image admission, fork permission, launch or hardware qualification.
   initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
   through no-follow root-owned directory/file fds. Keep the host/device pin
   contract test, complete hash/metadata/named-inode rechecks and persistent

@@ -488,8 +488,8 @@ data is unverified, never an empty/free table or a previous positive result.
 An observation taking more than one second is refused after reads return.
 This is a freshness gate, **not a hard kernel-IO timeout**, a measured monitor
 performance/footprint guarantee, OOM protection or a port reservation. A
-subsequent process can bind a port after a read. The future full collector
-must join fresh resource evidence with the exact device/boot/stock scope.
+subsequent process can bind a port after a read. The joined pre-start reader
+below brackets its exact device/boot/stock scope with fresh resource evidence.
 This reader is pre-start only; after the bridge starts its API endpoint is
 expected to be in use, so running-child ownership needs a separate live check.
 
@@ -525,7 +525,7 @@ ownership/modes and replacement after a positive observation. The tests
 never read a real INI or sysfs device. An ARM/glibc source compile is still
 only a source check: the exact stock filesystem layout and metadata have
 not been qualified for this new reader on a monitor. This does not replace
-fresh host USB/serial admission, the missing live stock/watchdog collector,
+fresh host USB/serial admission, the separate live stock/watchdog collector,
 or the complete guardian and running-child ownership join.
 
 ### Live stock session before the trial
@@ -584,6 +584,45 @@ locks, links, unknown job contents, ownership/modes and named replacement.
 This layout has not been qualified on a monitor. A read does not reserve
 the name against a concurrent root actor, prove free process memory or
 replace the joined scope, durable intent and independent guardian timer.
+
+### Joined device-side pre-start observation
+
+`initial_trial_scope.h` opens the fixed device, vendor, filesystem, stock,
+named RAM, image-fd and kernel resource readers from one explicit binding.
+The image fd comes from the verified named installation root and its exact
+payload pin; the RAM fd comes from the verified named job. Full independent
+device/vendor/named-file checks run between two complete kernel resource
+observations. The result returns only verified status, the lower MemFree
+value, a monotonic timestamp and a fixed refusal category. Failed or changed
+observations clear the evidence permanently, never return a cached positive.
+
+The five-second frame is checked after IO returns. It is an admission
+freshness window, not a hard syscall timeout, measured monitor performance,
+port reservation or a substitute for an independent running stop timer.
+The pure binding must come from the separately validated exact host USB,
+plan and terminal commit receipts; matching a marker does not authenticate
+arbitrary host input or qualify a software guardian's own binary.
+
+The root read fd and one inert entry preparation do not claim an intent or
+fork/exec anything. After a separately authorized claim, an explicit single
+acknowledgement requires the actual creator-owned intent with matching root,
+plan, bridge, boot **and RAM identity**. Other scope components are rechecked
+before the filesystem admits only that marker's known metadata transition.
+Calling the ordinary initial read first correctly refuses the unexplained
+marker. The intent object must outlive the joined scope; no report, reopened
+actor, changed job or old positive snapshot can replace it. Acknowledgement
+does not grant a fork or authenticate the guardian image.
+
+The Linux/root fixture joins actual fd reads over one private synthetic
+tmpfs tree, including a non-executable fake ARM header, device/stock/config
+data and empty resource tables. It covers wrong/mixed bindings, independent
+component changes, permanent refusal, a creator-owned temporary intent and
+inert entry preparation without any fork or exec. It reads only the test
+process's real boot/self metadata for that intent/entry relationship. There
+is no monitor, USB, firmware launch, production-path write or NAND proof.
+Only explicit compile-time all-synthetic filesystem types expose substitute
+roots/pins. The complete guardian, running child/endpoint ownership,
+authenticated sample lifecycle and physical installation remain unfinished.
 
 ### Host-side joined pre-trial review
 
