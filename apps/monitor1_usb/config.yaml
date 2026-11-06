@@ -1,5 +1,5 @@
 name: Qingping USB (experimental preparation)
-version: "0.0.2"
+version: "0.0.3"
 slug: qingping_monitor1_usb
 description: CGS1 connection check and original-file capture through computer USB or server USB
 url: https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb

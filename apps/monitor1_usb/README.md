@@ -18,7 +18,7 @@ mode resolves the exact installed companion from Supervisor metadata and opens
 its native admin ingress page. Missing/stopped apps produce instructions;
 the integration never installs, starts or configures an app automatically.
 
-**This is not yet a complete flashing app.** It does not build a profile,
+**This is not yet a complete flashing app.** It prepares a private profile but does not compile or
 upload a program, run the bounded trial, activate firmware,
 reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.
 The explicit engineering writer/trial remains separate in
@@ -49,14 +49,41 @@ It is a fixed build/recovery set, not a full NAND or user-data backup.
 Every copy has a fixed size/SHA, followed by fresh source/identity checks;
 an incomplete or changed capture offers no partial archive. Server copies
 exist only in a private temporary folder and the owned download response;
-the global USB lease remains held until delivery finishes. Browser copies
-stay in memory until the local download; no upload or browser persistence.
+the global USB lease remains held until delivery finishes. Browser capture copies stay in memory until the local download. The separate
+profile preparation action explicitly sends them to your own HA companion;
+they are not persisted in the browser or sent to a public build service.
 
 Server capture includes the actual native USB path and canonical preflight
 report. The browser cannot observe ADB's native `get-devpath`: it records a
 separate browser capture stage, never invents that field and cannot be used
 as an ordinary native ADB plan without the future browser transport adapter.
 Neither archive creates or reopens an install/launch/OTA intent.
+
+## Prepare a private profile
+
+Enter the device name and choose **Prepare device profile**. Computer mode
+opens a fresh USB picker, captures and verifies the original files, then sends
+that archive to this companion on your own HA server. Server mode performs its
+own fresh USB capture. Neither route needs or changes your Wi-Fi password.
+
+The companion creates a private owner-bound job under its `/data/jobs`, with
+an individual Noise key, a stable separate API MAC and the verified stock Qt
+input. The profile/key and captured vendor files never appear in HTTP status,
+public GitHub assets, normal logs or browser storage. Preserve the app's private
+data/backup securely: deleting it also loses these recovery/build inputs.
+
+A request ID is consumed before key generation. If its reply is lost, the page
+reads that same job's status instead of submitting it again. After a reload,
+choose from **Available saved preparations** and check its status. Interrupted
+preparations remain visibly unverified; they are never regenerated or resumed
+automatically. At most eight jobs are retained without automatic cleanup;
+explicit job cleanup is not implemented yet. Unknown/unreadable entries are
+preserved rather than treated as safe deletion candidates.
+
+A prepared profile is **not built or installed firmware**. Archive identity is
+an untrusted historical claim; every future device operation still requires its
+own live USB identity/source checks. A browser capture never invents ADB's
+native USB path. Compilation and writer/trial GUI integration remain pending.
 
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;

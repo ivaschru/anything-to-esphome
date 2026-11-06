@@ -4,6 +4,7 @@ import {BrowserUsbProbe} from "../../custom_components/qingping_esphome/frontend
 import {contract} from "../../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs";
 export {strings} from "../../custom_components/qingping_esphome/frontend/usb-labels.mjs";
 export {downloadCapture} from "../../custom_components/qingping_esphome/frontend/usb-capture.mjs";
+export {prepareProfile, readPrepared, savedPreparations} from "../../custom_components/qingping_esphome/frontend/usb-preparation.mjs";
 
 /** A fresh store for one selection only, with no browser persistence. */
 function ephemeralCredentials() {
