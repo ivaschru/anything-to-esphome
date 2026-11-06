@@ -25,6 +25,7 @@ from .image import SLOTS, mac_normalize, personalize, private_ipv4
 from .relay import Relay, Session
 from .network_setup import async_detect_lan_host
 from .errors import InstallerError
+from .ha_bluetooth import HABluetooth
 
 DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
@@ -42,6 +43,9 @@ class Manager:
         self.relay = Relay(self.firmware_url, self.consume_intent)
         self.cleanup_task = None
         self.http_runner = None
+        self.bluetooth = HABluetooth(hass)
+        self.ble_settings = {}
+        self.ble_tasks = {}
 
     async def start(self):
         if self.settings.get("automatic_network"):
@@ -67,7 +71,11 @@ class Manager:
     async def stop(self):
         if self.cleanup_task: self.cleanup_task.cancel()
         for task in self.checks.values(): task.cancel()
-        await asyncio.gather(*(list(self.checks.values()) + ([self.cleanup_task] if self.cleanup_task else [])), return_exceptions=True)
+        for task in self.ble_tasks.values(): task.cancel()
+        await asyncio.gather(*(list(self.checks.values()) + list(self.ble_tasks.values()) + ([self.cleanup_task] if self.cleanup_task else [])), return_exceptions=True)
+        self.ble_settings.clear()
+        self.ble_tasks.clear()
+        await self.bluetooth.stop()
         if self.http_runner: await self.http_runner.cleanup()
         await self.relay.stop()
 
@@ -76,6 +84,15 @@ class Manager:
             while True:
                 await asyncio.sleep(30)
                 self.relay.expire()
+                self.bluetooth.expire()
+                for key in list(self.ble_settings):
+                    if key not in self.relay.sessions: self.ble_settings.pop(key)
+                expired_tasks = []
+                for key, task in list(self.ble_tasks.items()):
+                    if task.done() or key not in self.relay.sessions:
+                        self.ble_tasks.pop(key)
+                        if not task.done(): task.cancel(); expired_tasks.append(task)
+                if expired_tasks: await asyncio.gather(*expired_tasks, return_exceptions=True)
         except asyncio.CancelledError:
             return
 
@@ -108,6 +125,11 @@ class Manager:
         admission(data["profile"], data["model"], data["stock_version"])
         if data.get("hardware") != "0001": raise InstallerError("hardware_unverified")
         if data.get("usb") is not True: raise InstallerError("usb_required")
+        transport = data.get("transport", "browser")
+        if transport not in ("browser", "ha"): raise InstallerError("invalid_request")
+        selected = None
+        if transport == "ha":
+            selected = self.bluetooth.selected(owner, data.get("selection"), data)
         try:
             mac = mac_normalize(data["mac"])
         except ValueError as error:
@@ -138,10 +160,82 @@ class Manager:
         session = Session(id=secrets.token_hex(12), owner=owner, mac=mac,
                           stock_version=data["stock_version"], name=name, image=image,
                           noise_key=base64.b64encode(psk).decode(), ota_password=values["ota_password"])
+        session.transport = transport
         self.relay.add(session)
-        return {**session.public(), "broker": {"host": self.host, "port": self.mqtt_port,
+        if selected is not None:
+            # Bind once to a verified, owner-scoped read selection. Credentials
+            # exist only in RAM until the single provisioning task takes them.
+            self.ble_settings[session.id] = (selected, ssid, password)
+            self.bluetooth.selections.pop(data["selection"])
+        return {**session.public(), "broker": self.broker(session)}
+
+    def broker(self, session):
+        return {"host": self.host, "port": self.mqtt_port,
                 "username": session.username, "password": session.password,
-                "client_id": session.client_id, "up": session.up, "down": session.down}}
+                "client_id": session.client_id, "up": session.up, "down": session.down}
+
+    async def provision(self, session_id, owner):
+        session = self.get(session_id, owner)
+        if session.transport != "ha" or session.sent or session.provisioning_started:
+            raise InstallerError("ha_bluetooth_setup_started")
+        settings = self.ble_settings.pop(session.id, None)
+        if settings is None: raise InstallerError("ha_bluetooth_selection_expired")
+        # Reserve before yielding: two browser tabs cannot issue the same setup.
+        # Shield the tracked task from a disconnected WebSocket; it never arms
+        # OTA on its own, and an ambiguous call is reconciled through status.
+        session.provisioning_started = True
+        session.state = "provisioning"
+        task = asyncio.create_task(self._provision(session, settings), name="qingping-ha-bluetooth")
+        self.ble_tasks[session.id] = task
+        try:
+            return await asyncio.shield(task)
+        finally:
+            if task.done(): self.ble_tasks.pop(session.id, None)
+
+    async def _provision(self, session, settings):
+        selected, ssid, password = settings
+        try:
+            async with asyncio.timeout(100):
+                async with self.bluetooth.connection(selected.address) as stock:
+                    identity = await stock.initialize()
+                    if identity != selected.identity:
+                        raise InstallerError("selected_changed")
+                    def progress(state):
+                        # MQTT may already have detected a mismatch; never
+                        # overwrite that terminal state with cosmetic progress.
+                        if session.state not in ("identity_mismatch", "needs_review"):
+                            session.state = state
+                    await stock.provision(identity, ssid, password, self.broker(session), progress)
+            session.provisioned = True
+            if session.state not in ("identity_mismatch", "needs_review"):
+                session.state = "ready" if session.mac_verified and session.version_verified and session.subscribed else "waiting_for_device"
+        except asyncio.CancelledError:
+            session.state = "needs_review"; session.error = "ha_bluetooth_failed"
+            raise
+        except Exception as error:
+            session.state = "needs_review"
+            session.error = error.code if isinstance(error, InstallerError) else "ha_bluetooth_failed"
+        return session.public()
+
+    async def arm(self, session_id, owner):
+        session = self.get(session_id, owner)
+        if session.transport == "ha" and not session.provisioned:
+            raise InstallerError("ha_bluetooth_setup_incomplete")
+        session.armed = True
+        await self.relay.maybe_flash(session)
+        return session.public()
+
+    def cancel(self, session_id, owner):
+        session = self.get(session_id, owner)
+        if session.sent: raise InstallerError("already_sent")
+        task = self.ble_tasks.get(session.id)
+        if task and not task.done(): raise InstallerError("ha_bluetooth_busy")
+        if session.writer: session.writer.close()
+        session.image = b""
+        self.ble_settings.pop(session.id, None)
+        self.ble_tasks.pop(session.id, None)
+        self.relay.sessions.pop(session.id)
+        return {"cancelled": True}
 
     async def consume_intent(self, session):
         old = self.records.get(session.mac)

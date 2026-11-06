@@ -92,20 +92,15 @@ def register_ws(hass):
         try:
             operation = message["operation"]
             if operation == "catalog": result = {"models": CATALOG}
+            elif operation == "ble_scan": result = await manager.bluetooth.scan()
+            elif operation == "ble_select": result = await manager.bluetooth.select(connection.user.id, message["address"])
+            elif operation == "ble_provision": result = await manager.provision(message["session"], connection.user.id)
             elif operation == "create": result = await manager.create(connection.user.id, message["data"])
             elif operation == "status": result = await manager.status(message["session"], connection.user.id)
             elif operation == "cancel":
-                session = manager.get(message["session"], connection.user.id)
-                if session.sent: raise InstallerError("already_sent")
-                if session.writer: session.writer.close()
-                session.image = b""
-                manager.relay.sessions.pop(session.id)
-                result = {"cancelled": True}
+                result = manager.cancel(message["session"], connection.user.id)
             elif operation == "arm":
-                session = manager.get(message["session"], connection.user.id)
-                session.armed = True
-                await manager.relay.maybe_flash(session)
-                result = session.public()
+                result = await manager.arm(message["session"], connection.user.id)
             else: raise InstallerError("invalid_request")
             connection.send_result(message["id"], result)
         except InstallerError as error:
@@ -117,8 +112,9 @@ def register_ws(hass):
             connection.send_error(message["id"], "qingping_operation_failed", MESSAGES["operation_failed"])
     handler = websocket_api.websocket_command({
         vol.Required("type"): DOMAIN + "/command",
-        vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel"]),
+        vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel", "ble_scan", "ble_select", "ble_provision"]),
         vol.Optional("data"): dict,
         vol.Optional("session"): str,
+        vol.Optional("address"): str,
     })(websocket_api.async_response(dispatch))
     websocket_api.async_register_command(hass, handler)

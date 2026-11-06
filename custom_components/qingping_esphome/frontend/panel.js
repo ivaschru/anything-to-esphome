@@ -5,6 +5,7 @@
  * the stock MQTT MAC/version before consuming its one firmware command.
  */
 import {requireLiteProfile} from "./compatibility.mjs";
+import {HABluetoothConnection} from "./ha-transport.mjs";
 import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage} from "./i18n.mjs";
 
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
@@ -127,6 +128,7 @@ class QingpingPanel extends HTMLElement {
     this.initialized = true;
     this.language = readLanguage();
     this.model = "lite";
+    this.transport = navigator.bluetooth ? "browser" : "ha";
     this.attachShadow({mode: "open"});
     this.shadowRoot.innerHTML = `
       <style>
@@ -136,6 +138,7 @@ class QingpingPanel extends HTMLElement {
       .box{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:16px;padding:26px;margin-bottom:20px}.identity{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.identity span{background:var(--secondary-background-color,#f0f2f5);padding:6px 10px;border-radius:8px;font:13px ui-monospace,monospace}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}label{display:block;font-weight:600;font-size:14px}input[type=text],input[type=password]{display:block;width:100%;height:48px;border:1px solid var(--divider-color,#c8cfd6);border-radius:9px;margin-top:7px;padding:10px 12px;background:var(--card-background-color,#fff);color:inherit;font:16px system-ui}
       button{font:600 15px system-ui;min-height:46px;border-radius:9px;padding:11px 18px;cursor:pointer;transition:background .15s,border-color .15s}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border:1px solid var(--accent);color:var(--text-primary-color,#fff)}button.secondary{background:transparent;color:inherit;border:1px solid var(--divider-color,#c8cfd6)}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:22px 0}.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}.note{font-size:14px}.error{color:var(--error-color,#b42318);white-space:pre-wrap}.status{margin-bottom:10px;font-weight:600}progress{width:100%;height:12px;accent-color:var(--accent)}.hidden{display:none!important}.password{display:flex;align-items:end;gap:8px}.password label{flex:1}.password button{padding:10px;min-width:46px;font-size:12px}footer{font-size:13px;color:var(--secondary-text-color,#58616b)}a{color:var(--accent)}
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
+      #transport,#ha-device{display:block;width:100%;max-width:100%;margin:7px 0 12px}.ha-device-field{flex:1;min-width:0}#ha-picker .row{align-items:flex-end}#ha-picker .row>button{margin-bottom:12px}
       </style>
       <main><header><div class="heading"><h1>Qingping → ESPHome</h1><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label></div><p class="muted"><span data-i18n="tagline"></span></p></header>
       <div class="cards" role="group" data-i18n-aria="model_label">
@@ -146,6 +149,9 @@ class QingpingPanel extends HTMLElement {
       <section id="unsupported" class="box hidden"><h2 id="unsupported-title"></h2><p id="unsupported-text"></p><a href="https://github.com/ivaschru/qingping-esphome#compatibility" target="_blank" rel="noreferrer"><span data-i18n="compatibility"></span></a></section>
       <section id="wizard" class="box"><h2><span data-i18n="connect_title"></span></h2>
        <p class="note muted"><span data-i18n="connect_help"></span></p>
+       <label for="transport"><span data-i18n="transport_label"></span></label><select id="transport" aria-describedby="transport-help"><option value="browser" data-i18n="transport_browser"></option><option value="ha" data-i18n="transport_ha"></option></select>
+       <p id="transport-help" class="note muted"></p>
+       <div id="ha-picker" class="hidden"><div class="row"><div class="ha-device-field"><label for="ha-device"><span data-i18n="ha_device_label"></span></label><select id="ha-device"></select></div><button id="scan" class="secondary"><span data-i18n="ha_scan"></span></button></div><p id="ble-status" class="note muted" role="status"></p></div>
        <button id="connect" class="secondary"><span data-i18n="connect"></span></button>
        <div id="identity" class="identity" aria-live="polite"></div>
        <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2><div class="grid">
@@ -167,6 +173,12 @@ class QingpingPanel extends HTMLElement {
     };
     this.applyLanguage();
     this.$("#connect").onclick = () => this.connect();
+    this.$("#transport").value = this.transport;
+    this.$("#transport").onchange = () => this.changeTransport();
+    this.$("#scan").onclick = () => this.scan();
+    this.$("#ha-device").onchange = () => { this.invalidateSelection(); this.connectionControls(); };
+    this.renderDevices([]);
+    this.updateTransport();
     this.$("#show-password").onclick = () => {
       const input = this.$("#password"); input.type = input.type === "password" ? "text" : "password";
       this.updatePasswordLabel();
@@ -182,13 +194,14 @@ class QingpingPanel extends HTMLElement {
         await this.rpc("cancel", {session: this.session});
         clearInterval(this.poller); sessionStorage.removeItem("qingping-installer-session");
         this.session = null; this.busy = false;
-        this.$("#connect").disabled = false; this.$("#flash").disabled = false;
+        this.connectionControls(); this.$("#flash").disabled = false;
         this.$("#progress-box").classList.add("hidden"); this.$("#form").classList.add("hidden");
         this.fail({code: "session_closed"});
       } catch (error) { this.fail(error); }
     };
     this.session = sessionStorage.getItem("qingping-installer-session");
     if (this.session) { this.busy = true; this.$("#connect").disabled = true; this.startPolling(); }
+    this.connectionControls();
     // Retain the same catalog for this page; the backend still checks a fresh
     // request independently. Await this promise before showing the flash form.
     this.catalogReady = this.rpc("catalog").then(result => { this.catalog = result.models; });
@@ -196,7 +209,7 @@ class QingpingPanel extends HTMLElement {
   }
 
   selectModel(model) {
-    if (this.busy) return;
+    if (this.busy || this.connecting || this.scanning) return;
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.model === model)));
     this.$("#wizard").classList.toggle("hidden", model !== "lite");
     this.$("#unsupported").classList.toggle("hidden", model === "lite");
@@ -205,12 +218,17 @@ class QingpingPanel extends HTMLElement {
   }
 
   async connect() {
-    this.lastError = null; this.$("#error").textContent = ""; this.$("#connect").disabled = true;
+    if (this.busy || this.connecting || this.scanning) return;
+    this.connecting = true; this.connectionControls();
+    this.lastError = null; this.$("#error").textContent = "";
     // Selecting an unsupported second device must not leave the previous
     // supported device's form/identity armed and available for submission.
     this.identity = null; this.profile = null;
     this.$("#form").classList.add("hidden");
-    this.stock?.disconnect(); this.stock = new StockConnection();
+    this.stock?.disconnect();
+    this.stock = this.transport === "ha"
+      ? new HABluetoothConnection((operation, data) => this.rpc(operation, data), this.$("#ha-device").value)
+      : new StockConnection();
     try {
       const identity = await this.stock.connect();
       // requestDevice above must keep the click's transient user activation;
@@ -223,7 +241,60 @@ class QingpingPanel extends HTMLElement {
       this.identity = identity;
       this.$("#form").classList.remove("hidden");
     } catch (error) { this.stock.disconnect(); this.fail(error); }
-    finally { this.$("#connect").disabled = false; }
+    finally { this.connecting = false; this.connectionControls(); }
+  }
+
+  invalidateSelection() {
+    this.identity = null; this.profile = null;
+    this.stock?.disconnect(); this.stock = null;
+    this.$("#identity").replaceChildren();
+    this.$("#form").classList.add("hidden");
+  }
+
+  changeTransport() {
+    if (this.busy || this.connecting || this.scanning) { this.$("#transport").value = this.transport; return; }
+    this.transport = this.$("#transport").value;
+    this.invalidateSelection();
+    this.lastError = null; this.$("#error").textContent = "";
+    this.updateTransport(); this.connectionControls();
+  }
+
+  updateTransport() {
+    this.$("#ha-picker").classList.toggle("hidden", this.transport !== "ha");
+    this.$("#transport-help").textContent = this.t("transport_" + this.transport + "_help");
+    if (this.bleMessage) this.$("#ble-status").textContent = this.t(this.bleMessage);
+    this.$("#scan").disabled = Boolean(this.busy || this.scanning || this.connecting);
+  }
+
+  connectionControls() {
+    const locked = Boolean(this.busy || this.connecting || this.scanning);
+    for (const key of ["#transport", "#ha-device", "#scan"]) this.$(key).disabled = locked;
+    this.$("#connect").disabled = locked || (this.transport === "ha" && !this.$("#ha-device").value);
+  }
+
+  renderDevices(devices) {
+    this.devices = devices;
+    const selected = this.$("#ha-device").value;
+    // Advertised names are untrusted data. Build text nodes, never HTML.
+    const option = (value, label) => {
+      const node = document.createElement("option"); node.value = value; node.textContent = label; return node;
+    };
+    this.$("#ha-device").replaceChildren(option("", this.t("ha_choose")),
+      ...devices.map(device => option(device.address, `${device.name} · ${device.address}`)));
+    if (devices.some(device => device.address === selected)) this.$("#ha-device").value = selected;
+  }
+
+  async scan() {
+    if (this.busy || this.scanning || this.connecting) return;
+    this.invalidateSelection(); this.scanning = true; this.connectionControls();
+    this.lastError = null; this.$("#error").textContent = "";
+    this.bleMessage = "ha_scanning"; this.updateTransport();
+    try {
+      const result = await this.rpc("ble_scan");
+      this.renderDevices(result.devices);
+      this.bleMessage = result.devices.length ? "ha_devices_found" : "ha_devices_empty";
+    } catch (error) { this.renderDevices([]); this.bleMessage = null; this.$("#ble-status").textContent = ""; this.fail(error); }
+    finally { this.scanning = false; this.updateTransport(); this.connectionControls(); }
   }
 
   t(key) { return t(this.language, key); }
@@ -238,6 +309,8 @@ class QingpingPanel extends HTMLElement {
       node.setAttribute("aria-label", this.t(node.dataset.i18nAria));
     });
     this.updatePasswordLabel(); this.updateModelText();
+    this.updateTransport();
+    if (this.devices) this.renderDevices(this.devices);
     if (this.messageKey) this.$("#status").textContent = this.t(this.messageKey);
     if (this.installationComplete) this.$("#detail").textContent = this.t("installed_detail");
     if (this.lastError) this.$("#error").textContent = this.t(errorKey(this.lastError));
@@ -265,24 +338,25 @@ class QingpingPanel extends HTMLElement {
   async flash() {
     if (this.busy) return;
     if (!this.identity || !this.profile) return;
-    this.busy = true; this.$("#flash").disabled = true; this.$("#connect").disabled = true;
+    this.busy = true; this.$("#flash").disabled = true; this.connectionControls();
     this.lastError = null; this.$("#error").textContent = "";
     const ssid = this.$("#ssid").value, password = this.$("#password").value;
     try {
       this.provisioning = true;
       this.message("preparing");
-      const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ssid, wifi_password: password, usb: this.$("#usb").checked}});
+      const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ssid, wifi_password: password,
+        usb: this.$("#usb").checked, transport: this.transport, selection: this.stock.selection}});
       this.session = result.id;
       // Session ID is not an authorization credential; HA checks its owner.
       sessionStorage.setItem("qingping-installer-session", this.session);
       this.startPolling();
-      await this.stock.provision(ssid, password, result.broker, text => this.message(text));
+      await this.stock.provision(ssid, password, result.broker, text => this.message(text), this.session);
       this.$("#password").value = "";
       await this.rpc("arm", {session: this.session});
       this.message("sending");
     } catch (error) {
       this.fail(error);
-      if (!this.session) {this.busy = false; this.$("#flash").disabled = false; this.$("#connect").disabled = false;}
+      if (!this.session) {this.busy = false; this.$("#flash").disabled = false; this.connectionControls();}
     } finally {
       this.provisioning = false;
       this.stock?.disconnect();
@@ -298,8 +372,9 @@ class QingpingPanel extends HTMLElement {
         const result = await this.rpc("status", {session: this.session});
 
         this.message(result.state); this.$("#progress").value = result.progress;
-        this.$("#resume").classList.toggle("hidden", result.state !== "ready" || result.armed || this.provisioning);
-        this.$("#cancel").classList.toggle("hidden", result.sent || this.provisioning);
+        const haProvisioning = result.transport === "ha" && result.provisioning_started && !result.provisioned && !result.error_code;
+        this.$("#resume").classList.toggle("hidden", result.state !== "ready" || result.armed || this.provisioning || (result.transport === "ha" && !result.provisioned));
+        this.$("#cancel").classList.toggle("hidden", result.sent || this.provisioning || haProvisioning);
         this.$("#detail").textContent = result.name + (result.progress ? ` · ${result.progress}%` : "");
         if (result.error) this.fail({code: result.error_code || "operation_failed"});
         if (["installed", "needs_review", "identity_mismatch"].includes(result.state)) {

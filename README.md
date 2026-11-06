@@ -31,16 +31,21 @@ network are not claimed to be verified on every profile.
 
 1. Open **⋮ → Custom repositories**, add
    `https://github.com/ivaschru/qingping-esphome`, category **Integration**.
-2. Install the latest normal **Qingping ESPHome** release (`v0.1.1` or later).
+2. Install the latest normal **Qingping ESPHome** release (`v0.1.2` or later).
    Showing prereleases is not required. Use the release ZIP: a source checkout
    does not include the compiled firmware template.
 3. If already configured in **Settings → Devices & services**, open the panel;
    do not create a second entry. Otherwise choose **Add integration → Qingping
    ESPHome**. The LAN address and ports are selected automatically. Only failed
    address detection requires input. Overrides are available via **Configure**.
-4. Open the installer over **HTTPS in Chrome** on Mac, Windows or Android.
-   Select Lite, connect USB power and follow the instructions. Mi Home is not
-   required. The browser must be near the monitor; HA must reach it on the LAN.
+4. Open the installer, select Lite, connect USB power and choose **Use Bluetooth
+   from → This computer / phone** or **Home Assistant**. Mi Home is not required.
+   The first route needs Chrome over HTTPS near the monitor; the HA route needs
+   HA's adapter or an active Bluetooth proxy near it. HA must reach it on the LAN.
+
+Bluetooth-source selection is available in **v0.1.2**. The Home Assistant route
+has SDK/protocol tests; a complete hardware installation through it is still
+pending. The previously verified installation used the browser route.
 
 A restart is not mandatory after every new installation. Current Marketplace
 can discover new components without one. Follow its restart notice when
@@ -49,7 +54,7 @@ present: already loaded Python code keeps running until restarted. See
 
 ## Language and panel access
 
-These interface changes are in `main` and are not part of the published `v0.1.1` ZIP yet.
+These interface options are available in **v0.1.2** and later.
 
 Choose **English / Русский** in the wizard. English is the default; the choice
 is remembered in this browser only. Changing language preserves the form and
@@ -76,10 +81,23 @@ HTTP listener binds to that exact address. Do not forward these ports to the
 Internet. Defaults are MQTT `1886` and HTTP `1887`; change conflicting ports
 in network options. Existing manual settings are preserved.
 
-HTTPS is required by Web Bluetooth. The monitor uses a separate LAN HTTP
-listener; HA's SSL configuration does not need to be weakened. Safari, Firefox
-and iPhone browsers do not support this Web Bluetooth flow. No HA Bluetooth
-adapter is needed: the wizard uses your computer/phone's adapter.
+**This computer / phone** uses Web Bluetooth: Chrome over HTTPS on Mac, Windows
+or Android, with this device near the monitor. Safari, Firefox and iPhone do
+not support this route. No HA Bluetooth adapter is required for it.
+
+**Home Assistant** uses HA's shared Bluetooth integration. It can connect through
+a local adapter or a compatible proxy with **active GATT connections**, such as
+an ESPHome Bluetooth proxy with active connections enabled. HA chooses the
+reachable connectable adapter; a passive advertisement-only proxy cannot provision
+the monitor. The browser needs no Bluetooth or Web Bluetooth, so this mode can
+also be used from Safari, Firefox, iPhone or a computer without Bluetooth. The
+monitor must be near HA's adapter/proxy, not the browser. See the
+[HA Bluetooth API](https://developers.home-assistant.io/docs/core/bluetooth/api/).
+
+HTTPS is a Web Bluetooth requirement only for the browser route; HA mode uses
+the normal authenticated HA connection. Keep the usual secure remote access.
+The monitor uses a separate LAN HTTP listener; HA's SSL configuration does not
+need to be weakened.
 
 The picker filters names starting with `Qingping`, `CGDN1` or `Air Monitor`.
 Other nearby devices are intentionally omitted. An empty picker can mean the
@@ -88,7 +106,11 @@ operating system's paired-device list. See [Chrome name filters](https://develop
 
 ## How Lite installation works
 
-The panel reads model, hardware revision, stock version and MAC over Bluetooth.
+The chosen Bluetooth route reads model, hardware revision, stock version and MAC.
+HA selection releases the connection after reading; installation reconnects and
+checks the complete identity again before writing. Selections expire after five
+minutes and belong to the selecting HA administrator. HA uses the same three
+advertised-name prefixes as the browser picker.
 After your installation command it sends Wi-Fi and temporary installer settings.
 HA independently verifies MAC/stock over MQTT and sends **one** OTA command.
 The monitor downloads a personalized app over LAN HTTP.
@@ -105,7 +127,9 @@ you can choose the room yourself.
 Timeouts never resend OTA automatically. The consumed intent and recovery keys
 are saved in private `.storage/qingping_esphome.installations` before sending.
 HA restarts do not authorize a retry. Sessions last 15 minutes; personalized
-images stay in memory. Keep the browser open during Bluetooth setup. Close a
+images stay in memory. Keep the browser open during setup. HA-side setup is
+bounded and never automatically repeated after a lost browser connection. It
+does not arm OTA by itself; check session status before continuing. Close a
 session only before OTA; after sending, check the monitor and ESPHome first.
 
 Replacing stock firmware can require opening the case after an early boot
