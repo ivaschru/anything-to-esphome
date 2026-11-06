@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: отдельный admitted child-entry source с RAM cwd/preferences,
+  фиксированными argv/env и очисткой унаследованных fd; hosted exec только
+  собственного fixture, standalone guardian и hardware install ещё не готовы
+
 - Monitor 1: device-side one-shot marker primitive с exact boot/root/creator,
   fixed O_EXCL, fsync/readback и единственным parent fork grant; нет
   adoption/retry/cleanup или включения standalone guardian/HACS

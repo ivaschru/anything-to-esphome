@@ -80,6 +80,13 @@ separate even though the HACS wizard is shared.
   adoption/retry/unlink. One parent-process fork grant is consumed before
   fork; existing/partial markers never become new authority through a nonce.
   Its tmpfs fixture does not qualify device NAND, named scope or firmware.
+  initial_trial_exec.h is an inert admitted child-entry building block, not
+  a launcher. Keep fixed RAM cwd/preferences, exact argv/environment, null
+  stdio and complete child-only inherited-fd closure before fexecve. Require
+  the actual protected child and recheck image/RAM readers. It does not join
+  live device scope or consume intent; no standalone guardian/HACS activation.
+  Native hosted exec tests run only their own private fixture ELF, never ARM
+  firmware or a monitor. Preserve the production ARM/ext4 admission boundary.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

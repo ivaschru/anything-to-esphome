@@ -83,6 +83,13 @@ class Monitor1Tests(unittest.TestCase):
 
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root child-only fd exec/environment fixture; CI runs its explicit root step",
+    )
+    def test_initial_trial_entry_uses_ram_and_discards_inherited_environment_and_fds(self):
+        self.run_cpp("test_initial_trial_exec.cpp", crypto=True)
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root-owned Store fixture; CI runs an explicit root step",
     )
     def test_native_wifi_request_preserves_other_networks(self):

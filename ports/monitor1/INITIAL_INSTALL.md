@@ -361,6 +361,39 @@ fixtures exercise private tmpfs creation/readback, stale/partial records,
 tamper refusal, creator identity and two processes racing for exactly one
 marker. Host fsync/readback is not a physical NAND/power-loss guarantee.
 
+### Admitted child-entry source
+
+`initial_trial_exec.h` prepares only an inert child entry from the read-only
+image and initial RAM readers. A production instance still requires the exact
+ARM image/private ext4 admission. It rechecks both readers in the protected
+fork child, validates its actual parent birth, TERM/PDEATHSIG/NNP/OOM state,
+and enters the admitted RAM directory by fd. There is no path-based cwd.
+
+Before fd-based exec it replaces stdin/stdout/stderr with the actual
+`/dev/null` character device and closes every other inherited descriptor
+except the close-on-exec image. A bounded complete `/proc/self/fd` scan must
+succeed; uncertain close results refuse rather than retry. Transport sockets,
+private profile handles and terminal/log pipes cannot be passed through as
+ambient firmware inputs. Output is discarded, not written to NAND or an
+unbounded guardian log. The fixed argv contains only `cgs1-initial-bridge`;
+the entire environment is exactly `ESPHOME_PREFDIR=./prefs`, `LANG=C` and
+`LC_ALL=C`. Inherited loader variables and credentials are not forwarded.
+An exec error returns failure to the child exit path, with no shell, named
+path fallback or second exec. Parent cwd/fds/environment/OOM/NNP stay intact.
+
+This is not the complete guardian or a trial authorization. The caller must
+still join the fresh named device/stock/flags/boot/resource scope, consume
+both host and device intent, and release only its one owned child. Admission
+reports cannot mint that authority. Post-exec vendor-kernel protection,
+measured resource footprint and physical fallback remain unqualified.
+
+The explicit Linux/root fixture execs only a private native copy of itself
+and verifies the actual cwd/preferences write, exact argv/environment,
+descriptor closure, stdio/protection and unchanged parent. Separate negative
+cases refuse a parent call, changed parent/RAM identity, missing PDEATHSIG
+and a non-CLOEXEC image. Fabricated ARM headers test only inert admission;
+there is no native-architecture production override or firmware execution.
+
 ### Host-side joined pre-trial review
 
 review_initial_trial.py is a read-only engineering review, not the missing
