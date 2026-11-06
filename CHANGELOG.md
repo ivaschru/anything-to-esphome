@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only joined review перед trial, точная RAM identity и
+  обязательный device fd proof в policy; host report не разрешает запуск,
+  память проверяется консервативно через MemFree для старого kernel
+
 - Monitor 1: child-only no_new_privs до entry, обязательный policy ACK и
   проверка сохранения OOM/PDEATHSIG/NNP через fd-exec самого Linux fixture;
   parent/stock не меняются, device post-exec QA остаётся обязательной

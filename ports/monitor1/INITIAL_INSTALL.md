@@ -334,6 +334,32 @@ preparation, outside HACS and without physical initial-install proof.
 
 ## Remaining activation and hardware gates
 
+### Host-side joined pre-trial review
+
+review_initial_trial.py is a read-only engineering review, not the missing
+standalone guardian. It requires the exact completed own disabled-commit
+receipt and remote owner marker, both patched scripts/opt-outs, and two fresh
+complete fixed USB/boot/root/vendor/source/stock reviews. It also checks
+absent full-release/Wi-Fi/stock-bridge/native preferences stores and boot
+launcher lock, no own NAND/RAM program, free API/OTA TCP endpoints, and one
+pre-existing empty private tmpfs scratch directory with a stable device/inode.
+The review does not create that directory or provide an execution command.
+
+Complete successful directory listings establish absence; a failed/partial
+listing, unreadable IPv4/IPv6 table, unknown file or changed RAM identity
+refuses. Raw peer addresses, generic process arguments and INI bodies are
+not exported. RAM uses a conservative MemFree lower bound with no cache,
+buffer or swap credit: upstream [MemAvailable started in Linux 3.14](https://man7.org/linux/man-pages/man5/proc_meminfo.5.html),
+after the stock 3.10 kernel. Tmpfs storage capacity is checked separately.
+These are admission floors, not measured application memory consumption.
+
+The returned host observation deliberately has image_fd_admitted=false,
+device_fd_admission_completed=false and execution_authority=false. The pure
+policy now binds the exact RAM identity and requires actual device-side
+image-fd admission, so that report alone cannot issue a start. No guardian
+digest, intent, fd proof or successful installation is fabricated. Simulated
+target joins and isolated shell parser fixtures do not qualify hardware.
+
 The preparation tools stop before device writes; experimental disabled staging
 and script transactions each have their own separate explicit operations.
 Physical qualification and the independent activation flow remain unfinished.

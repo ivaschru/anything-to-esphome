@@ -69,6 +69,11 @@ separate even though the HACS wizard is shared.
   policy requires its ACK. Keep parent OOM/NNP unchanged. Hosted fd-exec of
   the synthetic fixture proves only that helper on that kernel/libc, never
   a monitor ELF, vendor glibc 2.23 or complete guardian protection.
+  review_initial_trial.py is a read-only host join: terminal commit receipt/
+  owner marker, full fresh scope, positive absence listings, TCP4/6, empty RAM
+  scratch and conservative MemFree. It never creates/starts a job and reports
+  image_fd_admitted=false; policy binds RAM inode/device and needs the actual
+  device fd reader before start. No cache/swap credit or fabricated guardian.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

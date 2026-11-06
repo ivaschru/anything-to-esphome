@@ -37,6 +37,8 @@ class Conditions:
     ram_available_bytes: object
     unexpected_own_process_present: object
     log_bytes: object
+    ram_identity: tuple  # Exact private tmpfs directory device/inode, not just an existence flag.
+    image_fd_admitted: object  # Requires the actual device-side fd/hash/xattr reader, not host JSON.
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ class FirstBridgeTrial:
         self._stock_pid = initial.disabled.stock_process[0]
         self._watchdog_pid = initial.disabled.watchdog_process[0]
         self._baseline = self._scope(initial.disabled)
+        self._ram_identity = initial.ram_identity
         self._validate_conditions(initial, starting=True)
         self.state, self.reason = "ready", ""
         self._start_ms = self._last_ms = self._term_ms = self._kill_ms = None
@@ -127,7 +130,10 @@ class FirstBridgeTrial:
                 self._scope(value.disabled) != self._baseline or value.bridge_sha256 != self.bridge_sha or
                 any(flag is not True for flag in (value.full_release_store_absent, value.wifi_store_absent,
                          value.persistent_preferences_absent, value.boot_launcher_lock_absent,
-                         value.private_ram_job, value.tmpfs_verified)) or
+                         value.private_ram_job, value.tmpfs_verified, value.image_fd_admitted)) or
+                not isinstance(value.ram_identity, tuple) or len(value.ram_identity) != 2 or
+                any(type(number) is not int or number <= 0 for number in value.ram_identity) or
+                value.ram_identity != self._ram_identity or
                 value.unexpected_own_process_present is not False or
                 type(value.ram_available_bytes) is not int or
                 value.ram_available_bytes < (MIN_START_RAM if starting else MIN_RUNNING_RAM) or

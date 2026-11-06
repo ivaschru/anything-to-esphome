@@ -26,7 +26,7 @@ API_MAC, NODE = "02:00:00:00:00:02", "fixture-monitor"
 def conditions():
     return policy.Conditions(snapshot(policy.disabled.PATCHED), BRIDGE,
                              True, True, True, True, True, True, True,
-                             policy.MIN_START_RAM, False, 0)
+                             policy.MIN_START_RAM, False, 0, (10, 20), True)
 
 
 def trial(initial=None, **kwargs):
@@ -63,12 +63,12 @@ class FirstBridgeTrialTests(unittest.TestCase):
         initial = conditions()
         changes = [{name: flag} for name in (
             "full_release_store_absent", "wifi_store_absent", "persistent_preferences_absent",
-            "boot_launcher_lock_absent", "api_ota_listeners_free", "private_ram_job", "tmpfs_verified")
+            "boot_launcher_lock_absent", "api_ota_listeners_free", "private_ram_job", "tmpfs_verified", "image_fd_admitted")
             for flag in (False, None, 1)]
         changes += [{"ram_available_bytes": value} for value in (None, True, policy.MIN_START_RAM - 1)]
         changes += [{"unexpected_own_process_present": None}, {"unexpected_own_process_present": True},
                     {"log_bytes": -1}, {"log_bytes": policy.MAX_LOG_BYTES + 1},
-                    {"bridge_sha256": "c" * 64}]
+                    {"bridge_sha256": "c" * 64}, {"ram_identity": ()}, {"ram_identity": (10, True)}]
         for change in changes:
             with self.subTest(change=change), self.assertRaises(ValueError):
                 trial(replace(initial, **change))
@@ -184,6 +184,7 @@ class FirstBridgeTrialTests(unittest.TestCase):
         initial = conditions()
         changed_conditions = [replace(initial, **change) for change in (
             {"ram_available_bytes": policy.MIN_RUNNING_RAM - 1}, {"log_bytes": policy.MAX_LOG_BYTES + 1},
+            {"ram_identity": (10, 21)}, {"image_fd_admitted": False},
             {"full_release_store_absent": False}, {"wifi_store_absent": False},
             {"persistent_preferences_absent": False}, {"unexpected_own_process_present": None})]
         changed_conditions += [replace(initial, disabled=replace(initial.disabled, **change)) for change in (
