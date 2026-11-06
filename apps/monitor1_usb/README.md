@@ -12,6 +12,12 @@ ARMv7 and CO2 type 2/S8 or 3/SCD40, with the exact factory fingerprints.
 An existing modified installation is refused by this first-install check.
 It must use its own upgrade/recovery flow.
 
+The HACS Monitor 1 card exposes the same first-step choice. Computer mode
+opens its native WebUSB picker directly, without installing this app. Server
+mode resolves the exact installed companion from Supervisor metadata and opens
+its native admin ingress page. Missing/stopped apps produce instructions;
+the integration never installs, starts or configures an app automatically.
+
 **This is not yet a complete flashing app.** It does not capture backups,
 build a profile, upload a program, run the bounded trial, activate firmware,
 reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.

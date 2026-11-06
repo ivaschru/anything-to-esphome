@@ -24,6 +24,7 @@ jobs:
       - run: node tests/test_i18n.mjs
       - run: node tests/test_ha_transport.mjs
       - run: node tests/test_usb_probe.mjs
+      - run: node tests/test_usb_companion.mjs
       - run: python tools/monitor1-usb/generate_contract.py --check
       - name: MCU 4.2.1 receive-only parser (no hardware)
         run: |

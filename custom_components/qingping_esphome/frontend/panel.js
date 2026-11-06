@@ -6,6 +6,7 @@
  */
 import {requireLiteProfile} from "./compatibility.mjs";
 import {HABluetoothConnection} from "./ha-transport.mjs";
+import "./usb-choice.mjs";
 import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage} from "./i18n.mjs";
 
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
@@ -114,6 +115,7 @@ class StockConnection {
 class QingpingPanel extends HTMLElement {
   set hass(value) {
     this._hass = value;
+    if (this.initialized && this.$) this.$("#usb-choice").hass = value;
     if (!this.initialized && this.isConnected) this.initialize();
   }
   get hass() { return this._hass; }
@@ -146,7 +148,7 @@ class QingpingPanel extends HTMLElement {
        <button class="model" data-model="monitor1" aria-pressed="false"><b>Air Monitor 1</b><span><span data-i18n="monitor1_summary"></span></span></button>
        <button class="model" data-model="monitor2" aria-pressed="false"><b>Air Monitor 2</b><span><span data-i18n="monitor2_summary"></span></span></button>
       </div>
-      <section id="unsupported" class="box hidden"><h2 id="unsupported-title"></h2><p id="unsupported-text"></p><a href="https://github.com/ivaschru/qingping-esphome#compatibility" target="_blank" rel="noreferrer"><span data-i18n="compatibility"></span></a></section>
+      <section id="unsupported" class="box hidden"><h2 id="unsupported-title"></h2><p id="unsupported-text"></p><qingping-usb-choice id="usb-choice" class="hidden"></qingping-usb-choice><a href="https://github.com/ivaschru/qingping-esphome#compatibility" target="_blank" rel="noreferrer"><span data-i18n="compatibility"></span></a></section>
       <section id="wizard" class="box"><h2><span data-i18n="connect_title"></span></h2>
        <p class="note muted"><span data-i18n="connect_help"></span></p>
        <label for="transport"><span data-i18n="transport_label"></span></label><select id="transport" aria-describedby="transport-help"><option value="browser" data-i18n="transport_browser"></option><option value="ha" data-i18n="transport_ha"></option></select>
@@ -326,6 +328,9 @@ class QingpingPanel extends HTMLElement {
     const model = this.model === "monitor1" ? "monitor1" : "monitor2";
     this.$("#unsupported-title").textContent = this.t(model + "_title");
     this.$("#unsupported-text").textContent = this.t(model + "_info");
+    this.$("#usb-choice").classList.toggle("hidden", this.model !== "monitor1");
+    this.$("#usb-choice").lang = this.language;
+    this.$("#usb-choice").hass = this.hass;
   }
 
   message(key) {

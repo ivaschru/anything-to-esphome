@@ -17,6 +17,9 @@ separate even though the HACS wizard is shared.
   separate from permanently consumed install/launch/prune/reboot receipts.
   Do not promote this probe or its synthetic/container tests into hardware
   qualification or change CGS1 installation_ready/source_only from them.
+  The HACS Monitor 1 card opens computer WebUSB without the app. Server USB
+  resolves the exact installed URL/slug and uses native admin ingress;
+  never infer a repository ID, install/start an app, or export ingress URLs.
 
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
