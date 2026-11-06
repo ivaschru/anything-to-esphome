@@ -4,9 +4,16 @@
  */
 export const MESSAGES = {
   "en": {
+    "firmware_update_busy": "A firmware operation is already running. Wait for it to finish.",
     "session_closed": "No firmware was sent. Enable the large Wi-Fi icon again before starting a new setup.",
     "tagline": "One project. A separate profile for each monitor",
     "language": "Language",
+    "sidebar_label": "Show in sidebar",
+    "sidebar_help": "You can always open this page at /qingping_esphome, even when the menu item is hidden.",
+    "sidebar_loading": "Reading the Home Assistant setting…",
+    "sidebar_saving": "Saving…",
+    "sidebar_failed": "Could not confirm the Home Assistant setting. Check the connection and try again.",
+    "sidebar_retry": "Read setting again",
     "model_label": "Monitor model",
     "lite_summary": "CGDN1 · ESP32 · beta installer",
     "monitor1_summary": "CGS1 · S8 / SCD40 · port sources",
@@ -96,9 +103,16 @@ export const MESSAGES = {
     "profile_mcu421": "Lite 4.2.1 uses a separate MCU. Startup and power control are still under investigation; no installation image is available. Settings have not changed."
   },
   "ru": {
+    "firmware_update_busy": "Уже выполняется операция с прошивкой. Дождитесь её завершения.",
     "session_closed": "Прошивка не отправлялась. Для новой настройки снова включите большой значок Wi-Fi.",
     "tagline": "Один проект. Отдельный профиль для каждого прибора",
     "language": "Язык",
+    "sidebar_label": "Показывать в боковом меню",
+    "sidebar_help": "Эту страницу всегда можно открыть по адресу /qingping_esphome, даже если пункт меню скрыт.",
+    "sidebar_loading": "Читаем настройку Home Assistant…",
+    "sidebar_saving": "Сохраняем…",
+    "sidebar_failed": "Не удалось подтвердить настройку Home Assistant. Проверьте соединение и попробуйте снова.",
+    "sidebar_retry": "Прочитать настройку снова",
     "model_label": "Модель прибора",
     "lite_summary": "CGDN1 · ESP32 · установщик beta",
     "monitor1_summary": "CGS1 · S8 / SCD40 · исходники порта",

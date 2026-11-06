@@ -11,6 +11,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import math
 from pathlib import Path
 import secrets
@@ -37,8 +38,11 @@ class Manager:
         self.settings = {**entry.data, **getattr(entry, "options", {})}
         self.host = private_ipv4(self.settings["lan_host"])
         self.http_port, self.mqtt_port = self.settings["http_port"], self.settings["mqtt_port"]
-        self.store = Store(hass, 1, DOMAIN + ".installations", private=True)
+        self.store = Store(hass, 1, DOMAIN + ".installations", private=True, atomic_writes=True)
         self.records = {}
+        self.record_listeners = set()
+        self.records_lock = asyncio.Lock()
+        self.updates = None
         self.checks = {}
         self.relay = Relay(self.firmware_url, self.consume_intent)
         self.cleanup_task = None
@@ -69,6 +73,7 @@ class Manager:
         self.cleanup_task = asyncio.create_task(self.cleanup(), name="qingping-session-expiry")
 
     async def stop(self):
+        if self.updates: await self.updates.stop()
         if self.cleanup_task: self.cleanup_task.cancel()
         for task in self.checks.values(): task.cancel()
         for task in self.ble_tasks.values(): task.cancel()
@@ -78,6 +83,22 @@ class Manager:
         await self.bluetooth.stop()
         if self.http_runner: await self.http_runner.cleanup()
         await self.relay.stop()
+
+    def add_record_listener(self, callback):
+        self.record_listeners.add(callback)
+        return lambda: self.record_listeners.discard(callback)
+
+    async def save_records(self):
+        """Serialize the private journal before notifying standard HA entities."""
+        async with self.records_lock:
+            await self.store.async_save(self.records)
+        for callback in tuple(self.record_listeners):
+            try:
+                callback()
+            except Exception:
+                # UI notification failure must not turn a committed intent
+                # into an apparent storage failure or expose private records.
+                logging.getLogger(__name__).error("Could not refresh a Qingping firmware entity")
 
     async def cleanup(self):
         try:
@@ -160,6 +181,10 @@ class Manager:
         session = Session(id=secrets.token_hex(12), owner=owner, mac=mac,
                           stock_version=data["stock_version"], name=name, image=image,
                           noise_key=base64.b64encode(psk).decode(), ota_password=values["ota_password"])
+        session.profile = data["profile"]
+        session.firmware_version = manifest.get("ui")
+        session.template_sha256 = manifest["sha256"]
+        session.personalization = {key: value for key, value in values.items() if key != "noise_psk"}
         session.transport = transport
         self.relay.add(session)
         if selected is not None:
@@ -238,6 +263,8 @@ class Manager:
         return {"cancelled": True}
 
     async def consume_intent(self, session):
+        if self.updates and self.updates.lock.locked():
+            raise InstallerError("firmware_update_busy")
         old = self.records.get(session.mac)
         if old and old.get("command_consumed"):
             raise InstallerError("already_sent")
@@ -246,10 +273,15 @@ class Manager:
             "name": session.name, "peer": session.peer, "command_consumed": True,
             "image_sha256": hashlib.sha256(session.image).hexdigest(),
             "noise_key": session.noise_key, "ota_password": session.ota_password,
+            "schema_version": 2, "profile": session.profile, "hardware": "0001",
+            "source_stock_version": session.stock_version,
+            "firmware_version": session.firmware_version, "firmware_revision": 0,
+            "template_sha256": session.template_sha256,
+            "personalization": dict(session.personalization),
             "outcome": "sent_requires_verification",
         }
         # This is private HA storage, never a GitHub file or a diagnostic log.
-        await self.store.async_save(self.records)
+        await self.save_records()
 
     async def status(self, session_id, owner):
         session = self.get(session_id, owner)
@@ -294,7 +326,7 @@ class Manager:
             else: raise ValueError("No fresh physical sensor readings")
             record = self.records[session.mac]
             record.update(outcome="native_verified", build=info.compilation_time)
-            await self.store.async_save(self.records)
+            await self.save_records()
             session.state = "installed"; session.image = b""
             # Standard ESPHome registration is independent of firmware success.
             # A flow conflict stays visible; it never causes another flash.
@@ -304,7 +336,7 @@ class Manager:
                 # Enrollment failure must not mislabel a verified firmware
                 # install, or invite a second factory OTA attempt.
                 record["ha_enrollment"] = "manual_flow_required"
-            await self.store.async_save(self.records)
+            await self.save_records()
         except asyncio.CancelledError:
             raise
         except Exception:

@@ -2,12 +2,14 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .image import private_ipv4
 from .network_setup import (
     DEFAULT_HTTP_PORT, DEFAULT_MQTT_PORT, NetworkDetectionError,
     async_detect_lan_host, automatic_settings,
 )
+from .firmware_catalog import FirmwareError
 
 DOMAIN = "qingping_esphome"
 
@@ -51,7 +53,40 @@ class OptionsFlow(config_entries.OptionsFlow):
     """Optional manual override, outside the ordinary installation path."""
 
     async def async_step_init(self, user_input=None):
-        return self.async_show_menu(step_id="init", menu_options=["interface", "automatic", "manual"])
+        return self.async_show_menu(step_id="init", menu_options=["interface", "firmware_updates", "automatic", "manual"])
+
+    async def async_step_firmware_updates(self, user_input=None):
+        manager = self.hass.data.get(DOMAIN)
+        choices = {mac: record.get("name", mac) for mac, record in (manager.records.items() if manager else [])
+                   if record.get("outcome") == "native_verified" and record.get("schema_version", 1) < 2}
+        if not choices: return self.async_abort(reason="no_legacy_devices")
+        if user_input is not None and user_input.get("device") in choices:
+            self._firmware_mac = user_input["device"]
+            return await self.async_step_firmware_profile()
+        return self.async_show_form(step_id="firmware_updates", data_schema=vol.Schema({
+            vol.Required("device"): vol.In(choices),
+        }))
+
+    async def async_step_firmware_profile(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            try:
+                manager = self.hass.data[DOMAIN]
+                await manager.updates.prepare_legacy(self._firmware_mac, user_input)
+            except FirmwareError as error:
+                errors["base"] = str(error)
+            else:
+                # Recovery credentials belong only to the private installer
+                # journal, never ConfigEntry options, UI state or logs.
+                return self.async_create_entry(title="", data=dict(self.config_entry.options))
+        password = selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD))
+        return self.async_show_form(step_id="firmware_profile", errors=errors, data_schema=vol.Schema({
+            vol.Required("ssid"): str,
+            vol.Required("wifi_password"): password,
+            vol.Required("ap_ssid"): str,
+            vol.Required("ap_password"): password,
+            vol.Required("confirm_profile", default=False): bool,
+        }))
 
     async def async_step_interface(self, user_input=None):
         # OptionsFlow replaces the entire options mapping. Preserve all prior

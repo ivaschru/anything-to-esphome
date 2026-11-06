@@ -55,7 +55,13 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         fresh = Manager(self.hass, self.entry)
         fresh.records = await fresh.store.async_load()
         self.assertTrue(fresh.records[session.mac]["command_consumed"])
-        self.assertNotIn("fixture-wifi-password", str(fresh.records))
+        # Firmware updates need the original private Wi-Fi/AP slots. They now
+        # live only in the private atomic HA Store, never a public session.
+        self.assertEqual(fresh.records[session.mac]["personalization"]["wifi_password"], "fixture-wifi-password")
+        self.assertNotIn("fixture-wifi-password", str(session.public()))
+        self.assertNotIn("fixture-wifi-password", repr(session))
+        journal = Path(self.temp.name) / ".storage/qingping_esphome.installations"
+        self.assertEqual(journal.stat().st_mode & 0o777, 0o600)
         with self.assertRaises(ValueError): await fresh.create("test-owner", data)
 
     async def test_download_checks_actual_tcp_peer_and_sent_intent(self):

@@ -116,6 +116,13 @@ class Session:
     provisioning_started: bool = False
     provisioned: bool = False
 
+    # Recovery material for later credential-preserving updates. Never include
+    # it in public(), repr(), WebSocket status or diagnostic logs.
+    profile: str = "lite"
+    firmware_version: str | None = None
+    template_sha256: str | None = None
+    personalization: dict = field(default_factory=dict, repr=False)
+
     @property
     def up(self): return f"qingping/{self.mac}/up"
 
