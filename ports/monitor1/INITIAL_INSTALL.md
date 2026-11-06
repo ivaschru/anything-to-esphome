@@ -538,6 +538,8 @@ image on the read-only root filesystem. Its complete command line must be
 exactly `/bin/sh` plus `/data/bin/watchdog.sh`; generic arguments and process
 maps never leave the reader. The vendor reader exposes only a verified
 read-only SnowApp fd for this comparison, without execution authority.
+BusyBox uses named-file/inode plus read-only-mount evidence; its digest is
+not one of the nine pinned vendor files and is not claimed to be verified.
 
 Both complete bounded process scans must succeed. An unreadable live
 userspace `exe` refuses; a missing link is allowed only for a positively

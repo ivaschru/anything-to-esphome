@@ -88,11 +88,16 @@ int main() {
     if(kind==12)f.task(102,1,456,""); // Live userspace with unreadable exe is NEVER absent.
     if(kind==13){assert(!::unlinkat(f.root,"proc/101/maps",0));assert(!::mkfifoat(f.root,"proc/101/maps",0600));}
     if(kind==14)f.write("data/bin/SnowApp","abcd");
-    if(kind==15)f.write("bin/busybox","abcd");
+    // BusyBox is bound by the newly captured named inode and production RO
+    // mount, not a fabricated vendor digest. Before admission test its
+    // required non-writable mode; post-baseline replacement is tested below.
+    if(kind==15)assert(!::fchmodat(f.root,"bin/busybox",0666,0));
     if(kind==16)f.task(102,100,456,f.stock_path);
     if(kind==17)f.stat(100,1,1001);
     if(kind==18)f.stat(101,100,1234,"T");
-    assert(!f.open(reader) && !reader.current() && !reader.observed_at_ms());
+    const bool opened=f.open(reader);
+    if(opened)std::fprintf(stderr,"stock negative fixture %d unexpectedly admitted\n",kind);
+    assert(!opened && !reader.current() && !reader.observed_at_ms());
   }
   for(int kind=0;kind<6;++kind) {
     Fixture f;Reader reader;assert(f.open(reader));
