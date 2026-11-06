@@ -33,3 +33,7 @@ manual/recovery прошли source-тесты, но физический absent
 старых программ, чтобы восстановить OTA при нехватке места. Подробности,
 обязательные ограничения и границы испытаний –
 [Power, offline Wi-Fi and storage recovery](POWER_WIFI_RECOVERY.md).
+
+По Bluetooth опубликованы [результаты аппаратного исследования](BLUETOOTH_RESEARCH.md):
+HCI отсутствует, точная BT UART/питание на плате не доказаны, host backend
+ESPHome ещё требуется. Наличие RTL8723DS Wi-Fi не включает BLE proxy.

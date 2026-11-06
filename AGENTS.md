@@ -4,6 +4,12 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
+  hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
+  probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach
+  to an apparently free tty or reuse the FIQ console. A real host tracker/GATT
+  backend and lifecycle proof are also needed before exposing a proxy toggle.
+
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
   percentage. Keep sealed UNASSOCIATED_MANUAL distinct from saved replay,
