@@ -527,15 +527,31 @@ async def trial(adb, directory, digest, build, profile_path):
             await asyncio.gather(*pending_reads, return_exceptions=True)
         adb.stop_reads = False
         adb.deadline = None
-        await retire_local_adb(process)
-        if port is not None:
-            cleanup = "ambiguous_forward_preserved"
-            if forward_ack:
-                try:
-                    cleanup = remove_forward(adb, port)
-                except Exception:
-                    cleanup = "cleanup_unverified_preserved"
-            receipt["forward_cleanup"] = cleanup
+        receipt["local_adb_cleanup"] = "cleanup_unverified"
+        try:
+            await retire_local_adb(process)
+        except Exception:
+            # A local ADB process can remain unreaped after the bounded
+            # TERM/KILL waits. That is a separate host cleanup failure, not
+            # permission to relaunch the trial or to signal a device PID.
+            # Keep the original trial outcome and still retire our verified
+            # forward below; never log/persist a subprocess's raw exception.
+            pass
+        else:
+            receipt["local_adb_cleanup"] = "not_started" if process is None else "completed"
+        finally:
+            # Cleanup scopes are independent. Even cancellation or an error
+            # while reaping our local handle must not skip reconciliation of
+            # an acknowledged, exact serial/endpoint-owned forward. Unknown
+            # or changed mappings remain untouched, as before.
+            if port is not None:
+                cleanup = "ambiguous_forward_preserved"
+                if forward_ack:
+                    try:
+                        cleanup = remove_forward(adb, port)
+                    except Exception:
+                        cleanup = "cleanup_unverified_preserved"
+                receipt["forward_cleanup"] = cleanup
             review.staging.store_receipt(receipt_path, receipt)
 
 
@@ -555,7 +571,8 @@ def status(adb, directory, digest):
     # absent. It deliberately grants neither a launch retry nor activation.
     return {"stage": receipt["stage"], "launch_attempted": receipt.get("launch_attempted"),
             "installed": False, "activated": False, "installation_ready": False,
-            "retry_authorized": False, "forward_cleanup": receipt.get("forward_cleanup")}
+            "retry_authorized": False, "forward_cleanup": receipt.get("forward_cleanup"),
+            "local_adb_cleanup": receipt.get("local_adb_cleanup")}
 
 
 def main():

@@ -166,7 +166,19 @@ class TrialDriverTests(unittest.TestCase):
     def test_lost_launch_ack_does_not_relaunch_or_signal_a_device_pid(self):
         self.controller_case(lost_launch=True)
 
-    def controller_case(self, lost_launch=False):
+    def test_local_adb_reap_failure_still_cleans_owned_forward_and_keeps_outcome(self):
+        self.controller_case(cleanup_failure=True)
+
+    def test_local_adb_retirement_has_bounded_term_and_kill_waits(self):
+        process = Mock(returncode=None)
+        process.wait = AsyncMock(side_effect=[asyncio.TimeoutError, asyncio.TimeoutError])
+        with self.assertRaises(asyncio.TimeoutError):
+            asyncio.run(driver.retire_local_adb(process))
+        process.terminate.assert_called_once_with()
+        process.kill.assert_called_once_with()
+        self.assertEqual(process.wait.await_count, 2)
+
+    def controller_case(self, lost_launch=False, cleanup_failure=False):
         with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
             root = Path(temp)
             plan = {"plan_id": "1" * 32, "basis": {"profile_sha256": "2" * 64},
@@ -203,6 +215,9 @@ class TrialDriverTests(unittest.TestCase):
                 f"CGS1_TRIAL_END_V1 {NONCE} 400 900 401 901 60000 1 1 1 0 15\n".encode(), b""))
             launch = stack.enter_context(patch.object(driver.asyncio, "create_subprocess_exec", new_callable=AsyncMock,
                 side_effect=ValueError("lost private launch output") if lost_launch else None, return_value=process))
+            if cleanup_failure:
+                stack.enter_context(patch.object(driver, "retire_local_adb", new_callable=AsyncMock,
+                    side_effect=asyncio.TimeoutError("private subprocess detail must not be stored")))
             if lost_launch:
                 with self.assertRaisesRegex(RuntimeError, "never repeat"):
                     asyncio.run(driver.trial(adb, root, "4" * 64, root, root / "profile"))
@@ -217,6 +232,9 @@ class TrialDriverTests(unittest.TestCase):
             receipt = json.loads((root / driver.RECEIPT).read_text())
             self.assertTrue(receipt["launch_attempted"])
             self.assertEqual(receipt["forward_cleanup"], "removed")
+            self.assertEqual(receipt["local_adb_cleanup"], "cleanup_unverified" if cleanup_failure
+                             else "not_started" if lost_launch else "completed")
+            self.assertNotIn("private subprocess detail", json.dumps(receipt))
             self.assertEqual(receipt["stage"], "reconciliation_required_no_retry" if lost_launch else "bounded_trial_stopped_observed")
             with self.assertRaises(FileExistsError):
                 asyncio.run(driver.trial(adb, root, "4" * 64, root, root / "profile"))

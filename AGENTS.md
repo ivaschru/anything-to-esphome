@@ -33,6 +33,9 @@ separate even though the HACS wizard is shared.
   do not retrofit old manifests. See ports/monitor1/USB_TRIAL.md. The owner
   requested computer USB and HA-server USB as two transports of one engine;
   WebUSB/HA companion integration and fresh hardware QA remain unfinished.
+  Local ADB reap failures are recorded separately and must not skip exact
+  owned-forward cleanup or mask the trial's consumed outcome. Never retry a
+  launch because host cleanup is unverified or log raw subprocess errors.
 
 
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection

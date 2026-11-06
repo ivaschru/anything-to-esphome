@@ -57,6 +57,13 @@ does not authorize repeating --trial. Preserve unknown/changed ADB mappings
 and recovery material. Host cleanup signals only its own local ADB process;
 the device guardian owns its child.
 
+Local ADB retirement and exact owned-forward cleanup are independent. If
+the bounded local TERM/KILL waits fail, the private receipt records
+`local_adb_cleanup=cleanup_unverified` and still reconciles the acknowledged
+serial/endpoint-owned forward. The original consumed trial outcome remains;
+an uncertain cleanup never authorizes a new launch. Changed or unknown
+forward mappings are preserved. Raw subprocess errors are not stored.
+
 Source tests and an ARM/glibc link do not qualify vendor-kernel protections,
 a fresh unit, PM/native return or cold boot. Permanent activation and the
 two USB integration surfaces still need their own implementation/checks.
