@@ -26,6 +26,7 @@ template<long DataFilesystem=0xef53,long ProcFilesystem=0x9fa0,
          long SysFilesystem=0x62656572,long AnchorFilesystem=0>
 class BasicInitialPrestartScope {
  public:
+  using SelfReader=BasicInitialGuardianSelf<ProcFilesystem!=0x9fa0>;
   // An admission freshness window, checked AFTER reads return. It is not a
   // measured monitor latency, hard IO timeout or independent stop deadline.
   inline static constexpr uint64_t WINDOW_MS=5000;
@@ -34,17 +35,18 @@ class BasicInitialPrestartScope {
   BasicInitialPrestartScope &operator=(const BasicInitialPrestartScope &)=delete;
   ~BasicInitialPrestartScope(){if(fixture_proc_>=0)::close(fixture_proc_);}
   const char *error() const{return error_;}
-  bool open(const InitialScopeBinding &binding) {
+  bool open(const InitialScopeBinding &binding,SelfReader *self=nullptr) {
     if(!begin_(binding))return false;
     if(!device_.open(binding.device) || !vendor_.open() || !filesystem_.open(binding.filesystem) ||
        !named_ram_.open(binding.ram_job_id,binding.ram) || !admit_fds_() ||
-       !stock_.open(binding.stock,vendor_))return refuse_("initial_join_readers_unverified");
+       !stock_.open(binding.stock,vendor_,self))return refuse_("initial_join_readers_unverified");
     verified_=true;error_="";return current();
   }
   template<long Magic=DataFilesystem,std::enable_if_t<Magic==DataFilesystem && Magic!=0xef53 &&
       ProcFilesystem!=0x9fa0 && SysFilesystem!=0x62656572 && AnchorFilesystem!=0,int> =0>
   bool open_fixture_root(int root,int proc,int watchdog,const InitialScopeBinding &binding,
-      const std::array<InitialVendorPin,9> &pins,const std::string &stock_path,const std::string &watchdog_path) {
+      const std::array<InitialVendorPin,9> &pins,const std::string &stock_path,const std::string &watchdog_path,
+      SelfReader *self=nullptr) {
     // All filesystem types must be explicitly non-production at compile time.
     // No CLI, environment flag, production root/hash/CPU override or fallback.
     if(!begin_(binding))return false;
@@ -52,7 +54,7 @@ class BasicInitialPrestartScope {
     if(fixture_proc_<0 || !device_.open_fixture_root(root,binding.device,"armv7l") ||
        !vendor_.open_fixture_root(root,pins) || !filesystem_.open_fixture_root(root,binding.filesystem) ||
        !named_ram_.open_fixture_root(root,binding.ram_job_id,binding.ram) || !admit_fds_() ||
-       !stock_.open_fixture_root(proc,watchdog,binding.stock,vendor_,stock_path,watchdog_path))
+       !stock_.open_fixture_root(proc,watchdog,binding.stock,vendor_,stock_path,watchdog_path,self))
       return refuse_("synthetic_join_readers_unverified");
     verified_=true;error_="";return current();
   }

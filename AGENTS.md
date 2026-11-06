@@ -131,6 +131,15 @@ separate even though the HACS wizard is shared.
   boot/RAM record can be acknowledged; the intent must outlive the scope.
   Inert entry preparation is not host USB/plan authentication, guardian
   self-image admission, fork permission, launch or hardware qualification.
+  initial_trial_self.h is a separate read-only actual guardian image reader:
+  fixed named private tmpfs program, exact size/SHA/ARM/capability report and
+  actual /proc self birth/exe inode/path. A copied binary or reported PID never
+  grants a relationship. Refusal is permanent, inherited fork objects fail,
+  and the stock scanner can join only the live reader for its actual caller;
+  default scans still refuse every own executable. No child/fork permission.
+  Native hosted
+  self-exec is a separate compile-time fixture type, never a production path,
+  filesystem, architecture or PID override. Keep reads off the stop timer.
   initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
   through no-follow root-owned directory/file fds. Keep the host/device pin
   contract test, complete hash/metadata/named-inode rechecks and persistent

@@ -557,8 +557,9 @@ mock files inside its own tmpfs tree, without starting or signaling anything.
 The one-second scan observation limit is evaluated after IO returns, not a
 hard kernel-IO timeout. A future guardian must keep its stop deadline
 independent of potentially blocked observation work. This collector is
-pre-start only and currently refuses every own-root executable: it cannot
-whitelist a reported trial PID. Actual kernel-child/endpoint ownership and
+pre-start only and defaults to refusing every own-root executable. An explicit
+live self-image reader can admit only the actual caller as described below,
+never a reported trial PID. Actual kernel-child/endpoint ownership and
 the complete first-trial join remain separate unfinished work. Neither this
 source nor its hosted fixture qualifies the stock kernel's procfs/rootfs
 layout, process churn, latency, resource footprint or physical fallback.
@@ -623,6 +624,48 @@ is no monitor, USB, firmware launch, production-path write or NAND proof.
 Only explicit compile-time all-synthetic filesystem types expose substitute
 roots/pins. The complete guardian, running child/endpoint ownership,
 authenticated sample lifecycle and physical installation remain unfinished.
+
+### Actual guardian self-image evidence and pre-start stock join
+
+`initial_trial_self.h` adds read-only evidence for the process actually
+running the future guardian. Production selects only the fixed private
+`/tmp/qingping-initial-guardian-<32 lowercase hex digits>/program` on root-owned
+sticky tmpfs. It requires the independently reviewed directory device/inode,
+one 0700 root-owned program, exact size/SHA and ARM32 hard-float header, complete
+attribute inspection and no reported file capability. Complete directory
+listings admit only that program. Independent named walks, metadata and hashes
+must remain unchanged; unknown files/history are preserved and refused.
+
+The reader compares its actual kernel process birth/parent/root identity and
+opened `/proc/self/exe` image inode, metadata and exact path with that named
+program. A byte-identical copy, basename, expected PID or serialized report
+cannot establish that relationship. A fork inherits a copy of the reader,
+not the creator identity. Changes permanently close the observation; restoring
+bytes/mode/names or reopening does not revive it. An observation's one-second
+limit is checked after IO returns, not a hard timeout or independent stop timer.
+
+This does not authenticate the supplied host pins or grant a fork. The stock
+scanner defaults to refusing every known own executable. When explicitly
+given the live self-reader, both complete scans must find exactly the actual
+caller, its exact birth and a freshly opened executable inode matching real
+kernel self. Other PIDs, even with the same image inode, remain refused.
+Stock mappings receive no exemption. Self drift invalidates the session,
+and a refused session cannot be revived. The self-reader must outlive the
+stock/joined scope; production cannot accept the native fixture type. The
+joined pre-start reader passes that same live relationship, never PID text.
+Running-child ownership and the complete guardian remain unfinished. No
+process is adopted, signaled or launched by these readers.
+
+The Linux/root fixture executes only private native copies of itself and
+reads their real kernel process/image identity. A separate compile-time fixture
+entry permits its test path/native ELF/host filesystem, never fake `/proc` or
+an expected PID. Production exposes no such entry. Wrong pins/identity/mode,
+identical replacement, unknown history, named-root drift, inherited fork
+objects and repeated attempts refuse. Strict ARM compilation and hosted
+self-exec do not qualify vendor-kernel execution or a monitor installation.
+The separate stock fixture joins the real native self-reader to synthetic
+stock/proc data and verifies default refusal, exact-caller admission, changed
+birth, same-image foreign PID, stock mapping and self-image drift rejection.
 
 ### Host-side joined pre-trial review
 

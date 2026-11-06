@@ -90,6 +90,13 @@ class Monitor1Tests(unittest.TestCase):
 
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root actual self-exec image fixture; CI runs its explicit root step",
+    )
+    def test_initial_guardian_self_requires_actual_kernel_process_and_pinned_named_image(self):
+        self.run_cpp("test_initial_trial_self.cpp", crypto=True)
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root fixed-name read-only filesystem scope fixture; CI runs its explicit root step",
     )
     def test_initial_trial_filesystem_scope_binds_named_root_flags_markers_and_payload(self):

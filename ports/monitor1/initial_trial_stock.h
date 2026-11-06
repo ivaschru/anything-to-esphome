@@ -99,18 +99,22 @@ struct InitialStockIdentity {
 
 #if defined(__linux__)
 #include "initial_trial_vendor.h"
+#include "initial_trial_self.h"
 #include "supervisor_process_tree.h"
 #include <sys/statvfs.h>
 
 namespace cgs1_initial_trial {
 template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicInitialStockSession {
  public:
+  // A synthetic procfs type may join only the explicit native fixture type.
+  // The production reader cannot receive that fixture or a serialized PID.
+  using SelfReader=BasicInitialGuardianSelf<ProcFilesystem!=0x9fa0>;
   BasicInitialStockSession()=default;
   BasicInitialStockSession(const BasicInitialStockSession &)=delete;
   BasicInitialStockSession &operator=(const BasicInitialStockSession &)=delete;
   ~BasicInitialStockSession(){for(int fd:{proc_,stock_,watchdog_})if(fd>=0)::close(fd);}
   const char *error() const{return error_;}
-  bool open(const InitialStockIdentity &expected,BasicInitialVendorFiles<DataFilesystem> &vendor) {
+  bool open(const InitialStockIdentity &expected,BasicInitialVendorFiles<DataFilesystem> &vendor,SelfReader *self=nullptr) {
     const int proc=::open("/proc",DIRECTORY_FLAGS);
     // /bin and BusyBox are on the stock read-only root, not the writable
     // staging directory. Require that actual mount flag, never chmod/repair.
@@ -120,21 +124,22 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
     const bool readonly=bin>=0 && !::fstat(bin,&directory) && S_ISDIR(directory.st_mode) &&
       directory.st_uid==0 && !(directory.st_mode&0022) && watchdog>=0 &&
       !::fstatvfs(watchdog,&mount) && (mount.f_flag&ST_RDONLY);
-    const bool okay=open_(proc,watchdog,expected,vendor,"/data/bin/SnowApp","/bin/busybox",readonly);
+    const bool okay=open_(proc,watchdog,expected,vendor,"/data/bin/SnowApp","/bin/busybox",readonly,self);
     bool closed=true;for(int fd:{watchdog,bin,proc})if(fd>=0 && ::close(fd))closed=false;
     return closed?okay:refuse_("stock_open_close_uncertain");
   }
   template<long Magic=ProcFilesystem,std::enable_if_t<Magic!=0x9fa0 && Magic==ProcFilesystem,int> =0>
   bool open_fixture_root(int proc,int watchdog,const InitialStockIdentity &expected,
-      BasicInitialVendorFiles<DataFilesystem> &vendor,const std::string &stock_path,const std::string &watchdog_path) {
+      BasicInitialVendorFiles<DataFilesystem> &vendor,const std::string &stock_path,const std::string &watchdog_path,
+      SelfReader *self=nullptr) {
     // Only this compile-time non-procfs type can observe a synthetic /proc,
     // fake exe links and a writable mock root. No production path override.
-    return open_(proc,watchdog,expected,vendor,stock_path,watchdog_path,true);
+    return open_(proc,watchdog,expected,vendor,stock_path,watchdog_path,true,self);
   }
   bool current() {
     if(!verified_)return false;
     DirectoryIdentity root{};struct stat anchor{},stock{},watchdog{};
-    if(!directory_(proc_,&root) || root.device!=proc_identity_.device || root.inode!=proc_identity_.inode ||
+    if((self_ && !self_->current()) || !directory_(proc_,&root) || root.device!=proc_identity_.device || root.inode!=proc_identity_.inode ||
        ::fstat(proc_,&anchor) || anchor.st_uid!=0 || (anchor.st_mode&0022) ||
        !proc_named_current_() || !watchdog_named_current_() ||
        !vendor_->current() || ::fstat(stock_,&stock) || !same_file(stock_file_,stock) ||
@@ -142,7 +147,8 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
     const auto started=cgs1_supervisor::process_tree_clock_ms();
     if(!started || !scan_() || !selected_(expected_.watchdog_pid,expected_.watchdog_start,false) ||
        !selected_(expected_.stock_pid,expected_.stock_start,true) || !scan_() ||
-       !vendor_->current() || !watchdog_named_current_() || !proc_named_current_())return refuse_("stock_session_incomplete_or_changed");
+       !vendor_->current() || !watchdog_named_current_() || !proc_named_current_() ||
+       (self_ && !self_->current()))return refuse_("stock_session_incomplete_or_changed");
     const auto finished=cgs1_supervisor::process_tree_clock_ms();
     // Freshness only, measured after IO returns. This is not a hard syscall
     // timeout and must not block a future guardian's independent deadline loop.
@@ -155,6 +161,7 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
   inline static constexpr int FILE_FLAGS=O_RDONLY|O_NONBLOCK|O_NOFOLLOW|O_NOATIME|O_CLOEXEC;
   int proc_{-1},stock_{-1},watchdog_{-1};bool attempted_{false},verified_{false};
   BasicInitialVendorFiles<DataFilesystem> *vendor_{nullptr};
+  SelfReader *self_{nullptr}; // Actual live reader must outlive this session.
   DirectoryIdentity proc_identity_{};InitialStockIdentity expected_{};
   struct stat stock_file_{},watchdog_file_{};
   std::string stock_path_,watchdog_path_;const char *error_{"unobserved"};uint64_t observed_at_ms_{0};
@@ -228,7 +235,7 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
     const int fd=::openat(proc_,".",DIRECTORY_FLAGS);
     DIR *directory=fd>=0?::fdopendir(fd):nullptr;
     if(!directory){if(fd>=0)::close(fd);return false;}
-    bool okay=true;unsigned count=0,stocks=0;
+    bool okay=true;unsigned count=0,stocks=0,guardians=0;
     while(okay) {
       errno=0;const auto *entry=::readdir(directory);
       if(!entry){okay=errno==0;break;}
@@ -248,7 +255,15 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
         okay=before.state=='Z' || before.state=='X' || before.state=='x' ||
           (before.flags&0x00200000) || disappeared_(name.c_str());
       } else {
-        okay=!initial_owned_program_path(executable);
+        if(initial_owned_program_path(executable)) {
+          // The only pre-start own process allowed is the actual caller with
+          // a live named-image reader. PID/start text alone cannot permit it;
+          // open this task's kernel image and join its inode to real self.
+          const int image=self_ && pid==uint64_t(::getpid()) && before.alive()?
+            ::openat(task,"exe",O_RDONLY|O_NONBLOCK|O_NOATIME|O_CLOEXEC):-1;
+          okay=image>=0 && self_->matches_actual_process(uint32_t(pid),before.start,image) && ++guardians==1;
+          if(image>=0 && ::close(image))okay=false;
+        }
         if(executable==stock_path_)okay=okay && ++stocks==1 && pid==expected_.stock_pid &&
           before.start==expected_.stock_start && before.parent==expected_.watchdog_pid && before.alive();
         okay=okay && stamp_(task,uint32_t(pid),after) && same_stamp_(before,after);
@@ -256,7 +271,7 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
       if(::close(task))okay=false;
     }
     if(::closedir(directory))okay=false;
-    return okay && stocks==1;
+    return okay && stocks==1 && (!self_ || guardians==1);
   }
   bool selected_(uint32_t pid,uint64_t start,bool stock) {
     const auto name=std::to_string(pid);const int task=::openat(proc_,name.c_str(),DIRECTORY_FLAGS);
@@ -282,10 +297,11 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
   }
   bool open_(int proc,int watchdog,const InitialStockIdentity &expected,
       BasicInitialVendorFiles<DataFilesystem> &vendor,const std::string &stock_path,
-      const std::string &watchdog_path,bool readonly) {
+      const std::string &watchdog_path,bool readonly,SelfReader *self) {
     if(attempted_)return refuse_("stock_open_consumed_no_retry");
     attempted_=true;struct stat root{};
     if(::getuid()!=0 || ::geteuid()!=0 || !expected.valid() || !readonly ||
+       (self && (!self->current() || expected.stock_pid==uint32_t(::getpid()) || expected.watchdog_pid==uint32_t(::getpid()))) ||
        !directory_(proc,&proc_identity_) || ::fstat(proc,&root) || root.st_uid!=0 || (root.st_mode&0022))
       return refuse_("fixed_root_owned_procfs_and_readonly_watchdog_required");
     proc_=::fcntl(proc,F_DUPFD_CLOEXEC,3);stock_=vendor.duplicate_verified_stock_read_fd();
@@ -294,13 +310,14 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
        ::fstat(stock_,&stock_file_) || ::fstat(watchdog_,&watchdog_file_) ||
        !S_ISREG(watchdog_file_.st_mode) || watchdog_file_.st_uid!=0 ||
        (watchdog_file_.st_mode&0022) || !watchdog_file_.st_size)return refuse_("admitted_stock_and_watchdog_files_required");
-    expected_=expected;vendor_=&vendor;stock_path_=stock_path;watchdog_path_=watchdog_path;
+    expected_=expected;vendor_=&vendor;self_=self;stock_path_=stock_path;watchdog_path_=watchdog_path;
     verified_=true;error_="";return current();
   }
 };
 using InitialStockSession=BasicInitialStockSession<>;
-// Pre-start only: any own installation process currently refuses. Future
-// running checks must admit only an independently held kernel child; never
+// Pre-start only: default refuses every own installation process. An explicit
+// live self-reader admits only its actual caller, never its future child.
+// Running checks must admit only an independently held kernel child; never
 // whitelist a PID supplied by a report. USB/device/file/intent/RAM/endpoint
 // admission and an independent deadline loop remain separate requirements.
 }  // namespace cgs1_initial_trial

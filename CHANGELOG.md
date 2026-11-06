@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: actual guardian self-image/birth evidence и live reader join
+  со stock scanner только для actual caller, без copied-image/PID whitelist;
+  native fixtures отдельно, запуск guardian и hardware qualification не готовы
+
 - Monitor 1: joined read-only pre-start scope связывает actual device/vendor/
   filesystem/stock/RAM/image/resource readers и creator intent с exact boot/RAM;
   full guardian, host authentication и hardware launch остаются отдельными

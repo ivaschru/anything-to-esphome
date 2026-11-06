@@ -1,5 +1,6 @@
 // Real Linux/root fd reads against private synthetic tmpfs files only.
-// Fake proc entries are data, not running processes; no fork/signal/firmware.
+// Fake proc entries are data. The explicit guardian-join subcase executes
+// only private native copies of THIS fixture, never firmware or a monitor.
 #ifdef NDEBUG
 #error "Stock session fd fixtures require enabled assertions"
 #endif
@@ -59,8 +60,41 @@ struct Fixture {
   }
   bool open(Reader &reader) {return reader.open_fixture_root(proc,watchdog,expected,vendor,stock_path,watchdog_path);}
 };
-int main() {
+static int guardian_join(const std::string &path,int kind) {
+  Fixture f;Reader::SelfReader self;
+  const auto actor=cgs1_supervisor::process_stamp(::getpid());
+  assert(actor.pid!=int(f.expected.stock_pid) && actor.pid!=int(f.expected.watchdog_pid));
+  struct stat root{},program{};assert(!::stat(path.c_str(),&root));
+  const int image=::open("/proc/self/exe",O_RDONLY|O_CLOEXEC);assert(image>=3);
+  assert(!::fstat(image,&program));Digest digest{};
+  assert(cgs1_supervisor::image_hash(image,program.st_size,digest));
+  assert(self.open_native_fixture(path,{uint64_t(root.st_dev),uint64_t(root.st_ino)},
+    program.st_size,cgs1_supervisor::digest_text(digest)));
+  f.task(actor.pid,actor.parent,actor.start,path+"/program");
+  {Reader strict;assert(!f.open(strict));} // Default never acquires an exemption.
+  Reader reader;
+  assert(reader.open_fixture_root(f.proc,f.watchdog,f.expected,f.vendor,f.stock_path,f.watchdog_path,&self));
+  assert(reader.current() && self.current());
+  if(kind==1) {
+    f.stat(actor.pid,actor.parent,actor.start+1);
+    assert(!reader.current());f.stat(actor.pid,actor.parent,actor.start);assert(!reader.current());
+  } else if(kind==2) {
+    // Even the same actual image inode at another reported PID is not self.
+    f.task(actor.pid+1,actor.parent,actor.start,path+"/program");
+    assert(!reader.current());
+  } else if(kind==3) {
+    f.write("proc/101/maps","00008000-0000c000 r-xp 0 00:01 42 /tmp/qingping-initial-guardian-other/program\n");
+    assert(!reader.current()); // Self evidence never exempts a stock mapping.
+  } else if(kind==4) {
+    assert(!::chmod((path+"/program").c_str(),0755));assert(!reader.current());
+    assert(!::chmod((path+"/program").c_str(),0700));assert(!reader.current());
+  } else assert(kind==0);
+  assert(!::close(image));return 0;
+}
+int main(int argc,char **argv) {
   assert(::getuid()==0 && ::geteuid()==0);
+  if(argc==4 && !std::strcmp(argv[1],"--fixture-guardian"))return guardian_join(argv[2],std::atoi(argv[3]));
+  assert(argc==1);
   {
     Fixture f;Reader reader;struct stat before{},after{};
     // Missing exe is accepted only for positively observed dead/kernel tasks.
@@ -120,6 +154,20 @@ int main() {
     Fixture f;BasicInitialStockSession<0xef53,0x01021994> wrong;
     assert(!wrong.open_fixture_root(f.proc,f.watchdog,f.expected,f.vendor,f.stock_path,f.watchdog_path));
     Reader reader;assert(!reader.open_fixture_root(-1,f.watchdog,f.expected,f.vendor,f.stock_path,f.watchdog_path));
+  }
+  for(int kind=0;kind<5;++kind) {
+    char name[]="/tmp/qingping-initial-guardian-fixture-XXXXXX";
+    const auto created=::mkdtemp(name);assert(created);const std::string path=created;
+    std::filesystem::copy_file("/proc/self/exe",path+"/program");assert(!::chmod((path+"/program").c_str(),0700));
+    const auto child=::fork();assert(child>=0);
+    if(!child) {
+      const auto value=std::to_string(kind);
+      ::execl((path+"/program").c_str(),"stock-guardian-fixture","--fixture-guardian",path.c_str(),value.c_str(),nullptr);
+      _exit(98);
+    }
+    int status=0;assert(::waitpid(child,&status,0)==child);
+    if(!WIFEXITED(status) || WEXITSTATUS(status))std::fprintf(stderr,"stock guardian fixture %d failed: %d\n",kind,status);
+    assert(WIFEXITED(status) && WEXITSTATUS(status)==0);std::filesystem::remove_all(path);
   }
   std::puts("initial stock session fd fixtures passed");
 }
