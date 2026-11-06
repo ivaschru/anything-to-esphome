@@ -43,7 +43,7 @@ subprocess.run([
     "no-apps", "no-docs", "no-asm", "no-dso", "no-engine",
     f"--prefix={build / 'openssl-target'}",
 ], cwd=target, env=env, check=True)
-subprocess.run(["make", "-j2", "build_libs", f"RANLIB={base / 'zig-ranlib'}"],
+subprocess.run(["nice", "-n", "10", "make", "-j1", "build_libs", f"RANLIB={base / 'zig-ranlib'}"],
                cwd=target, env=env, check=True)
 for name in ("libcrypto.a", "libssl.a"):
     library = target / name

@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: экспериментальный private candidate builder с отдельным SDK,
+  явным профилем S8/SCD40 и production bridge без legacy trial API;
+  installation admission остаётся закрытым до проверки
+
 - Monitor 1: публичный исходник и проверяемая ARM-сборка штатного PM helper;
   Qt headers закреплены checksum, stock QtCore остаётся приватным input,
   build-only не запускает программу и не включает CGS1 installer

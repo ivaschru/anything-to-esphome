@@ -4,6 +4,15 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- `build_candidate.py` is an experimental private CGS1 build controller,
+  not installation authority. It archives one committed source revision,
+  creates its own pinned SDK and matches actual PM/guardian/native/bridge
+  digests. Keep the explicit 0600 profile, separate S8/SCD40, required release
+  manifests and installation_ready=false. Never copy dirty deployments or
+  replace missing trial artifacts with fake ones. `stock-bridge-release.yaml`
+  uses the ordinary FullRuntime gates without the legacy engineering trial
+  API. Hardware QA and the HACS USB/ADB pipeline are still separate work.
+
 - `ports/monitor1/build_pm_helper.py` is build-only. It requires an explicit
   independently verified stock QtCore SHA and the isolated CGS1 environment;
   outputs/logs stay private in a fresh ignored build directory. Public Qt
