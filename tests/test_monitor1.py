@@ -50,7 +50,10 @@ class Monitor1Tests(unittest.TestCase):
             ], capture_output=True, text=True)
             self.assertEqual(compiled.returncode, 0, compiled.stderr)
             result = subprocess.run(
-                [str(binary)], capture_output=True, text=True, timeout=30,
+                # C++ fixtures create relative private Store directories here.
+                # A hosted runner need not expose the old container's /work;
+                # production ownership/mode checks remain fully active.
+                [str(binary)], cwd=temp, capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
 

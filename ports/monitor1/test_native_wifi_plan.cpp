@@ -1,5 +1,6 @@
-// Real private Store + synthetic identity sources. The isolated container has
-// no network, device, vendor process or production credential mount.
+// Real private Store + synthetic identity sources. The test wrapper sets cwd
+// to its own temporary directory. No container-specific /work path, network,
+// device, vendor process or production credential mount is required.
 #include "native_wifi_plan.h"
 #include <cassert>
 #include <filesystem>
@@ -33,7 +34,7 @@ struct Scope {
 };
 struct Fixture {
   std::string path;int parent=-1;
-  Fixture(){char name[]="/work/plan-XXXXXX";assert(::mkdtemp(name));path=name;
+  Fixture(){char name[]="plan-XXXXXX";assert(::mkdtemp(name));path=name;
     assert(!::mkdir((path+"/wifi").c_str(),0700));parent=::open(path.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC);assert(parent>=0);}
   ~Fixture(){::close(parent);assert(std::filesystem::remove_all(path)>=2);}
   void seed(const Networks&networks){Store<>store;Networks before;assert(store.open_existing(parent,OLD));
