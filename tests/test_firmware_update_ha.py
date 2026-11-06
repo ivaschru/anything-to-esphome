@@ -189,7 +189,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
     async def test_native_ha_entity_state_and_real_install_service_context(self):
         """Exercise HA's own entity/service pipeline, not a direct method call."""
         import logging
-        import inspect
+        from datetime import timedelta
         from types import MappingProxyType
         from homeassistant.config_entries import ConfigEntry
         from homeassistant.auth import auth_manager_from_config
@@ -198,6 +198,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         from homeassistant.core import Context
         from homeassistant.exceptions import HomeAssistantError
         from homeassistant.helpers.entity_component import EntityComponent
+        from homeassistant.helpers.entity_platform import EntityPlatform
         from homeassistant.helpers import device_registry as dr, entity_registry as er
         from custom_components.qingping_esphome.update import QingpingFirmwareUpdate
         from custom_components.qingping_esphome import update as update_module
@@ -219,14 +220,15 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
             unique_id="qingping_esphome", discovery_keys=MappingProxyType({}), subentries_data=[])
         with patch.object(self.hass.config_entries, "async_setup", AsyncMock(return_value=True)):
             await self.hass.config_entries.async_add(entry)
-        # HA 2026.11 added the module as a third positional argument; in
-        # 2026.10 that position is the scan interval. Adapt only this test's
-        # private platform factory while exercising the same real pipeline.
-        platform_args = {}
-        if "platform" in inspect.signature(component._async_init_entity_platform).parameters:
-            platform_args["platform"] = update_module
-        platform = component._async_init_entity_platform(entry.entry_id, "qingping_esphome", **platform_args)
+        # Use the common EntityPlatform constructor directly. The component's
+        # private factory changed both its arguments and registration behavior
+        # between HA 2026.10 and 2026.11; that is fixture setup, not updater code.
+        platform = EntityPlatform(hass=self.hass, logger=logging.getLogger(__name__),
+            domain="update", platform_name="qingping_esphome", platform=update_module,
+            scan_interval=timedelta(minutes=15), entity_namespace=None)
         platform.config_entry = entry
+        platform.async_prepare()
+        component._platforms[entry.entry_id] = platform
         # Translations are a separate contract below. This fixture exercises
         # HA's real entity/device registry, state and admin service pipeline.
         entity._attr_name = "Fixture firmware"
