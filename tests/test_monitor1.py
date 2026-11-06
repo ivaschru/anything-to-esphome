@@ -18,6 +18,12 @@ PORT = ROOT / "ports/monitor1"
 
 
 class Monitor1Tests(unittest.TestCase):
+    def test_ui_locale_preserves_choice_and_printf_argument_contracts(self):
+        self.run_cpp("test_ui_language.cpp")
+
+    def test_visible_backlight_never_uses_the_observed_black_pwm_range(self):
+        self.run_cpp("test_backlight_policy.cpp")
+
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root executable parser/owned-child fixture; CI runs its explicit root step",

@@ -171,14 +171,14 @@ std::string Panel::formatted_(int i) const {
   return text;
 }
 const char* Panel::source_(int i) const {
-  if (ha_selected_[i]) return "Сводный показатель HA";
-  return raw_temperature_ && (i == 1 || i == 2) ? "Без коррекции" : "Местный сенсор";
+  if (ha_selected_[i]) return tr_("Сводный показатель HA");
+  return raw_temperature_ && (i == 1 || i == 2) ? tr_("Без коррекции") : tr_("Местный сенсор");
 }
 const char* Panel::tag_(int i) const {
-  if (i == 3 && !pm_enabled_ && !ha_selected_[i]) return "Выключен";
-  if (i == 3 && pm_warming_ && !ha_selected_[i]) return "Прогрев";
-  if (!std::isfinite(values_[i])) return "Нет данных";
-  return ha_selected_[i] ? "HA" : "Сенсор";
+  if (i == 3 && !pm_enabled_ && !ha_selected_[i]) return tr_("Выключен");
+  if (i == 3 && pm_warming_ && !ha_selected_[i]) return tr_("Прогрев");
+  if (!std::isfinite(values_[i])) return tr_("Нет данных");
+  return ha_selected_[i] ? "HA" : tr_("Сенсор");
 }
 bool Panel::ha_fallback_() const {
   for (int i = 0; i < 5; ++i)
@@ -207,10 +207,10 @@ void Panel::set_idle_seconds(float seconds) {
   if (std::isfinite(seconds)) idle_ms_ = uint32_t(std::clamp(seconds, 5.0f, 600.0f) * 1000);
 }
 void Panel::set_brightness_percent(float percent) {
-  if (std::isfinite(percent)) brightness_ = int(std::clamp(percent, 1.0f, 100.0f) * 10);
+  if (std::isfinite(percent)) brightness_ = cgs1_backlight::day_raw(percent);
 }
 void Panel::set_night_brightness_percent(float percent) {
-  if (std::isfinite(percent)) night_brightness_ = int(std::clamp(percent, 0.1f, 10.0f) * 10 + 0.5f);
+  if (std::isfinite(percent)) night_brightness_ = cgs1_backlight::night_raw(percent);
 }
 void Panel::loop() {
   if (!ready_) return;
@@ -226,13 +226,13 @@ void Panel::loop() {
 void Panel::slider_(int x, bool night) {
   float fraction = std::clamp(float(x - 59) / 603, 0.0f, 1.0f);
   if (night) {
-    float v = std::round((0.1f + fraction * 9.9f) * 10) / 10;
+    float v = std::round((2.0f + fraction * 8.0f) * 10) / 10;
     if (night_brightness_action_)
       night_brightness_action_(v);
     else
       set_night_brightness_percent(v);
   } else {
-    float v = std::round(1 + fraction * 99);
+    float v = std::round(2 + fraction * 98);
     if (brightness_action_)
       brightness_action_(v);
     else
@@ -301,11 +301,17 @@ void Panel::touch_(int x, int y) {
       metric_ = 1 + (y >= 501 ? 2 : 0) + (x >= 360 ? 1 : 0);
       page_ = DETAIL;
     }
-  } else if (page_ == SETTINGS && y >= 151 && y < 562) {
+  } else if (page_ == SETTINGS && y >= 151 && y < 641) {
     int row = (y - 151) / 84;
     if ((y - 151) % 84 < 74) {
-      const Page targets[] = {DISPLAY, SOURCES, SENSORS, NETWORK, ABOUT};
-      page_ = targets[std::clamp(row, 0, 4)];
+      const Page targets[] = {DISPLAY, SOURCES, SENSORS, NETWORK, ABOUT, LANGUAGE};
+      page_ = targets[std::clamp(row, 0, 5)];
+    }
+  } else if (page_ == LANGUAGE && y >= 151 && y < 309) {
+    const int row=(y-151)/84;
+    if((y-151)%84<74 && row<2) {
+      const std::string option=row==0?"English":"Русский";
+      if(language_action_)language_action_(option);else set_interface_language(option);
     }
   } else if (page_ == DISPLAY) {
     if (y >= 294 && y < 368) {
@@ -382,11 +388,12 @@ void Panel::update() {
   for(size_t i=0;i<values_.size();++i)
     if(!(i==3 && !pm_enabled_ && !ha_selected_[i]) && !std::isfinite(values_[i])) values_ready=false;
   if (capture_ && (captured_page_ != page_ || captured_metric_ != metric_ ||
-                   captured_sleeping_ != sleeping_ || captured_values_ready_ != values_ready)) {
+                   captured_sleeping_ != sleeping_ || captured_english_ != english_ || captured_values_ready_ != values_ready)) {
     write_capture_();
     captured_page_ = page_;
     captured_metric_ = metric_;
     captured_sleeping_ = sleeping_;
+    captured_english_ = english_;
     captured_values_ready_ = values_ready;
   }
   // First three frames only, in an explicit RAM capture/render fixture. This
@@ -401,7 +408,7 @@ void Panel::update() {
   }
 }
 void Panel::status_() {
-  print(36, 32, label_, TEXT, display::TextAlign::CENTER_LEFT, "Спальня");
+  print(36, 32, label_, TEXT, display::TextAlign::CENTER_LEFT, tr_("Спальня"));
   auto clock = headless_ ? std::string("23:48") : clock_text();
   print(684, 32, label_, MUTED, display::TextAlign::CENTER_RIGHT, clock.c_str());
   icon_(592, 23, WIFI, MUTED, 18);
@@ -411,11 +418,11 @@ void Panel::status_() {
 void Panel::header_(const char* title) {
   status_();
   icon_(50, 88, BACK, TEXT, 26);
-  print(101, 100, title_, TEXT, display::TextAlign::CENTER_LEFT, title);
+  print(101, 100, title_, TEXT, display::TextAlign::CENTER_LEFT, tr_(title));
 }
 void Panel::navigation_() {
   horizontal_line(0, 641, 720, LINE);
-  const char* titles[] = {"Сенсоры", "Заставка", "Настройки"};
+  const char* titles[] = {tr_("Сенсоры"), tr_("Заставка"), tr_("Настройки")};
   const Icon symbols[] = {GRID, MOON, SLIDERS};
   for (int i = 0; i < 3; ++i) {
     const Color c =
@@ -432,7 +439,7 @@ void Panel::home_() {
   int offset = ha_fallback_() ? 32 : 0;
   if (offset) {
     icon_(36, 77, HOUSE, WARN, 20);
-    print(68, 86, small_, WARN, display::TextAlign::CENTER_LEFT, "Нет связи с HA · местные показания");
+    print(68, 86, small_, WARN, display::TextAlign::CENTER_LEFT, tr_("Нет связи с HA · местные показания"));
   }
   const std::string top = std::string("CO₂   ") + tag_(0);
   print(360, 103 + offset, label_, ha_selected_[0] ? INK : TEXT, display::TextAlign::CENTER, top.c_str());
@@ -441,22 +448,22 @@ void Panel::home_() {
     int x = (i % 2) ? 36 : 367, y = (i <= 2 ? 357 : 501) + offset / 3;
     int h = 130 - offset / 3;
     card_(x, y, 317, h, CARD);
-    print(x + 22, y + 22, label_, TEXT, LABELS[i]);
+    print(x + 22, y + 22, label_, TEXT, tr_(LABELS[i]));
     print(x + 295, y + 26, small_, ha_selected_[i] ? INK : MUTED, display::TextAlign::TOP_RIGHT, tag_(i));
     const auto text = formatted_(i);
     print(x + 22, y + 99, value_, TEXT, display::TextAlign::BASELINE_LEFT, text.c_str());
-    print(x + 29 + width_(value_, text), y + 99, label_, MUTED, display::TextAlign::BASELINE_LEFT, UNITS[i]);
+    print(x + 29 + width_(value_, text), y + 99, label_, MUTED, display::TextAlign::BASELINE_LEFT, tr_(UNITS[i]));
   }
 }
 void Panel::draw_detail_() {
-  pair_(360, 279, detail_, formatted_(metric_), body_, UNITS[metric_], TEXT);
+  pair_(360, 279, detail_, formatted_(metric_), body_, tr_(UNITS[metric_]), TEXT);
   std::string label = source_(metric_);
-  if (metric_ == 4) label += " · оценка TVOC";
+  if (metric_ == 4) label += tr_(" · оценка TVOC");
   int label_width = width_(label_, label);
   icon_(360 - label_width / 2 - 35, 314, ha_selected_[metric_] ? HOUSE : RADIO, MUTED, 22);
   print(376, 326, label_, MUTED, display::TextAlign::CENTER, label.c_str());
   card_(36, 359, 648, 53, CARD, 14);
-  const char* periods[] = {"1 ч", "8 ч", "24 ч"};
+  const char* periods[] = {tr_("1 ч"), tr_("8 ч"), tr_("24 ч")};
   for (int i = 0; i < 3; ++i) {
     if (i == period_) card_(41 + i * 215, 364, 207, 43, SOFT, 11);
     print(145 + i * 215, 386, body_, i == period_ ? INK : MUTED, display::TextAlign::CENTER, periods[i]);
@@ -476,7 +483,7 @@ void Panel::draw_detail_() {
   }
   for (int y : {445, 502, 560}) horizontal_line(90, y, 577, LINE);
   if (!valid) {
-    print(360, 501, small_, MUTED, display::TextAlign::CENTER, "История ещё накапливается");
+    print(360, 501, small_, MUTED, display::TextAlign::CENTER, tr_("История ещё накапливается"));
     return;
   }
   const float span = std::max(hi - lo, metric_ == 4 ? 0.01f : 1.0f), bottom = lo - (span - (hi - lo)) / 2;
@@ -519,8 +526,8 @@ void Panel::draw_detail_() {
   print(90, 580, small_, MUTED, left.c_str());
   print(380, 580, small_, MUTED, display::TextAlign::TOP_CENTER, middle.c_str());
   print(667, 580, small_, MUTED, display::TextAlign::TOP_RIGHT, right.c_str());
-  printf(36, 614, label_, MUTED, metric_ == 4 ? "Мин. %.3f" : "Мин. %.1f", double(lo));
-  printf(684, 614, label_, MUTED, display::TextAlign::TOP_RIGHT, metric_ == 4 ? "Макс. %.3f" : "Макс. %.1f",
+  printf(36, 614, label_, MUTED, metric_ == 4 ? tr_("Мин. %.3f") : tr_("Мин. %.1f"), double(lo));
+  printf(684, 614, label_, MUTED, display::TextAlign::TOP_RIGHT, metric_ == 4 ? tr_("Макс. %.3f") : tr_("Макс. %.1f"),
          double(hi));
 }
 void Panel::row_(int y, const char* title, const char* value, const char* sub, int h, int symbol,
@@ -545,65 +552,82 @@ void Panel::toggle_(int x, int y, bool enabled) {
   filled_circle(x + (enabled ? 35 : 15), y + 15, 11, TEXT);
 }
 void Panel::settings_() {
-  const char* titles[] = {"Экран и заставка", "Источники показаний", "Сенсоры", "Wi-Fi", "Об устройстве"};
-  const Icon icons[] = {SUN, HOUSE, SLIDERS, WIFI, INFO};
-  for (int i = 0; i < 5; ++i) row_(151 + i * 84, titles[i], "", "", 73, icons[i], true);
+  const char* titles[] = {tr_("Экран и заставка"), tr_("Источники показаний"), tr_("Сенсоры"), "Wi-Fi", tr_("Об устройстве"), tr_("Язык интерфейса")};
+  const Icon icons[] = {SUN, HOUSE, SLIDERS, WIFI, INFO, INFO};
+  // Sixth row ends exactly above the fixed footer; old hit regions stay put.
+  for (int i = 0; i < 6; ++i) row_(151 + i * 84, titles[i], "", "", i==5?70:73, icons[i], true);
+}
+void Panel::language_() {
+  // Autonyms stay recognizable in either locale; no HA connection is needed.
+  row_(151,"English");row_(235,"Русский");
+  icon_(628,english_?174:258,CHECK,INK);
+  print(36,349,small_,MUTED,tr_("Выбор сохраняется на устройстве"));
+  print(36,383,small_,MUTED,tr_("Также доступен в Home Assistant"));
+}
+void Panel::set_interface_language(const std::string &option) {
+  bool next=english_;
+  if(!cgs1_ui_language::parse(option,next) || next==english_)return;
+  english_=next;
+  // Rendering alone is safe during Wi-Fi work: do not clear forms, rebuild
+  // settings, reset timeouts or resubmit any transaction when locale changes.
+  if(ready_)update();
 }
 void Panel::display_() {
   bool night = page_ == NIGHT_SETTINGS;
   card_(36, 151, 648, 128, CARD);
-  print(58, 174, body_, TEXT, night ? "Ночная яркость" : "Яркость");
+  print(58, 174, body_, TEXT, night ? tr_("Ночная яркость") : tr_("Яркость"));
   if (night)
     printf(662, 174, body_, TEXT, display::TextAlign::TOP_RIGHT, "%.1f%%", double(night_brightness_) / 10);
   else
     printf(662, 174, body_, TEXT, display::TextAlign::TOP_RIGHT, "%d%%", brightness_ / 10);
-  float fraction = night ? float(night_brightness_ - 1) / 99 : float(brightness_ - 10) / 990;
+  float fraction = night ? float(night_brightness_ - cgs1_backlight::MIN_RAW) / 80
+                         : float(brightness_ - cgs1_backlight::MIN_RAW) / 980;
   int point = 59 + int(603 * std::clamp(fraction, 0.0f, 1.0f));
   card_(59, 225, 603, 7, LINE, 3);
   card_(59, 225, std::max(7, point - 59), 7, ACCENT, 3);
   filled_circle(point, 228, 8, ACCENT);
   if (night) {
-    row_(294, "Ночной режим");
+    row_(294, tr_("Ночной режим"));
     toggle_(612, 315, night_);
-    print(36, 401, small_, MUTED, "Эта яркость действует в ночной заставке");
-    print(36, 433, small_, MUTED, "и при включённом ночном режиме");
+    print(36, 401, small_, MUTED, tr_("Эта яркость действует в ночной заставке"));
+    print(36, 433, small_, MUTED, tr_("и при включённом ночном режиме"));
     return;
   }
-  row_(294, "Заставка", MODES[int(mode_)]);
+  row_(294, tr_("Заставка"), tr_(MODES[int(mode_)]));
   char delay[32];
-  std::snprintf(delay, sizeof(delay), idle_ms_ % 60000 ? "%d с" : "%d мин",
+  std::snprintf(delay, sizeof(delay), idle_ms_ % 60000 ? tr_("%d с") : tr_("%d мин"),
                 int(idle_ms_ % 60000 ? idle_ms_ / 1000 : idle_ms_ / 60000));
-  row_(378, "Включать через", delay);
-  row_(462, "Ночной режим", "", "Приглушённые цифры и подсветка", 91);
+  row_(378, tr_("Включать через"), delay);
+  row_(462, tr_("Ночной режим"), "", tr_("Приглушённые цифры и подсветка"), 91);
   toggle_(612, 492, night_);
   card_(36, 564, 648, 65, SOFT, 14);
-  print(360, 596, body_, INK, display::TextAlign::CENTER, "Посмотреть заставку");
+  print(360, 596, body_, INK, display::TextAlign::CENTER, tr_("Посмотреть заставку"));
 }
 void Panel::sources_() {
   card_(36, 151, 648, 128, CARD);
-  print(58, 170, small_, MUTED, "На экране");
+  print(58, 170, small_, MUTED, tr_("На экране"));
   card_(58, 204, 604, 53, BG, 14);
   card_(63 + (ha_mode_ ? 302 : 0), 209, 294, 43, SOFT, 11);
-  print(211, 230, body_, ha_mode_ ? MUTED : INK, display::TextAlign::CENTER, "Сенсоры");
-  print(513, 230, body_, ha_mode_ ? INK : MUTED, display::TextAlign::CENTER, "HA + резерв");
+  print(211, 230, body_, ha_mode_ ? MUTED : INK, display::TextAlign::CENTER, tr_("Сенсоры"));
+  print(513, 230, body_, ha_mode_ ? INK : MUTED, display::TextAlign::CENTER, tr_("HA + резерв"));
   for (int i = 0; i < 5; ++i)
-    row_(294 + i * 56, LABELS[i], ha_selected_[i] ? "Сводный HA" : "Сенсор", "", 48);
-  print(36, 581, small_, MUTED, "Источники HA – в настройках устройства HA");
-  print(36, 607, small_, MUTED, "При потере связи – местный сенсор");
+    row_(294 + i * 56, tr_(LABELS[i]), ha_selected_[i] ? tr_("Сводный HA") : tr_("Сенсор"), "", 48);
+  print(36, 581, small_, MUTED, tr_("Источники HA – в настройках устройства HA"));
+  print(36, 607, small_, MUTED, tr_("При потере связи – местный сенсор"));
 }
 void Panel::draw_sensors_() {
-  row_(151, "Модуль PM2.5", "",
-       !pm_enabled_  ? "Выключен · показания недоступны"
-       : pm_warming_ ? "Прогрев · ожидаем свежие показания"
-                     : "Включён · свежие показания",
+  row_(151, tr_("Модуль PM2.5"), "",
+       !pm_enabled_  ? tr_("Выключен · показания недоступны")
+       : pm_warming_ ? tr_("Прогрев · ожидаем свежие показания")
+                     : tr_("Включён · свежие показания"),
        91);
   toggle_(612, 181, pm_enabled_);
-  if (!pm_action_) print(36, 585, small_, MUTED, "Управление PM в этом тесте ещё не подключено");
-  row_(253, "Температура", "°C", "Компенсация нагрева корпуса", 91);
+  if (!pm_action_) print(36, 610, small_, MUTED, tr_("Управление PM в этом тесте ещё не подключено"));
+  row_(253, tr_("Температура"), "°C", tr_("Компенсация нагрева корпуса"), 91);
   row_(355, "CO₂", "ppm");
-  row_(439, "TVOC", "ppm", "Оценка сенсора", 91);
-  print(36, 546, small_, MUTED, "Отключение PM не отключает CO₂,");
-  print(36, 573, small_, MUTED, "температуру, влажность и TVOC");
+  row_(439, "TVOC", "ppm", tr_("Оценка сенсора"), 91);
+  print(36, 546, small_, MUTED, tr_("Отключение PM не отключает CO₂,"));
+  print(36, 573, small_, MUTED, tr_("температуру, влажность и TVOC"));
 }
 void Panel::network_() {
   card_(36, 151, 648, 243, CARD);
@@ -611,18 +635,18 @@ void Panel::network_() {
   print(101, 170, body_, TEXT, "Wi-Fi");
   auto address = ip_address();
   bool connected = address != "Нет IPv4";
-  print(101, 209, small_, MUTED, connected ? "Подключено" : "Нет IPv4-подключения");
-  print(58, 276, label_, MUTED, "IP-адрес");
-  print(662, 276, label_, TEXT, display::TextAlign::TOP_RIGHT, address.c_str());
+  print(101, 209, small_, MUTED, connected ? tr_("Подключено") : tr_("Нет IPv4-подключения"));
+  print(58, 276, label_, MUTED, tr_("IP-адрес"));
+  print(662, 276, label_, TEXT, display::TextAlign::TOP_RIGHT, connected ? address.c_str() : tr_("Нет IPv4"));
   horizontal_line(58, 315, 604, LINE);
   print(58, 339, label_, MUTED, "Home Assistant");
   print(662, 339, label_, TEXT, display::TextAlign::TOP_RIGHT,
-        std::any_of(ha_selected_.begin(), ha_selected_.end(), [](bool x) { return x; }) ? "Есть данные"
-                                                                                        : "Нет данных HA");
+        std::any_of(ha_selected_.begin(), ha_selected_.end(), [](bool x) { return x; }) ? tr_("Есть данные")
+                                                                                        : tr_("Нет данных HA"));
   // Do not display a fake success or accept credentials before a tested Linux
   // Wi-Fi transaction/recovery backend is connected to this page.
-  if(wifi_submit_)row_(426,"Изменить сеть","","Выбор сети и пароль",74,WIFI,true);
-  else print(36, 426, small_, MUTED, "Смена сети будет доступна в полной версии");
+  if(wifi_submit_)row_(426,tr_("Изменить сеть"),"",tr_("Выбор сети и пароль"),74,WIFI,true);
+  else print(36, 426, small_, MUTED, tr_("Смена сети будет доступна в полной версии"));
 }
 bool Panel::wifi_busy_()const {
   return wifi_stage_!=WifiStage::IDLE && wifi_stage_!=WifiStage::SAVED && wifi_stage_!=WifiStage::FAILED;
@@ -723,72 +747,72 @@ bool Panel::wifi_touch_(int x,int y) {
   return false;
 }
 void Panel::wifi_list_() {
-  if(wifi_scanning_)print(36,170,body_,MUTED,"Ищем сети…");
-  else if(wifi_networks_.empty())print(36,170,body_,MUTED,"Сети пока не найдены");
+  if(wifi_scanning_)print(36,170,body_,MUTED,tr_("Ищем сети…"));
+  else if(wifi_networks_.empty())print(36,170,body_,MUTED,tr_("Сети пока не найдены"));
   else for(size_t i=0;i<wifi_networks_.size();++i) {
     const auto&item=wifi_networks_[i];const auto label=fit_(body_,item.label.empty()?item.ssid:item.label,510);
-    row_(151+int(i)*84,label.c_str(),"",item.supported?"WPA2":"Не поддерживается",74,WIFI,item.supported);
+    row_(151+int(i)*84,label.c_str(),"",item.supported?"WPA2":tr_("Не поддерживается"),74,WIFI,item.supported);
   }
-  row_(497,"Обновить список","",wifi_scanning_?"Поиск…":"",58,-1,false);
-  row_(565,"Другая сеть","Вручную","",58,-1,false);
+  row_(497,tr_("Обновить список"),"",wifi_scanning_?tr_("Поиск…"):"",58,-1,false);
+  row_(565,tr_("Другая сеть"),tr_("Вручную"),"",58,-1,false);
 }
 void Panel::wifi_editor_() {
   const bool password=page_==WIFI_PASSWORD;const auto ssid=fit_(label_,wifi_ssid_,648);
-  print(36,151,label_,MUTED,password?ssid.c_str():"Название сети");card_(36,182,648,70,CARD,16);
+  print(36,151,label_,MUTED,password?ssid.c_str():tr_("Название сети"));card_(36,182,648,70,CARD,16);
   if(password) {
     int cursor=58;size_t at=0;const auto begin=wifi_password_.size()>14?wifi_password_.size()-14:0;
     if(begin){print(cursor,202,label_,TEXT,"…");cursor+=24;}
     wifi_password_.draw([&](char character){if(at++<begin)return;char unit[]{character,0};
       print(cursor,202,label_,TEXT,unit);cursor+=width_(label_,std::string(unit));unit[0]=0;});
-    card_(524,194,144,44,SOFT,10);print(596,205,small_,INK,display::TextAlign::TOP_CENTER,wifi_password_.visible()?"Скрыть":"Показать");
+    card_(524,194,144,44,SOFT,10);print(596,205,small_,INK,display::TextAlign::TOP_CENTER,wifi_password_.visible()?tr_("Скрыть"):tr_("Показать"));
   }else {const auto text=fit_(label_,wifi_ssid_edit_,604);print(58,202,label_,TEXT,text.c_str());}
   print(36,274,small_,wifi_input_error_?WARN:MUTED,
-    wifi_input_error_?"Проверьте пароль или дождитесь завершения операции":password?"От 8 до 63 символов":"До 32 символов");
+    wifi_input_error_?tr_("Проверьте пароль или дождитесь завершения операции"):password?tr_("От 8 до 63 символов"):tr_("До 32 символов"));
   for(unsigned row=0;row<3;++row) {
     const char*keys=wifi_keys_.row(row);const int count=int(std::strlen(keys));const int left=(720-(count*56+(count-1)*8))/2;
     for(int column=0;column<count;++column){const int x=left+column*64,y=317+int(row)*64;card_(x,y,56,56,CARD,10);
       char text[]{keys[column],0};print(x+28,y+14,body_,TEXT,display::TextAlign::TOP_CENTER,text);}
   }
   const int positions[]={36,140,220,424,560},widths[]={96,72,196,128,124};
-  const char*labels[]={wifi_keys_.mode==WifiKeys::LETTERS?"?123":wifi_keys_.mode==WifiKeys::NUMBERS?"#+=":"abc","aA","Пробел","Удалить",password?"Готово":"Далее"};
+  const char*labels[]={wifi_keys_.mode==WifiKeys::LETTERS?"?123":wifi_keys_.mode==WifiKeys::NUMBERS?"#+=":"abc","aA",tr_("Пробел"),tr_("Удалить"),password?tr_("Готово"):tr_("Далее")};
   for(unsigned i=0;i<5;++i){const bool valid=password?wifi_password_.valid_length() && bool(wifi_submit_):!wifi_ssid_edit_.empty();
     card_(positions[i],509,widths[i],56,i==4 && valid?ACCENT:CARD,10);
     print(positions[i]+widths[i]/2,526,small_,i==4 && !valid?MUTED:TEXT,display::TextAlign::TOP_CENTER,labels[i]);}
 }
 void Panel::wifi_progress_() {
   const auto name=fit_(body_,wifi_ssid_,604);print(36,163,body_,TEXT,name.c_str());
-  const char*title="Подключение";const char*detail="Проверяем исходное состояние";
+  const char*title=tr_("Подключение");const char*detail=tr_("Проверяем исходное состояние");
   switch(wifi_stage_) {
-    case WifiStage::ASSOCIATING:title="Подключаемся к сети…";detail="Проверяем пароль";break;
-    case WifiStage::DHCP:title="Получаем IP-адрес…";detail="Ожидаем ответ DHCP";break;
-    case WifiStage::VERIFYING:title="Проверяем связь…";detail="Подключение ещё не сохранено";break;
-    case WifiStage::READY:title="Подключение доступно";detail="Сохранить эту сеть?";break;
-    case WifiStage::SAVING:title="Сохраняем сеть…";detail="Подождите подтверждения";break;
-    case WifiStage::SAVED:title="Сеть сохранена";detail="Можно вернуться к показаниям";break;
-    case WifiStage::RETURNING:title="Отменяем подключение…";detail="Возвращаем прежнюю сеть";break;
-    case WifiStage::FAILED:title="Подключение не завершено";
-      detail=wifi_failure_==WifiFailure::AUTHENTICATION?"Проверьте пароль":wifi_failure_==WifiFailure::DHCP?"Не получен IP-адрес":
-        wifi_failure_==WifiFailure::NETWORK?"Сеть не найдена":wifi_failure_==WifiFailure::TIMEOUT?"Время ожидания истекло":
-        wifi_failure_==WifiFailure::PROTECTION?"Не удалось безопасно завершить операцию":"Проверьте подключение";break;
+    case WifiStage::ASSOCIATING:title=tr_("Подключаемся к сети…");detail=tr_("Проверяем пароль");break;
+    case WifiStage::DHCP:title=tr_("Получаем IP-адрес…");detail=tr_("Ожидаем ответ DHCP");break;
+    case WifiStage::VERIFYING:title=tr_("Проверяем связь…");detail=tr_("Подключение ещё не сохранено");break;
+    case WifiStage::READY:title=tr_("Подключение доступно");detail=tr_("Сохранить эту сеть?");break;
+    case WifiStage::SAVING:title=tr_("Сохраняем сеть…");detail=tr_("Подождите подтверждения");break;
+    case WifiStage::SAVED:title=tr_("Сеть сохранена");detail=tr_("Можно вернуться к показаниям");break;
+    case WifiStage::RETURNING:title=tr_("Отменяем подключение…");detail=tr_("Возвращаем прежнюю сеть");break;
+    case WifiStage::FAILED:title=tr_("Подключение не завершено");
+      detail=wifi_failure_==WifiFailure::AUTHENTICATION?tr_("Проверьте пароль"):wifi_failure_==WifiFailure::DHCP?tr_("Не получен IP-адрес"):
+        wifi_failure_==WifiFailure::NETWORK?tr_("Сеть не найдена"):wifi_failure_==WifiFailure::TIMEOUT?tr_("Время ожидания истекло"):
+        wifi_failure_==WifiFailure::PROTECTION?tr_("Не удалось безопасно завершить операцию"):tr_("Проверьте подключение");break;
     default:break;
   }
   print(36,241,title_,wifi_stage_==WifiStage::FAILED?WARN:TEXT,title);print(36,302,label_,MUTED,detail);
   if(!wifi_address_.empty())print(36,351,body_,TEXT,wifi_address_.c_str());
-  if(wifi_remaining_ && wifi_busy_())printf(36,403,small_,MUTED,"Осталось %u с",wifi_remaining_);
-  if(wifi_stage_==WifiStage::READY)row_(469,"Сохранить сеть","","",66,CHECK,false);
+  if(wifi_remaining_ && wifi_busy_())printf(36,403,small_,MUTED,tr_("Осталось %u с"),wifi_remaining_);
+  if(wifi_stage_==WifiStage::READY)row_(469,tr_("Сохранить сеть"),"","",66,CHECK,false);
   if(wifi_stage_==WifiStage::FAILED && !wifi_can_start_) {
-    print(36,555,small_,MUTED,"Ожидаем подтверждения возврата");
-    print(36,581,small_,MUTED,"прежней сети");
+    print(36,555,small_,MUTED,tr_("Ожидаем подтверждения возврата"));
+    print(36,581,small_,MUTED,tr_("прежней сети"));
   } else if(wifi_stage_!=WifiStage::SAVING && wifi_stage_!=WifiStage::RETURNING)
-    row_(549,wifi_stage_==WifiStage::SAVED?"К показаниям":wifi_busy_()?"Отменить":"Выбрать другую сеть","","",66,-1,false);
+    row_(549,wifi_stage_==WifiStage::SAVED?tr_("К показаниям"):wifi_busy_()?tr_("Отменить"):tr_("Выбрать другую сеть"),"","",66,-1,false);
 }
 void Panel::about_() {
   print(36, 170, value_, TEXT, "Qingping");
   print(36, 226, value_, TEXT, "Air Monitor 1");
-  const char* labels[] = {"Прошивка", "Интерфейс", "Wi-Fi", "IP-адрес"};
+  const char* labels[] = {tr_("Прошивка"), tr_("Интерфейс"), "Wi-Fi", tr_("IP-адрес")};
   auto address = ip_address();
-  const char* values[] = {"ESPHome", "Версия разработки",
-                          address != "Нет IPv4" ? "Подключён" : "Нет подключения", address.c_str()};
+  const char* values[] = {"ESPHome", tr_("Версия разработки"),
+                          address != "Нет IPv4" ? tr_("Подключён") : tr_("Нет подключения"), address != "Нет IPv4" ? address.c_str() : tr_("Нет IPv4")};
   for (int i = 0; i < 4; ++i) {
     int y = 324 + i * 65;
     print(36, y, label_, MUTED, labels[i]);
@@ -810,13 +834,13 @@ void Panel::draw_saver_() {
     time_t now = std::time(nullptr);
     tm local{};
     localtime_r(&now, &local);
-    const char* days[] = {"Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"};
-    const char* months[] = {"января", "февраля", "марта",    "апреля",  "мая",    "июня",
-                            "июля",   "августа", "сентября", "октября", "ноября", "декабря"};
+    const char* days[] = {tr_("Воскресенье"), tr_("Понедельник"), tr_("Вторник"), tr_("Среда"), tr_("Четверг"), tr_("Пятница"), tr_("Суббота")};
+    const char* months[] = {tr_("января"), tr_("февраля"), tr_("марта"),    tr_("апреля"),  tr_("мая"),    tr_("июня"),
+                            tr_("июля"),   tr_("августа"), tr_("сентября"), tr_("октября"), tr_("ноября"), tr_("декабря")};
     if (now > 1700000000)
       printf(360, 378, body_, muted, display::TextAlign::CENTER, "%s, %d %s", days[local.tm_wday],
              local.tm_mday, months[local.tm_mon]);
-    const char* sub[] = {"CO₂ · ppm", "Температура", "Влажность"};
+    const char* sub[] = {"CO₂ · ppm", tr_("Температура"), tr_("Влажность")};
     for (int i = 0; i < 3; ++i) {
       int x = 137 + i * 223;
       std::string text = formatted_(i) + (i == 1 ? "°" : i == 2 ? "%" : "");
@@ -831,9 +855,9 @@ void Panel::draw_saver_() {
     print(360, only ? 446 : 402, label_, muted, display::TextAlign::CENTER, "ppm");
     if (!only) pair_(360, 520, temperature_, formatted_(1), label_, "°C", ink);
     print(360, only ? 555 : 592, body_, muted, display::TextAlign::CENTER,
-          dim               ? "Ночной режим"
-          : ha_selected_[0] ? "Сводные показатели HA"
-                            : "Спальня");
+          dim               ? tr_("Ночной режим")
+          : ha_selected_[0] ? tr_("Сводные показатели HA")
+                            : tr_("Спальня"));
   }
 }
 void Panel::operation_() {
@@ -842,14 +866,14 @@ void Panel::operation_() {
   if (fixture_operation_ == 1) {
     print(360, 280, temperature_, TEXT, display::TextAlign::CENTER, "Qingping");
     print(360, 368, title_, MUTED, display::TextAlign::CENTER, "ESPHome");
-    print(360, 446, small_, MUTED, display::TextAlign::CENTER, "Запуск сенсоров…");
+    print(360, 446, small_, MUTED, display::TextAlign::CENTER, tr_("Запуск сенсоров…"));
   } else {
-    print(360, 246, temperature_, TEXT, display::TextAlign::CENTER, "Обновление");
+    print(360, 246, temperature_, TEXT, display::TextAlign::CENTER, tr_("Обновление"));
     print(360, 330, title_, MUTED, display::TextAlign::CENTER, "ESPHome");
     pair_(360, 468, detail_, "64", body_, "%", TEXT);
     card_(108, 519, 504, 13, LINE, 6);
     card_(108, 519, 322, 13, ACCENT, 6);
-    print(360, 578, small_, MUTED, display::TextAlign::CENTER, "Не отключайте питание");
+    print(360, 578, small_, MUTED, display::TextAlign::CENTER, tr_("Не отключайте питание"));
   }
 }
 void Panel::render_() {
@@ -863,17 +887,18 @@ void Panel::render_() {
     return;
   }
   const char* title = page_ == DETAIL           ? LABELS[metric_]
-                      : page_ == SETTINGS       ? "Настройки"
-                      : page_ == DISPLAY        ? "Экран и заставка"
-                      : page_ == NIGHT_SETTINGS ? "Ночной режим"
-                      : page_ == SOURCES        ? "Источники"
-                      : page_ == SENSORS        ? "Сенсоры"
+                      : page_ == SETTINGS       ? tr_("Настройки")
+                      : page_ == LANGUAGE       ? tr_("Язык интерфейса")
+                      : page_ == DISPLAY        ? tr_("Экран и заставка")
+                      : page_ == NIGHT_SETTINGS ? tr_("Ночной режим")
+                      : page_ == SOURCES        ? tr_("Источники")
+                      : page_ == SENSORS        ? tr_("Сенсоры")
                       : page_ == NETWORK        ? "Wi-Fi"
-                      : page_ == WIFI_LIST      ? "Выбор сети"
-                      : page_ == WIFI_SSID       ? "Другая сеть"
-                      : page_ == WIFI_PASSWORD   ? "Пароль Wi-Fi"
-                      : page_ == WIFI_PROGRESS   ? "Подключение"
-                                                : "Об устройстве";
+                      : page_ == WIFI_LIST      ? tr_("Выбор сети")
+                      : page_ == WIFI_SSID       ? tr_("Другая сеть")
+                      : page_ == WIFI_PASSWORD   ? tr_("Пароль Wi-Fi")
+                      : page_ == WIFI_PROGRESS   ? tr_("Подключение")
+                                                : tr_("Об устройстве");
   if (page_ != HOME) header_(title);
   // Clip all scrolling/content pages above the fixed bottom navigation. No
   // label or future graph can draw across the navigation's hit regions.
@@ -905,6 +930,7 @@ void Panel::render_() {
     case WIFI_SSID:
     case WIFI_PASSWORD:wifi_editor_();break;
     case WIFI_PROGRESS:wifi_progress_();break;
+    case LANGUAGE:language_();break;
     case ABOUT:
       about_();
       break;
@@ -925,7 +951,7 @@ bool Panel::review_touch(int x, int y, int phase) {
   return true;
 }
 bool Panel::review_page(int index) {
-  if (!headless_ || index < 0 || index > 34) return false;
+  if (!headless_ || index < 0 || index > 35) return false;
   sleeping_ = false;
   page_ = HOME;
   fixture_operation_ = 0;
@@ -956,6 +982,7 @@ bool Panel::review_page(int index) {
     pm_warming_ = true;
   else if (index >= 22 && index <=23)
     fixture_operation_ = index - 21;
+  else if(index==35)page_=LANGUAGE;
   else if(index>=24) {
     // Invented fixture SSIDs/input only; this hook refuses physical panels.
     set_wifi_actions([]{},[](const std::string&,const char*,size_t){return true;},[]{return true;},[]{return true;});
@@ -996,7 +1023,7 @@ bool Panel::review_interactions() {
   // Use real ordered gesture events: a drag changes brightness, lifting ends
   // it, and motion after waking cannot leak into a hidden control.
   gesture_({TouchTracker::Phase::DOWN, 59, 228});
-  if (brightness_ != 10) return false;
+  if (brightness_ != cgs1_backlight::MIN_RAW) return false;
   gesture_({TouchTracker::Phase::MOVE, 662, 228});
   if (brightness_ != 1000) return false;
   gesture_({TouchTracker::Phase::UP, 662, 228});
@@ -1007,7 +1034,7 @@ bool Panel::review_interactions() {
   touch_(300, 506);
   if (page_ != NIGHT_SETTINGS) return false;
   gesture_({TouchTracker::Phase::DOWN, 59, 228});
-  if (night_brightness_ != 1) return false;
+  if (night_brightness_ != cgs1_backlight::MIN_RAW) return false;
   gesture_({TouchTracker::Phase::MOVE, 662, 228});
   if (night_brightness_ != 100) return false;
   gesture_({TouchTracker::Phase::UP, 662, 228});
@@ -1031,8 +1058,17 @@ bool Panel::review_interactions() {
   if (page_ != HOME) return false;
   mode_ = SUMMARY;
   night_ = false;
+  // Local touch must recover a legacy black preference without HA. Explicit
+  // OFF still writes zero; the first DOWN wakes even at the outer pixel edge
+  // and the protected effective brightness is visible before another action.
+  mode_=OFF;sleeping_=true;brightness_=10;night_brightness_=1;
+  if(effective_brightness()!=0)return false;
+  gesture_({TouchTracker::Phase::DOWN,1,1});
+  if(sleeping_ || page_!=HOME || effective_brightness()!=cgs1_backlight::MIN_RAW)return false;
+  gesture_({TouchTracker::Phase::UP,1,1});
+  mode_=SUMMARY;
   brightness_ = 180;
-  night_brightness_ = 5;
+  night_brightness_ = cgs1_backlight::MIN_RAW;
   period_ = 0;
   // Real production touch paths with a synthetic local backend; no socket or
   // credentials reach a device. Repeated taps must not duplicate submission.
@@ -1066,6 +1102,18 @@ bool Panel::review_interactions() {
   touch_(622,537);
   if(page_!=WIFI_PASSWORD || !wifi_input_error_ || wifi_password_.size()!=8)return false;
   touch_(61,100);if(wifi_password_.size() || page_!=WIFI_LIST)return false;
+  // Language uses one setting path in either direction and preserves forms.
+  const auto previous_language=english_;unsigned language_changes=0;
+  set_language_action([&](const std::string&value){++language_changes;set_interface_language(value);});
+  page_=SETTINGS;touch_(120,601);if(page_!=LANGUAGE)return false;
+  touch_(120,180);if(!english_ || language_changes!=1)return false;
+  touch_(120,264);if(english_ || language_changes!=2)return false;
+  page_=WIFI_PASSWORD;wifi_ssid_="Температура";wifi_password_.append('x');
+  const size_t password_size=wifi_password_.size();const auto old_stage=wifi_stage_;
+  set_interface_language("English");
+  if(!english_ || page_!=WIFI_PASSWORD || wifi_ssid_!="Температура" || wifi_password_.size()!=password_size || wifi_stage_!=old_stage)return false;
+  set_interface_language("invalid");if(!english_)return false;
+  set_interface_language(previous_language?"English":"Русский");set_language_action({});wifi_password_.clear();
   // Restore the normal fixture state before rendering the requested page.
   set_wifi_actions({}, {}, {}, {});wifi_stage_=WifiStage::IDLE;wifi_can_start_=true;page_=HOME;
   return true;

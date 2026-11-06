@@ -4,12 +4,20 @@ esphome:
   includes:
     - ha_source_cache.h
     - ha_sources_runtime.h
+    - cgs1_backlight.h
+    - cgs1_ui_language.h
   on_loop:
     - lambda: cgs1_ha::sources.loop(*id(panel));
   on_boot:
     - priority: -100
       then:
         - lambda: |-
+            // Both local language choices and HA call the same restored
+            // template select. Its on_value updates text only; transactions
+            // and other settings retain their exact IDs and current state.
+            id(panel).set_language_action([](const std::string &option) {
+              auto call=id(interface_language).make_call();call.set_option(option);call.perform();
+            });
             id(panel).set_saver_action([](const std::string &mode) {
               auto call = id(idle_screen).make_call();
               call.set_option(mode);
@@ -32,8 +40,31 @@ esphome:
               call.set_option(enabled ? "HA + местный резерв" : "Сенсоры");
               call.perform();
             });
+            // Migrate old restored 1%/sub-2% values locally. Panel setters
+            // already protect the first frame; these ordinary local number
+            // calls then align HA state AND durable preferences with it.
+            // This runs without HA/network and leaves valid settings alone.
+            const float day=cgs1_backlight::day_percent(id(display_brightness).state);
+            if (!std::isfinite(id(display_brightness).state) || id(display_brightness).state!=day) {
+              auto call=id(display_brightness).make_call();call.set_value(day);call.perform();
+            }
+            const float night=cgs1_backlight::night_percent(id(night_brightness).state);
+            if (!std::isfinite(id(night_brightness).state) || id(night_brightness).state!=night) {
+              auto call=id(night_brightness).make_call();call.set_value(night);call.perform();
+            }
 
 select:
+  - platform: template
+    name: Interface language
+    id: interface_language
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Русский"
+    options: ["English", "Русский"]
+    on_value:
+      then:
+        - lambda: id(panel).set_interface_language(x);
   - platform: template
     name: Idle screen
     id: idle_screen
@@ -85,7 +116,7 @@ number:
     id: display_brightness
     entity_category: config
     unit_of_measurement: "%"
-    min_value: 1
+    min_value: 2
     max_value: 100
     step: 1
     initial_value: 10
@@ -99,10 +130,10 @@ number:
     id: night_brightness
     entity_category: config
     unit_of_measurement: "%"
-    min_value: 0.1
+    min_value: 2
     max_value: 10
     step: 0.1
-    initial_value: 0.5
+    initial_value: 2
     optimistic: true
     restore_value: true
     on_value:

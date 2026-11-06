@@ -228,6 +228,18 @@ separate even though the HACS wizard is shared.
   explicit hosted-runner root step. Never remove that production check to
   make a non-root local test pass or invoke sudo from the test wrapper.
 
+- Monitor 1 native UI language is one restored `Interface language` select
+  (`English` / `Русский`, default Russian), shared by local touch and HA.
+  Translate only known display labels, never control options or user input;
+  language changes must not clear/retry Wi-Fi forms or change entity IDs.
+  Visible native brightness uses the common 2% floor (day 2–100/night 2–10)
+  with local boot migration of old preferences. Only explicit screen-off
+  uses zero. Preserve exact raw DRM/stock-recovery restoration semantics.
+  The ordinary stock-side bridge includes storage-telemetry.yaml for a fixed
+  read-only audit; no prune action is exposed. Keep its root include closure
+  complete in SDK builds.
+  See ports/monitor1/UI_LANGUAGE_BACKLIGHT.md and the pure C++ regressions.
+
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
   Store only the language preference in localStorage. Translate text nodes in
   place: never rebuild the form, repeat setup, disconnect BLE or restart a

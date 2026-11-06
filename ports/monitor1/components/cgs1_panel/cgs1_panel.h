@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "drm_backend.h"
+#include "cgs1_backlight.h"
+#include "cgs1_ui_language.h"
 #include "wifi_input.h"
 #include "esphome/components/display/display_buffer.h"
 #include "esphome/components/font/font.h"
@@ -51,6 +53,7 @@ class Panel : public display::DisplayBuffer {
   void set_headless(bool v) { headless_ = v; }
   bool review_page(int index);
   bool review_interactions();
+  bool interface_is_english() const { return english_; }
   bool home_visible() const { return page_ == HOME && !sleeping_; }
   // Read-only startup proof for the independent process lease. A selected
   // page alone is not proof that DRM/input setup actually completed.
@@ -58,10 +61,13 @@ class Panel : public display::DisplayBuffer {
   bool review_touch(int x, int y, int phase);
   bool screen_is_on() const { return !(sleeping_ && mode_ == OFF); }
   int effective_brightness() const {
-    return !screen_is_on() ? 0 : sleeping_ && (mode_ == NIGHT || night_) ? night_brightness_ : brightness_;
+    const int requested=sleeping_ && (mode_ == NIGHT || night_) ? night_brightness_ : brightness_;
+    return cgs1_backlight::effective(screen_is_on(),requested);
   }
   // HA and local touch use the same setters and callbacks. A touch writes
   // through the ESPHome entity, so preferences and API states cannot diverge.
+  void set_interface_language(const std::string& option);
+  void set_language_action(std::function<void(const std::string&)> action) { language_action_=std::move(action); }
   void set_saver_mode(const std::string& mode);
   void set_idle_seconds(float seconds);
   void set_brightness_percent(float percent);
@@ -102,7 +108,7 @@ class Panel : public display::DisplayBuffer {
 
  private:
   enum Page { HOME, DETAIL, SETTINGS, DISPLAY, SOURCES, SENSORS, NETWORK, ABOUT, NIGHT_SETTINGS,
-              WIFI_LIST,WIFI_SSID,WIFI_PASSWORD,WIFI_PROGRESS };
+              WIFI_LIST,WIFI_SSID,WIFI_PASSWORD,WIFI_PROGRESS, LANGUAGE };
   enum Saver { SUMMARY, CO2_ONLY, CLOCK, NIGHT, OFF };
   enum Icon { GRID, MOON, SLIDERS, BACK, NEXT, SUN, HOUSE, WIFI, INFO, RADIO, CHECK };
   struct Sample {
@@ -128,11 +134,14 @@ class Panel : public display::DisplayBuffer {
   uint32_t profiled_frames_{0};
   Page page_{HOME};
   Saver mode_{SUMMARY};
-  int metric_{0}, brightness_{100}, night_brightness_{5}, period_{0};
+  int metric_{0}, brightness_{100}, night_brightness_{cgs1_backlight::MIN_RAW}, period_{0};
   bool sleeping_{false}, ready_{false}, raw_temperature_{true}, capture_{false}, headless_{false};
   bool night_{false}, ha_mode_{false}, pm_enabled_{true}, pm_warming_{false};
   bool dragging_{false}, ignore_gesture_{false}, fixture_ha_lost_{false}, fixture_sensor_lost_{false};
   int fixture_operation_{0};
+  bool english_{false},captured_english_{false};
+  std::function<void(const std::string&)> language_action_;
+  const char *tr_(const char *label) const { return cgs1_ui_language::text(english_,label); }
   std::function<void(const std::string&)> saver_action_;
   std::function<void(float)> brightness_action_, night_brightness_action_, idle_action_;
   std::function<void(bool)> night_action_, ha_action_, pm_action_;
@@ -157,6 +166,7 @@ class Panel : public display::DisplayBuffer {
   void home_();
   void draw_detail_();
   void settings_();
+  void language_();
   void display_();
   void draw_saver_();
   void sources_();
