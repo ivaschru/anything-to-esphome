@@ -4,6 +4,20 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- `apps/monitor1_usb` is an experimental read-only connection companion,
+  not a complete flashing app. Its page chooses computer WebUSB or server
+  USB/ADB. Generate both fixed contracts from preflight_adb.py and rebuild
+  the offline Tango bundle with tools/monitor1-usb; preserve exact lock/MIT
+  notices and the source check in CI. No generic shell/setup/push/activation
+  endpoint, LAN ADB, host networking or full-access privilege is permitted.
+  Require the actual Supervisor ingress peer/user and owner-bound page nonce;
+  use native admin ingress on HA2026.11+. Never log headers/raw exceptions or
+  persist browser authorization keys. Selection/cleanup stay bounded; a late
+  USB handle must close instead of being adopted. Read-only rediscovery is
+  separate from permanently consumed install/launch/prune/reboot receipts.
+  Do not promote this probe or its synthetic/container tests into hardware
+  qualification or change CGS1 installation_ready/source_only from them.
+
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
   creator-owned intent/fork, nonblocking child identity before gate release,

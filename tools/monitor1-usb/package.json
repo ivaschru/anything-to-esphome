@@ -1,0 +1,10 @@
+{
+  "name": "qingping-monitor1-usb-browser",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@yume-chan/adb": "2.6.2",
+    "@yume-chan/adb-daemon-webusb": "2.3.2",
+    "esbuild": "0.25.12"
+  }
+}
