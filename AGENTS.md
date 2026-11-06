@@ -49,6 +49,11 @@ separate even though the HACS wizard is shared.
   Require the matching on-device AFTER-effects completion record before a
   terminal claim/disarm; flag readback or USB timeout alone cannot exclude a
   late old writer. Preserve partial records and refuse further writes.
+  `verify_bridge_boot_adb.py` only observes a distinct current boot: re-read
+  process births/parents/images and listener ownership, then two fresh Noise
+  wire generations. PID files/old trial samples grant no signal/launch or
+  readiness authority. Retire pending reads and only the acknowledged exact
+  owned host forward; keep ambiguous mappings and sanitize API/ADB errors.
 
 
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection

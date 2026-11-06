@@ -148,3 +148,40 @@ boot, status requires separate authenticated runtime verification and never
 reuses old process identities. The new arming/disarm writes and first boot
 have not been run on a physical monitor. A full installation still needs
 runtime/PM/native activation, GUI integration and fresh-device qualification.
+
+## Read an already booted bridge without starting it
+
+`verify_bridge_boot_adb.py` is a separate read-only engineering observer for
+the ordinary boot after bridge-only arming. It never performs that boot or
+starts/stops/repairs a program. Keep the original private plan and exact
+API profile; disarm/partial history refuses observation. The old boot must
+have changed. Use a fresh fixed-name report in an existing private ignored
+directory; an older report is preserved rather than overwritten.
+
+```sh
+ports/monitor1/.venv/bin/python ports/monitor1/verify_bridge_boot_adb.py \
+  --serial "$USB_SERIAL" \
+  --plan-directory "$PRIVATE_PLAN_DIRECTORY" \
+  --expected-plan-sha256 "$PLAN_SHA256" \
+  --profile "$PRIVATE_PROFILE" \
+  --report "$PRIVATE_OBSERVATION_DIRECTORY/bridge-boot-observation.json"
+```
+
+It reads current kernel process births, parent relationships and actual
+images, fixed root/vendor/program/flag pins, the private boot lock and
+API/OTA socket ownership. PID files are only hints cross-checked against
+the live kernel; they grant no signal or launch authority. The stock app
+must still be running without the PM helper. A separate loopback-only,
+no-rebind ADB forward carries the existing authenticated Noise API. Exact
+node/MAC and two different fresh generations of CO2/T/RH/stock tVOC plus
+stock response age are required. A changed process/boot or stale final
+sample invalidates the observation, without adopting a replacement PID.
+
+Only local observation files and that own host forward can change. The
+forward is removed only after an acknowledged creation and an exact current
+serial/endpoint ownership check; ambiguous or changed mappings are preserved.
+Fixed phase/cleanup fields are saved instead of raw ADB/API errors or keys.
+The source outcome `post_boot_bridge_observed` describes that current read,
+not cold-power testing, full/native/PM activation or hardware qualification.
+All installation/readiness flags remain false. This observer has not been
+run on a physical monitor and does not enable either GUI installation route.

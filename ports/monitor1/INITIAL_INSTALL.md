@@ -22,6 +22,9 @@ After a successful trial, a separate experimental bridge-only
 is available. It changes only the bridge opt-out and has a same-boot disarm;
 it never starts a program, enables PM preload, reboots or proves installation.
 Full permanent activation, GUI integration and fresh-device QA remain open.
+The separate [post-boot observer](USB_TRIAL.md#read-an-already-booted-bridge-without-starting-it)
+can read a new current bridge session and authenticated wire updates without
+performing a boot or granting another install/launch intent.
 
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
 CO2 type **2 (S8)** or **3 (SCD40)**. The two types select different native
