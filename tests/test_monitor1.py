@@ -95,6 +95,16 @@ class Monitor1Tests(unittest.TestCase):
     def test_initial_trial_filesystem_scope_binds_named_root_flags_markers_and_payload(self):
         self.run_cpp("test_initial_trial_filesystem.cpp", crypto=True)
 
+    def test_initial_trial_resource_parsers_reject_cache_credit_and_occupied_ports(self):
+        self.run_cpp("test_initial_trial_resources.cpp")
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root read-only resource fd fixture; CI runs its explicit root step",
+    )
+    def test_initial_trial_resources_require_complete_fresh_memory_and_both_tcp_tables(self):
+        self.run_cpp("test_initial_trial_resources_linux.cpp")
+
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root-owned Store fixture; CI runs an explicit root step",

@@ -98,6 +98,13 @@ separate even though the HACS wizard is shared.
   The intent must outlive the reader; claimed checks belong to the creator,
   not its fork child. Acknowledgement never grants a fork or launch.
   It does not collect stock/vendor/device/boot/resources or authorize launch.
+  initial_trial_resources.h is pre-start read-only kernel resource evidence:
+  fixed procfs fd reads, unique MemTotal/MemFree in KiB, no cache/swap credit,
+  and both complete TCP tables refusing API/OTA local ports in every state.
+  Missing/malformed/oversized/stale reads return only refusal, never a cached
+  positive. Export no socket tables/peer addresses. The one-second observation
+  window is checked after IO; it is not a hard syscall timeout, RAM guarantee
+  or port reservation. Running-child/resource ownership still needs its join.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

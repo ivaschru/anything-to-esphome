@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only pre-start kernel resource reader и portable parsers:
+  conservative MemFree, обе TCP tables и отказ stale/malformed данным;
+  без port reservation, cache credit или включения guardian/HACS installer
+
 - Monitor 1: filesystem reader связывает новый trial marker только с actual
   creator-owned intent и повторной проверкой всех прежних pins; нет
   ignore-marker switch, повторного claim или автоматического запуска

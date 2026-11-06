@@ -448,6 +448,36 @@ cases refuse a parent call, changed parent/RAM identity, missing PDEATHSIG
 and a non-CLOEXEC image. Fabricated ARM headers test only inert admission;
 there is no native-architecture production override or firmware execution.
 
+### Pre-start kernel resource evidence
+
+`initial_trial_resources.h` adds portable parsers and a separate Linux-only
+read-only collector. Production opens only fixed `/proc` fields on verified
+procfs; the test root exists only in a compile-time fixture type. No socket,
+controller, shell or file writer is involved. Only verified status, a
+conservative free-byte count, monotonic observation time and fixed refusal
+category leave the reader; raw TCP tables and peer addresses are not exported.
+
+Memory requires unique `MemTotal`/`MemFree` fields with KiB units and at least
+32 MiB genuinely free at both ends of the observation. It returns the lower
+of those readings. `MemAvailable`, cache, buffers and swap grant no credit.
+Both IPv4 and IPv6 TCP tables must be fully readable within bounded byte/line
+budgets and have recognized headers/addresses/port fields. Any local API 6053
+or OTA 3232 entry refuses, in every state. Missing IPv6, malformed or oversized
+data is unverified, never an empty/free table or a previous positive result.
+
+An observation taking more than one second is refused after reads return.
+This is a freshness gate, **not a hard kernel-IO timeout**, a measured monitor
+performance/footprint guarantee, OOM protection or a port reservation. A
+subsequent process can bind a port after a read. The future full collector
+must join fresh resource evidence with the exact device/boot/stock scope.
+This reader is pre-start only; after the bridge starts its API endpoint is
+expected to be in use, so running-child ownership needs a separate live check.
+
+Portable fixtures use synthetic strings. The explicit Linux/root fd fixture
+reads only private tmpfs files and tests full reads, missing/changed/oversized
+tables, symlinks/FIFOs/wrong ownership and refusal after a previous positive.
+It does not inspect a monitor or prove vendor procfs/runtime performance.
+
 ### Host-side joined pre-trial review
 
 review_initial_trial.py is a read-only engineering review, not the missing
