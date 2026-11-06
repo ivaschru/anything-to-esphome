@@ -528,6 +528,37 @@ not been qualified for this new reader on a monitor. This does not replace
 fresh host USB/serial admission, the missing live stock/watchdog collector,
 or the complete guardian and running-child ownership join.
 
+### Live stock session before the trial
+
+`initial_trial_stock.h` adds the pre-start procfs observation. It requires the
+exact previously reviewed SnowApp/watchdog PIDs and birth ticks, a unique live
+SnowApp with that parent, the actual `/proc/PID/exe` inode matching the named
+vendor-admitted SnowApp, and a root-owned watchdog using the fixed BusyBox
+image on the read-only root filesystem. Its complete command line must be
+exactly `/bin/sh` plus `/data/bin/watchdog.sh`; generic arguments and process
+maps never leave the reader. The vendor reader exposes only a verified
+read-only SnowApp fd for this comparison, without execution authority.
+
+Both complete bounded process scans must succeed. An unreadable live
+userspace `exe` refuses; a missing link is allowed only for a positively
+observed kernel thread, zombie/exited task or a named PID that has vanished.
+Any own-root executable, extra/replaced stock instance, changed birth/parent,
+malformed/missing maps or mapping from the own installation root refuses.
+Selected process directories, stat fields, opened image fds and named vendor
+files are rechecked. A prior refusal cannot be cleared by restoring old data.
+Production has no synthetic proc root, executable path or writable BusyBox
+override. The explicit Linux/root fixture uses tiny fake proc entries and
+mock files inside its own tmpfs tree, without starting or signaling anything.
+
+The one-second scan observation limit is evaluated after IO returns, not a
+hard kernel-IO timeout. A future guardian must keep its stop deadline
+independent of potentially blocked observation work. This collector is
+pre-start only and currently refuses every own-root executable: it cannot
+whitelist a reported trial PID. Actual kernel-child/endpoint ownership and
+the complete first-trial join remain separate unfinished work. Neither this
+source nor its hosted fixture qualifies the stock kernel's procfs/rootfs
+layout, process churn, latency, resource footprint or physical fallback.
+
 ### Host-side joined pre-trial review
 
 review_initial_trial.py is a read-only engineering review, not the missing

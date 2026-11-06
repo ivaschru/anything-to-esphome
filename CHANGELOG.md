@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only stock/watchdog collector связывает process birth/parent
+  и actual exe inode с fixed vendor scope; complete scans/maps/cmdline
+  отказывают неполным данным, без signal/launch или hardware admission
+
 - Monitor 1: read-only device identity reader для exact WLAN/boot/CO2/stock
   с fixed filesystem scope и отказом подменённым/неполным данным;
   INI не экспортируется, initial guardian и hardware install ещё не готовы

@@ -111,14 +111,22 @@ separate even though the HACS wizard is shared.
   Keep kernel sysfs class-link allowance separate from no-follow data/proc
   ancestors and final files. No raw INI/password export, runtime root/CPU
   override, USB proof, process/launch authority or hardware qualification.
+  initial_trial_stock.h is pre-start read-only procfs evidence: unique exact
+  stock/watchdog birth/parent, actual exe inode vs admitted SnowApp/fixed RO
+  BusyBox, complete scans/cmdline/maps and no own-root executable/mapping.
+  Never treat an unreadable live userspace exe or failed maps read as absent.
+  No PID adoption, signal, runtime proc/path override or trial authority.
+  Keep observation IO off the future independent stop-deadline loop; the
+  post-read freshness limit is not a syscall timeout or hardware proof.
   initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
   through no-follow root-owned directory/file fds. Keep the host/device pin
   contract test, complete hash/metadata/named-inode rechecks and persistent
   refusal. Factory scripts, symlink ancestors and writable vendor paths are
   not admitted. Only a compile-time non-ext4 fixture can substitute synthetic
   pins/root; no production override, write, exec, shell or repair exists.
-  This is file evidence, not running stock identity, a full device collector
-  or launch authority; unknown vendor layout remains a qualification blocker.
+  Its verified stock read fd only joins the separate stock-session reader;
+  file evidence is not a complete guardian or launch authority. Unknown
+  vendor layout remains a qualification blocker.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

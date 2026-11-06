@@ -101,6 +101,16 @@ class Monitor1Tests(unittest.TestCase):
     def test_initial_device_identity_parsers_keep_co2_and_boot_scope_exact(self):
         self.run_cpp("test_initial_trial_device.cpp")
 
+    def test_initial_stock_process_maps_and_exact_watchdog_parsers(self):
+        self.run_cpp("test_initial_trial_stock.cpp")
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root read-only stock-session fd fixture; CI runs its explicit root step",
+    )
+    def test_initial_stock_session_requires_actual_exe_inodes_and_complete_proc_reads(self):
+        self.run_cpp("test_initial_trial_stock_linux.cpp", crypto=True)
+
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root read-only identity fd fixture; CI runs its explicit root step",

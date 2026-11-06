@@ -50,6 +50,20 @@ template<long DataFilesystem=0xef53> class BasicInitialVendorFiles {
       if(!file_(i,false))return refuse_("vendor_file_changed_or_unreadable");
     return anchor_current_() || refuse_("vendor_anchor_changed_after_readback");
   }
+  int duplicate_verified_stock_read_fd() {
+    // The stock-session reader compares /proc/PID/exe with this exact named
+    // SnowApp inode. This read descriptor grants no exec/signal authority.
+    if(!current())return -1;
+    const int parent=parent_(PATHS[0]);
+    if(parent<0){refuse_("stock_parent_unreadable");return -1;}
+    const int fd=::openat(parent,"SnowApp",O_RDONLY|O_NONBLOCK|O_NOFOLLOW|O_NOATIME|O_CLOEXEC);
+    struct stat value{};
+    bool okay=fd>=0 && !::fstat(fd,&value) && same_file(snapshots_[0],value);
+    if(::close(parent))okay=false;
+    okay=okay && current();
+    if(!okay){if(fd>=0)::close(fd);refuse_("stock_read_descriptor_unverified");return -1;}
+    return fd;
+  }
  private:
   inline static constexpr int DIRECTORY_FLAGS=O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_NOATIME|O_CLOEXEC;
   int anchor_{-1};bool attempted_{false},verified_{false};
