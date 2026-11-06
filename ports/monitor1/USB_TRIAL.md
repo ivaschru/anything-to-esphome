@@ -47,6 +47,9 @@ a local ADB engineering entry, not an enabled companion HTTP/GUI write route.
 
 ## Exact build and explicit trial
 
+The next-boot arming entry below is separate from the trial. Do not call it
+instead of, or during, an incomplete/ambiguous trial.
+
 Build a committed source containing initial_bridge_trial_main.cpp through
 [BUILD_CANDIDATE.md](BUILD_CANDIDATE.md). The result now records a separate
 initial-trial-guardian-program under result.json.initial_trial_guardian,
@@ -102,3 +105,46 @@ Source tests and an ARM/glibc link do not qualify vendor-kernel protections,
 a fresh unit, PM/native return or cold boot. Permanent activation and the
 two USB integration surfaces still need their own implementation/checks.
 Monitor 2 and CGS1 Bluetooth support do not follow from this trial.
+
+## Bridge-only autostart for the next boot
+
+`arm_bridge_next_boot_adb.py` is an experimental source step after a successful
+bounded trial. It requires the exact terminal trial/commit receipts, current
+USB/boot/root/vendor/program/stock scope, no remaining own RAM process and
+no full/Wi-Fi/persistent preferences store. It verifies executable modes as
+well as bytes. This is not a command for an existing ordinary installation.
+
+```sh
+ports/monitor1/.venv/bin/python ports/monitor1/arm_bridge_next_boot_adb.py \
+  --serial "$USB_SERIAL" \
+  --plan-directory "$PRIVATE_PLAN_DIRECTORY" \
+  --expected-plan-sha256 "$PLAN_SHA256" \
+  --arm-next-boot
+```
+
+A durable exclusive host receipt precedes the write. The command first
+creates and syncs the private empty `disabled.before-next-boot` recovery flag,
+then rechecks the full scope and removes only the verified empty bridge
+`disabled` opt-out. `pm-helper.disabled` stays present. It does not launch
+the bridge, preload the helper, touch sensors/Wi-Fi, signal a PID or reboot.
+The already committed stock hook can start the bridge on a later normal boot.
+
+An interruption before unlink leaves the bridge disabled; after unlink its
+next-boot autostart may be armed. Lost ACK never authorizes resending the
+write. A matching on-device completion record, written after the last flag
+effect, is required before disarm or a terminal state claim. A timeout or
+flag read alone cannot prove that an old writer will not change it later.
+Unknown completion stays read-only; history and recovery are preserved.
+Use the same command with `--status` for independent readback. A
+common prepared-sequence `--status` also delegates to this newer state. A
+separate `--disarm-before-boot` can restore the empty bridge opt-out while
+the original boot is still idle; it keeps the recovery flag and all receipts.
+It refuses after a boot change or when code is running, rather than adopting
+or killing a device process. No automatic rollback or retry is provided.
+
+The successful source outcome is `bridge_autostart_armed_next_boot_unverified`.
+`installed`, `activated` and `installation_ready` remain false. After an actual
+boot, status requires separate authenticated runtime verification and never
+reuses old process identities. The new arming/disarm writes and first boot
+have not been run on a physical monitor. A full installation still needs
+runtime/PM/native activation, GUI integration and fresh-device qualification.

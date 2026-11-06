@@ -17,6 +17,12 @@ script commit and bounded trial. See [USB_TRIAL.md](USB_TRIAL.md) for the
 experimental command and read-only status. It adds no permanent activation
 or replay authority and refuses all previous operation receipts.
 
+After a successful trial, a separate experimental bridge-only
+[next-boot arming entry](USB_TRIAL.md#bridge-only-autostart-for-the-next-boot)
+is available. It changes only the bridge opt-out and has a same-boot disarm;
+it never starts a program, enables PM preload, reboots or proves installation.
+Full permanent activation, GUI integration and fresh-device QA remain open.
+
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
 CO2 type **2 (S8)** or **3 (SCD40)**. The two types select different native
 backends. Monitor 2, SCD30, other firmware and unknown board revisions are

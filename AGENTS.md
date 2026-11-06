@@ -41,6 +41,14 @@ separate even though the HACS wizard is shared.
   receipt/collector; prior or partial history refuses the whole sequence.
   No automatic resume/rollback, permanent activation or GUI write route is
   added. A bounded sequence result never promotes installation_ready.
+  `arm_bridge_next_boot_adb.py` is a separate unqualified bridge-only step
+  after a terminal trial. It durably saves an empty recovery flag before
+  unlinking only the bridge opt-out; PM stays disabled. No launch/reboot/PID
+  adoption or hardware readiness follows. Disarm is explicit and same-boot
+  idle only, preserves recovery/history, and never retries an ambiguous write.
+  Require the matching on-device AFTER-effects completion record before a
+  terminal claim/disarm; flag readback or USB timeout alone cannot exclude a
+  late old writer. Preserve partial records and refuse further writes.
 
 
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection

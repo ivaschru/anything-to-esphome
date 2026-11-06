@@ -148,6 +148,20 @@ class SequenceTests(unittest.TestCase):
         self.assertEqual(result["stage"], "read_only_disabled_scope_observed")
         self.assertFalse(result["retry_authorized"])
 
+    def test_newer_next_boot_state_uses_its_reader_instead_of_old_trial(self):
+        self.record("stage-receipt.json", "staged_disabled_not_installed")
+        self.record("commit-disabled-receipt.json", "committed_disabled")
+        self.record(engine.trial.RECEIPT, "bounded_trial_stopped_observed")
+        self.record(engine.next_boot.ARM_RECEIPT, "bridge_autostart_armed_next_boot_unverified")
+        with patch.object(engine.next_boot, "status", return_value={"stage": "read_only_armed", "autostart_armed": True}) as current, \
+                patch.object(engine.trial, "status") as old:
+            result = engine.status(self.adb, self.root, DIGEST)
+        current.assert_called_once_with(self.adb, self.root, DIGEST)
+        old.assert_not_called()
+        self.assertTrue(result["autostart_armed"])
+        self.assertFalse(result["installed"])
+        self.assertFalse(result["retry_authorized"])
+
 
 if __name__ == "__main__":
     unittest.main()
