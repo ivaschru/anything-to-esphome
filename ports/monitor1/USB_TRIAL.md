@@ -37,6 +37,8 @@ after executing any of the individual stages. Use the same command with
 `--status`, without candidate/profile/write flags, for read-only reconciliation.
 Status selects the current disabled collector after a script commit instead
 of incorrectly expecting factory scripts. It never resumes a write.
+A later explicit rollback selects a current disabled-scope observation
+instead of presenting an older trial receipt as the latest device state.
 
 The successful outcome is `disabled_sequence_trial_observed`, with installed,
 activated and installation_ready still false. Permanent activation, the two

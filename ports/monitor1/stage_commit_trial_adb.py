@@ -95,9 +95,15 @@ def status(adb, directory, digest):
         if (receipt.get("plan_id") != plan["plan_id"] or receipt.get("plan_sha256") != digest or
                 receipt.get("consumed_install_intent") is not True):
             raise ValueError("Operation receipt belongs to another plan or has incomplete ownership")
-    if trial.RECEIPT in found:
+    if "rollback-disabled-receipt.json" in found:
+        # A later explicit rollback supersedes an older trial receipt. Read
+        # the current script pair instead of reporting that historical trial
+        # as the latest state; even a partial rollback needs reconciliation.
+        commit.review.collect(adb, directory, digest)
+        result = {"stage": "read_only_disabled_scope_observed"}
+    elif trial.RECEIPT in found:
         result = trial.status(adb, directory, digest)
-    elif "commit-disabled-receipt.json" in found or "rollback-disabled-receipt.json" in found:
+    elif "commit-disabled-receipt.json" in found:
         # This collector verifies the current script pair and full idle
         # scope, and does not imply commit, rollback or activation authority.
         commit.review.collect(adb, directory, digest)

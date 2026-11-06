@@ -135,6 +135,19 @@ class SequenceTests(unittest.TestCase):
         self.commit.assert_not_called()
         self.trial.assert_not_awaited()
 
+    def test_later_explicit_rollback_supersedes_historical_trial_status(self):
+        self.record("stage-receipt.json", "staged_disabled_not_installed")
+        self.record("commit-disabled-receipt.json", "committed_disabled")
+        self.record(engine.trial.RECEIPT, "bounded_trial_stopped_observed")
+        self.record("rollback-disabled-receipt.json", "reconciliation_required_no_retry")
+        with patch.object(engine.commit.review, "collect") as collect, \
+                patch.object(engine.trial, "status") as historical:
+            result = engine.status(self.adb, self.root, DIGEST)
+        collect.assert_called_once_with(self.adb, self.root, DIGEST)
+        historical.assert_not_called()
+        self.assertEqual(result["stage"], "read_only_disabled_scope_observed")
+        self.assertFalse(result["retry_authorized"])
+
 
 if __name__ == "__main__":
     unittest.main()
