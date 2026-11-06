@@ -74,6 +74,12 @@ separate even though the HACS wizard is shared.
   scratch and conservative MemFree. It never creates/starts a job and reports
   image_fd_admitted=false; policy binds RAM inode/device and needs the actual
   device fd reader before start. No cache/swap credit or fabricated guardian.
+  initial_trial_intent.h is a separate own-root writer primitive, not a
+  launch tool. Keep fixed O_EXCL filename, consumed-before-write attempt,
+  exact boot/root/creator binding, file+directory fsync/readback and no
+  adoption/retry/unlink. One parent-process fork grant is consumed before
+  fork; existing/partial markers never become new authority through a nonce.
+  Its tmpfs fixture does not qualify device NAND, named scope or firmware.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

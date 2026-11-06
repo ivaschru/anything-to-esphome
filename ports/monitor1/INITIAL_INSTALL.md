@@ -334,6 +334,33 @@ preparation, outside HACS and without physical initial-install proof.
 
 ## Remaining activation and hardware gates
 
+### Device-side one-shot intent primitive
+
+initial_trial_intent.h implements only the future guardian's own persistent
+marker. Its production alias requires the already admitted root-owned 0700
+ext4 directory, exact root device/inode, current kernel boot and the creator
+process birth. The binding contains the exact plan, bridge/guardian SHA,
+RAM identity and correlation nonce, without any credential or profile body.
+Opening/validating it is read-only. Claim consumes the in-memory attempt
+before O_EXCL creation of the one fixed initial-trial.intent file, then checks
+private metadata, complete bytes, file/directory fsync and independent held/
+named readback. The filename does not depend on a new nonce.
+
+Existing, empty, partial, linked or substituted markers are preserved and
+refused. A failed/ambiguous write is never retried or cleaned up. An existing
+record cannot be adopted by another process/object to mint a launch: only its
+verified creator may consume one in-memory fork authorization. That grant
+must be consumed in the guardian before fork; it is not a transferable JSON
+flag or proof for a child to reuse after fork.
+
+This primitive does not validate the named device root/stock/disable scope,
+consume the separate host intent, fork or execute firmware. A complete
+standalone guardian must join those independent gates and the child timer.
+It is outside HACS and has not written anything on a monitor. Linux/root
+fixtures exercise private tmpfs creation/readback, stale/partial records,
+tamper refusal, creator identity and two processes racing for exactly one
+marker. Host fsync/readback is not a physical NAND/power-loss guarantee.
+
 ### Host-side joined pre-trial review
 
 review_initial_trial.py is a read-only engineering review, not the missing

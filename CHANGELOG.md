@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: device-side one-shot marker primitive с exact boot/root/creator,
+  fixed O_EXCL, fsync/readback и единственным parent fork grant; нет
+  adoption/retry/cleanup или включения standalone guardian/HACS
+
 - Monitor 1: read-only joined review перед trial, точная RAM identity и
   обязательный device fd proof в policy; host report не разрешает запуск,
   память проверяется консервативно через MemFree для старого kernel
