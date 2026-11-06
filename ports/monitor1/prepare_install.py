@@ -186,7 +186,7 @@ def prepare(capture, build, patches, profile_path, output_path):
                 {"path": "/data/.esphome-cgs1", "operation": "create private own tree only if absent"},
                 {"path": "/data/etc/init.d/start.sh", "before": bootstrap.START_FACTORY, "after": bootstrap.START_INSTALLED},
                 {"path": "/data/bin/watchdog.sh", "before": bootstrap.WATCHDOG_FACTORY, "after": bootstrap.WATCHDOG_INSTALLED}],
-            "activation": "not implemented; no launch, preload, signal, boot or full-mode activation",
+            "activation": "separate experimental bridge-only next-boot arming; no launch, preload, signal, reboot or full-mode activation",
             "rollback": "exact original scripts retained; live apply must add guarded atomic restore and verify it before activation"}
     raw = (json.dumps(plan, indent=2) + "\n").encode()
     fd = os.open(output / "plan.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

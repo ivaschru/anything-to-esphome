@@ -12,12 +12,14 @@ import json
 from pathlib import Path
 
 import commit_disabled_install as commit
+import arm_bridge_next_boot_adb as next_boot
 import stage_install_adb as staging
 import trial_initial_bridge_adb as trial
 
 
 RECEIPTS = ("stage-receipt.json", "commit-disabled-receipt.json",
-            "rollback-disabled-receipt.json", trial.RECEIPT)
+            "rollback-disabled-receipt.json", trial.RECEIPT,
+            next_boot.ARM_RECEIPT, next_boot.DISARM_RECEIPT)
 
 
 def prior_receipts(directory):
@@ -95,7 +97,11 @@ def status(adb, directory, digest):
         if (receipt.get("plan_id") != plan["plan_id"] or receipt.get("plan_sha256") != digest or
                 receipt.get("consumed_install_intent") is not True):
             raise ValueError("Operation receipt belongs to another plan or has incomplete ownership")
-    if "rollback-disabled-receipt.json" in found:
+    if next_boot.ARM_RECEIPT in found or next_boot.DISARM_RECEIPT in found:
+        # The newer bridge opt-out state supersedes historical trial data.
+        # Its reader also refuses reuse of old process identities after boot.
+        result = next_boot.status(adb, directory, digest)
+    elif "rollback-disabled-receipt.json" in found:
         # A later explicit rollback supersedes an older trial receipt. Read
         # the current script pair instead of reporting that historical trial
         # as the latest state; even a partial rollback needs reconciliation.
@@ -112,6 +118,7 @@ def status(adb, directory, digest):
         result = staging.reconcile(adb, directory, digest)
     return {"stage": result["stage"], "installed": False, "activated": False,
             "installation_ready": False, "retry_authorized": False,
+            "autostart_armed": result.get("autostart_armed"),
             "receipt_update_incomplete": any((directory / Path(name).with_suffix(".next")).exists()
                                              or (directory / Path(name).with_suffix(".next")).is_symlink()
                                              for name in found),
