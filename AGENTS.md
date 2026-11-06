@@ -51,6 +51,13 @@ separate even though the HACS wizard is shared.
   adopt a PID or reuse the retrying launcher. Fixed deadline, one TERM/KILL,
   recent exact authenticated wire updates and clean reap are independent
   gates. Source RAM floors and fixtures are not measured hardware proof.
+  `initial_trial_child.h` is only a standalone guardian's child primitive:
+  fork gate, own-child OOM/PDEATHSIG, exclusive wait/reap, fixed 60/5/5s.
+  No CLI/production integration or ELF/scope/intent admission exists there.
+  Keep callbacks out of ordinary device flows; future exec admission must
+  exclude credential changes and set-id/file capabilities that clear PDEATHSIG.
+  Test it only as the explicit Linux/root synthetic fixture. Never disable
+  assertions in that executable fixture or replace hardware QA with its result.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

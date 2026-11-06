@@ -248,6 +248,33 @@ enough memory on a monitor**. A matching guardian/collector, measured process
 footprint, disconnect/fallback tests and physical qualification are still
 required. HACS CGS1 remains `source_only`.
 
+`initial_trial_child.h` implements the separate Linux child primitive. It
+forks once behind a private preparation gate, arms child-only OOM/PDEATHSIG,
+and permits only its own exclusive unreaped child to receive one TERM/KILL.
+Its internal monotonic 60/5/5-second bounds cannot be extended by a host ACK.
+Closing a preparation gate prevents entry; retiring the actual parent causes
+kernel TERM delivery. It has no CLI, path-based exec, PID adoption or device
+integration. A supplied entry still needs exact ELF/fd/hash/xattr admission,
+private RAM preferences/environment, full scope checks and a consumed intent
+in the future standalone guardian. Do not call it as an installation shortcut.
+
+Linux/root fixtures use synthetic callbacks only: normal exit, TERM, an
+entry ignoring TERM followed by one KILL, refused SIGCHLD auto-reap, and
+actual parent death with subreaper cleanup. Only the fixture child changes
+its own OOM score. This tests kernel process behavior on the hosted runner,
+not the vendor kernel, a bridge exec or the complete trial/activation flow.
+The ARMv7/glibc 2.23 fixture object also compiles with pinned Zig 0.14.1;
+it is not an installable guardian or a physical execution result.
+
+Kernel behavior was checked against the Linux man-pages
+[PDEATHSIG contract](https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html)
+and the kernel's [per-process OOM documentation](https://www.kernel.org/doc/html/v6.1/filesystems/proc.html#proc-pid-oom-adj-proc-pid-oom-score-adj-adjust-the-oom-killer-score)
+on 2026-11-06. A parent already dead before arming does not retroactively
+deliver the signal, so the child checks its parent again. Credential and
+set-id/file-capability exec transitions can clear PDEATHSIG; the future ELF
+admission must exclude them. Raising the experimental child's OOM preference
+does not cap memory or guarantee that stock survives every OOM condition.
+
 ## Remaining activation and hardware gates
 
 The preparation tools stop before device writes; experimental disabled staging

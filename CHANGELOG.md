@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: Linux one-shot child primitive с preparation gate, child-only
+  OOM/PDEATHSIG и bounded TERM/KILL; отдельный kernel fixture без запуска
+  firmware, transport/ELF admission и standalone guardian ещё не подключены
+
 - Monitor 1: pure policy первого ограниченного stock-bridge trial с обоими
   opt-out, проверкой owned child, fixed deadline и свежих Noise-показаний;
   execution adapter/guardian и физическая квалификация ещё не выполнены
