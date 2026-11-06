@@ -71,7 +71,7 @@ int main() {
     assert(!::fstatat(f.root,"data/bin/SnowApp",&after,0) && same_file(before,after));
     assert(!f.open(reader) && !reader.current() && !reader.observed_at_ms());
   }
-  for(int kind=0;kind<19;++kind) {
+  for(int kind=0;kind<22;++kind) {
     Fixture f;Reader reader;
     if(kind==0)assert(!::unlinkat(f.root,"proc/101/stat",0));
     if(kind==1)f.stat(101,100,1235);
@@ -95,6 +95,9 @@ int main() {
     if(kind==16)f.task(102,100,456,f.stock_path);
     if(kind==17)f.stat(100,1,1001);
     if(kind==18)f.stat(101,100,1234,"T");
+    if(kind==19)f.task(102,1,456,"/tmp/qingping-full-previous/native-program (deleted)");
+    if(kind==20)f.task(102,1,456,"/tmp/qingping-initial-trial-previous/program");
+    if(kind==21)f.write("proc/101/maps","00008000-0000c000 r-xp 0 00:01 42 /tmp/qingping-full-old/extension.so\n");
     const bool opened=f.open(reader);
     if(opened)std::fprintf(stderr,"stock negative fixture %d unexpectedly admitted\n",kind);
     assert(!opened && !reader.current() && !reader.observed_at_ms());

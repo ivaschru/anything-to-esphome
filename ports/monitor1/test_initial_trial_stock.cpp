@@ -45,5 +45,10 @@ int main() {
   assert(!stock_unsigned("18446744073709551616",UINT64_MAX,number));
   InitialStockIdentity expected{101,100,1234,1000};assert(expected.valid());
   expected.watchdog_pid=101;assert(!expected.valid());
+  for(const auto *path:{"/data/.esphome-cgs1/program", "/tmp/qingping-full-old/native-program (deleted)",
+      "/tmp/qingping-initial-trial-old/program"})assert(initial_owned_program_path(path));
+  for(const auto *path:{"/tmp/other/program", "/tmp/qingping-full-not-an-executable-path", "/data/bin/SnowApp"})
+    assert(!initial_owned_program_path(path));
+  assert(!initial_stock_maps("00008000-0000c000 r-xp 0 00:01 42 /tmp/qingping-full-old/extension.so (deleted)\n"));
   std::puts("initial stock session parser fixtures passed");
 }

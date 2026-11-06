@@ -113,11 +113,16 @@ separate even though the HACS wizard is shared.
   override, USB proof, process/launch authority or hardware qualification.
   initial_trial_stock.h is pre-start read-only procfs evidence: unique exact
   stock/watchdog birth/parent, actual exe inode vs admitted SnowApp/fixed RO
-  BusyBox, complete scans/cmdline/maps and no own-root executable/mapping.
+  BusyBox, complete scans/cmdline/maps and no known NAND/RAM executable/mapping.
   Never treat an unreadable live userspace exe or failed maps read as absent.
   No PID adoption, signal, runtime proc/path override or trial authority.
   Keep observation IO off the future independent stop-deadline loop; the
   post-read freshness limit is not a syscall timeout or hardware proof.
+  initial_trial_ram_scope.h binds the fixed named pre-existing empty tmpfs
+  job and positively lists /tmp for the boot-launcher lock's absence. Keep
+  root-owned sticky /tmp, exact job inode/metadata and complete bounded reads;
+  preserve unrelated entries, refuse unknown job contents/history and never
+  create/repair/prune a directory. Its read fd grants no fork/exec authority.
   initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
   through no-follow root-owned directory/file fds. Keep the host/device pin
   contract test, complete hash/metadata/named-inode rechecks and persistent

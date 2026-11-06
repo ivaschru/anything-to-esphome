@@ -544,8 +544,10 @@ not one of the nine pinned vendor files and is not claimed to be verified.
 Both complete bounded process scans must succeed. An unreadable live
 userspace `exe` refuses; a missing link is allowed only for a positively
 observed kernel thread, zombie/exited task or a named PID that has vanished.
-Any own-root executable, extra/replaced stock instance, changed birth/parent,
-malformed/missing maps or mapping from the own installation root refuses.
+Any known own NAND/RAM executable, extra/replaced stock instance, changed
+birth/parent, malformed/missing maps or own NAND/RAM mapping refuses. The
+fixed RAM families match the host review: `/tmp/qingping-full-*/*` and
+`/tmp/qingping-initial-*/*`, including deleted images.
 Selected process directories, stat fields, opened image fds and named vendor
 files are rechecked. A prior refusal cannot be cleared by restoring old data.
 Production has no synthetic proc root, executable path or writable BusyBox
@@ -560,6 +562,28 @@ whitelist a reported trial PID. Actual kernel-child/endpoint ownership and
 the complete first-trial join remain separate unfinished work. Neither this
 source nor its hosted fixture qualifies the stock kernel's procfs/rootfs
 layout, process churn, latency, resource footprint or physical fallback.
+
+### Named RAM job and absent boot lock
+
+`initial_trial_ram_scope.h` binds the pre-existing fixed
+`/tmp/qingping-initial-trial-<32 lowercase hex digits>` directory to the
+exact host-reviewed device/inode. It requires root-owned sticky `01777`
+`/tmp` on tmpfs, a private empty `0700` job, complete read-only directory
+walks and the existing separate 8 MiB tmpfs-capacity check. Replacing the
+named `/tmp` or job invalidates the observation even if the old fd is held.
+The job's metadata remains pinned; a refusal cannot be cleared by removing
+the cause or restoring previous content.
+
+Two bounded complete successful `/tmp` listings require the absence of
+`qingping-cgs1-esphome.lock` of any type. An unreadable/partial listing is
+not absence. Other `/tmp` entries are preserved. The reader cannot create
+a directory, clear a lock, remove history or launch a program; its output
+is only a verified read fd. Production has no substitute-root entry. The
+Linux/root fixture uses only its own synthetic tmpfs tree and tests boot
+locks, links, unknown job contents, ownership/modes and named replacement.
+This layout has not been qualified on a monitor. A read does not reserve
+the name against a concurrent root actor, prove free process memory or
+replace the joined scope, durable intent and independent guardian timer.
 
 ### Host-side joined pre-trial review
 

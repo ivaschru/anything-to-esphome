@@ -25,6 +25,15 @@ struct InitialProcessIdentity {
   uint32_t pid{0},parent{0};uint64_t start{0},flags{0};char state{0};
   bool alive() const {return state=='R' || state=='S' || state=='D' || state=='I';}
 };
+inline bool initial_owned_program_path(const std::string &path) {
+  if(path.rfind("/data/.esphome-cgs1/",0)==0)return true;
+  // Match the host initial-review scanner's known RAM release families as
+  // well as NAND. A suffix such as " (deleted)" cannot turn an old program
+  // into absence. An unrelated /tmp basename is not silently adopted.
+  for(const auto *prefix:{"/tmp/qingping-full-","/tmp/qingping-initial-"})
+    if(path.rfind(prefix,0)==0 && path.find('/',std::char_traits<char>::length(prefix))!=std::string::npos)return true;
+  return false;
+}
 inline bool initial_process_stat(const std::string &text,uint32_t pid,InitialProcessIdentity &result) {
   result={};
   if(!pid || pid>INT32_MAX || text.empty() || text.size()>8192 || text.back()!='\n' ||
@@ -74,7 +83,8 @@ inline bool initial_stock_maps(const std::string &text) {
        !stock_unsigned(inode,UINT64_MAX,value))return false;
     // Reject ANY mapping from the own installation root, including deleted
     // extensions. Unknown/malformed maps are not evidence that PM is absent.
-    if(line.find("/data/.esphome-cgs1/")!=std::string::npos)return false;
+    std::string path;std::getline(fields,path);const auto first_path=path.find_first_not_of(" \t");
+    if(first_path!=std::string::npos && initial_owned_program_path(path.substr(first_path)))return false;
   }
   return count!=0;
 }
@@ -238,7 +248,7 @@ template<long ProcFilesystem=0x9fa0,long DataFilesystem=0xef53> class BasicIniti
         okay=before.state=='Z' || before.state=='X' || before.state=='x' ||
           (before.flags&0x00200000) || disappeared_(name.c_str());
       } else {
-        okay=executable.rfind("/data/.esphome-cgs1/",0)!=0;
+        okay=!initial_owned_program_path(executable);
         if(executable==stock_path_)okay=okay && ++stocks==1 && pid==expected_.stock_pid &&
           before.start==expected_.stock_start && before.parent==expected_.watchdog_pid && before.alive();
         okay=okay && stamp_(task,uint32_t(pid),after) && same_stamp_(before,after);

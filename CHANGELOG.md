@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: named pre-existing RAM scope и positive absence boot-lock check;
+  stock collector также отказывает known RAM executables/maps, без создания
+  каталогов, очистки истории, запуска или изменения hardware readiness
+
 - Monitor 1: read-only stock/watchdog collector связывает process birth/parent
   и actual exe inode с fixed vendor scope; complete scans/maps/cmdline
   отказывают неполным данным, без signal/launch или hardware admission

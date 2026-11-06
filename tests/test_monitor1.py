@@ -113,6 +113,13 @@ class Monitor1Tests(unittest.TestCase):
 
     @unittest.skipUnless(
         sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root named RAM/boot-lock fixture; CI runs its explicit root step",
+    )
+    def test_initial_named_ram_requires_exact_empty_job_and_positive_boot_lock_absence(self):
+        self.run_cpp("test_initial_trial_ram_scope.cpp", crypto=True)
+
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
         "Real Linux root read-only identity fd fixture; CI runs its explicit root step",
     )
     def test_initial_device_identity_requires_unchanged_fixed_files_and_mounts(self):
