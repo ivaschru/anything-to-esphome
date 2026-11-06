@@ -189,6 +189,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
     async def test_native_ha_entity_state_and_real_install_service_context(self):
         """Exercise HA's own entity/service pipeline, not a direct method call."""
         import logging
+        import inspect
         from types import MappingProxyType
         from homeassistant.config_entries import ConfigEntry
         from homeassistant.auth import auth_manager_from_config
@@ -218,7 +219,13 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
             unique_id="qingping_esphome", discovery_keys=MappingProxyType({}), subentries_data=[])
         with patch.object(self.hass.config_entries, "async_setup", AsyncMock(return_value=True)):
             await self.hass.config_entries.async_add(entry)
-        platform = component._async_init_entity_platform(entry.entry_id, "qingping_esphome", update_module)
+        # HA 2026.11 added the module as a third positional argument; in
+        # 2026.10 that position is the scan interval. Adapt only this test's
+        # private platform factory while exercising the same real pipeline.
+        platform_args = {"key": entry.entry_id, "platform_type": "qingping_esphome"}
+        if "platform" in inspect.signature(component._async_init_entity_platform).parameters:
+            platform_args["platform"] = update_module
+        platform = component._async_init_entity_platform(**platform_args)
         platform.config_entry = entry
         # Translations are a separate contract below. This fixture exercises
         # HA's real entity/device registry, state and admin service pipeline.
