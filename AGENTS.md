@@ -4,6 +4,12 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- Bootstrap launchers in `ports/monitor1/bootstrap/` match the existing
+  StockInspection hashes. Keep their bytes/process names coupled to those
+  gates. Syntax checks must use sh -n, never execute production-path scripts
+  on a developer host. These assets are not a complete installer; exact
+  startup/watchdog source, backup/CAS and physical verification remain needed.
+
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,
   creates its own pinned SDK and matches actual PM/guardian/native/bridge
@@ -113,9 +119,11 @@ separate even though the HACS wizard is shared.
 - The HA frontend uses HA HTTPS/WebSocket authentication. Stock MQTT uses
   port 1886 and a dedicated LAN HTTP listener uses port 1887 by default;
   do not expose either port on a public interface/router forward.
-- Monitor 1 is a source snapshot, not yet a universal release builder.
-  Do not remove missing-manifest checks or copy private release pins to make
-  full YAML compile. Monitor 2 remains disabled until hardware verification.
+- Monitor 1 has an experimental build-only candidate controller; separate
+  SCD40 and S8 source compiles passed with matching artifact pins.
+  This does not enable the universal installer. Do not remove missing-manifest
+  checks or copy private release pins to make full YAML compile. Monitor 2
+  remains disabled until hardware verification.
 - Normal HACS installs must have a non-prerelease tag with the ZIP asset.
   Keep hide_default_branch=true: zip_release cannot install a source branch
   without its own release asset. Hyphenated beta/rc tags remain prereleases;

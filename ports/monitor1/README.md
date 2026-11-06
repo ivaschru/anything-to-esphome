@@ -12,10 +12,13 @@ SCD30 (`co2_type=1`) обнаружен в stock-коде, но на прибо�
 
 Публичный snapshot содержит общие YAML, компоненты, guard/runtime, сборочные
 обёртки и Inter/OFL. Частные release manifests и скомпилированные программы
-сюда не перенесены. Поэтому полные YAML **ещё нельзя собрать одной командой**:
-их `build/*manifest.yaml` и `build/full-native-release.yaml` должны быть
-созданы заново из согласованной пары программ. Готовый универсальный builder
-и USB/ADB-установщик — следующий отдельный этап; кнопка в HACS отключена.
+сюда не перенесены. Для инженерной сборки теперь есть
+[build-only candidate controller](BUILD_CANDIDATE.md): он создаёт private
+snapshot/SDK и генерирует manifests из фактически собранных программ.
+Сквозные source compiles SCD40 и S8 прошли отдельно. Базовые YAML
+по-прежнему требуют matching `build/*manifest.yaml` и guardian pin, обходить
+эти зависимости нельзя. USB/ADB-установщик — отдельный следующий этап;
+кнопка установки CGS1 в HACS отключена.
 
 `device_profile.h` намеренно требует явные `CGS1_EXPECTED_WLAN_MAC`,
 `CGS1_ESPHOME_NODE_NAME`, `CGS1_EXPECTED_PM_HELPER_SHA` в private profile.
@@ -40,5 +43,10 @@ ESPHome ещё требуется. Наличие RTL8723DS Wi-Fi не вклю�
 
 Первый общий build dependency теперь воспроизводим: [сборка штатного PM helper](PM_HELPER_BUILD.md)
 из публичного исходника с проверенными Qt headers и private stock QtCore.
-ARM cross-build проверен; новый helper не устанавливался. Это ещё не общий
-builder полной native/guardian/bridge пары и не включение USB-мастера в HACS.
+ARM cross-build проверен; новый helper не устанавливался. Это ещё не
+доказательство установки новой native/guardian/bridge пары или включение
+USB-мастера в HACS. Для всей связанной source-сборки см. candidate controller.
+
+В [bootstrap/](bootstrap/) сохранены два нейтральных launcher source, точно
+совпадающих с уже закреплёнными runtime SHA. Это ещё не процедура установки:
+factory startup/watchdog patch, backup/CAS и аппаратная проверка нужны отдельно.

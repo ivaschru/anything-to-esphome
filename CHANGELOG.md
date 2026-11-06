@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: сквозные private source-сборки SCD40 и S8 прошли отдельно;
+  добавлены инструкция candidate build и SHA-связанные bootstrap launchers,
+  без включения installation/HACS admission
+
 - Monitor 1: экспериментальный private candidate builder с отдельным SDK,
   явным профилем S8/SCD40 и production bridge без legacy trial API;
   installation admission остаётся закрытым до проверки
