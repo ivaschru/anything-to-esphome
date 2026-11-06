@@ -3,6 +3,8 @@
 An unsupported profile stays visible in the common wizard, but it cannot gain
 installation authority merely because a filename or title looks similar.
 """
+from .errors import InstallerError
+
 CATALOG = [
     {"id": "lite", "name": "Air Monitor Lite", "model": "CGDN1", "platform": "ESP32",
      "transport": "ble_mqtt", "installer": "beta", "firmware": "lite-ui25",
@@ -12,6 +14,7 @@ CATALOG = [
     {"id": "lite-mcu421", "name": "Air Monitor Lite · MCU 4.2.1", "model": "CGDN1", "platform": "ESP32 + MCU",
      "transport": "ble_mqtt", "installer": "in_development", "firmware": None,
      "stock_versions": ["4.2.1"], "hardware_versions": ["0001"],
+     "note_key": "profile_mcu421",
      "note": "Lite 4.2.1 использует отдельный MCU. Разбор пакетов подготовлен; запуск и питание ещё не восстановлены. Образ для прошивки пока недоступен"},
     {"id": "monitor1-s8", "name": "Air Monitor 1 · S8", "model": "CGS1", "platform": "Linux ARMv7",
      "co2_type": 2, "transport": "usb_adb_then_noise", "installer": "source_only",
@@ -30,8 +33,8 @@ def admission(profile_id, model, stock_version):
     profile = next((p for p in CATALOG if p["id"] == profile_id), None)
     if not profile or profile["installer"] != "beta":
         if profile and profile["installer"] == "in_development":
-            raise ValueError(profile["note"])
-        raise ValueError("Для этого аппаратного профиля установщик ещё не готов")
+            raise InstallerError(profile.get("note_key", "profile_unavailable"))
+        raise InstallerError("profile_unavailable")
     if model != profile["model"] or stock_version not in profile["stock_versions"]:
-        raise ValueError("Эта модель или заводская версия ещё не проверена")
+        raise InstallerError("identity_unsupported")
     return profile

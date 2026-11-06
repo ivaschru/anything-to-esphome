@@ -23,6 +23,8 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         from custom_components.qingping_esphome.manager import Manager
         self.temp = tempfile.TemporaryDirectory()
         self.hass = HomeAssistant(self.temp.name)
+        from homeassistant.config_entries import ConfigEntries
+        self.hass.config_entries = ConfigEntries(self.hass, {})
         self.entry = SimpleNamespace(data={"lan_host": "192.168.50.2", "http_port": 1887, "mqtt_port": 1886})
         self.manager = Manager(self.hass, self.entry)
 
@@ -110,6 +112,67 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         with patch("custom_components.qingping_esphome.network_setup.network.async_get_source_ip", AsyncMock(return_value="::1")), \
              patch("custom_components.qingping_esphome.network_setup.network.async_get_adapters", AsyncMock(return_value=adapters)):
             self.assertEqual(await async_detect_lan_host(self.hass), "192.168.50.2")
+
+    async def test_interface_options_preserve_network_and_survive_network_changes(self):
+        from custom_components.qingping_esphome.config_flow import OptionsFlow
+        flow = OptionsFlow(); flow.hass = self.hass
+        entry = SimpleNamespace(data=self.entry.data, options={"http_port": 1901, "mqtt_port": 1902})
+        with patch.object(OptionsFlow, "config_entry", PropertyMock(return_value=entry)):
+            result = await flow.async_step_interface({"show_sidebar": False})
+            self.assertEqual(result["data"], {**entry.options, "show_sidebar": False})
+            entry.options = result["data"]
+            with patch("custom_components.qingping_esphome.config_flow.async_detect_lan_host", AsyncMock(return_value="192.168.50.2")):
+                automatic = await flow.async_step_automatic()
+            self.assertFalse(automatic["data"]["show_sidebar"])
+            manual = await flow.async_step_manual({"lan_host": "192.168.50.2", "http_port": 1911, "mqtt_port": 1912})
+            self.assertFalse(manual["data"]["show_sidebar"])
+
+    async def test_sidebar_update_preserves_registered_route_admin_gate_and_manager(self):
+        from homeassistant.components import frontend, panel_custom
+        from custom_components.qingping_esphome import async_reload_entry
+        from custom_components.qingping_esphome.manager import DOMAIN
+        await panel_custom.async_register_panel(self.hass, frontend_url_path=DOMAIN,
+            webcomponent_name="qingping-installer-panel", sidebar_title="Qingping ESPHome",
+            module_url="/api/qingping_esphome/static/panel.js", require_admin=True)
+        original = self.hass.data[frontend.DATA_PANELS][DOMAIN].config
+        self.hass.data[DOMAIN] = self.manager
+        entry = SimpleNamespace(entry_id="fixture", data=self.entry.data, options={"show_sidebar": False})
+        with patch.object(self.hass.config_entries, "async_reload", AsyncMock()) as reload:
+            await async_reload_entry(self.hass, entry)
+            reload.assert_not_called()
+            panel = self.hass.data[frontend.DATA_PANELS][DOMAIN]
+            self.assertFalse(panel.show_in_sidebar)
+            self.assertIsNone(panel.sidebar_title)
+            self.assertTrue(panel.require_admin)
+            self.assertIs(panel.config, original)
+            self.assertIs(self.hass.data[DOMAIN], self.manager)
+            entry.options = {"show_sidebar": True}
+            await async_reload_entry(self.hass, entry)
+            self.assertTrue(self.hass.data[frontend.DATA_PANELS][DOMAIN].show_in_sidebar)
+            entry.options = {"http_port": 1991}
+            await async_reload_entry(self.hass, entry)
+            reload.assert_awaited_once_with("fixture")
+
+    async def test_service_device_internal_link_and_idempotency(self):
+        from types import MappingProxyType
+        from homeassistant.config_entries import ConfigEntry
+        from homeassistant.helpers import device_registry as dr
+        from custom_components.qingping_esphome import register_installer_device
+        entry = ConfigEntry(version=1, minor_version=1, domain="qingping_esphome",
+            title="Qingping ESPHome", data=self.entry.data, options={}, source="user",
+            unique_id="qingping_esphome", discovery_keys=MappingProxyType({}), subentries_data=[])
+        with patch.object(self.hass.config_entries, "async_setup", AsyncMock(return_value=True)):
+            await self.hass.config_entries.async_add(entry)
+        registry = dr.DeviceRegistry(self.hass)
+        self.hass.data[dr.DATA_REGISTRY] = registry
+        await registry.async_load()
+        first = register_installer_device(self.hass, entry)
+        again = register_installer_device(self.hass, entry)
+        self.assertEqual(first.id, again.id)
+        self.assertEqual(first.entry_type, dr.DeviceEntryType.SERVICE)
+        self.assertEqual(first.configuration_url, "homeassistant://qingping_esphome")
+        self.assertEqual(first.identifiers, {("qingping_esphome", "installer")})
+        self.assertEqual(first.connections, set())
 
     async def test_manual_options_preserve_old_values_and_reject_port_collision(self):
         from custom_components.qingping_esphome.config_flow import OptionsFlow

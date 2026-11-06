@@ -1,129 +1,140 @@
 # Qingping → ESPHome
 
-Единый проект для **Air Monitor Lite, Air Monitor 1 и Air Monitor 2**:
-исходники портов, аппаратные профили и общий установщик для Home Assistant.
+**English** · [Русский](README.ru.md)
 
-**Мастер установки пока экспериментальный.** 06.11.2026 выполнен первый полный
-цикл через браузер на реальном Lite / CGDN1, stock `4.5.8`, HW `0001`:
-Bluetooth setup, локальная передача персонального образа, запуск ESPHome,
-подключение к HA и живые CO₂/T/RH. Это подтверждает именно этот аппаратный
-профиль. Базовые порты Monitor 1 проверены отдельно; Monitor 2 пока не
-поддерживается прошивкой.
+One project for **Air Monitor Lite, Air Monitor 1 and Air Monitor 2**: firmware
+sources, hardware profiles and a shared Home Assistant installer.
 
-## Совместимость
+**The wizard is experimental.** A complete browser installation was verified
+on 6 November 2026 on Lite / CGDN1, stock `4.5.8`, HW `0001`: Bluetooth setup,
+local image delivery, ESPHome startup, HA enrollment and live CO₂/T/RH.
+This evidence applies to that profile. Monitor 1 ports were tested separately;
+Monitor 2 has no verified firmware port yet.
 
-| Прибор | Платформа | Что есть в проекте | Установка через панель |
+## Compatibility
+
+| Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, экран, сенсоры, настройки, защищённый API | **Beta**, Bluetooth → локальный MQTT/HTTP |
-| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + внешний MCU | [Разбор CG/TLV и исследование отдельного порта](ports/lite-mcu421/) | Пока нет образа; мастер объясняет ограничение |
-| **Monitor 1 / CGS1**, SenseAir S8, co2_type=2 | Linux ARMv7 | Stock bridge и полный интерфейс, проверенные на приборе | Пока исходники; отдельный USB/ADB-путь |
-| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Отдельный драйвер CO₂ и полный интерфейс, проверенные на приборе | Пока исходники; отдельный USB/ADB-путь |
-| Monitor 1, SCD30 / неизвестная ревизия | Linux | Требует проверки | Нет |
-| **Monitor 2** | Не установлен | Место для отдельного порта и список необходимых проверок | Нет |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
+| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
+| **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | Sources only; separate USB/ADB process |
+| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | Sources only; separate USB/ADB process |
+| Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
+| **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
 
-Lite и Monitor 1 имеют разную архитектуру. Совпадение бренда или внешнего
-вида не делает их образы взаимозаменяемыми. Состояние проверки — на 06.11.2026.
-У Monitor 1 проверен программный reboot; холодное включение и запуск без
-доступной Wi-Fi-точки не заявлены проверенными для всех профилей.
+Images are not interchangeable. Stock 4.2.1 needs its own MCU backend; the
+4.5.8 image does not support it. Status checked on 6 November 2026. Monitor 1
+software reboot was tested; cold boot and startup without the configured Wi-Fi
+network are not claimed to be verified on every profile.
 
-## Установить через Marketplace / HACS
+## Install through Marketplace / HACS
 
-1. В Marketplace или HACS откройте **⋮ → Пользовательские репозитории**, добавьте
-   `https://github.com/ivaschru/qingping-esphome`, категория **Интеграция**.
-2. Откройте Qingping ESPHome и установите последний обычный выпуск (`v0.1.1`
-   или новее). Включать показ beta-версий не требуется. Нужен release ZIP:
-   исходники без собранного шаблона не содержат образ.
-3. Если **Qingping ESPHome** уже настроена в **Устройствах и службах** и панель
-   появилась в боковом меню, сразу откройте её — повторно добавлять интеграцию
-   не нужно. Если её ещё нет, выберите **Добавить интеграцию → Qingping ESPHome**.
-   Локальный адрес и порты выбираются автоматически. Если определить адрес
-   не удалось, появится только поле для него. Ручные параметры доступны
-   отдельно через **Настроить** у интеграции.
-4. Откройте **Qingping ESPHome** в боковой панели через **HTTPS в Chrome**
-   на Mac, Windows или Android. Выберите Lite, подключите его к USB и следуйте
-   подсказкам. Mi Home для этой установки не нужен.
+1. Open **⋮ → Custom repositories**, add
+   `https://github.com/ivaschru/qingping-esphome`, category **Integration**.
+2. Install the latest normal **Qingping ESPHome** release (`v0.1.1` or later).
+   Showing prereleases is not required. Use the release ZIP: a source checkout
+   does not include the compiled firmware template.
+3. If already configured in **Settings → Devices & services**, open the panel;
+   do not create a second entry. Otherwise choose **Add integration → Qingping
+   ESPHome**. The LAN address and ports are selected automatically. Only failed
+   address detection requires input. Overrides are available via **Configure**.
+4. Open the installer over **HTTPS in Chrome** on Mac, Windows or Android.
+   Select Lite, connect USB power and follow the instructions. Mi Home is not
+   required. The browser must be near the monitor; HA must reach it on the LAN.
 
-Перезапуск не является обязательным шагом каждой новой установки. Современный
-Marketplace умеет обнаруживать новый компонент без него. Если магазин сообщил,
-что перезапуск требуется, выполните его: уже загруженный Python-код после
-обновления продолжает работать до перезапуска. Подробности — в
-[реализации Marketplace Home Assistant 2026.11](https://github.com/home-assistant/core/blob/2026.11.0/homeassistant/components/marketplace/repositories/integration.py).
+A restart is not mandatory after every new installation. Current Marketplace
+can discover new components without one. Follow its restart notice when
+present: already loaded Python code keeps running until restarted. See
+[Home Assistant Marketplace 2026.11](https://github.com/home-assistant/core/blob/2026.11.0/homeassistant/components/marketplace/repositories/integration.py).
 
-**«0 устройств» у Qingping ESPHome — нормально.** Это интеграция-установщик.
-Прошитые приборы добавляются в обычную интеграцию **ESPHome**, там находятся
-их датчики и показания. Счётчик в карточке установщика их не отражает.
+## Language and panel access
 
-Home Assistant и датчик должны видеть друг друга в локальной сети. Для HA
-Container нужны host networking либо корректные LAN IP и проброс обоих TCP-портов.
-Если IP принадлежит хосту вне контейнера, используйте host networking: HTTP
-слушатель привязывается именно к указанному адресу. Порты не публикуйте в Интернет.
-Обычные порты — MQTT `1886` и HTTP `1887`. При конфликте их можно изменить
-в дополнительных настройках. Существующие ручные настройки сохраняются.
-HTTPS нужен браузеру для Web Bluetooth; отдельный HTTP-порт используется только
-прибором, поэтому SSL-конфигурацию самого HA менять не требуется.
+These interface changes are in `main` and are not part of the published `v0.1.1` ZIP yet.
 
-Safari, Firefox и браузеры на iPhone не подходят для Web Bluetooth. Bluetooth
-адаптер HA не требуется: мастер использует Bluetooth компьютера/телефона.
-Браузер должен находиться рядом с прибором; HA — быть доступен прибору по сети.
+Choose **English / Русский** in the wizard. English is the default; the choice
+is remembered in this browser only. Changing language preserves the form and
+current installation. HA's own configuration dialogs use your HA profile language.
 
-Окно Bluetooth сейчас отбирает приборы с именами, начинающимися на `Qingping`,
-`CGDN1` или `Air Monitor`. Поэтому другие устройства поблизости в нём не
-показываются. Пустой список сам по себе не доказывает, что Bluetooth не работает:
-прибор может быть вне режима подключения или иметь другое объявляемое имя.
-Это выбор BLE-устройств, а не общий список спаренных Bluetooth-устройств системы.
-[Как работают фильтры Web Bluetooth в Chrome](https://developer.chrome.com/docs/capabilities/bluetooth#name_filter).
+Hide the sidebar item through **Settings → Devices & services → Qingping
+ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
+installer or restart its MQTT/HTTP listeners.
 
-## Как проходит установка Lite
+With the item hidden, open **Settings → Devices & services → Qingping ESPHome
+→ installer device → Visit**. The direct path on the same HA is
+`/qingping_esphome`. Administrator access is still required.
 
-Панель читает модель, аппаратную версию, stock-версию и MAC через Bluetooth.
-После команды пользователя передаёт Wi-Fi и временные настройки загрузчика.
-Home Assistant независимо сверяет MAC/stock по MQTT и отправляет **одну** OTA
-команду. Прибор скачивает персонализированный app по локальному HTTP.
+The **Qingping ESPHome** service device is an installer shortcut, not a
+physical monitor. Flashed monitors and their readings belong to the standard
+**ESPHome** integration. Older installer versions showing “0 devices” are normal.
 
-Сборка ESPHome выполняется заранее в GitHub Actions. На HA заменяются только
-специально зарезервированные данные публичного шаблона, пересчитываются ESP32
-checksum, SHA-256 и CRC Qingping. Для каждого прибора создаются своё имя,
-Noise key, пароль OTA и fallback AP. Wi-Fi и ключи не отправляются в GitHub.
+## Network and browser requirements
 
-Установка считается успешной только после защищённого подключения к новому
-ESPHome, совпадения MAC/имени и живых CO₂, температуры и влажности. Затем
-интеграция запускает штатное добавление ESPHome в HA; комнату можно выбрать самому.
+HA and the monitor must reach each other on the LAN. HA Container needs host
+networking or an appropriate LAN address with both TCP ports exposed. If the
+address belongs to the host outside the container, use host networking: the
+HTTP listener binds to that exact address. Do not forward these ports to the
+Internet. Defaults are MQTT `1886` and HTTP `1887`; change conflicting ports
+in network options. Existing manual settings are preserved.
 
-При тайм-ауте OTA-команда автоматически не повторяется. Намерение и ключи
-восстановления сохраняются в приватном HA `.storage/qingping_esphome.installations`
-до отправки. Перезапуск HA не запускает повторную прошивку. Сессия передачи
-живёт 15 минут; персональный образ держится только в памяти. Не закрывайте
-браузер во время Bluetooth-настройки. До отправки OTA сессию можно закрыть;
-после отправки сначала проверьте результат на приборе и в ESPHome.
+HTTPS is required by Web Bluetooth. The monitor uses a separate LAN HTTP
+listener; HA's SSL configuration does not need to be weakened. Safari, Firefox
+and iPhone browsers do not support this Web Bluetooth flow. No HA Bluetooth
+adapter is needed: the wizard uses your computer/phone's adapter.
 
-Замена заводской прошивки может потребовать вскрытия для восстановления при
-неудачном раннем запуске. Подключение USB здесь обеспечивает питание: USB data
-для Lite не используется. Заводской загрузчик сохраняется; полный backup не
-создаётся и сохранность stock после следующих обновлений не гарантируется.
+The picker filters names starting with `Qingping`, `CGDN1` or `Air Monitor`.
+Other nearby devices are intentionally omitted. An empty picker can mean the
+monitor is outside pairing mode or advertises another name; it is not the
+operating system's paired-device list. See [Chrome name filters](https://developer.chrome.com/docs/capabilities/bluetooth#name_filter).
 
-## Структура и разработка
+## How Lite installation works
 
-- `custom_components/qingping_esphome/` — HACS-интеграция и локальная панель
-- `ports/lite/` — ESP32 UI25 и закреплённая среда сборки
-- `ports/monitor1/` — Linux host-порт CGS1, S8/SCD40 и guard-компоненты
-- `ports/monitor2/` — статус и требования отдельного порта
-- `tools/build_lite.py` — сборка публичного шаблона без персональных данных
-- `tests/` — проверки app/CRC, допуска профилей и однократной MQTT-команды
+The panel reads model, hardware revision, stock version and MAC over Bluetooth.
+After your installation command it sends Wi-Fi and temporary installer settings.
+HA independently verifies MAC/stock over MQTT and sends **one** OTA command.
+The monitor downloads a personalized app over LAN HTTP.
+
+ESPHome is compiled ahead of time in GitHub Actions. HA replaces only reserved
+slots in the public template and rebuilds the ESP32 checksum, SHA-256 and
+Qingping CRC. Each monitor gets its own name, Noise key, OTA password and
+fallback AP. Wi-Fi credentials and keys are never sent to GitHub.
+
+Success requires an encrypted ESPHome connection, matching MAC/name and live
+CO₂, temperature and humidity. HA then starts standard ESPHome enrollment;
+you can choose the room yourself.
+
+Timeouts never resend OTA automatically. The consumed intent and recovery keys
+are saved in private `.storage/qingping_esphome.installations` before sending.
+HA restarts do not authorize a retry. Sessions last 15 minutes; personalized
+images stay in memory. Keep the browser open during Bluetooth setup. Close a
+session only before OTA; after sending, check the monitor and ESPHome first.
+
+Replacing stock firmware can require opening the case after an early boot
+failure. USB supplies power, not data. The stock bootloader is preserved, but
+no full backup is created and later OTA may overwrite the remaining stock app.
+
+## Development
+
+Sources live in `custom_components/qingping_esphome/` and `ports/`.
+`ports/lite/` is UI25, `ports/lite-mcu421/` is research rather than a flashable
+image, `ports/monitor1/` contains the S8/SCD40 ports, and `ports/monitor2/` records
+unverified status. Use Python 3.13 and the pinned ESPHome environment:
 
 ```sh
 python -m venv .venv
 .venv/bin/pip install -r ports/lite/requirements.txt
 .venv/bin/python tools/build_lite.py
 .venv/bin/python -m unittest discover -s tests -v
+QINGPING_TEST_PYTHON=.venv/bin/python node tests/test_compatibility.mjs
+QINGPING_TEST_PYTHON=.venv/bin/python node tests/test_i18n.mjs
 .venv/bin/python tools/package_release.py
 ```
 
-Релизный ZIP появляется в `.build/`. Не распространяйте персональные BIN/ELF,
-`secrets.yaml`, backup, логи и private device profiles. Это неофициальный проект,
-не связанный с Qingping, Xiaomi или ESPHome.
+The ZIP is written to `.build/`. Never distribute personalized BIN/ELF,
+`secrets.yaml`, backups, logs or private deployments. This unofficial project
+is not affiliated with Qingping, Xiaomi or ESPHome.
 
-## Основа проекта
+## Credits
 
-Lite основан на [nemethhh/esphome-qingping-cgdn1](https://github.com/nemethhh/esphome-qingping-cgdn1).
-Описание заводского BLE/MQTT-пути: [bitrate16/qingping](https://github.com/bitrate16/qingping).
-Лицензии и происхождение компонентов — в [NOTICE](NOTICE.md).
+Lite is based on [nemethhh/esphome-qingping-cgdn1](https://github.com/nemethhh/esphome-qingping-cgdn1).
+The stock BLE/MQTT flow is described by [bitrate16/qingping](https://github.com/bitrate16/qingping).
+Component provenance and licenses are in [NOTICE](NOTICE.md).

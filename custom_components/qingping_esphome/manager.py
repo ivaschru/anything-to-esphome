@@ -24,6 +24,7 @@ from .catalog import CATALOG, admission
 from .image import SLOTS, mac_normalize, personalize, private_ipv4
 from .relay import Relay, Session
 from .network_setup import async_detect_lan_host
+from .errors import InstallerError
 
 DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
@@ -100,26 +101,29 @@ class Manager:
         self.relay.expire()
         session = self.relay.sessions.get(session_id)
         if not session or session.owner != owner:
-            raise ValueError("Сессия не найдена или принадлежит другому пользователю")
+            raise InstallerError("session_missing")
         return session
 
     async def create(self, owner, data):
         admission(data["profile"], data["model"], data["stock_version"])
-        if data.get("hardware") != "0001": raise ValueError("Эта аппаратная ревизия ещё не проверена")
-        if data.get("usb") is not True: raise ValueError("Подключите прибор к USB")
-        mac = mac_normalize(data["mac"])
+        if data.get("hardware") != "0001": raise InstallerError("hardware_unverified")
+        if data.get("usb") is not True: raise InstallerError("usb_required")
+        try:
+            mac = mac_normalize(data["mac"])
+        except ValueError as error:
+            raise InstallerError("invalid_mac") from error
         prior = self.records.get(mac)
         if prior and prior.get("command_consumed"):
-            raise ValueError("Для этого MAC уже отправлялась прошивка. Сначала проверьте результат")
+            raise InstallerError("already_sent")
         ssid, password = data["ssid"], data["wifi_password"]
         if not 1 <= len(ssid.encode()) <= 32 or len(password.encode()) > 63:
-            raise ValueError("SSID должен помещаться в 32 байта, пароль — в 63")
+            raise InstallerError("wifi_length")
         if any(c in ssid + password for c in ('"', '\\', '\r', '\n', '\0')):
-            raise ValueError("Кавычки, обратный слеш и переносы пока не поддержаны stock BLE setup")
+            raise InstallerError("wifi_characters")
         root = TEMPLATE_ROOT
         manifest_path = root / "lite-template.json"
         if not manifest_path.is_file():
-            raise ValueError("В релизе нет firmware template; установите полный release ZIP")
+            raise InstallerError("template_missing")
         manifest = await self.hass.async_add_executor_job(lambda: json.loads(manifest_path.read_text()))
         template = await self.hass.async_add_executor_job((root / "lite-template.bin").read_bytes)
         psk = secrets.token_bytes(32)
@@ -127,7 +131,10 @@ class Manager:
         values = {"ssid": ssid, "wifi_password": password, "name": name,
                   "ap_ssid": "Qingping-" + mac[-6:], "ap_password": secrets.token_hex(8),
                   "ota_password": secrets.token_hex(16), "noise_psk": psk}
-        image = await self.hass.async_add_executor_job(personalize, template, values, manifest["sha256"])
+        try:
+            image = await self.hass.async_add_executor_job(personalize, template, values, manifest["sha256"])
+        except ValueError as error:
+            raise InstallerError("template_invalid") from error
         session = Session(id=secrets.token_hex(12), owner=owner, mac=mac,
                           stock_version=data["stock_version"], name=name, image=image,
                           noise_key=base64.b64encode(psk).decode(), ota_password=values["ota_password"])
@@ -139,7 +146,7 @@ class Manager:
     async def consume_intent(self, session):
         old = self.records.get(session.mac)
         if old and old.get("command_consumed"):
-            raise ValueError("Предыдущая команда требует проверки результата")
+            raise InstallerError("already_sent")
         self.records[session.mac] = {
             "at": datetime.now(timezone.utc).isoformat(), "owner": session.owner,
             "name": session.name, "peer": session.peer, "command_consumed": True,
@@ -154,7 +161,7 @@ class Manager:
         session = self.get(session_id, owner)
         if session.sent and session.state == "sending" and time.monotonic() - session.sent_at > 180:
             session.state = "needs_review"
-            session.error = "Нет итогового ответа OTA. Проверьте прибор; повторная команда не отправлялась"
+            session.error = "ota_timeout"
         if session.sent and session.downloaded and session.state == "waiting_for_esphome" and session.id not in self.checks:
             self.checks[session.id] = asyncio.create_task(self.verify(session), name="qingping-native-verification")
         return session.public()
@@ -208,7 +215,7 @@ class Manager:
             raise
         except Exception:
             session.state = "needs_review"
-            session.error = "ESPHome пока не подтвердил результат. Повторная прошивка не отправлялась"
+            session.error = "native_unconfirmed"
         finally:
             if client: await client.disconnect()
 

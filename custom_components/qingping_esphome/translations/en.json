@@ -20,8 +20,9 @@
   "options": {
     "step": {
       "init": {
-        "title": "Network settings",
+        "title": "Installer settings",
         "menu_options": {
+          "interface": "Interface",
           "automatic": "Automatic setup (recommended)",
           "manual": "Configure manually"
         }
@@ -33,6 +34,13 @@
           "lan_host": "Home Assistant LAN IPv4",
           "http_port": "Firmware HTTP port",
           "mqtt_port": "Monitor MQTT port"
+        }
+      },
+      "interface": {
+        "title": "Sidebar visibility",
+        "description": "When hidden, open Settings → Devices & services → Qingping ESPHome → installer device → Visit. Direct path: /qingping_esphome. Choose the language inside the installer.",
+        "data": {
+          "show_sidebar": "Show in sidebar"
         }
       }
     },

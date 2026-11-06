@@ -4,6 +4,21 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
+  Store only the language preference in localStorage. Translate text nodes in
+  place: never rebuild the form, repeat setup, disconnect BLE or restart a
+  session when switching languages. Keep UI/backend error code coverage in
+  `tests/test_i18n.mjs`; unknown errors must not expose arbitrary details.
+- `show_sidebar` is an integration option, default true. Changing it updates
+  the existing HA panel in place and preserves Manager/broker/session state.
+  Network option changes retain their normal reload behavior. Preserve all
+  unrelated options when any options-flow step saves its mapping.
+- Register one SERVICE device (`installer`) with a stable identifier and
+  `homeassistant://qingping_esphome` configuration URL. It is an installer
+  shortcut, never a physical monitor or an ESPHome device. Keep admin checks
+  and direct routing when hiding navigation. README.md is English by default;
+  README.ru.md is its Russian counterpart, with reciprocal language links.
+
 - Stock 4.2.1 is an external-MCU variant under `ports/lite-mcu421/`, not an
   additional allowed version of the direct-I2C 4.5.8 image. Its catalog entry
   is `in_development`, with no firmware asset. Do not enable installation

@@ -51,14 +51,25 @@ class OptionsFlow(config_entries.OptionsFlow):
     """Optional manual override, outside the ordinary installation path."""
 
     async def async_step_init(self, user_input=None):
-        return self.async_show_menu(step_id="init", menu_options=["automatic", "manual"])
+        return self.async_show_menu(step_id="init", menu_options=["interface", "automatic", "manual"])
+
+    async def async_step_interface(self, user_input=None):
+        # OptionsFlow replaces the entire options mapping. Preserve all prior
+        # network overrides when changing only navigation visibility.
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self.config_entry.options,
+                                                           "show_sidebar": user_input["show_sidebar"]})
+        current = {**self.config_entry.data, **self.config_entry.options}
+        return self.async_show_form(step_id="interface", data_schema=vol.Schema({
+            vol.Required("show_sidebar", default=current.get("show_sidebar", True)): bool,
+        }))
 
     async def async_step_automatic(self, user_input=None):
         try:
             host = await async_detect_lan_host(self.hass)
         except NetworkDetectionError:
             return await self.async_step_manual(detection_failed=True)
-        return self.async_create_entry(title="", data=automatic_settings(host))
+        return self.async_create_entry(title="", data={**self.config_entry.options, **automatic_settings(host)})
 
     async def async_step_manual(self, user_input=None, *, detection_failed=False):
         current = {**self.config_entry.data, **self.config_entry.options}
@@ -71,7 +82,7 @@ class OptionsFlow(config_entries.OptionsFlow):
             if user_input["http_port"] == user_input["mqtt_port"]:
                 errors["base"] = "ports_must_differ"
             if not errors:
-                return self.async_create_entry(title="", data={**user_input, "automatic_network": False})
+                return self.async_create_entry(title="", data={**self.config_entry.options, **user_input, "automatic_network": False})
         values = {**current, **(user_input or {})}
         port = vol.All(vol.Coerce(int), vol.Range(min=1024, max=65535))
         return self.async_show_form(step_id="manual", errors=errors, data_schema=vol.Schema({

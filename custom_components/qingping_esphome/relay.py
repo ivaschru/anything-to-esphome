@@ -8,6 +8,8 @@ the browser separately; raw MQTT stays inside the user's LAN.
 """
 from __future__ import annotations
 
+from .errors import InstallerError, MESSAGES
+
 import asyncio
 from dataclasses import dataclass, field
 import hmac
@@ -123,7 +125,9 @@ class Session:
     def public(self):
         return {"id": self.id, "mac": self.mac, "name": self.name,
                 "state": self.state, "progress": self.progress,
-                "sent": self.sent, "armed": self.armed, "downloaded": self.downloaded, "error": self.error}
+                "sent": self.sent, "armed": self.armed, "downloaded": self.downloaded,
+                "error_code": self.error,
+                "error": MESSAGES.get(self.error, MESSAGES["operation_failed"]) if self.error else None}
 
 
 class Relay:
@@ -146,9 +150,9 @@ class Relay:
 
     def add(self, session):
         self.expire()
-        if len(self.sessions) >= MAX_SESSIONS: raise ValueError("Уже открыто несколько установок")
+        if len(self.sessions) >= MAX_SESSIONS: raise InstallerError("too_many_sessions")
         if any(s.mac == session.mac for s in self.sessions.values()):
-            raise ValueError("Для этого прибора уже есть сессия; сначала проверьте её результат")
+            raise InstallerError("session_exists")
         self.sessions[session.id] = session
 
     def expire(self):
@@ -167,7 +171,7 @@ class Relay:
         if session.state in ("identity_mismatch", "needs_review") or not (session.armed and session.subscribed and session.version_verified and session.mac_verified) or session.sent:
             return
         url = self.firmware_url(session)
-        if len(url.encode()) > 127: raise ValueError("Firmware URL exceeds stock buffer")
+        if len(url.encode()) > 127: raise InstallerError("url_too_long")
         # The HA adapter persists the consumed intent BEFORE the only publish.
         # Mark in RAM too before awaiting it, closing simultaneous callback races.
         session.sent = True; session.sent_at = time.monotonic(); session.state = "sending"
@@ -175,7 +179,7 @@ class Relay:
             await self.before_send(session)
             await self.publish(session, {"type": "23", "url": url, "ota_type": 1})
         except Exception:
-            session.error = "Результат команды неизвестен. Не повторяйте установку автоматически"
+            session.error = "outcome_unknown"
             session.state = "needs_review"
             raise
 
@@ -186,7 +190,7 @@ class Relay:
         if kind == "13":
             version = find_field(data, "sw_version")
             if version != session.stock_version:
-                session.state = "identity_mismatch"; session.error = "Заводская версия изменилась"
+                session.state = "identity_mismatch"; session.error = "stock_changed"
                 return
             session.version_verified = True
             # Bounded telemetry supplies the MAC absent from some hello packets.
@@ -195,14 +199,14 @@ class Relay:
         if reported_mac:
             reported_mac = str(reported_mac).replace(":", "").upper()
             if reported_mac != session.mac:
-                session.state = "identity_mismatch"; session.error = "Ответил другой MAC"
+                session.state = "identity_mismatch"; session.error = "mac_changed"
                 return
             session.mac_verified = True
         if kind == "24" and session.sent:
             progress = data.get("percent")
             if isinstance(progress, (int, float)): session.progress = max(0, min(100, int(progress)))
             if data.get("error_code") not in (None, 0, "0"):
-                session.error = "Заводская OTA сообщила об ошибке"; session.state = "needs_review"
+                session.error = "stock_ota_error"; session.state = "needs_review"
             elif session.progress == 100: session.state = "waiting_for_esphome"
         if session.mac_verified and session.version_verified and not session.sent:
             session.state = "ready"

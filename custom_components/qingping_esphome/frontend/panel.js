@@ -5,6 +5,7 @@
  * the stock MQTT MAC/version before consuming its one firmware command.
  */
 import {requireLiteProfile} from "./compatibility.mjs";
+import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage} from "./i18n.mjs";
 
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
 const INFO = "0000180a-0000-1000-8000-00805f9b34fb";
@@ -14,7 +15,7 @@ const decode = value => new TextDecoder().decode(value).replace(/\0+$/, "").trim
 
 class StockConnection {
   async connect() {
-    if (!navigator.bluetooth) throw new Error("Откройте панель по HTTPS в Chrome на Mac, Windows или Android");
+    if (!navigator.bluetooth) throw failure("bluetooth_unavailable");
     this.device = await navigator.bluetooth.requestDevice({
       filters: [{namePrefix: "Qingping"}, {namePrefix: "CGDN1"}, {namePrefix: "Air Monitor"}],
       optionalServices: [VENDOR, INFO],
@@ -47,7 +48,7 @@ class StockConnection {
   async readMac() {
     const c = this.chars.get(0x18);
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => { c.removeEventListener("characteristicvaluechanged", received); reject(new Error("Нет ответа MAC. Удерживайте верхнюю полоску 8 секунд до большого Wi-Fi значка и подключитесь снова")); }, 7000);
+      const timeout = setTimeout(() => { c.removeEventListener("characteristicvaluechanged", received); reject(failure("mac_timeout")); }, 7000);
       const received = event => {
         const data = new Uint8Array(event.target.value.buffer, event.target.value.byteOffset, event.target.value.byteLength);
         if (data.length !== 8 || data[0] !== 7 || data[1] !== 11) return;
@@ -62,7 +63,7 @@ class StockConnection {
   }
 
   async send(number, command, payload) {
-    if (payload.length > 254) throw new Error("Параметры не помещаются в stock BLE packet");
+    if (payload.length > 254) throw failure("ble_packet_length");
     const bytes = new Uint8Array(payload.length + 2);
     bytes[0] = payload.length + 1; bytes[1] = command; bytes.set(payload, 2);
     for (let offset = 0; offset < bytes.length; offset += 20) {
@@ -77,24 +78,24 @@ class StockConnection {
       const result = this.acknowledgements.shift();
       if (result) {
         if (result.command !== command || result.statusA !== 0 || result.statusB !== 0) {
-          throw new Error("Датчик отклонил настройку. Новая прошивка не отправлялась; проверьте режим подключения");
+          throw failure("ble_rejected");
         }
         await wait(500); return;
       }
       await wait(30);
     }
-    throw new Error("Нет подтверждения настройки. Не повторяйте её автоматически; проверьте сессию");
+    throw failure("ble_ack_timeout");
   }
 
   async provision(ssid, password, broker, message) {
     const mac = await this.readMac();
-    if (mac !== this.identity.mac) throw new Error("Выбранный прибор изменился");
+    if (mac !== this.identity.mac) throw failure("selected_changed");
     const token = crypto.getRandomValues(new Uint8Array(16));
     for (const command of [1, 2]) {
       await this.send(1, command, token); await this.ack(command);
     }
     const encode = text => new TextEncoder().encode(text);
-    message("Передаём Wi-Fi и параметры локального загрузчика");
+    message("provisioning");
     await this.send(0x0d, 1, encode(`"${ssid}","${password}"`)); await wait(500);
     await this.send(1, 0x17, encode(`${broker.host} ${broker.port} ${broker.username} ${broker.password}`));
     await this.ack(0x17);
@@ -102,7 +103,7 @@ class StockConnection {
     await this.ack(0x18);
     // Stock can start Wi-Fi asynchronously. Do not tear the BLE session down
     // immediately after its last setter; that caused a real setup failure.
-    message("Ждём подключения датчика к локальному загрузчику");
+    message("waiting_for_broker");
     await wait(30000);
   }
 
@@ -124,43 +125,51 @@ class QingpingPanel extends HTMLElement {
 
   initialize() {
     this.initialized = true;
+    this.language = readLanguage();
+    this.model = "lite";
     this.attachShadow({mode: "open"});
     this.shadowRoot.innerHTML = `
       <style>
       :host{display:block;color:var(--primary-text-color,#202124);background:var(--primary-background-color,#f6f7f8);min-height:100vh;font:16px/1.5 system-ui,sans-serif;--accent:var(--primary-color,#087f8c)}
       *{box-sizing:border-box} main{max-width:960px;margin:auto;padding:40px 24px 64px}h1{font-size:30px;letter-spacing:-.8px;line-height:1.2;margin:0 0 8px}h2{font-size:20px;margin:0 0 20px}p{margin:0 0 20px}.muted{color:var(--secondary-text-color,#58616b)}
-      header{margin-bottom:30px} .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}.model{padding:18px;text-align:left;min-height:100px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:14px;color:inherit}.model[aria-pressed=true]{border:2px solid var(--accent);padding:17px}.model b{display:block;margin-bottom:8px}.model span{font-size:13px;color:var(--secondary-text-color,#58616b)}
+      .heading{display:flex;justify-content:space-between;align-items:start;gap:20px;flex-wrap:wrap}.language{display:flex;align-items:center;gap:10px;font-size:14px}select{min-height:44px;padding:8px;border:1px solid var(--divider-color,#c8cfd6);border-radius:8px;background:var(--card-background-color,#fff);color:inherit;font:inherit}select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}header{margin-bottom:30px} .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}.model{padding:18px;text-align:left;min-height:100px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:14px;color:inherit}.model[aria-pressed=true]{border:2px solid var(--accent);padding:17px}.model b{display:block;margin-bottom:8px}.model span{font-size:13px;color:var(--secondary-text-color,#58616b)}
       .box{background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:16px;padding:26px;margin-bottom:20px}.identity{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.identity span{background:var(--secondary-background-color,#f0f2f5);padding:6px 10px;border-radius:8px;font:13px ui-monospace,monospace}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}label{display:block;font-weight:600;font-size:14px}input[type=text],input[type=password]{display:block;width:100%;height:48px;border:1px solid var(--divider-color,#c8cfd6);border-radius:9px;margin-top:7px;padding:10px 12px;background:var(--card-background-color,#fff);color:inherit;font:16px system-ui}
       button{font:600 15px system-ui;min-height:46px;border-radius:9px;padding:11px 18px;cursor:pointer;transition:background .15s,border-color .15s}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border:1px solid var(--accent);color:var(--text-primary-color,#fff)}button.secondary{background:transparent;color:inherit;border:1px solid var(--divider-color,#c8cfd6)}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:22px 0}.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}.note{font-size:14px}.error{color:var(--error-color,#b42318);white-space:pre-wrap}.status{margin-bottom:10px;font-weight:600}progress{width:100%;height:12px;accent-color:var(--accent)}.hidden{display:none!important}.password{display:flex;align-items:end;gap:8px}.password label{flex:1}.password button{padding:10px;min-width:46px;font-size:12px}footer{font-size:13px;color:var(--secondary-text-color,#58616b)}a{color:var(--accent)}
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
       </style>
-      <main><header><h1>Qingping → ESPHome</h1><p class="muted">Один проект. Отдельный профиль для каждого прибора</p></header>
-      <div class="cards" role="group" aria-label="Модель прибора">
-       <button class="model" data-model="lite" aria-pressed="true"><b>Air Monitor Lite</b><span>CGDN1 · ESP32 · установщик beta</span></button>
-       <button class="model" data-model="monitor1" aria-pressed="false"><b>Air Monitor 1</b><span>CGS1 · S8 / SCD40 · исходники порта</span></button>
-       <button class="model" data-model="monitor2" aria-pressed="false"><b>Air Monitor 2</b><span>Отдельный профиль · пока не проверен</span></button>
+      <main><header><div class="heading"><h1>Qingping → ESPHome</h1><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label></div><p class="muted"><span data-i18n="tagline"></span></p></header>
+      <div class="cards" role="group" data-i18n-aria="model_label">
+       <button class="model" data-model="lite" aria-pressed="true"><b>Air Monitor Lite</b><span><span data-i18n="lite_summary"></span></span></button>
+       <button class="model" data-model="monitor1" aria-pressed="false"><b>Air Monitor 1</b><span><span data-i18n="monitor1_summary"></span></span></button>
+       <button class="model" data-model="monitor2" aria-pressed="false"><b>Air Monitor 2</b><span><span data-i18n="monitor2_summary"></span></span></button>
       </div>
-      <section id="unsupported" class="box hidden"><h2 id="unsupported-title"></h2><p id="unsupported-text"></p><a href="https://github.com/ivaschru/qingping-esphome#совместимость" target="_blank" rel="noreferrer">Матрица совместимости и исходники</a></section>
-      <section id="wizard" class="box"><h2>1. Подключить прибор</h2>
-       <p class="note muted">Подключите Lite к USB. Удерживайте верхнюю сенсорную полоску около 8 секунд до большого значка Wi-Fi – сетевые настройки будут сброшены. Затем выберите прибор через Bluetooth</p>
-       <button id="connect" class="secondary">Выбрать Qingping по Bluetooth</button>
+      <section id="unsupported" class="box hidden"><h2 id="unsupported-title"></h2><p id="unsupported-text"></p><a href="https://github.com/ivaschru/qingping-esphome#compatibility" target="_blank" rel="noreferrer"><span data-i18n="compatibility"></span></a></section>
+      <section id="wizard" class="box"><h2><span data-i18n="connect_title"></span></h2>
+       <p class="note muted"><span data-i18n="connect_help"></span></p>
+       <button id="connect" class="secondary"><span data-i18n="connect"></span></button>
        <div id="identity" class="identity" aria-live="polite"></div>
-       <form id="form" class="hidden"><h2>2. Установить ESPHome</h2><div class="grid">
-        <label>Сеть Wi-Fi 2,4 ГГц<input id="ssid" type="text" required autocomplete="off" spellcheck="false"></label>
-        <div class="password"><label>Пароль Wi-Fi<input id="password" type="password" autocomplete="off"></label><button id="show-password" class="secondary" type="button" aria-label="Показать пароль">Показать</button></div>
-       </div><label class="check"><input id="usb" type="checkbox" required><span>Прибор подключён к USB. Во время установки питание не отключать</span></label>
-       <p class="note muted">Будет установлена обычная UI25. Имя и индивидуальные ключи создаются автоматически внутри Home Assistant. Это заменяет заводскую прошивку; при неудачном раннем запуске восстановление может потребовать вскрытия</p>
-       <button id="flash" type="submit" class="primary">Прошить Lite</button></form>
+       <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2><div class="grid">
+        <label><span data-i18n="ssid"></span><input id="ssid" type="text" required autocomplete="off" spellcheck="false"></label>
+        <div class="password"><label><span data-i18n="wifi_password"></span><input id="password" type="password" autocomplete="off"></label><button id="show-password" class="secondary" type="button" data-i18n-aria="show_password"></button></div>
+       </div><label class="check"><input id="usb" type="checkbox" required><span><span data-i18n="usb_ack"></span></span></label>
+       <p class="note muted"><span data-i18n="install_note"></span></p>
+       <button id="flash" type="submit" class="primary"><span data-i18n="flash"></span></button></form>
       </section>
-      <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" aria-label="Передача прошивки"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden">Продолжить установку</button><button id="cancel" class="secondary hidden">Закрыть сессию до прошивки</button></section>
+      <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
-      <footer>Мастер Lite работает локально через Home Assistant. <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer">Открытый код</a></footer></main>`;
+      <footer><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></footer></main>`;
     this.$ = selector => this.shadowRoot.querySelector(selector);
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.onclick = () => this.selectModel(button.dataset.model));
+    this.$("#language").onchange = event => {
+      this.language = normalizeLanguage(event.target.value);
+      saveLanguage(this.language);
+      this.applyLanguage();
+    };
+    this.applyLanguage();
     this.$("#connect").onclick = () => this.connect();
     this.$("#show-password").onclick = () => {
       const input = this.$("#password"); input.type = input.type === "password" ? "text" : "password";
-      this.$("#show-password").textContent = input.type === "password" ? "Показать" : "Скрыть";
+      this.updatePasswordLabel();
     };
     this.$("#form").onsubmit = event => {event.preventDefault(); this.flash();};
     this.$("#resume").onclick = async () => {
@@ -175,7 +184,7 @@ class QingpingPanel extends HTMLElement {
         this.session = null; this.busy = false;
         this.$("#connect").disabled = false; this.$("#flash").disabled = false;
         this.$("#progress-box").classList.add("hidden"); this.$("#form").classList.add("hidden");
-        this.$("#error").textContent = "Прошивка не отправлялась. Для новой настройки снова включите большой значок Wi-Fi";
+        this.fail({code: "session_closed"});
       } catch (error) { this.fail(error); }
     };
     this.session = sessionStorage.getItem("qingping-installer-session");
@@ -191,12 +200,12 @@ class QingpingPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.model === model)));
     this.$("#wizard").classList.toggle("hidden", model !== "lite");
     this.$("#unsupported").classList.toggle("hidden", model === "lite");
-    this.$("#unsupported-title").textContent = model === "monitor1" ? "Порт Monitor 1" : "Профиль Monitor 2";
-    this.$("#unsupported-text").textContent = model === "monitor1" ? "Проверены CGS1 с SenseAir S8 и SCD40. Для первой установки нужен отдельный USB/ADB-путь; общий мастер ещё готовится. Lite-образ для него не используется." : "Для Monitor 2 ещё нет проверенного на приборе порта. Кнопка прошивки появится после определения аппаратного профиля и испытания установки.";
+    this.model = model;
+    this.updateModelText();
   }
 
   async connect() {
-    this.$("#error").textContent = ""; this.$("#connect").disabled = true;
+    this.lastError = null; this.$("#error").textContent = ""; this.$("#connect").disabled = true;
     // Selecting an unsupported second device must not leave the previous
     // supported device's form/identity armed and available for submission.
     this.identity = null; this.profile = null;
@@ -217,18 +226,51 @@ class QingpingPanel extends HTMLElement {
     finally { this.$("#connect").disabled = false; }
   }
 
-  message(text) { this.$("#progress-box").classList.remove("hidden"); this.$("#status").textContent = text; }
-  fail(error) { this.$("#error").textContent = error.message || "Операция не завершена"; }
+  t(key) { return t(this.language, key); }
+
+  applyLanguage() {
+    this.setAttribute("lang", this.language);
+    this.$("#language").value = this.language;
+    this.shadowRoot.querySelectorAll("[data-i18n]").forEach(node => {
+      node.textContent = this.t(node.dataset.i18n);
+    });
+    this.shadowRoot.querySelectorAll("[data-i18n-aria]").forEach(node => {
+      node.setAttribute("aria-label", this.t(node.dataset.i18nAria));
+    });
+    this.updatePasswordLabel(); this.updateModelText();
+    if (this.messageKey) this.$("#status").textContent = this.t(this.messageKey);
+    if (this.installationComplete) this.$("#detail").textContent = this.t("installed_detail");
+    if (this.lastError) this.$("#error").textContent = this.t(errorKey(this.lastError));
+  }
+
+  updatePasswordLabel() {
+    const key = this.$("#password").type === "password" ? "show_password" : "hide_password";
+    this.$("#show-password").textContent = this.t(key);
+    this.$("#show-password").setAttribute("aria-label", this.t(key));
+  }
+
+  updateModelText() {
+    const model = this.model === "monitor1" ? "monitor1" : "monitor2";
+    this.$("#unsupported-title").textContent = this.t(model + "_title");
+    this.$("#unsupported-text").textContent = this.t(model + "_info");
+  }
+
+  message(key) {
+    this.messageKey = key;
+    this.$("#progress-box").classList.remove("hidden");
+    this.$("#status").textContent = this.t(key);
+  }
+  fail(error) { this.lastError = error; this.$("#error").textContent = this.t(errorKey(error)); }
 
   async flash() {
     if (this.busy) return;
     if (!this.identity || !this.profile) return;
     this.busy = true; this.$("#flash").disabled = true; this.$("#connect").disabled = true;
-    this.$("#error").textContent = "";
+    this.lastError = null; this.$("#error").textContent = "";
     const ssid = this.$("#ssid").value, password = this.$("#password").value;
     try {
       this.provisioning = true;
-      this.message("Готовим индивидуальную прошивку в Home Assistant");
+      this.message("preparing");
       const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ssid, wifi_password: password, usb: this.$("#usb").checked}});
       this.session = result.id;
       // Session ID is not an authorization credential; HA checks its owner.
@@ -237,7 +279,7 @@ class QingpingPanel extends HTMLElement {
       await this.stock.provision(ssid, password, result.broker, text => this.message(text));
       this.$("#password").value = "";
       await this.rpc("arm", {session: this.session});
-      this.message("Передаём прошивку датчику");
+      this.message("sending");
     } catch (error) {
       this.fail(error);
       if (!this.session) {this.busy = false; this.$("#flash").disabled = false; this.$("#connect").disabled = false;}
@@ -254,17 +296,18 @@ class QingpingPanel extends HTMLElement {
       this.polling = true;
       try {
         const result = await this.rpc("status", {session: this.session});
-        const text = {waiting_for_device: "Ждём подключения датчика", ready: "Датчик подключён к загрузчику", sending: "Передаём прошивку", waiting_for_esphome: "Проверяем загрузку ESPHome и показания", installed: "ESPHome установлен", needs_review: "Нужна проверка результата", identity_mismatch: "Идентификатор не совпал"}[result.state] || result.state;
-        this.message(text); this.$("#progress").value = result.progress;
+
+        this.message(result.state); this.$("#progress").value = result.progress;
         this.$("#resume").classList.toggle("hidden", result.state !== "ready" || result.armed || this.provisioning);
         this.$("#cancel").classList.toggle("hidden", result.sent || this.provisioning);
         this.$("#detail").textContent = result.name + (result.progress ? ` · ${result.progress}%` : "");
-        if (result.error) this.$("#error").textContent = result.error;
+        if (result.error) this.fail({code: result.error_code || "operation_failed"});
         if (["installed", "needs_review", "identity_mismatch"].includes(result.state)) {
           clearInterval(this.poller);
           if (result.state === "installed") {
             sessionStorage.removeItem("qingping-installer-session");
-            this.$("#detail").textContent = "Подтверждены MAC, имя и живые CO₂, температура и влажность. Проверьте устройство в интеграции ESPHome";
+            this.installationComplete = true;
+            this.$("#detail").textContent = this.t("installed_detail");
           }
         }
       } catch (error) { this.fail(error); clearInterval(this.poller); }
