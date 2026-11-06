@@ -132,8 +132,28 @@ class QingpingPanel extends HTMLElement {
     if (!this.initialized && this.isConnected) this.initialize();
   }
   get hass() { return this._hass; }
-  connectedCallback() { if (this.hass && !this.initialized) this.initialize(); }
-  disconnectedCallback() { clearInterval(this.poller); this.stock?.disconnect(); }
+  connectedCallback() {
+    if (this.hass && !this.initialized) this.initialize();
+    else if (this.initialized) this.watchPageSettings();
+  }
+  disconnectedCallback() {
+    clearInterval(this.poller); this.stock?.disconnect();
+    for (const type of ["pointerdown", "focusin", "keydown"]) this.ownerDocument.removeEventListener(type, this.dismissPageSettings);
+  }
+
+  watchPageSettings() {
+    // Native details supplies keyboard activation and expanded state. Close on
+    // outside interaction or Escape, without retaining listeners after unload
+    // or rebuilding the installation form / Bluetooth picker activation.
+    this.dismissPageSettings ??= event => {
+      const menu = this.$("#page-settings");
+      if (!menu.open) return;
+      if (event.key === "Escape") {
+        menu.open = false; menu.querySelector("summary").focus();
+      } else if (!event.composedPath().includes(menu)) menu.open = false;
+    };
+    for (const type of ["pointerdown", "focusin", "keydown"]) this.ownerDocument.addEventListener(type, this.dismissPageSettings);
+  }
 
   async rpc(operation, extra = {}) {
     return this.hass.callWS({type: "qingping_esphome/command", operation, ...extra});
@@ -154,9 +174,9 @@ class QingpingPanel extends HTMLElement {
       button{font:600 15px system-ui;min-height:46px;border-radius:9px;padding:11px 18px;cursor:pointer;transition:background .15s,border-color .15s}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border:1px solid var(--accent);color:var(--text-primary-color,#fff)}button.secondary{background:transparent;color:inherit;border:1px solid var(--divider-color,#c8cfd6)}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:22px 0}.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}.note{font-size:14px}.error{color:var(--error-color,#b42318);white-space:pre-wrap}.status{margin-bottom:10px;font-weight:600}progress{width:100%;height:12px;accent-color:var(--accent)}.hidden{display:none!important}.password{display:flex;align-items:end;gap:8px}.password label{flex:1}.password button{padding:10px;min-width:46px;font-size:12px}footer{font-size:13px;color:var(--secondary-text-color,#58616b)}a{color:var(--accent)}
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
       #transport,#ha-device{display:block;width:100%;max-width:100%;margin:7px 0 12px}.ha-device-field{flex:1;min-width:0}#ha-picker .row{align-items:flex-end}#ha-picker .row>button{margin-bottom:12px}
-      .sidebar-setting{margin-top:24px}.sidebar-setting .check{min-height:44px;align-items:center;margin:0;cursor:pointer}.sidebar-setting .check:has(input:disabled){opacity:.55;cursor:default}.sidebar-setting p{margin:6px 0 0}.sidebar-setting input{flex:none;margin:0}.sidebar-setting #sidebar-status:empty{display:none}
+      .header-controls{display:flex;align-items:center;gap:12px;margin-left:auto}.page-settings{position:relative}.page-settings>summary{display:flex;align-items:center;justify-content:center;list-style:none;width:44px;height:44px;border:1px solid transparent;border-radius:9px;cursor:pointer;color:var(--secondary-text-color,#58616b)}.page-settings>summary::-webkit-details-marker{display:none}.page-settings>summary:hover,.page-settings[open]>summary{background:var(--secondary-background-color,#f0f2f5);color:var(--primary-text-color,#202124)}.page-settings>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.page-settings svg{width:22px;height:22px}.sidebar-setting{position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:min(340px,calc(100vw - 32px));padding:16px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:12px;box-shadow:0 8px 24px #0003}.sidebar-setting .check{min-height:44px;align-items:center;margin:0;cursor:pointer}.sidebar-setting .check:has(input:disabled){opacity:.55;cursor:default}.sidebar-setting p{margin:6px 0 0}.sidebar-setting input{flex:none;margin:0}.sidebar-setting #sidebar-status:empty{display:none}
       </style>
-      <main><header><div class="heading"><h1>Qingping → ESPHome</h1><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label></div><p class="muted"><span data-i18n="tagline"></span></p></header>
+      <main><header><div class="heading"><h1>Qingping → ESPHome</h1><div class="header-controls"><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label><details id="page-settings" class="page-settings"><summary data-i18n-aria="page_settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card-background-color,#fff)"/><circle cx="15" cy="17" r="3" fill="var(--card-background-color,#fff)"/></svg></summary><div class="sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></div></details></div></div><p class="muted"><span data-i18n="tagline"></span></p></header>
       <div class="cards" role="group" data-i18n-aria="model_label">
        <button class="model" data-model="lite" aria-pressed="true"><b>Air Monitor Lite</b><span><span data-i18n="lite_summary"></span></span></button>
        <button class="model" data-model="monitor1" aria-pressed="false"><b>Air Monitor 1</b><span><span data-i18n="monitor1_summary"></span></span></button>
@@ -179,7 +199,6 @@ class QingpingPanel extends HTMLElement {
       </section>
       <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
-      <section class="box sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></section>
       <footer><div><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></div><div><span data-i18n="development"></span> – <a href="https://ivasch.ru/" target="_blank" rel="noopener noreferrer"><span data-i18n="developer_name"></span></a></div></footer></main>`;
     this.$ = selector => this.shadowRoot.querySelector(selector);
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.onclick = () => this.selectModel(button.dataset.model));
@@ -189,6 +208,7 @@ class QingpingPanel extends HTMLElement {
       this.applyLanguage();
     };
     this.applyLanguage();
+    this.watchPageSettings();
     this.$("#show-sidebar").onchange = () => this.saveSidebar();
     this.$("#sidebar-retry").onclick = () => this.loadSidebar();
     this.loadSidebar();

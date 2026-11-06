@@ -295,6 +295,9 @@ separate even though the HACS wizard is shared.
   duplicate endpoint/Store. Close read-only forms; reconcile an ambiguous
   submit by reading, never resubmit automatically. Preserve the live wizard
   DOM/BLE session, show pending/failure feedback, and keep the direct route.
+  The control belongs in the compact header's Page settings disclosure beside
+  language, not a separate wizard card. Keep native keyboard expanded state,
+  Escape/outside dismissal, mobile bounds and listener cleanup on disconnect.
 - Register one SERVICE device (`installer`) with a stable identifier and
   `homeassistant://qingping_esphome` configuration URL. It is an installer
   shortcut, never a physical monitor or an ESPHome device. Keep admin checks
