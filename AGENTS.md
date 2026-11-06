@@ -6,7 +6,14 @@ separate even though the HACS wizard is shared.
 
 - The owner installs and updates this integration manually. An error report
   authorizes diagnosis/package fixes, not installation, configuration or a
-  restart of their HA. Do not operate their HA without a new direct request.
+  restart of their HA. Read-only HA diagnostics are explicitly allowed;
+  mutations and direct/manual fixes require a new direct request.
+- The owner chose to retain the three advertised-name Bluetooth prefixes for
+  now (2026-11-06). Do not expand to acceptAllDevices without a new decision.
+  An empty filtered picker does not prove that all nearby BLE is invisible.
+- A loaded installer/panel needs no duplicate config entry. Explain its zero
+  device count: physical monitors belong to ESPHome. Follow Marketplace's
+  actual restart requirement rather than prescribing restart unconditionally.
 - Normal setup must not ask for IP/ports HA can determine. Use HA's network
   helper and default ports; manual IP is a fallback, ports live in options.
   Preserve explicitly configured old/manual entries on upgrades.
