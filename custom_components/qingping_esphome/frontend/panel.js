@@ -7,6 +7,7 @@
 import {requireLiteProfile} from "./compatibility.mjs";
 import {HABluetoothConnection} from "./ha-transport.mjs";
 import "./usb-choice.mjs";
+import {SidebarSettings} from "./sidebar-settings.mjs";
 import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage} from "./i18n.mjs";
 
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
@@ -115,7 +116,19 @@ class StockConnection {
 class QingpingPanel extends HTMLElement {
   set hass(value) {
     this._hass = value;
-    if (this.initialized && this.$) this.$("#usb-choice").hass = value;
+    if (this.initialized && this.$) {
+      this.$("#usb-choice").hass = value;
+      // HA broadcasts panel updates when Configure → Interface changes too.
+      // Never replace a pending user's selection with an earlier broadcast.
+      const panel = value.panels?.qingping_esphome;
+      const signature = panel ? JSON.stringify([panel.title, panel.show_in_sidebar]) : null;
+      if (signature !== this.sidebarPanelSignature) {
+        this.sidebarPanelSignature = signature;
+        // Panel metadata may contain a user's personal sidebar overrides.
+        // It is a refresh signal only; the integration option stays authority.
+        if (this.sidebarLoaded && !this.sidebarPending && panel) this.loadSidebar();
+      }
+    }
     if (!this.initialized && this.isConnected) this.initialize();
   }
   get hass() { return this._hass; }
@@ -141,6 +154,7 @@ class QingpingPanel extends HTMLElement {
       button{font:600 15px system-ui;min-height:46px;border-radius:9px;padding:11px 18px;cursor:pointer;transition:background .15s,border-color .15s}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border:1px solid var(--accent);color:var(--text-primary-color,#fff)}button.secondary{background:transparent;color:inherit;border:1px solid var(--divider-color,#c8cfd6)}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:22px 0}.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}.note{font-size:14px}.error{color:var(--error-color,#b42318);white-space:pre-wrap}.status{margin-bottom:10px;font-weight:600}progress{width:100%;height:12px;accent-color:var(--accent)}.hidden{display:none!important}.password{display:flex;align-items:end;gap:8px}.password label{flex:1}.password button{padding:10px;min-width:46px;font-size:12px}footer{font-size:13px;color:var(--secondary-text-color,#58616b)}a{color:var(--accent)}
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
       #transport,#ha-device{display:block;width:100%;max-width:100%;margin:7px 0 12px}.ha-device-field{flex:1;min-width:0}#ha-picker .row{align-items:flex-end}#ha-picker .row>button{margin-bottom:12px}
+      .sidebar-setting{margin-top:24px}.sidebar-setting .check{min-height:44px;align-items:center;margin:0;cursor:pointer}.sidebar-setting .check:has(input:disabled){opacity:.55;cursor:default}.sidebar-setting p{margin:6px 0 0}.sidebar-setting input{flex:none;margin:0}.sidebar-setting #sidebar-status:empty{display:none}
       </style>
       <main><header><div class="heading"><h1>Qingping → ESPHome</h1><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label></div><p class="muted"><span data-i18n="tagline"></span></p></header>
       <div class="cards" role="group" data-i18n-aria="model_label">
@@ -165,6 +179,7 @@ class QingpingPanel extends HTMLElement {
       </section>
       <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
+      <section class="box sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></section>
       <footer><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/qingping-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></footer></main>`;
     this.$ = selector => this.shadowRoot.querySelector(selector);
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.onclick = () => this.selectModel(button.dataset.model));
@@ -174,6 +189,9 @@ class QingpingPanel extends HTMLElement {
       this.applyLanguage();
     };
     this.applyLanguage();
+    this.$("#show-sidebar").onchange = () => this.saveSidebar();
+    this.$("#sidebar-retry").onclick = () => this.loadSidebar();
+    this.loadSidebar();
     this.$("#connect").onclick = () => this.connect();
     this.$("#transport").value = this.transport;
     this.$("#transport").onchange = () => this.changeTransport();
@@ -208,6 +226,38 @@ class QingpingPanel extends HTMLElement {
     // request independently. Await this promise before showing the flash form.
     this.catalogReady = this.rpc("catalog").then(result => { this.catalog = result.models; });
     this.catalogReady.catch(error => this.fail(error));
+  }
+
+  renderSidebar() {
+    this.$("#show-sidebar").checked = Boolean(this.sidebarValue);
+    this.$("#show-sidebar").disabled = !this.sidebarLoaded || Boolean(this.sidebarPending);
+    this.$("#sidebar-status").textContent = this.sidebarMessage ? this.t(this.sidebarMessage) : "";
+    this.$("#sidebar-status").classList.toggle("error", this.sidebarMessage === "sidebar_failed");
+    this.$("#sidebar-retry").classList.toggle("hidden", this.sidebarMessage !== "sidebar_failed");
+  }
+
+  async loadSidebar() {
+    if (this.sidebarPending) return;
+    this.sidebarPending = true; this.sidebarMessage = "sidebar_loading"; this.renderSidebar();
+    try {
+      this.sidebarValue = await new SidebarSettings(this.hass).read();
+      this.sidebarLoaded = true; this.sidebarMessage = null;
+    } catch { this.sidebarMessage = "sidebar_failed"; }
+    finally { this.sidebarPending = false; this.renderSidebar(); }
+  }
+
+  async saveSidebar() {
+    if (this.sidebarPending || !this.sidebarLoaded) return;
+    const requested = this.$("#show-sidebar").checked;
+    this.sidebarPending = true; this.sidebarMessage = "sidebar_saving";
+    // Keep the previous confirmed value until HA acknowledges/readbacks it.
+    // Updating these nodes never rebuilds the installer or closes its BLE link.
+    this.renderSidebar();
+    try {
+      this.sidebarValue = await new SidebarSettings(this.hass).save(requested);
+      this.sidebarMessage = null;
+    } catch { this.sidebarMessage = "sidebar_failed"; }
+    finally { this.sidebarPending = false; this.renderSidebar(); }
   }
 
   selectModel(model) {
@@ -302,6 +352,7 @@ class QingpingPanel extends HTMLElement {
   t(key) { return t(this.language, key); }
 
   applyLanguage() {
+    if (this.$("#show-sidebar")) this.renderSidebar();
     this.setAttribute("lang", this.language);
     this.$("#language").value = this.language;
     this.shadowRoot.querySelectorAll("[data-i18n]").forEach(node => {

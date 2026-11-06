@@ -270,6 +270,11 @@ separate even though the HACS wizard is shared.
   the existing HA panel in place and preserves Manager/broker/session state.
   Network option changes retain their normal reload behavior. Preserve all
   unrelated options when any options-flow step saves its mapping.
+  The installer page uses that same native admin options flow via
+  `frontend/sidebar-settings.mjs`, never a browser-local preference or a
+  duplicate endpoint/Store. Close read-only forms; reconcile an ambiguous
+  submit by reading, never resubmit automatically. Preserve the live wizard
+  DOM/BLE session, show pending/failure feedback, and keep the direct route.
 - Register one SERVICE device (`installer`) with a stable identifier and
   `homeassistant://qingping_esphome` configuration URL. It is an installer
   shortcut, never a physical monitor or an ESPHome device. Keep admin checks

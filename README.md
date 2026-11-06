@@ -65,9 +65,11 @@ Choose **English / Русский** in the wizard. English is the default; the c
 is remembered in this browser only. Changing language preserves the form and
 current installation. HA's own configuration dialogs use your HA profile language.
 
-Hide the sidebar item through **Settings → Devices & services → Qingping
+Use **Show in sidebar** at the bottom of the installer page, or open
+**Settings → Devices & services → Qingping
 ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
-installer or restart its MQTT/HTTP listeners.
+installer or restart its MQTT/HTTP listeners. Both controls change the same
+HA setting; it takes effect immediately and is retained after restart.
 
 With the item hidden, open **Settings → Devices & services → Qingping ESPHome
 → installer device → Visit**. The direct path on the same HA is
