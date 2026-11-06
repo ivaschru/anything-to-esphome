@@ -93,6 +93,15 @@ template<long FilesystemMagic=0xef53> class BasicInitialTrialIntent {
     fork_attempted_=true;
     return current();
   }
+  bool matches_filesystem_binding(const DirectoryIdentity &root,const std::string &plan_id,
+                                  const std::string &plan_sha256,const std::string &bridge_sha256) {
+    // Read-only join with the creator's already claimed record. Matching text
+    // or a copied JSON flag is insufficient: current() also checks the exact
+    // held/named inode, boot and THIS creator process birth. This grants no
+    // fork and neither exposes nor relaxes guardian/RAM/nonce admission.
+    return current() && identity_.device==root.device && identity_.inode==root.inode &&
+      binding_.plan_id==plan_id && binding_.plan_sha256==plan_sha256 && binding_.bridge_sha256==bridge_sha256;
+  }
  private:
   int root_{-1},record_{-1};DirectoryIdentity identity_{};IntentBinding binding_{};
   cgs1_supervisor::ProcessStamp guardian_{};struct stat snapshot_{};

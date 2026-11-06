@@ -1,7 +1,7 @@
 #pragma once
 #if defined(__linux__)
 
-// Read-only, pre-intent filesystem portion of a FUTURE device scope collector.
+// Read-only filesystem portion of a FUTURE device scope collector.
 // It joins fixed names/bytes/metadata below /data/.esphome-cgs1, not USB,
 // device identity, vendor files, boot, stock processes, resources or authority.
 // Pins must come from the separately validated exact plan/terminal receipts.
@@ -40,19 +40,28 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
   }
   bool current() {
     if(!verified_)return false;
-    struct stat named{},held{};int data=-1,root=-1;
-    if(!walk_(data,root))return refuse_("named_private_root_changed");
-    const bool named_ok=!::fstat(root,&named) && !::fstat(root_,&held) &&
-      same_file(named,held) && same_file(root_snapshot_,held);
-    ::close(root);::close(data);
-    if(!named_ok || !contents_(false))return refuse_("initial_filesystem_changed_or_unreadable");
+    struct stat observed{};
+    if(!named_root_(observed,true) || !contents_(false,claimed_intent_))
+      return refuse_("initial_filesystem_changed_or_unreadable");
     // Close the read window with a fresh independent fixed-name walk. A held
     // old directory does not make a renamed/replaced installation current.
-    if(!walk_(data,root))return refuse_("named_root_changed_after_readback");
-    const bool closed=!::fstat(root,&named) && !::fstat(root_,&held) &&
-      same_file(named,held) && same_file(root_snapshot_,held);
-    ::close(root);::close(data);
-    return closed || refuse_("named_root_changed_after_readback");
+    return named_root_(observed,true) || refuse_("named_root_changed_after_readback");
+  }
+  bool acknowledge_intent(BasicInitialTrialIntent<FilesystemMagic> &intent) {
+    // A single observed transition, not an ignore-marker switch. The initial
+    // reader must still be valid; the separately consumed/claimed intent must
+    // be the actual creator's record for this root/plan/bridge. No record is
+    // written here, no history is adopted and no fork permission is produced.
+    if(transition_attempted_)return refuse_("intent_transition_consumed_no_retry");
+    transition_attempted_=true;
+    struct stat before{},after{};
+    if(!verified_ || claimed_intent_ || !intent_matches_(&intent) || !named_root_(before,false) ||
+       !contents_(false,&intent) || !named_root_(after,false) || !same_file(before,after) ||
+       !intent_matches_(&intent))return refuse_("exact_own_intent_transition_unverified");
+    // Only root-directory metadata may change for the one new regular entry.
+    // All original files, flags and commit-lock identities remain pinned by
+    // contents_; the complete listing admits exactly that one extra marker.
+    root_snapshot_=after;claimed_intent_=&intent;return current();
   }
   int duplicate_verified_root_fd() {
     if(!current())return -1;
@@ -62,7 +71,11 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
   }
  private:
   inline static constexpr int DIRECTORY_FLAGS=O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_NOATIME|O_CLOEXEC;
-  int anchor_{-1},root_{-1},lock_{-1};bool attempted_{false},verified_{false};
+  int anchor_{-1},root_{-1},lock_{-1};bool attempted_{false},verified_{false},transition_attempted_{false};
+  // The creator-owned intent must outlive this collector. Its live checks
+  // intentionally fail in a fork child or a different process; the guardian
+  // retains this observation, not a reusable serialized child capability.
+  BasicInitialTrialIntent<FilesystemMagic> *claimed_intent_{nullptr};
   InitialFilesystemBinding binding_{};DirectoryIdentity data_identity_{};
   struct stat root_snapshot_{},lock_snapshot_{};std::array<struct stat,13> files_{};
   const char *error_{""};
@@ -84,6 +97,15 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
       if(root>=0)::close(root);::close(data);root=data=-1;return false;
     }
     return true;
+  }
+  bool named_root_(struct stat &observed,bool unchanged) const {
+    int data=-1,root=-1;struct stat held{};
+    if(!walk_(data,root))return false;
+    const bool valid=!::fstat(root,&observed) && !::fstat(root_,&held) && same_file(observed,held) &&
+      observed.st_mode==root_snapshot_.st_mode && observed.st_uid==root_snapshot_.st_uid &&
+      observed.st_gid==root_snapshot_.st_gid && observed.st_nlink==root_snapshot_.st_nlink &&
+      (!unchanged || same_file(root_snapshot_,held));
+    ::close(root);::close(data);return valid;
   }
   bool open_(int anchor,const InitialFilesystemBinding &binding) {
     if(attempted_)return refuse_("filesystem_open_consumed_no_retry");
@@ -110,13 +132,13 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
        ::fstat(root_,&root_snapshot_) || !contents_(true))return refuse_("disabled_root_contents_unverified");
     verified_=true;return current();
   }
-  bool exact_entries_(int fd,bool lock) const {
+  bool exact_entries_(int fd,bool lock,bool claimed=false) const {
     const int copy=::openat(fd,".",DIRECTORY_FLAGS);if(copy<0)return false;
     DIR *directory=::fdopendir(copy);if(!directory){::close(copy);return false;}
-    std::array<bool,13> seen{};unsigned count=0;bool valid=true;errno=0;
+    std::array<bool,14> seen{};unsigned count=0;bool valid=true;errno=0;
     while(const auto *entry=::readdir(directory)) {
       if(!std::strcmp(entry->d_name,".") || !std::strcmp(entry->d_name,".."))continue;
-      size_t index=13;
+      size_t index=14;
       if(lock){if(!std::strcmp(entry->d_name,"owner"))index=0;}
       else {
         for(size_t i=0;i<PAYLOAD.size();++i)if(!std::strcmp(entry->d_name,PAYLOAD[i]))index=i;
@@ -124,13 +146,15 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
         if(!std::strcmp(entry->d_name,"disabled"))index=10;
         if(!std::strcmp(entry->d_name,"pm-helper.disabled"))index=11;
         if(!std::strcmp(entry->d_name,".commit-disabled.lock"))index=12;
+        if(claimed && !std::strcmp(entry->d_name,BasicInitialTrialIntent<FilesystemMagic>::NAME))index=13;
       }
       // Unknown files include autostart stores, partial replacement debris,
-      // rollback locks and previous trial markers. Preserve/refuse them all.
-      if(index==13 || seen[index] || ++count>(lock?1:13)){valid=false;break;}
+      // rollback locks and previous trial markers. Only the actual joined
+      // creator proof can admit its own marker; preserve/refuse everything else.
+      if(index==14 || seen[index] || ++count>(lock?1:claimed?14:13)){valid=false;break;}
       seen[index]=true;errno=0;
     }
-    valid=valid && errno==0 && count==(lock?1:13);
+    valid=valid && errno==0 && count==(lock?1:claimed?14:13);
     if(::closedir(directory))valid=false;
     return valid;
   }
@@ -154,9 +178,13 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
     if(valid && capture)files_[index]=after;
     return valid;
   }
-  bool contents_(bool capture) {
+  bool intent_matches_(BasicInitialTrialIntent<FilesystemMagic> *intent) const {
+    return intent && intent->matches_filesystem_binding(binding_.root,binding_.plan_id,
+      binding_.plan_sha256,binding_.payload[0].sha256);
+  }
+  bool contents_(bool capture,BasicInitialTrialIntent<FilesystemMagic> *intent=nullptr) {
     struct stat held{},named{};
-    if(!exact_entries_(root_,false) || !exact_entries_(lock_,true) ||
+    if((intent && !intent_matches_(intent)) || !exact_entries_(root_,false,intent!=nullptr) || !exact_entries_(lock_,true) ||
        ::fstat(lock_,&held) || !same_file(lock_snapshot_,held) ||
        ::fstatat(root_,".commit-disabled.lock",&named,AT_SYMLINK_NOFOLLOW) || !same_file(held,named))return false;
     for(size_t i=0;i<PAYLOAD.size();++i) {
@@ -170,12 +198,13 @@ template<long FilesystemMagic=0xef53> class BasicInitialFilesystem {
       file_(root_,"disabled",0,0600,"",&empty,10,capture) &&
       file_(root_,"pm-helper.disabled",0,0600,"",&empty,11,capture) &&
       file_(lock_,"owner",owner.size(),0600,"",&owner,12,capture) &&
-      exact_entries_(root_,false) && exact_entries_(lock_,true);
+      exact_entries_(root_,false,intent!=nullptr) && exact_entries_(lock_,true) &&
+      (!intent || intent_matches_(intent));
   }
 };
 using InitialFilesystem=BasicInitialFilesystem<>;
-// Initial-only proof: creating the trial marker invalidates this strict empty-
-// history scope. The full guardian needs a separately joined claimed/live
-// observation, not a caller flag that suppresses unexpected marker detection.
+// Pre-intent snapshots do not survive a claim automatically. The explicit
+// one-shot acknowledgement above joins the creator's actual marker, preserving
+// all other pins. Full live device/stock/boot/resource scope is still separate.
 }  // namespace cgs1_initial_trial
 #endif

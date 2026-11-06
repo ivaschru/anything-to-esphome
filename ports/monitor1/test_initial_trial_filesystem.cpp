@@ -1,5 +1,6 @@
 // Read-only collector tests against an isolated tmpfs tree. All writes build
-// synthetic fixtures; no production /data path, monitor or executable is used.
+// synthetic fixtures and their own one-shot marker; no production /data path,
+// monitor or executable is used. A hosted marker is not NAND/cold-power proof.
 #ifdef NDEBUG
 #error "Filesystem admission fixtures require enabled assertions"
 #endif
@@ -41,6 +42,22 @@ struct Fixture {
   }
   bool open(Collector &scope) const{return scope.open_fixture_root(anchor,binding);}
 };
+using Intent=BasicInitialTrialIntent<0x01021994>;
+static IntentBinding intent_binding(Fixture &f) {
+  IntentBinding b;b.plan_id=f.binding.plan_id;b.plan_sha256=f.binding.plan_sha256;
+  b.bridge_sha256=f.binding.payload[0].sha256;b.guardian_sha256=std::string(64,'4');b.nonce=std::string(32,'5');
+  std::ifstream boot("/proc/sys/kernel/random/boot_id");assert(std::getline(boot,b.boot_id));
+  assert(!::mkdirat(f.anchor,"ram",0700));
+  const int fd=::openat(f.anchor,"ram",O_RDONLY|O_DIRECTORY|O_CLOEXEC);assert(fd>=3);
+  struct stat st{};assert(!::fstat(fd,&st));b.ram={uint64_t(st.st_dev),uint64_t(st.st_ino)};::close(fd);
+  return b;
+}
+static void claimed(Fixture &f,Collector &scope,Intent &intent,const IntentBinding &b) {
+  assert(f.open(scope));assert(intent.open(f.root,f.binding.root,b));assert(intent.claim());
+  // The ordinary initial-only current() must NOT be called between claim and
+  // this explicit join: it correctly refuses an unexplained new root entry.
+  assert(scope.acknowledge_intent(intent));assert(scope.current());
+}
 
 int main() {
   assert(::getuid()==0 && ::geteuid()==0);
@@ -115,6 +132,60 @@ int main() {
     Fixture f;Collector scope;assert(f.open(scope));
     assert(!::renameat(f.root,".commit-disabled.lock",f.root,"old-lock"));
     assert(!::symlinkat("old-lock",f.root,".commit-disabled.lock"));assert(!scope.current());
+  }
+  {
+    Fixture f;const auto b=intent_binding(f);Intent intent;Collector scope;
+    claimed(f,scope,intent,b);
+    const auto fd=scope.duplicate_verified_root_fd();assert(fd>=3 && private_directory(fd,f.binding.root));::close(fd);
+    assert(intent.matches_filesystem_binding(f.binding.root,f.binding.plan_id,f.binding.plan_sha256,f.binding.payload[0].sha256));
+    assert(!intent.matches_filesystem_binding(f.binding.root,std::string(32,'9'),f.binding.plan_sha256,f.binding.payload[0].sha256));
+    assert(intent.current()); // A mismatched query grants nothing and does not adopt another binding.
+    assert(intent.authorize_one_fork());assert(!intent.authorize_one_fork());assert(scope.current());
+    assert(!scope.acknowledge_intent(intent) && !scope.current()); // No second transition.
+    Collector fresh;assert(!f.open(fresh)); // The existing record is not initial history.
+    assert(std::filesystem::exists(f.path+"/data/.esphome-cgs1/initial-trial.intent"));
+  }
+  for(int kind=0;kind<6;++kind) {
+    Fixture f;auto b=intent_binding(f);Intent intent;Collector scope;assert(f.open(scope));
+    if(kind==0)b.plan_id=std::string(32,'9');
+    if(kind==1)b.bridge_sha256=std::string(64,'6');
+    assert(intent.open(f.root,f.binding.root,b));
+    if(kind!=2)assert(intent.claim()); // An opened but unclaimed actor is not a proof.
+    if(kind==3)f.write("unknown","preserve-me");
+    if(kind==4)f.write("program","changed-after-claim",0700);
+    if(kind==5)assert(!::renameat(f.data,".esphome-cgs1",f.data,"old-root"));
+    assert(!scope.acknowledge_intent(intent));assert(!scope.current());
+    if(kind==2) {
+      assert(!intent.claim()); // Failed verification did not silently create a marker.
+      assert(!std::filesystem::exists(f.path+"/data/.esphome-cgs1/initial-trial.intent"));
+    }
+  }
+  {
+    Fixture f,other;const auto b=intent_binding(other);Intent intent;Collector scope;
+    assert(f.open(scope));assert(intent.open(other.root,other.binding.root,b) && intent.claim());
+    assert(!scope.acknowledge_intent(intent) && !scope.current());assert(intent.current());
+  }
+  {
+    Fixture f;const auto b=intent_binding(f);Intent intent;Collector scope;assert(f.open(scope));
+    assert(intent.open(f.root,f.binding.root,b) && intent.claim());
+    assert(!scope.current()); // An unexplained new entry already sealed this observation.
+    assert(!scope.acknowledge_intent(intent));assert(intent.current()); // No resurrection.
+  }
+  for(int kind=0;kind<5;++kind) {
+    Fixture f;const auto b=intent_binding(f);Intent intent;Collector scope;claimed(f,scope,intent,b);
+    if(kind==0)f.write("initial-trial.intent","tampered");
+    if(kind==1)assert(!::fchmodat(f.root,"initial-trial.intent",0644,0));
+    if(kind==2)f.write("disabled","x");
+    if(kind==3)f.write("unexpected","preserve-me");
+    if(kind==4)assert(!::renameat(f.data,".esphome-cgs1",f.data,"old-root"));
+    assert(!scope.current() && scope.duplicate_verified_root_fd()<0);
+  }
+  {
+    Fixture f;const auto b=intent_binding(f);Intent intent;Collector scope;claimed(f,scope,intent,b);
+    const auto pid=::fork();assert(pid>=0);
+    if(!pid)::_exit(scope.current()?91:0); // Creator proof is not inherited launch authority.
+    int status=0;assert(::waitpid(pid,&status,0)==pid && WIFEXITED(status) && WEXITSTATUS(status)==0);
+    assert(scope.current() && intent.current()); // Child refusal did not alter the parent or record.
   }
   std::puts("initial named filesystem scope fixtures passed");
 }

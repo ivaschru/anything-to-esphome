@@ -374,7 +374,7 @@ The fixed nine staged payload entries must match their exact private plan
 size/SHA, root ownership, one link and staging mode. Both empty 0600 opt-outs,
 the exact `install.intent` plan binding and the exact private commit-lock
 owner are checked by bytes and metadata. Complete bounded directory listings
-must contain only that initial set, and only `owner` inside the commit lock.
+must initially contain only that set, and only `owner` inside the commit lock.
 This positively rejects autostart stores, partial replacement debris,
 rollback history, prior trial markers and unknown files. Nothing is removed,
 repaired, chmodded, executed or created. Reads use no-atime descriptors.
@@ -382,15 +382,36 @@ repaired, chmodded, executed or created. Reads use no-atime descriptors.
 The reader seals after observed replacement, changed bytes/mode/owner/link,
 incomplete reads or another open attempt; putting old bytes back does not
 revive it. A returned read directory fd needs another complete readback.
-Creating the actual trial marker intentionally invalidates this strict
-pre-intent observation. The future guardian needs a separately joined
-claimed/live scope with actual bound intent proof, not an ignore-marker flag.
+
+A newly created trial marker does not automatically preserve the initial
+observation. The one-shot `acknowledge_intent` transition requires the actual
+already claimed intent object: its independent record/boot/creator checks
+and exact root/plan/bridge binding must match. All original payload/flag/
+marker/commit-lock pins are checked again, with complete listings admitting
+exactly the one additional fixed marker. Fresh named-root walks must agree
+before/after that readback. Only the expected directory metadata change is
+then rebased; no original file snapshot is reset or silently readmitted.
+
+There is no ignore-marker flag, adopted record, retry, cleanup or write in
+this transition. An opened but unclaimed actor, copied text, wrong root/plan/
+bridge, previous reader failure or repeated acknowledgement refuses. A new
+reader still rejects pre-existing trial history. Acknowledgement consumes no
+fork grant and is not launch authority; the separate intent, full device
+scope and owned-child flow remain mandatory.
+
+The intent object must outlive the joined reader. Each subsequent claimed
+check verifies that creator-owned live record again; an inherited fork-child
+copy cannot use the parent's proof. This is a parent-side filesystem join,
+not complete stock/resource monitoring or proof after a vendor firmware exec.
 
 This does not validate a host receipt's terminal state, admit arbitrary plan
 pins, inspect vendor files or collect device/USB/boot/stock/resource scope.
 Those independent gates still precede any launch. Linux/root fixtures only
 construct private tmpfs trees; they exercise exact listings, pins, markers,
 flags, hardlinks/symlinks, payload/ancestor replacement and permanent refusal.
+Joined fixtures claim only their own private tmpfs marker, test the actual
+creator/plan/root/bridge binding, stale/unclaimed/repeated joins, unchanged
+parent proof after fork-child refusal and tampering after acknowledgement.
 The compile-time tmpfs fixture seam cannot override production paths at
 runtime. This remains source-only engineering without a device write.
 

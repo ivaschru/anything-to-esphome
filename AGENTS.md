@@ -87,12 +87,16 @@ separate even though the HACS wizard is shared.
   live device scope or consume intent; no standalone guardian/HACS activation.
   Native hosted exec tests run only their own private fixture ELF, never ARM
   firmware or a monitor. Preserve the production ARM/ext4 admission boundary.
-  initial_trial_filesystem.h is the pre-intent read-only filesystem scope:
+  initial_trial_filesystem.h is the read-only filesystem scope:
   fixed no-follow /data/root walks, exact payload/flags/plan+commit markers,
   complete positive listings and persistent inode/metadata/byte checks.
   Unknown files, partial markers and history are preserved/refused, never
-  cleaned or ignored. Creating the trial marker invalidates this initial-only
-  observation; a future claimed/live join needs actual bound intent proof.
+  cleaned or ignored. A new trial marker needs one explicit acknowledgement
+  of the actual creator-owned intent bound to this root/plan/bridge; no flag,
+  reopened actor or serialized proof can bypass the initial listing. Recheck
+  every original pin before rebasing only the known directory metadata delta.
+  The intent must outlive the reader; claimed checks belong to the creator,
+  not its fork child. Acknowledgement never grants a fork or launch.
   It does not collect stock/vendor/device/boot/resources or authorize launch.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,

@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: filesystem reader связывает новый trial marker только с actual
+  creator-owned intent и повторной проверкой всех прежних pins; нет
+  ignore-marker switch, повторного claim или автоматического запуска
+
 - Monitor 1: read-only pre-intent filesystem scope связывает named root,
   payload/flags/plan/commit markers и отказывает неизвестной истории;
   full device collector/guardian и аппаратная установка ещё не готовы
