@@ -44,6 +44,18 @@ inline bool saved_replay(const Plan&p) {
   return cgs1_wifi_private::detail::encode(p.before.decision_epoch.c_str(),p.before.networks,before) &&
     cgs1_wifi_private::detail::encode(p.before.decision_epoch.c_str(),p.desired,desired) && before.value==desired.value;
 }
+inline bool manual_update(const Plan&p) {
+  // Only the explicitly chosen first network may be added/rekeyed/promoted.
+  // Every other previous key and relative order must survive unchanged.
+  if(!valid(p) || p.desired.empty())return false;
+  const auto&chosen=p.desired.front();Networks expected{chosen};
+  for(const auto&old:p.before.networks)
+    if(old.ssid_size!=chosen.ssid_size || std::memcmp(old.ssid.data(),chosen.ssid.data(),chosen.ssid_size))
+      expected.push_back(old);
+  cgs1_wifi_private::detail::Bytes actual,wanted;
+  return cgs1_wifi_private::detail::encode(p.transaction.c_str(),p.desired,actual) &&
+    cgs1_wifi_private::detail::encode(p.transaction.c_str(),expected,wanted) && actual.value==wanted.value;
+}
 template<class IO> Decision inspect(const Plan &p,const cgs1_wifi_private::Store<IO> &store) {
   if(!valid(p) || store.transaction_epoch()!=p.transaction || !store.loaded() ||
       !store.verify_unchanged())return Decision::UNKNOWN;

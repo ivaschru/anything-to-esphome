@@ -1,0 +1,11 @@
+# Host's default compiler invocation has no optimization flag. These ordinary
+# release flags reduce executable storage and unnecessary linked code without
+# fast-math, changing ABI, disabling checks or changing sensor algorithms.
+# Both stock and native builds use the same policy; private binaries still
+# contain transport keys and are never generic public release downloads.
+esphome:
+  build_flags:
+    - -Os
+    - -ffunction-sections
+    - -fdata-sections
+    - -Wl,--gc-sections

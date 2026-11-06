@@ -14,7 +14,7 @@
 namespace cgs1_wifi_recovery {
 inline bool unassociated_flags_restored(const cgs1_wifi_guard::Plan&plan,
     const std::vector<Profile>&profiles) {
-  if(plan.catalog_mode!=cgs1_wifi_prepare::CatalogMode::UNASSOCIATED ||
+  if(!cgs1_wifi_prepare::unassociated(plan.catalog_mode) ||
       profiles.size()!=plan.original.size())return false;
   for(const auto&old:plan.original) {
     const auto*now=find(profiles,old.id);
@@ -31,7 +31,7 @@ template<class Backend>class UnassociatedRecovery {
   Result attempt(const cgs1_wifi_guard::Plan&plan,int bound_candidate=-1) {
     if(consumed_)return Result::CONSUMED;
     consumed_=true;
-    if(plan.catalog_mode!=cgs1_wifi_prepare::CatalogMode::UNASSOCIATED ||
+    if(!cgs1_wifi_prepare::unassociated(plan.catalog_mode) ||
         !cgs1_wifi_guard::valid(plan) || bound_candidate<-1 || bound_candidate>1000000 ||
         find(plan.original,bound_candidate) || !backend_.recovery_exclusive(plan))return Result::REFUSED;
     auto decision=decision_(plan);if(decision!=Result::CONFIGURATION_RESTORED)return decision;

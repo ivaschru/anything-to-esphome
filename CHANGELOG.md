@@ -2,6 +2,15 @@
 
 ## Не выпущено
 
+- Monitor 1: общие stock/full battery/charging/voltage entities; kernel gauge
+  вместо расчёта процента из напряжения, корректный unknown/unavailable
+- Monitor 1: отдельный sealed offline manual Wi-Fi, сохранение других сетей,
+  no-SELECT rollback и DEFERRED boot для ручного editor
+- Monitor 1: малый Noise recovery с inventory и защищённым удалением старых
+  executable pairs; исправлено раннее startup admission перед поздним miio
+- Добавлены portable C++ regression checks и описание реальных границ QA;
+  CGS1 universal installer и Bluetooth proxy этим изменением не включаются
+
 - English по умолчанию в мастере, переключатель English / Русский; выбор
   сохраняется в браузере, форма и активная установка не пересоздаются
 - Переведены подписи, Bluetooth-сообщения, статусы и ошибки сервера

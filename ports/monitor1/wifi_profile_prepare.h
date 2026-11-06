@@ -16,11 +16,16 @@ enum class Step {CREATE,BIND,SSID,KEY_MANAGEMENT,PROTOCOL,PSK,VERIFY};
 // A boot with no association is a different sealed recovery baseline. The
 // ordinary caller stays CONNECTED by default; a retained configured CURRENT
 // pointer in an unassociated catalog must not fabricate a working connection.
-enum class CatalogMode {CONNECTED,UNASSOCIATED};
+enum class CatalogMode {CONNECTED,UNASSOCIATED,UNASSOCIATED_MANUAL};
+// Value 1 remains saved-record-only. Value 2 is a separately sealed local
+// touchscreen request; older guardians reject its unknown mode byte.
+inline bool unassociated(CatalogMode mode) {
+  return mode==CatalogMode::UNASSOCIATED || mode==CatalogMode::UNASSOCIATED_MANUAL;
+}
 template<class Authority> class Preparation;
 inline bool supported_catalog(const std::vector<cgs1_wifi::SavedProfile> &profiles,
     CatalogMode mode=CatalogMode::CONNECTED) {
-  if((mode!=CatalogMode::CONNECTED && mode!=CatalogMode::UNASSOCIATED) ||
+  if((mode!=CatalogMode::CONNECTED && !unassociated(mode)) ||
       (mode==CatalogMode::CONNECTED && profiles.empty()) || profiles.size()>=32)return false;
   unsigned currents=0;
   for(const auto &p:profiles) {
@@ -98,7 +103,7 @@ class NativeCandidateControl {
 namespace cgs1_wifi_prepare {
 template<class Authority> class Preparation {
  public:
-  explicit Preparation(Authority &authority):authority_(authority){}
+  explicit Preparation(Authority &authority,CatalogMode mode=CatalogMode::CONNECTED):authority_(authority),mode_(mode){}
   State state()const{return state_;}
   int candidate()const{return state_==State::PREPARED?candidate_:-1;}
   const cgs1_wifi::SavedProfile*prepared_profile()const {
@@ -117,7 +122,7 @@ template<class Authority> class Preparation {
     // an unknown daemon debug/show-keys mode forbids passing it credentials.
     // Preparation intentionally cannot create that authority by itself.
     if(!authority_.admitted(transaction_,Step::CREATE,-1) || !control_.open() ||
-        !control_.catalog(original_) || !supported_catalog(original_)) {
+        !control_.catalog(original_) || !supported_catalog(original_,mode_)) {
       state_=State::REFUSED;return false;
     }
     // Bind the exact requested credential bytes to the immutable recovery
@@ -171,7 +176,7 @@ template<class Authority> class Preparation {
     state_=State::PREPARED;return true;
   }
  private:
-  Authority &authority_;cgs1_wifi::NativeCandidateControl control_;
+  Authority &authority_;const CatalogMode mode_;cgs1_wifi::NativeCandidateControl control_;
   State state_{State::IDLE};bool attempted_{false};int candidate_{-1};
   std::string transaction_;std::vector<cgs1_wifi::SavedProfile> original_;
   cgs1_wifi::SavedProfile prepared_profile_;

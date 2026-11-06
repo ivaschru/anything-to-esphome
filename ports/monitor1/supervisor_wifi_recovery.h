@@ -42,7 +42,7 @@ class RunnerWifiRecovery {
     // and restore configuration flags only. Never infer this mode from an
     // error in the connected recovery path or from a current socket reply.
     Result result;
-    if(plan->catalog_mode==cgs1_wifi_prepare::CatalogMode::UNASSOCIATED) {
+    if(cgs1_wifi_prepare::unassociated(plan->catalog_mode)) {
       cgs1_wifi_recovery::UnassociatedRecovery recovery(backend);
       result=recovery.attempt(*plan,journal_.bound_candidate());
     }else {

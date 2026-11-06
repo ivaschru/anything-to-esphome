@@ -10,6 +10,7 @@
 // never performs guardian recovery while its native owner is still alive.
 #include "native_wifi_plan.h"
 #include "native_wifi_forward.h"
+#include "native_wifi_scan.h"
 
 namespace cgs1_supervisor {
 class NativeWifiTransaction final {
@@ -37,11 +38,19 @@ class NativeWifiTransaction final {
     // normal guarded flow with the already accepted saved preferred entry.
     if(builder.saved_preferred_connected()){saved_skip_=true;return true;}
     const auto network=plan.decision.desired.front();
+    if(cgs1_wifi_prepare::unassociated(plan.catalog_mode) && !saved_visible_(network)) {
+      // No transaction has been armed and no radio mutation was sent. An
+      // absent/unknown cached AP is not a failure requiring stock takeover:
+      // keep the full screen available for a new locally entered network.
+      // Visible cached preference still follows the original verified flow.
+      saved_deferred_=true;return true;
+    }
     joined_=std::make_unique<Join>(scope_,std::move(plan));
     if(!joined_->flow.begin(network)){joined_.reset();return false;}
     return true;
   }
   bool saved_skipped()const{return saved_skip_;}
+  bool saved_deferred()const{return saved_deferred_;}
   void poll(){if(joined_)joined_->flow.poll();}
   bool confirm(){return joined_ && joined_->flow.confirm();}
   bool cancel(){return joined_ && joined_->flow.cancel();}
@@ -75,13 +84,21 @@ class NativeWifiTransaction final {
     NativeWifiRefresh refresh;NativeWifiRestoration restoration;
     NativeWifiRetirement retirement;NativeWifiAssociation association;NativeWifiFlow flow;
     Join(NativeWifiScope&scope,cgs1_wifi_guard::Plan plan):
-      authority(scope,std::move(plan)),prepared(authority),selection(authority,prepared),
+      authority(scope,std::move(plan)),prepared(authority,authority.forward_plan().catalog_mode),selection(authority,prepared),
       connection(authority,prepared),refresh(authority,selection,connection),
       restoration(authority,prepared,connection),retirement(scope),association(authority,prepared),
       flow(authority,prepared,selection,connection,refresh,restoration,retirement,association){}
     Join(const Join&)=delete;Join&operator=(const Join&)=delete;
   };
-  NativeWifiScope&scope_;bool attempted_{false},saved_skip_{false};
+  static bool saved_visible_(const cgs1_wifi_private::Network&network) {
+    cgs1_wifi::NativeScanControl control;std::vector<cgs1_wifi_scan::Network>rows;
+    const bool read=control.open() && control.read(rows);const bool closed=control.close();
+    if(!read || !closed)return false;
+    for(const auto&row:rows)if(row.supported && row.ssid.size()==network.ssid_size &&
+        !std::memcmp(row.ssid.data(),network.ssid.data(),network.ssid_size))return true;
+    return false;
+  }
+  NativeWifiScope&scope_;bool attempted_{false},saved_skip_{false},saved_deferred_{false};
   cgs1_wifi_request::PlanError plan_error_{cgs1_wifi_request::PlanError::NONE};
   std::unique_ptr<Join>joined_;
 };

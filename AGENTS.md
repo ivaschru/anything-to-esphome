@@ -4,6 +4,19 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
+  tests. Power is read-only kernel capacity/voltage/status, never a guessed
+  percentage. Keep sealed UNASSOCIATED_MANUAL distinct from saved replay,
+  both guardians, private Store/CAS and no-SELECT rollback. No password API.
+  The tiny recovery has inventory AND exact old-program prune; protect an
+  explicitly bound working pair, preserve user files, verify local backups,
+  and consume each release intent before deletion. Its compact SDK MD5
+  backend is opt-in only; Noise/OTA and SHA-256 stay enabled. Normal profiles
+  retain EVP. Production core startup settle is 60s with the same 180s total
+  bound and strict DRM gates. See ports/monitor1/POWER_WIFI_RECOVERY.md.
+  These sources do not enable the still-missing universal CGS1 installer or
+  establish physical absent-AP, battery-transition, BLE or Monitor 2 proof.
+
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
   Store only the language preference in localStorage. Translate text nodes in
   place: never rebuild the form, repeat setup, disconnect BLE or restart a
