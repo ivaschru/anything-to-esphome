@@ -16,6 +16,9 @@ separate even though the HACS wizard is shared.
   bound and strict DRM gates. See ports/monitor1/POWER_WIFI_RECOVERY.md.
   These sources do not enable the still-missing universal CGS1 installer or
   establish physical absent-AP, battery-transition, BLE or Monitor 2 proof.
+  The planner fixture needs actual Linux/root Store ownership; CI runs its
+  explicit hosted-runner root step. Never remove that production check to
+  make a non-root local test pass or invoke sudo from the test wrapper.
 
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
   Store only the language preference in localStorage. Translate text nodes in

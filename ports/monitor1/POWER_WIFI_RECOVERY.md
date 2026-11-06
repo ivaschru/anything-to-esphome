@@ -102,6 +102,9 @@ Run `python -m unittest discover -s tests` from the repository root for the
 power/scheduler/filesystem checks. Planner and Wi-Fi recovery fixtures require
 real Linux supervisor IPC/filesystem headers and run on Linux CI; they are
 explicitly skipped on macOS rather than replacing Linux credentials with mocks.
+The planner fixture also exercises the real root-owned private Store. CI runs
+an explicit root step on its disposable hosted runner; ordinary local tests
+skip that fixture when not root and never invoke sudo automatically.
 OpenSSL development headers and pkg-config are required for those fixtures
 and the filesystem prune test. The SDK MD5
 fixture `test_compact_host_md5.cpp` additionally needs the generated host
