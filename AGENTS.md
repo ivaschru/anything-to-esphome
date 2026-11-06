@@ -146,6 +146,10 @@ separate even though the HACS wizard is shared.
   backend is opt-in only; Noise/OTA and SHA-256 stay enabled. Normal profiles
   retain EVP. Production core startup settle is 60s with the same 180s total
   bound and strict DRM gates. See ports/monitor1/POWER_WIFI_RECOVERY.md.
+  Separate existing private S8/SCD40 deployments passed power exports,
+  normal return, software auto boot and HA readback. Preserve the distinction
+  between that runtime proof and the still-unqualified public initial route;
+  no fresh installation or absent-AP/battery-transition proof follows.
   These sources do not enable the still-missing universal CGS1 installer or
   establish physical absent-AP, battery-transition, BLE or Monitor 2 proof.
   The planner fixture needs actual Linux/root Store ownership; CI runs its

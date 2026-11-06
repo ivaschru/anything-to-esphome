@@ -18,10 +18,36 @@ are distinct from false. `Full` means external power is present and active
 charging is false. Ambiguous `Not charging` does not prove external power.
 The temperature/humidity algorithm and charger configuration are unchanged.
 
-On a CGS1-SCD40, stock and full mode were checked against the real kernel:
-100 %, Full, external power true, approximately 4.16 V. HA retained its
-existing device identity. Discharging, active Charging, battery transitions
-and other hardware revisions still need their own physical checks.
+Last verified on 2026-11-06: separate CGS1-S8 (`co2_type=2`) and CGS1-SCD40
+(`co2_type=3`) private releases were installed on already modified monitors.
+Both stock and full mode reported the real kernel gauge: 100 %, Full,
+external power true, charging false, approximately 4.15 V on S8 and 4.16 V
+on SCD40. Each retained its own HA device/config-entry identity and exposed
+six enabled, available power entities. Physical CO2/T/RH/tVOC and battery
+level/voltage updates were independently observed in HA after installation.
+
+These are two separate target-bound deployments, not a shared binary or a
+test of the public initial installer. Device profiles, Noise keys, binaries,
+backups and exact private receipts are not public release assets. Discharging,
+active Charging, battery transitions and other hardware revisions still need
+their own physical checks.
+
+| Runtime check | CGS1-S8 | CGS1-SCD40 |
+| --- | --- | --- |
+| Six kernel power exports in stock and full mode | Verified | Verified |
+| Panel, both guardians and restored preferences | Verified | Verified |
+| Normal return with independent recovery receipt | Verified | Verified |
+| Automatic full UI after one software reboot | Verified | Verified |
+| Saved preferred network already connected; editor ready | Verified | Verified |
+| New network with the previous AP physically absent | Not verified | Not verified |
+| Wrong password or interrupted Wi-Fi save | Not verified | Not verified |
+| Battery discharge/active-charge transitions or cold power cycle | Not verified | Not verified |
+| Bounded deletion of obsolete NAND release pairs | Not exercised | Verified separately |
+
+The S8 update retired only its own dead RAM program copies; its older
+persistent releases and user data were retained. That is not NAND cleanup.
+Neither deployment qualifies a fresh USB/bootstrap install or enables CGS1
+in the HACS wizard. `source_only` / `installation_ready=false` remain in force.
 
 ## A new network without the previous AP
 
@@ -39,9 +65,11 @@ accepts a Wi-Fi password.
 
 If the preferred AP is absent or unknown in cached scan results, boot defers
 without effects and leaves the manual editor available. Source/fixture tests
-cover the new plans and recovery policies. The new native program was run
-on hardware and exposed its editor, but a physical absent-old-AP/new-AP,
-wrong-password or interrupted-save scenario has not yet been verified.
+cover the new plans and recovery policies. Separate S8/SCD40 native programs
+were run on hardware and exposed the editor. On both, a saved preferred
+network was already connected, so startup correctly skipped duplicate network
+creation/selection. A physical absent-old-AP/new-AP, wrong-password or
+interrupted-save scenario has not yet been verified.
 
 ## A small recovery bridge
 
@@ -95,8 +123,9 @@ measured stock boot, the screen program was ready much earlier than a late
 miio process that inherited DRM around 46 seconds. The longer initial window
 keeps the existing 180-second total deadline, once-per-boot attempt marker,
 strict owner checks and separately bound one-shot repair. Unexpected late
-owners still refuse takeover. A tested final native start occurred around
-97 seconds after Linux boot. This does not prove every future boot race.
+owners still refuse takeover. Separate S8/SCD40 software boots both reached
+the native UI around 97 seconds after Linux boot. This does not prove every
+future boot race or startup after a physical loss of power.
 
 Run `python -m unittest discover -s tests` from the repository root for the
 power/scheduler/filesystem checks. Planner and Wi-Fi recovery fixtures require
