@@ -8,6 +8,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 
 from .catalog import CATALOG
 from .manager import DOMAIN, Manager
+from .network_setup import NetworkDetectionError
 
 
 async def async_setup(hass, config):
@@ -17,8 +18,10 @@ async def async_setup(hass, config):
 async def async_setup_entry(hass, entry):
     manager = Manager(hass, entry)
     try: await manager.start()
+    except NetworkDetectionError as error:
+        raise ConfigEntryNotReady("Не удалось определить локальную сеть; доступны дополнительные настройки интеграции") from error
     except OSError as error:
-        raise ConfigEntryNotReady("Не удалось открыть локальный MQTT-порт") from error
+        raise ConfigEntryNotReady("Не удалось открыть локальные порты; доступны дополнительные настройки интеграции") from error
     hass.data[DOMAIN] = manager
     marker = DOMAIN + "_registered"
     if not hass.data.get(marker):
@@ -30,7 +33,12 @@ async def async_setup_entry(hass, entry):
     await panel_custom.async_register_panel(hass, frontend_url_path=DOMAIN,
         webcomponent_name="qingping-installer-panel", sidebar_title="Qingping ESPHome",
         sidebar_icon="mdi:chip", module_url=f"/api/{DOMAIN}/static/panel.js", require_admin=True)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
+
+
+async def async_reload_entry(hass, entry):
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass, entry):

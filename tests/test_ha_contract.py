@@ -11,7 +11,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 
 AVAILABLE = importlib.util.find_spec("homeassistant") is not None
 
@@ -72,6 +72,57 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         response = await self.manager.download(request)
         self.assertEqual(response.body, b"private-image")
         self.assertEqual(response.headers["Cache-Control"], "no-store")
+
+    async def test_normal_setup_creates_entry_without_technical_questions(self):
+        from custom_components.qingping_esphome.config_flow import ConfigFlow
+        flow = ConfigFlow()
+        flow.hass = self.hass
+        with patch.object(flow, "async_set_unique_id", AsyncMock()), \
+             patch.object(flow, "_abort_if_unique_id_configured"), \
+             patch("custom_components.qingping_esphome.network_setup.network.async_get_source_ip", AsyncMock(return_value="192.168.50.2")):
+            result = await flow.async_step_user()
+        self.assertEqual(result["type"], "create_entry")
+        self.assertEqual(result["data"], {"lan_host": "192.168.50.2", "http_port": 1887,
+                                          "mqtt_port": 1886, "automatic_network": True})
+
+    async def test_ambiguous_network_falls_back_to_only_one_required_field(self):
+        from custom_components.qingping_esphome.config_flow import ConfigFlow
+        flow = ConfigFlow()
+        flow.hass = self.hass
+        adapters = [{"enabled": True, "ipv4": [{"address": "192.168.50.2"}, {"address": "10.20.0.2"}]}]
+        with patch.object(flow, "async_set_unique_id", AsyncMock()), \
+             patch.object(flow, "_abort_if_unique_id_configured"), \
+             patch("custom_components.qingping_esphome.network_setup.network.async_get_source_ip", AsyncMock(return_value="::1")), \
+             patch("custom_components.qingping_esphome.network_setup.network.async_get_adapters", AsyncMock(return_value=adapters)):
+            result = await flow.async_step_user()
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["step_id"], "manual")
+        self.assertEqual(list(result["data_schema"].schema), ["lan_host"])
+        invalid = await flow.async_step_manual({"lan_host": "8.8.8.8"})
+        self.assertEqual(invalid["errors"], {"lan_host": "invalid_lan_host"})
+        valid = await flow.async_step_manual({"lan_host": "192.168.50.2"})
+        self.assertFalse(valid["data"]["automatic_network"])
+
+    async def test_single_enabled_lan_address_fallback(self):
+        from custom_components.qingping_esphome.network_setup import async_detect_lan_host
+        adapters = [{"enabled": False, "ipv4": [{"address": "10.20.0.1"}]},
+                    {"enabled": True, "ipv4": [{"address": "192.168.50.2"}, {"address": "127.0.0.1"}]}]
+        with patch("custom_components.qingping_esphome.network_setup.network.async_get_source_ip", AsyncMock(return_value="::1")), \
+             patch("custom_components.qingping_esphome.network_setup.network.async_get_adapters", AsyncMock(return_value=adapters)):
+            self.assertEqual(await async_detect_lan_host(self.hass), "192.168.50.2")
+
+    async def test_manual_options_preserve_old_values_and_reject_port_collision(self):
+        from custom_components.qingping_esphome.config_flow import OptionsFlow
+        flow = OptionsFlow()
+        flow.hass = self.hass
+        entry = SimpleNamespace(data={"lan_host": "192.168.50.2", "http_port": 1901, "mqtt_port": 1902}, options={})
+        with patch.object(OptionsFlow, "config_entry", PropertyMock(return_value=entry)):
+            form = await flow.async_step_manual()
+            self.assertEqual(form["data_schema"]({}), entry.data)
+            invalid = await flow.async_step_manual({"lan_host": "192.168.50.2", "http_port": 1901, "mqtt_port": 1901})
+            self.assertEqual(invalid["errors"]["base"], "ports_must_differ")
+            valid = await flow.async_step_manual(entry.data)
+            self.assertEqual(valid["data"], {**entry.data, "automatic_network": False})
 
 
 if __name__ == "__main__": unittest.main()

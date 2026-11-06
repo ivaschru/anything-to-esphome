@@ -23,6 +23,7 @@ from homeassistant.helpers.storage import Store
 from .catalog import CATALOG, admission
 from .image import SLOTS, mac_normalize, personalize, private_ipv4
 from .relay import Relay, Session
+from .network_setup import async_detect_lan_host
 
 DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
@@ -31,8 +32,9 @@ TEMPLATE_ROOT = Path(__file__).parent / "firmware"
 class Manager:
     def __init__(self, hass, entry):
         self.hass, self.entry = hass, entry
-        self.host = private_ipv4(entry.data["lan_host"])
-        self.http_port, self.mqtt_port = entry.data["http_port"], entry.data["mqtt_port"]
+        self.settings = {**entry.data, **getattr(entry, "options", {})}
+        self.host = private_ipv4(self.settings["lan_host"])
+        self.http_port, self.mqtt_port = self.settings["http_port"], self.settings["mqtt_port"]
         self.store = Store(hass, 1, DOMAIN + ".installations", private=True)
         self.records = {}
         self.checks = {}
@@ -41,6 +43,10 @@ class Manager:
         self.http_runner = None
 
     async def start(self):
+        if self.settings.get("automatic_network"):
+            # Refresh after a DHCP change or restart; existing manually
+            # configured entries remain manual until their owner changes it.
+            self.host = await async_detect_lan_host(self.hass)
         self.records = await self.store.async_load() or {}
         await self.relay.start(self.mqtt_port)
         # Stock expects plain HTTP even when HA itself is served over HTTPS.

@@ -4,6 +4,13 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- The owner installs and updates this integration manually. An error report
+  authorizes diagnosis/package fixes, not installation, configuration or a
+  restart of their HA. Do not operate their HA without a new direct request.
+- Normal setup must not ask for IP/ports HA can determine. Use HA's network
+  helper and default ports; manual IP is a fallback, ports live in options.
+  Preserve explicitly configured old/manual entries on upgrades.
+
 - Keep this repository free of device credentials, home/room names, real MAC
   addresses, private deployment YAML, firmware backups and generated ELF/BIN.
   Only a reproducible template containing documented public placeholders may

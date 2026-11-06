@@ -1,8 +1,45 @@
 {
   "title": "Qingping ESPHome",
   "config": {
-    "step": {"user": {"title": "Local Qingping installer", "description": "Use the LAN IPv4 address of Home Assistant. The monitor must reach its HTTP and MQTT ports. Open the HA panel over HTTPS in Chrome for Bluetooth.", "data": {"lan_host": "Home Assistant LAN IPv4", "http_port": "Local HA HTTP port", "mqtt_port": "Temporary MQTT port"}}},
-    "error": {"invalid_lan_host": "Enter a private LAN IPv4 address"},
-    "abort": {"already_configured": "The installer is already configured"}
+    "step": {
+      "manual": {
+        "title": "Connect to the local network",
+        "description": "Home Assistant could not detect a suitable LAN address. Enter its local IPv4 address; the ports are configured automatically.",
+        "data": {
+          "lan_host": "Home Assistant LAN IPv4"
+        }
+      }
+    },
+    "error": {
+      "invalid_lan_host": "Enter a private LAN IPv4 address"
+    },
+    "abort": {
+      "already_configured": "The installer is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Network settings",
+        "menu_options": {
+          "automatic": "Automatic setup (recommended)",
+          "manual": "Configure manually"
+        }
+      },
+      "manual": {
+        "title": "Manual network settings",
+        "description": "These settings are only needed for a non-standard network or a port conflict.",
+        "data": {
+          "lan_host": "Home Assistant LAN IPv4",
+          "http_port": "Firmware HTTP port",
+          "mqtt_port": "Monitor MQTT port"
+        }
+      }
+    },
+    "error": {
+      "invalid_lan_host": "Enter a private LAN IPv4 address",
+      "cannot_detect_address": "Could not detect the LAN address; enter it manually",
+      "ports_must_differ": "HTTP and MQTT must use different ports"
+    }
   }
 }

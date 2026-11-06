@@ -1,9 +1,33 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "Qingping ESPHome",
-        "description": "Укажите локальный IPv4 Home Assistant, доступный датчику. Порты используются только внутри вашей сети.",
+      "manual": {
+        "title": "Подключение к локальной сети",
+        "description": "Home Assistant не смог определить подходящий адрес. Укажите его локальный IPv4 — порты настроятся автоматически.",
+        "data": {
+          "lan_host": "Локальный IPv4 Home Assistant"
+        }
+      }
+    },
+    "error": {
+      "invalid_lan_host": "Укажите локальный IPv4 из диапазонов 10.x, 172.16–31.x или 192.168.x"
+    },
+    "abort": {
+      "already_configured": "Интеграция уже настроена"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Настройка сети",
+        "menu_options": {
+          "automatic": "Автоматически (рекомендуется)",
+          "manual": "Настроить вручную"
+        }
+      },
+      "manual": {
+        "title": "Ручные параметры сети",
+        "description": "Эти параметры нужны только для нестандартной сети или при занятом порте.",
         "data": {
           "lan_host": "Локальный IPv4 Home Assistant",
           "http_port": "Порт передачи прошивки (HTTP)",
@@ -12,10 +36,9 @@
       }
     },
     "error": {
-      "invalid_lan_host": "Нужен локальный IPv4 из диапазонов 10.x, 172.16–31.x или 192.168.x"
-    },
-    "abort": {
-      "already_configured": "Интеграция уже настроена"
+      "invalid_lan_host": "Укажите локальный IPv4",
+      "cannot_detect_address": "Не удалось определить адрес — укажите его вручную",
+      "ports_must_differ": "HTTP и MQTT должны использовать разные порты"
     }
   }
 }
