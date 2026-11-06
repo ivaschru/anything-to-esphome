@@ -1,5 +1,5 @@
-// Real Linux fork/prctl/waitpid tests. Only synthetic callbacks execute;
-// no stock paths, monitor processes, network, ELF or firmware are used.
+// Real Linux fork/prctl/waitpid/fd-exec tests. Only this synthetic fixture and
+// its callbacks execute; no stock paths, monitor, network or firmware is used.
 #ifdef NDEBUG
 #error "This executable fixture requires enabled assertions; never compile it with NDEBUG"
 #endif
@@ -15,8 +15,17 @@ static int read_oom() {
 }
 static int protected_entry(void *) {
   int signal=0;
-  if(::prctl(PR_GET_PDEATHSIG,&signal) || signal!=SIGTERM || read_oom()!=1000)return 99;
+  if(::prctl(PR_GET_PDEATHSIG,&signal) || signal!=SIGTERM || read_oom()!=1000 ||
+     ::prctl(PR_GET_NO_NEW_PRIVS,0L,0L,0L,0L)!=1)return 99;
   return 0;
+}
+static int exec_fixture_entry(void *) {
+  // Exec only this synthetic fixture, not a bridge, shell, monitor binary or
+  // caller-supplied path. CLOEXEC is valid for an ELF; no script fallback.
+  const auto fd=::open("/proc/self/exe",O_RDONLY|O_CLOEXEC);if(fd<0)return 98;
+  char name[]="qingping-child-fixture",mode[]="--verify-child-protection",path[]="PATH=/usr/bin:/bin";
+  char *argv[]={name,mode,nullptr},*env[]={path,nullptr};
+  ::fexecve(fd,argv,env);::close(fd);return 97;
 }
 static int wait_entry(void *) {while(true)::pause();return 0;}
 static int ignore_term_entry(void *) {
@@ -41,15 +50,23 @@ static void running(OneShotChild &child) {
   }
 }
 
-int main() {
+int main(int argc,char **argv) {
+  if(argc==2 && !std::strcmp(argv[1],"--verify-child-protection"))return protected_entry(nullptr);
   assert(::geteuid()==0);
   const auto before=read_oom();assert(before>=-1000 && before<=1000);
+  const auto parent_nnp=::prctl(PR_GET_NO_NEW_PRIVS,0L,0L,0L,0L);assert(parent_nnp==0 || parent_nnp==1);
   {
     OneShotChild child;assert(child.spawn(protected_entry,nullptr));
     const auto pid=child.stamp().pid;assert(pid>1 && pid!=::getpid());
     reap(child);assert(child.child_protection_acknowledged());
     assert(WIFEXITED(child.wait_status()) && WEXITSTATUS(child.wait_status())==0);
     assert(!child.spawn(protected_entry,nullptr));  // No second fork after reap.
+    assert(!child.term_sent() && !child.forced());
+  }
+  {
+    OneShotChild child;assert(child.spawn(exec_fixture_entry,nullptr));reap(child);
+    assert(child.child_protection_acknowledged());
+    assert(WIFEXITED(child.wait_status()) && WEXITSTATUS(child.wait_status())==0);
     assert(!child.term_sent() && !child.forced());
   }
   {
@@ -108,5 +125,6 @@ int main() {
     assert(WIFSIGNALED(status) && WTERMSIG(status)==SIGTERM);
   }
   assert(read_oom()==before);  // The guardian/test process was never modified.
+  assert(::prctl(PR_GET_NO_NEW_PRIVS,0L,0L,0L,0L)==parent_nnp);
   std::puts("one-shot child kernel fixtures passed");
 }

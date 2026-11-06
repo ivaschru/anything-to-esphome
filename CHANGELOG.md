@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: child-only no_new_privs до entry, обязательный policy ACK и
+  проверка сохранения OOM/PDEATHSIG/NNP через fd-exec самого Linux fixture;
+  parent/stock не меняются, device post-exec QA остаётся обязательной
+
 - Monitor 1: read-only primitives для exact ARM image fd/hash/xattr и пустого
   private tmpfs; подмена/неполное чтение закрывают admission, execution и
   post-exec protection остаются отдельными неподтверждёнными этапами

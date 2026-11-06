@@ -30,6 +30,12 @@ inline bool protect_current_child(pid_t expected_parent) {
   sigset_t term;::sigemptyset(&term);::sigaddset(&term,SIGTERM);
   if(::sigaction(SIGTERM,&normal,nullptr) || ::sigprocmask(SIG_UNBLOCK,&term,nullptr) ||
      ::prctl(PR_SET_PDEATHSIG,SIGTERM))return false;
+  // Plain root exec can otherwise regain privileges not effective in the
+  // caller. NNP is supported since Linux 3.5 and is set ONLY in this child;
+  // it prevents exec privilege gains without changing the guardian/stock.
+  // It is not a sandbox or permission to change credentials after exec.
+  if(::prctl(PR_SET_NO_NEW_PRIVS,1L,0L,0L,0L) ||
+     ::prctl(PR_GET_NO_NEW_PRIVS,0L,0L,0L,0L)!=1)return false;
   int signal=0;
   if(::prctl(PR_GET_PDEATHSIG,&signal) || signal!=SIGTERM)return false;
   int fd=::open("/proc/self/oom_score_adj",O_WRONLY|O_CLOEXEC|O_NOFOLLOW);

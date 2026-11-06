@@ -216,8 +216,8 @@ disable flags remain set throughout**. The first trial must not use the
 retrying boot launcher. It requires a separate one-shot device-side guardian
 with a fixed 60-second monotonic deadline, independent of the host connection.
 The guardian may terminate/reap only its actual unreaped kernel child, with
-child parent-death SIGTERM and child-only `oom_score_adj=1000` armed before
-exec. The stock/watchdog PID identities are explicitly excluded. No adoption
+child parent-death SIGTERM, child-only `oom_score_adj=1000` and `no_new_privs`
+armed before exec. The stock/watchdog PID identities are explicitly excluded. No adoption
 of a PID from a file or from an ADB response is allowed.
 
 The policy additionally requires an absent full-release store, persistent
@@ -258,11 +258,13 @@ integration. A supplied entry still needs exact ELF/fd/hash/xattr admission,
 private RAM preferences/environment, full scope checks and a consumed intent
 in the future standalone guardian. Do not call it as an installation shortcut.
 
-Linux/root fixtures use synthetic callbacks only: normal exit, TERM, an
+Linux/root fixtures use their own synthetic code: normal exit, TERM, an
 entry ignoring TERM followed by one KILL, refused SIGCHLD auto-reap, and
-actual parent death with subreaper cleanup. Only the fixture child changes
-its own OOM score. This tests kernel process behavior on the hosted runner,
-not the vendor kernel, a bridge exec or the complete trial/activation flow.
+actual parent death with subreaper cleanup. An additional fd-based exec of
+the same fixture checks that OOM/PDEATHSIG/NNP remain set in that helper.
+Only the fixture child changes its own OOM/NNP; parent values stay unchanged.
+This tests the hosted kernel/libc, not vendor glibc 2.23, a bridge exec or
+the complete trial/activation flow.
 The ARMv7/glibc 2.23 fixture object also compiles with pinned Zig 0.14.1;
 it is not an installable guardian or a physical execution result.
 
@@ -274,6 +276,14 @@ deliver the signal, so the child checks its parent again. Credential and
 set-id/file-capability exec transitions can clear PDEATHSIG; the future ELF
 admission must exclude them. Raising the experimental child's OOM preference
 does not cap memory or guarantee that stock survives every OOM condition.
+
+The child also sets and reads back [no_new_privs](https://www.kernel.org/doc/html/latest/userspace-api/no_new_privs.html)
+before entry. Linux supports it since 3.5 and preserves it across exec; it
+prevents exec from granting new privileges. This avoids relying solely on
+file mode/xattr reports, including for a root caller with a restricted
+capability set. It does not prevent privileged code from changing its own
+credentials through other syscalls, replace the xattr checks or prove the
+vendor kernel behavior. A failed/unsupported prctl exits before entry.
 
 ### Read-only image and initial RAM admission
 

@@ -3,8 +3,9 @@
 The first trial must leave BOTH persistent opt-outs set and use a one-shot
 device-side guardian, never the retrying boot launcher or a host-only timer.
 The guardian must own/reap its exact child, arm child parent-death SIGTERM and
-set that child's oom_score_adj=1000 before exec. This module defines admission
-and outcomes, not proof that such a guardian or physical trial already exists.
+set that child's oom_score_adj=1000 and no_new_privs before exec. This module
+defines admission and outcomes, not proof that such a guardian or physical
+trial already exists.
 """
 from dataclasses import dataclass
 import math
@@ -51,6 +52,7 @@ class Child:
     held_unreaped_child: object
     parent_death_term_armed: object
     oom_score_adj: object
+    no_new_privs_armed: object
 
 
 @dataclass(frozen=True)
@@ -153,6 +155,7 @@ class FirstBridgeTrial:
                 type(child.uid) is int and child.uid == 0 and type(child.guardian_uid) is int and child.guardian_uid == 0 and
                 child.executable_sha256 == self.bridge_sha and child.guardian_sha256 == self.guardian_sha and
                 child.held_unreaped_child is True and child.parent_death_term_armed is True and
+                child.no_new_privs_armed is True and
                 type(child.oom_score_adj) is int and child.oom_score_adj == 1000)
 
     @staticmethod

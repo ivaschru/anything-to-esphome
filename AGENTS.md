@@ -65,6 +65,10 @@ separate even though the HACS wizard is shared.
   These fds do not establish the named root, live stock scope or trial intent;
   keep LSM visibility and post-exec PDEATHSIG as explicit hardware gates.
   RAM free space is not MemAvailable. No runtime filesystem override exists.
+  The child primitive sets/reads back child-only no_new_privs before entry;
+  policy requires its ACK. Keep parent OOM/NNP unchanged. Hosted fd-exec of
+  the synthetic fixture proves only that helper on that kernel/libc, never
+  a monitor ELF, vendor glibc 2.23 or complete guardian protection.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

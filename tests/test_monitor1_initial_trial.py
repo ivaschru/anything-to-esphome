@@ -36,7 +36,7 @@ def trial(initial=None, **kwargs):
 
 
 def child():
-    return policy.Child(70, 200, BRIDGE, 0, 69, 190, GUARDIAN, 0, True, True, 1000)
+    return policy.Child(70, 200, BRIDGE, 0, 69, 190, GUARDIAN, 0, True, True, 1000, True)
 
 
 def observed(*, reaped=False, status=None, changed=None, process=None):
@@ -95,6 +95,7 @@ class FirstBridgeTrialTests(unittest.TestCase):
             {"pid": 69}, {"start": 0}, {"guardian_start": True}, {"uid": 1},
             {"guardian_uid": 1}, {"held_unreaped_child": False}, {"held_unreaped_child": None},
             {"parent_death_term_armed": False}, {"oom_score_adj": 0}, {"oom_score_adj": True},
+            {"no_new_privs_armed": False}, {"no_new_privs_armed": None},
             {"executable_sha256": "c" * 64}, {"guardian_sha256": "c" * 64})]
         for process in bad:
             with self.subTest(process=process):
