@@ -4,6 +4,13 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- `ports/monitor1/build_pm_helper.py` is build-only. It requires an explicit
+  independently verified stock QtCore SHA and the isolated CGS1 environment;
+  outputs/logs stay private in a fresh ignored build directory. Public Qt
+  headers are pinned; vendor Qt libraries and rebuilt helpers are not release
+  assets. Preserve ARM/glibc/input checks and never install the mock/test .so
+  or infer loader authority from a successful build. See PM_HELPER_BUILD.md.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

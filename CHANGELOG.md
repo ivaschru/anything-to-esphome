@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: публичный исходник и проверяемая ARM-сборка штатного PM helper;
+  Qt headers закреплены checksum, stock QtCore остаётся приватным input,
+  build-only не запускает программу и не включает CGS1 installer
+
 - Monitor 1: общие stock/full battery/charging/voltage entities; kernel gauge
   вместо расчёта процента из напряжения, корректный unknown/unavailable
 - Monitor 1: отдельный sealed offline manual Wi-Fi, сохранение других сетей,

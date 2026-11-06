@@ -37,3 +37,8 @@ manual/recovery прошли source-тесты, но физический absent
 По Bluetooth опубликованы [результаты аппаратного исследования](BLUETOOTH_RESEARCH.md):
 HCI отсутствует, точная BT UART/питание на плате не доказаны, host backend
 ESPHome ещё требуется. Наличие RTL8723DS Wi-Fi не включает BLE proxy.
+
+Первый общий build dependency теперь воспроизводим: [сборка штатного PM helper](PM_HELPER_BUILD.md)
+из публичного исходника с проверенными Qt headers и private stock QtCore.
+ARM cross-build проверен; новый helper не устанавливался. Это ещё не общий
+builder полной native/guardian/bridge пары и не включение USB-мастера в HACS.
