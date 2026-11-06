@@ -80,6 +80,8 @@ python3 -m unittest discover -s tests -p test_monitor1_build.py -v
 The helper and mock source match the previously tested canonical extension.
 **The newly rebuilt artifacts have not been loaded or run on a monitor.**
 This cross-build is not new hardware, GUI timeout or installation proof. A
-future complete CGS1 builder must bind the newly produced helper digest into
-its physical-device profile and perform its normal validation before any
-installation. Do not substitute an old helper pin or remove admission gates.
+[candidate controller](BUILD_CANDIDATE.md) binds the newly produced helper
+digest into its explicit device profile and matches the guardian/native/bridge
+programs. A complete installation pipeline must still perform its independent
+device validation before any installation. Do not substitute an old helper
+pin or remove admission gates.
