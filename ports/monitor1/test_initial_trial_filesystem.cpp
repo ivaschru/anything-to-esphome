@@ -54,7 +54,7 @@ int main() {
     assert(!::fstatat(f.root,"program",&after,AT_SYMLINK_NOFOLLOW) && same_file(before,after));
     assert(!f.open(scope) && !scope.current() && scope.duplicate_verified_root_fd()<0);
   }
-  for(int kind=0;kind<13;++kind) {
+  for(int kind=0;kind<20;++kind) {
     Fixture f;Collector scope;
     if(kind==0)f.binding.plan_id="not-a-plan";
     if(kind==1)f.binding.plan_sha256[0]='G';
@@ -69,6 +69,15 @@ int main() {
     if(kind==10)assert(!::fchmod(f.root,0755));
     if(kind==11)assert(!::fchmod(f.lock,0755));
     if(kind==12)assert(!::fchownat(f.root,"program",65534,65534,0));
+    // These exist BEFORE the baseline snapshot. Rejection must come from
+    // complete positive listing/content checks, not merely directory mtime.
+    if(kind==13)f.write("unknown","preserve-me");
+    if(kind==14)f.write("initial-trial.intent","partial");
+    if(kind==15)assert(!::mkdirat(f.root,"wifi",0700));
+    if(kind==16)f.write(".commit-disabled.next","partial");
+    if(kind==17)f.write("extra","preserve-me",0600,f.lock);
+    if(kind==18)assert(!::mkdirat(f.root,".rollback-disabled.lock",0700));
+    if(kind==19)assert(!::unlinkat(f.root,"pm-helper.disabled",0));
     assert(!f.open(scope));assert(!scope.current() && scope.duplicate_verified_root_fd()<0);
   }
   for(int kind=0;kind<15;++kind) {
