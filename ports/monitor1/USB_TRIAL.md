@@ -1,15 +1,49 @@
 # Experimental Monitor 1 USB trial
 
-This engineering entry point applies only to a **fresh stock CGS1**, after
-capture, a matched candidate build, disabled staging and disabled script
-commit in [INITIAL_INSTALL.md](INITIAL_INSTALL.md). It does not upgrade an
-existing installation or complete permanent activation.
+These engineering entry points apply only to a **fresh stock CGS1** with a
+capture and matched private candidate/plan from [INITIAL_INSTALL.md](INITIAL_INSTALL.md).
+The individual trial requires completed disabled staging and script commit;
+the prepared sequence below composes those existing steps. Neither upgrades
+an existing installation or completes permanent activation.
 
 Two USB locations are requested: the computer or the Home Assistant server,
 using one installation engine and the same checks/receipts. This adapter
 currently uses local ADB. Browser WebUSB and an HA OS USB companion still
 need integration; neither is advertised as working. Lite's Bluetooth
 transports stay separate. Subsequent ordinary updates use the network.
+
+## Prepared stage, commit and trial in one sequence
+
+`stage_commit_trial_adb.py` joins the existing three operations for a fresh,
+already prepared private plan. It verifies the matched initial guardian and
+private profile before the first staging write. There is no additional
+guardian, retry policy or aggregate write intent: each actual operation keeps
+its existing durable receipt, live scope checks and independent device timer.
+
+```sh
+ports/monitor1/.venv/bin/python ports/monitor1/stage_commit_trial_adb.py \
+  --serial "$USB_SERIAL" \
+  --plan-directory "$PRIVATE_PLAN_DIRECTORY" \
+  --expected-plan-sha256 "$PLAN_SHA256" \
+  --candidate "$PRIVATE_CANDIDATE_DIRECTORY" \
+  --profile "$PRIVATE_PROFILE" \
+  --stage-commit-trial
+```
+
+Any previous operation receipt, interrupted `.next` update or receipt link
+refuses the sequence before USB work. A failed/unknown step stops the sequence
+without running the next writer or an automatic rollback. Do not invoke it
+after executing any of the individual stages. Use the same command with
+`--status`, without candidate/profile/write flags, for read-only reconciliation.
+Status selects the current disabled collector after a script commit instead
+of incorrectly expecting factory scripts. It never resumes a write.
+A later explicit rollback selects a current disabled-scope observation
+instead of presenting an older trial receipt as the latest device state.
+
+The successful outcome is `disabled_sequence_trial_observed`, with installed,
+activated and installation_ready still false. Permanent activation, the two
+GUI USB transports and fresh-device qualification remain unfinished. This is
+a local ADB engineering entry, not an enabled companion HTTP/GUI write route.
 
 ## Exact build and explicit trial
 
