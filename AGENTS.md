@@ -291,6 +291,9 @@ separate even though the HACS wizard is shared.
   shortcut, never a physical monitor or an ESPHome device. Keep admin checks
   and direct routing when hiding navigation. README.md is English by default;
   README.ru.md is its Russian counterpart, with reciprocal language links.
+  The panel footer keeps the source-code link and a separate developer credit
+  to https://ivasch.ru/ with the owner's name; localize the credit label in
+  place, keeping both external links independent of installation state.
 
 - Stock 4.2.1 is an external-MCU variant under `ports/lite-mcu421/`, not an
   additional allowed version of the direct-I2C 4.5.8 image. Its catalog entry
