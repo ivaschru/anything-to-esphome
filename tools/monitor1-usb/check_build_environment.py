@@ -13,6 +13,11 @@ os.umask(0o077)
 os.sched_setaffinity(0, {min(os.sched_getaffinity(0))})
 with tempfile.TemporaryDirectory(prefix="cgs1-sdk-") as directory:
     root = Path(directory)
+    # The minimal app image need not have HOME. Match the production worker's
+    # explicit private cache location instead of relying on the CI container.
+    os.environ["HOME"] = str(root)
+    os.environ["XDG_CACHE_HOME"] = str(root / ".cache")
+    (root / ".cache").mkdir(mode=0o700)
     subprocess.run([sys.executable, "-m", "venv", str(root / "sdk")], check=True, timeout=60)
     python = root / "sdk/bin/python"
     subprocess.run([str(python), "-m", "pip", "install", "--no-input", "--disable-pip-version-check",

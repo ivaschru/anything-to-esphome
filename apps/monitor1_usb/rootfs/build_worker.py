@@ -170,6 +170,7 @@ def environment(home):
     # Neither Supervisor credentials nor HTTP/ADB session data reach Git/pip
     # or compiler children. No user URL, executable or shell text is accepted.
     return {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": str(home),
+            "XDG_CACHE_HOME": str(home / ".cache"),
             "PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
             "CMAKE_BUILD_PARALLEL_LEVEL": "1", "ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT": "1",
             "GIT_TERMINAL_PROMPT": "0"}
@@ -227,6 +228,7 @@ def build(directory, contract, runner=run_owned):
         raise PreparationError("usb_build_unverified")
     home = directory / "build-home"
     home.mkdir(mode=0o700)
+    (home / ".cache").mkdir(mode=0o700)
     env, deadline = environment(home), time.monotonic() + BUILD_SECONDS
     result = {"intent_sha256": hashlib.sha256(intent_raw).hexdigest(), "state": "build_failed", "artifacts": {}}
 
