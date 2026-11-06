@@ -1,6 +1,7 @@
 /** Resolve only the installed, exact companion; never guess a repository ID
- * or start/install an app. Native ingress navigation performs HA's own admin
- * access/session flow. Raw Supervisor errors/private URLs are not exported.
+ * or start/install an app. Use HA's exact admin ingress/session methods, as
+ * src/data/hassio/ingress.ts does; never guess a historical frontend route.
+ * Raw Supervisor errors and session/private URLs must never be logged.
  */
 export async function companionPath(hass) {
   if (!hass?.user?.is_admin) throw {code:"usb_unauthorized"};
@@ -17,5 +18,14 @@ export async function companionPath(hass) {
   try {info=await hass.callWS({type:"supervisor/ingress/info",slug:selected.slug});}
   catch {throw {code:"usb_companion_unavailable"};}
   if (info?.slug !== selected.slug || info.state !== "started") throw {code:"usb_companion_stopped"};
-  return "/hassio/ingress/"+encodeURIComponent(selected.slug);
+  if (typeof info.ingress_url !== "string" || !/^\/api\/hassio_ingress\/[A-Za-z0-9_-]{1,256}\/?$/.test(info.ingress_url))
+    throw {code:"usb_companion_unavailable"};
+  let auth;
+  try {auth=await hass.callWS({type:"supervisor/ingress/session",slug:selected.slug});}
+  catch {throw {code:"usb_companion_unavailable"};}
+  if (typeof auth?.session !== "string" || !/^[A-Za-z0-9_-]{16,256}$/.test(auth.session))
+    throw {code:"usb_companion_unavailable"};
+  // Returned only to the same HA page for its normal first-party session
+  // cookie/navigation. Do not persist this object in application storage.
+  return {path:info.ingress_url.replace(/\/?$/,"/"),session:auth.session};
 }

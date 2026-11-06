@@ -43,8 +43,11 @@ class UsbChoice extends HTMLElement {
     this.status="checking";this.$("status").textContent=this.text(this.status);
     try {
       if (this.$("location").value === "ha") {
-        const path=await companionPath(this._hass);
-        window.location.assign(path); // Native HA supplies its own ingress session.
+        const {path,session}=await companionPath(this._hass);
+        // Same session-cookie contract as HA's own ingress frontend. Session
+        // only, exact first-party path, no application storage or logging.
+        document.cookie=`ingress_session=${session};path=/api/hassio_ingress/;SameSite=Strict${location.protocol === "https:" ? ";Secure" : ""}`;
+        window.location.assign(path);
         return;
       }
       this.probe=createProbe();

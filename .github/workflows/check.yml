@@ -71,11 +71,15 @@ jobs:
 
   usb-companion:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: docker/setup-qemu-action@v3
       - name: Verify offline browser bundle reproducibility
         run: |
           npm ci --prefix tools/monitor1-usb --ignore-scripts --no-audit --no-fund
@@ -84,10 +88,10 @@ jobs:
       - name: Build the experimental USB companion
         # Build/run only on the disposable hosted runner. No USB mapping,
         # device, HA connection, image publication or local Mac VM is used.
-        run: docker build -t qingping-usb-ci apps/monitor1_usb
+        run: docker build --platform linux/${{ matrix.architecture }} -t qingping-usb-ci apps/monitor1_usb
       - name: Verify real container startup and ingress refusal
         run: |
-          docker run -d --name qingping-usb-ci --network none --tmpfs /data qingping-usb-ci
+          docker run -d --platform linux/${{ matrix.architecture }} --name qingping-usb-ci --network none --tmpfs /data qingping-usb-ci
           trap 'docker rm -f qingping-usb-ci >/dev/null' EXIT
           for attempt in $(seq 1 30); do
             if docker exec qingping-usb-ci python3 -c 'import urllib.request, urllib.error; r=urllib.request.urlopen("http://127.0.0.1:8099/")' >/dev/null 2>&1; then

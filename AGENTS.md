@@ -19,7 +19,7 @@ separate even though the HACS wizard is shared.
   qualification or change CGS1 installation_ready/source_only from them.
   The HACS Monitor 1 card opens computer WebUSB without the app. Server USB
   resolves the exact installed URL/slug and uses native admin ingress;
-  never infer a repository ID, install/start an app, or export ingress URLs.
+  never infer a repository ID, install/start an app, or log ingress credentials.
 
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
