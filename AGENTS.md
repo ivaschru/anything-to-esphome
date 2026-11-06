@@ -105,6 +105,14 @@ separate even though the HACS wizard is shared.
   positive. Export no socket tables/peer addresses. The one-second observation
   window is checked after IO; it is not a hard syscall timeout, RAM guarantee
   or port reservation. Running-child/resource ownership still needs its join.
+  initial_trial_vendor.h reads the nine fixed committed-disabled vendor pins
+  through no-follow root-owned directory/file fds. Keep the host/device pin
+  contract test, complete hash/metadata/named-inode rechecks and persistent
+  refusal. Factory scripts, symlink ancestors and writable vendor paths are
+  not admitted. Only a compile-time non-ext4 fixture can substitute synthetic
+  pins/root; no production override, write, exec, shell or repair exists.
+  This is file evidence, not running stock identity, a full device collector
+  or launch authority; unknown vendor layout remains a qualification blocker.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

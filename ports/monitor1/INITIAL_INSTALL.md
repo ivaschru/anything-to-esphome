@@ -450,6 +450,26 @@ there is no native-architecture production override or firmware execution.
 
 ### Pre-start kernel resource evidence
 
+The fixed vendor-file scope in `initial_trial_vendor.h` separately rechecks
+all nine capture/build files. The two scripts must already have the exact
+committed-disabled digests; factory scripts cannot pass this phase. Production
+has no root/path/hash override. It uses read-only/no-atime/no-follow fds,
+root-owned non-writable ancestors, regular single-link non-writable files,
+exact size/SHA, stable metadata and a second independent named-path walk.
+The `/data` directory must remain the same ext4 inode. A changed/missing/
+unreadable file permanently seals the reader; restoring old bytes cannot
+revive it. There is no write, repair, cleanup, signal, process launch or raw
+vendor-data export. The stricter layout has not been qualified on a monitor;
+unknown ownership/modes/ancestor links must refuse rather than be bypassed.
+
+A public host/device contract test checks the same nine paths, patched sizes
+and hashes. The Linux/root fixture uses only tiny synthetic files below its
+own private tmpfs, covering replacement, links, missing files, FIFO, writable
+or foreign-owned paths and refusal after a positive baseline. Its substitute
+pins/root exist only on a compile-time non-production type. This does **not**
+verify the live SnowApp/watchdog session, boot/device/CO2/USB identity or full
+guardian. Those observations still need the device-side orchestration join.
+
 `initial_trial_resources.h` adds portable parsers and a separate Linux-only
 read-only collector. Production opens only fixed `/proc` fields on verified
 procfs; the test root exists only in a compile-time fixture type. No socket,

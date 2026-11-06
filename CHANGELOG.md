@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only fd-проверка девяти штатных файлов после disabled commit,
+  связанная с host pins; подмена пути/байтов/metadata закрывает проверку,
+  запуск и аппаратная квалификация остаются отдельными этапами
+
 - Monitor 1: read-only pre-start kernel resource reader и portable parsers:
   conservative MemFree, обе TCP tables и отказ stale/malformed данным;
   без port reservation, cache credit или включения guardian/HACS installer
