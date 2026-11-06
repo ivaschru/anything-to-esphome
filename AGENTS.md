@@ -292,7 +292,7 @@ separate even though the HACS wizard is shared.
   and direct routing when hiding navigation. README.md is English by default;
   README.ru.md is its Russian counterpart, with reciprocal language links.
   The panel footer keeps the source-code link and a separate developer credit
-  to https://ivasch.ru/ with the owner's name; localize the credit label in
+  to https://ivasch.ru/ with the owner's name; localize both label and name in
   place, keeping both external links independent of installation state.
 
 - Stock 4.2.1 is an external-MCU variant under `ports/lite-mcu421/`, not an
