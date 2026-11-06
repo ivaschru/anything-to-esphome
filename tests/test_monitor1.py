@@ -18,6 +18,13 @@ PORT = ROOT / "ports/monitor1"
 
 
 class Monitor1Tests(unittest.TestCase):
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root executable parser/owned-child fixture; CI runs its explicit root step",
+    )
+    def test_initial_bridge_executable_requires_exact_frame_and_independent_reap(self):
+        self.run_cpp("test_initial_bridge_cli.cpp", crypto=True)
+
     def run_cpp(self, name, *, crypto=False, own_uid=False):
         compiler = shutil.which("c++")
         if compiler is None:

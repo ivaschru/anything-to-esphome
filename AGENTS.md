@@ -4,6 +4,20 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- The experimental first bridge now has an executable composition:
+  `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
+  creator-owned intent/fork, nonblocking child identity before gate release,
+  the independent 60/5/5 stop loop, exact kernel image/socket ownership,
+  authenticated fresh wire samples and normal reap. Host O_EXCL receipt is
+  consumed before RAM writes; no failed/lost-ACK replay. A local cleanup may
+  signal only its own ADB subprocess. Never expose a generic shell, adopt a
+  device PID, remove history or infer permanent activation from trial success.
+  Build the initial guardian separately and bind its actual candidate result;
+  do not retrofit old manifests. See ports/monitor1/USB_TRIAL.md. The owner
+  requested computer USB and HA-server USB as two transports of one engine;
+  WebUSB/HA companion integration and fresh hardware QA remain unfinished.
+
+
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection
   fingerprints. `bootstrap_patches.py` reproduces both complete installed
   script digests from the exact private factory originals; no vendor scripts

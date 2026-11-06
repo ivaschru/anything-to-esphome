@@ -66,6 +66,12 @@ snapshot and its fresh SDK/build tree. A successful candidate also has
 extension remains under the snapshot's private build directory. Test helper
 and mock artifacts are never production payloads.
 
+New candidates also build `initial-trial-guardian-program` for the separate
+experimental [USB trial](USB_TRIAL.md). Its actual ELF spec is recorded under
+`initial_trial_guardian`, outside the three ordinary runtime `artifacts`.
+It contains no profile/Noise secret. This build is not a device launch,
+installation result or qualification of the original compile fixtures.
+
 The profile is captured once; only `secrets.yaml` in the private snapshot
 holds its Noise key for ESPHome. Build logs may contain generated source and
 must also remain private. A failure records the last stage and retains its
