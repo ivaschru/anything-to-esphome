@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: отдельное read-only наблюдение bridge после обычной новой
+  загрузки, с current kernel/API identity и двумя свежими wire samples.
+  Без запуска, reboot, device writes или повышения готовности установщика
+
 - Monitor 1: отдельное экспериментальное arm/disarm автозапуска bridge для
   следующей загрузки после успешного trial. Сохраняется recovery-флаг, PM
   остаётся выключен; без запуска, reboot, PID signals или заявления готовности
