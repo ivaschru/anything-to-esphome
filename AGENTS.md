@@ -207,6 +207,11 @@ separate even though the HACS wizard is shared.
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach
   to an apparently free tty or reuse the FIQ console. A real host tracker/GATT
   backend and lifecycle proof are also needed before exposing a proxy toggle.
+  The pinned third-party btproxy ARMv7/Noise build is only a candidate: no
+  target HCI/runtime proof. Its default recovery can power-cycle the adapter;
+  stall-timeout=0 disables that branch, not initial controller setup writes.
+  Do not collide with the existing API port/identity or distribute its private
+  build as CGS1 firmware. Chip pinout never substitutes for PCB continuity.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
