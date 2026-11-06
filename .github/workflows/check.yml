@@ -47,7 +47,7 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install homeassistant==${{ matrix.ha_version }}
-      - name: Install the selected HA SDK's Bluetooth and USB requirements
+      - name: Install the selected HA SDK's Bluetooth, USB and ESPHome requirements
         # Core does not install every integration dependency. Resolve these
         # from this exact SDK rather than pinning a different Bluetooth stack.
         run: |
@@ -55,7 +55,7 @@ jobs:
           import importlib.util, json, pathlib, subprocess, sys
           root = pathlib.Path(importlib.util.find_spec("homeassistant").origin).parent
           requirements = []
-          for domain in ("bluetooth", "usb", "hassio"):
+          for domain in ("bluetooth", "usb", "hassio", "esphome"):
               requirements.extend(json.loads((root / "components" / domain / "manifest.json").read_text())["requirements"])
           subprocess.check_call([sys.executable, "-m", "pip", "install", *requirements])
           PY

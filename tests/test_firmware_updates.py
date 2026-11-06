@@ -82,7 +82,7 @@ class CatalogTests(unittest.TestCase):
             with self.assertRaises(catalog.FirmwareError): catalog.parse_catalog(data)
 
 
-HAS_NOISE = importlib.util.find_spec("aioesphomeapi") is not None
+HAS_NOISE = native.encryption_available()
 
 
 @unittest.skipUnless(HAS_NOISE, "HA's aioesphomeapi is needed for encrypted OTA tests")
