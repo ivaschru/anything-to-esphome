@@ -17,8 +17,10 @@ SCD30 (`co2_type=1`) обнаружен в stock-коде, но на прибо�
 snapshot/SDK и генерирует manifests из фактически собранных программ.
 Сквозные source compiles SCD40 и S8 прошли отдельно. Базовые YAML
 по-прежнему требуют matching `build/*manifest.yaml` и guardian pin, обходить
-эти зависимости нельзя. USB/ADB-установщик — отдельный следующий этап;
-кнопка установки CGS1 в HACS отключена.
+эти зависимости нельзя. Для первого USB/ADB-установщика теперь есть
+[read-only capture и точные startup/watchdog patches](INITIAL_INSTALL.md).
+Запись/активация остаются следующим этапом; кнопка установки CGS1 в HACS
+отключена.
 
 `device_profile.h` намеренно требует явные `CGS1_EXPECTED_WLAN_MAC`,
 `CGS1_ESPHOME_NODE_NAME`, `CGS1_EXPECTED_PM_HELPER_SHA` в private profile.

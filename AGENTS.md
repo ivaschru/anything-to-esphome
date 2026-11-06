@@ -4,11 +4,17 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
-- Bootstrap launchers in `ports/monitor1/bootstrap/` match the existing
-  StockInspection hashes. Keep their bytes/process names coupled to those
-  gates. Syntax checks must use sh -n, never execute production-path scripts
-  on a developer host. These assets are not a complete installer; exact
-  startup/watchdog source, backup/CAS and physical verification remain needed.
+- Bootstrap launchers and startup-hook.sh match the existing StockInspection
+  fingerprints. `bootstrap_patches.py` reproduces both complete installed
+  script digests from the exact private factory originals; no vendor scripts
+  are distributed. Keep bytes/process names coupled to those gates. Syntax
+  checks use sh -n, never execution of production-path scripts on a host.
+  `preflight_adb.py` is an initial-install read-only USB capture, not an apply
+  route: explicit WLAN/CO2, boot/transport and before/after fixed-file pins,
+  private output, no INI/credential dump or arbitrary command. Old adbd needs
+  the final shell completion sentinel as well as the host exit code. Existing
+  installs are refused; do not use this tool to upgrade or prune them. These
+  steps still need guarded write/CAS/activation and physical verification.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

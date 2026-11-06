@@ -37,6 +37,10 @@ file. Fill it locally from independently verified device information:
 
 The example intentionally has invalid placeholders. It cannot silently fall
 back to a real device, a public transport key or an unverified CO2 profile.
+For an untouched supported monitor, the
+[read-only initial preflight](INITIAL_INSTALL.md) captures the fixed recovery
+files and matching QtCore. Its local patch preparer now reproduces the exact
+reviewed startup/watchdog digests. Neither tool applies changes to a device.
 
 ## Invocation
 

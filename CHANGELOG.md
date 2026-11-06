@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: read-only USB/ADB preflight с точной идентификацией и частным
+  копированием фиксированных recovery-файлов; исходный startup hook восстановлен,
+  обе полные startup/watchdog SHA воспроизводятся локально без записи на прибор
+
 - Monitor 1: сквозные private source-сборки SCD40 и S8 прошли отдельно;
   добавлены инструкция candidate build и SHA-связанные bootstrap launchers,
   без включения installation/HACS admission

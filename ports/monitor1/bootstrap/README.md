@@ -15,18 +15,35 @@ extended SnowApp launch per boot; any exit persistently disables the extension
 and returns immediately to the original application. Its process name is part
 of the watchdog compatibility mechanism. Do not casually rename it.
 
-**Copying these files is not a complete installation.** An initial installer
-also needs independently verified stock files, a private recoverable backup,
-the matched Qt helper, exact startup/watchdog patches, identity/CAS checks,
-bounded activation and a verified stock fallback. None is bypassed by the
-presence of a compiled candidate or a launcher source file.
+The exact 298-byte `startup-hook.sh` fragment has also been recovered from
+the original installation source. It is appended verbatim to the verified
+factory startup; it is not a replacement vendor script. Its SHA-256 is
+`42ffeb1329a9185431ba2f7006d0e64ac87214967ab6e0c30f276bb63665314e`.
+The watchdog recipe replaces exactly one original SnowApp launch line with
+the wrapper path. [bootstrap_patches.py](../bootstrap_patches.py) accepts only
+the exact factory inputs and verifies both complete output digests:
+
+| Script | Factory SHA-256 | Installed SHA-256 |
+| --- | --- | --- |
+| startup | `c38d532b44f02922aa850c247f0ddd227265c7873a35a20e9ac71ac21b9627e6` | `f104f873dd3ce4544d5f3e3f90a4056bffc811bcaae037e347306e1084e7f1d1` |
+| watchdog | `07b61bb67ff58a97e0f92de5b8bf0a94ca106e27ba3afa50f322817b8896dad7` | `1d74ef0946734e1ddf9e76301012f9ed66d7b38d9d7a0239a5d0e80acabf2cce` |
+
+Both transformations were checked against the retained verified factory
+backup. Complete output bytes match the fingerprints of the earlier actual
+installation. This is source reconstruction proof, not a new device install.
+
+**Copying these files is not a complete installation.** The
+[initial-install preparation](../INITIAL_INSTALL.md) now has fixed-file
+read-only capture and local exact patch generation. It still needs a matched
+Qt helper, device write/CAS/backup handling, bounded activation and a verified
+stock fallback. Compiling or preparing a patch does not bypass those stages.
 
 The inspected stock startup applies a recursive `chmod` to `/data/*`. The
-existing installation uses a hidden private directory and a reviewed hook;
-do not move it into that glob or expose credential-bearing binaries. A new
-installer must reproduce the approved startup bytes or use a separately
-reviewed source revision and fingerprint. A hash is not the missing source;
-do not guess a similar-looking startup patch or broaden the runtime whitelist.
+existing installation uses a hidden private directory and the reviewed hook;
+do not move it into that glob or expose credential-bearing binaries. The
+preparer reproduces the approved startup bytes without changing the runtime
+whitelist. Other factory/installed revisions require separate review; never
+silently substitute a similar-looking patch or broaden the gate.
 
 Vendor startup/watchdog programs, private device backups and generated ELF
 files are not distributed here. These scripts have not been newly installed

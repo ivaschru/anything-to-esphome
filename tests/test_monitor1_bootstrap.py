@@ -22,3 +22,9 @@ class BootstrapSourcesTests(unittest.TestCase):
                 # developer host or CI runner, even as an apparent smoke test.
                 result = subprocess.run([shell, "-n", str(path)], capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_startup_fragment_is_the_recovered_source_not_a_recreated_hook(self):
+        fragment = PORT / "bootstrap/startup-hook.sh"
+        self.assertEqual(hashlib.sha256(fragment.read_bytes()).hexdigest(),
+                         "42ffeb1329a9185431ba2f7006d0e64ac87214967ab6e0c30f276bb63665314e")
+        subprocess.run(["/bin/sh", "-n", str(fragment)], check=True, capture_output=True)
