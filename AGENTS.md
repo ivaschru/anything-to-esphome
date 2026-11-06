@@ -26,6 +26,15 @@ separate even though the HACS wizard is shared.
   vendor scripts unchanged. --status only reconciles; lost ACK never permits
   retry or receipt removal. No launch/preload/signal/boot/full activation. Keep
   this route outside HACS until independent staging/commit/rollback QA exists.
+  Disabled vendor transitions live in the pure `disabled_commit_policy.py`:
+  factory-only forward, separate exact partial rollback, both opt-outs, plan/
+  inode/boot/USB/source/process fencing, one issue and independent readback.
+  `review_disabled_install.py` is read-only and hardware unqualified. Require
+  the actual successful stage receipt, complete fixed source/vendor hashes,
+  unique live stock/watchdog scope and actual absent own code/PM mapping.
+  Failed maps/userspace-exe inspection is never absence; generic argv/INI/env
+  stay on-device. No writer/activation authority follows from a review or host
+  fixture. HACS/source_only and all existing runtime gates remain unchanged.
 
 - `build_candidate.py` is an experimental private CGS1 build controller,
   not installation authority. It archives one committed source revision,

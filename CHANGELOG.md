@@ -2,6 +2,10 @@
 
 ## Не выпущено
 
+- Monitor 1: pure disabled commit/rollback policy и read-only review staged
+  scope/процессов, отказ неизвестным/неполным состояниям и повторным writes;
+  исполнитель vendor replacements и аппаратная проверка ещё отсутствуют
+
 - Monitor 1: экспериментальный USB staging только в новый disabled private
   каталог, consumed intent до записи, проверка ext4/места и read-only status;
   vendor scripts/процессы не меняются, аппаратная проверка ещё не выполнена

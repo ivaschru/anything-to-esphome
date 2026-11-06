@@ -133,13 +133,54 @@ lost ACK and no retry, using an in-memory ADB/filesystem adapter. **The new
 staging code has not been run on a physical monitor and is not a validated
 installation command.** It remains outside the HACS admission path.
 
+## 6. Read-only disabled commit/rollback review
+
+`disabled_commit_policy.py` models the two exact vendor-script transitions
+without transport or filesystem writes. A forward transaction starts only
+from both factory scripts. A known partial pair can only be proposed for a
+separate exact rollback; it is never automatically completed. Both disable
+flags, plan marker, root inode, USB/boot/CO2, source closure and stock/watchdog
+session must remain unchanged. Each operation is issued once and needs a new
+whole-scope observation proving exactly that file transition. A timeout,
+missing readback, extra change or scope drift seals reconciliation, without
+issuing a retry.
+
+The accompanying collector is also **read-only and hardware unqualified**:
+
+```sh
+python3 ports/monitor1/review_disabled_install.py \
+  --serial USB_SERIAL \
+  --plan-directory "$PWD/ports/monitor1/build/install-plan-first" \
+  --expected-plan-sha256 EXACT_PRIVATE_PLAN_SHA \
+  --output "$PWD/ports/monitor1/build/disabled-review-first"
+```
+
+It requires the exact successful disabled-stage receipt, checks the live root,
+flags and staged/vendor hashes, and reads the actual root-owned SnowApp and
+its watchdog parent twice. Parent cmdline comparison and PM-library map
+filtering occur on-device; generic argv, environment and INI bodies are not
+exported. Unavailable maps or an unreadable live userspace executable never
+become a claim that the extension/program is absent. Missing executable links
+are distinguished from kernel threads/exited tasks using the upstream Linux
+3.10 stat/flag layout; the vendor kernel still needs physical qualification.
+
+The private `review.json` includes captured scope and possible disabled
+transactions. It always records `installation_ready=false` and
+`executable_writer_available=false`. It does not consume a new intent, change
+a script, authorize activation or make an old capture valid after a reboot.
+Tests cover all four known script combinations, process/root/source drift,
+lost acknowledgement and the actual read-only scanner against an isolated
+fake proc tree. None is a physical installation result.
+
 ## Remaining commit/activation and hardware gates
 
 The preparation tools stop before device writes; experimental disabled staging
 has its own separate explicit operation. Remaining work is the fresh guarded
 vendor-script CAS/atomic replacement, rollback and activation flow, preserving
-private permissions and both original scripts. An offline plan or staged
-directory does not authorize replay, script replacement or activation.
+private permissions and both original scripts. The read-only collector and
+pure transaction policy prepare this boundary; an executable adapter is still
+missing. An offline plan, staged directory or review does not authorize replay,
+script replacement or activation.
 
 Activation needs independent checks that the optional PM extension returns
 to stock on failure, the bridge owns only its own child, sensor readings and
