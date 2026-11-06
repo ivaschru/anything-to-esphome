@@ -235,6 +235,9 @@ separate even though the HACS wizard is shared.
   Visible native brightness uses the common 2% floor (day 2–100/night 2–10)
   with local boot migration of old preferences. Only explicit screen-off
   uses zero. Preserve exact raw DRM/stock-recovery restoration semantics.
+  The ordinary stock-side bridge includes storage-telemetry.yaml for a fixed
+  read-only audit; no prune action is exposed. Keep its root include closure
+  complete in SDK builds.
   See ports/monitor1/UI_LANGUAGE_BACKLIGHT.md and the pure C++ regressions.
 
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.

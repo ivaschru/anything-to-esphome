@@ -24,6 +24,11 @@ part of that screen wakes the home page at the protected brightness. The guarded
 DRM backend and stock-recovery brightness restoration retain their exact raw
 semantics; the floor is applied by the native UI above that boundary.
 
+The ordinary stock-side production bridge also retains a read-only
+`storage_audit` action for measured free space and fixed release inventory.
+It exposes no prune operation or arbitrary path. The existing tiny recovery
+remains a separate route when an update cannot fit.
+
 ## Checks
 
 - `test_ui_language.cpp`: exact locale choices, unknown-choice preservation,

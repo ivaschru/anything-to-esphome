@@ -5,6 +5,7 @@
 packages:
   stock: !include stock-bridge.yaml
   full_api: !include full-runtime-api.yaml
+  storage_telemetry: !include storage-telemetry.yaml
 esphome:
   build_path: build/stock-bridge-release
 cgs1_full_runtime:
