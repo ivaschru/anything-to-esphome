@@ -25,7 +25,9 @@ def localize_device_paths(command, root):
     # Match a leading absolute path, not another component inside that path:
     # /data/etc must become ROOT/data/etc, never ROOT/data/ROOT/etc. '#' is
     # allowed before /proc for the shell's ${link#/proc/} prefix removal.
-    return re.sub(r"(?<![A-Za-z0-9_./-])/(?:usr/lib|data|proc|sys|lib|etc)(?=/|$)",
+    # Generated printf comparisons also contain an escaped newline directly
+    # before an absolute path; it is a separator, not a path component's 'n'.
+    return re.sub(r"(?:(?<![A-Za-z0-9_./-])|(?<=\\n))/(?:usr/lib|data|proc|sys|lib|etc)(?=/|$)",
                   lambda match: str(root) + match[0], command)
 
 
@@ -134,6 +136,8 @@ class DisabledWriterTests(unittest.TestCase):
         root = Path("/tmp/isolated-device")
         self.assertEqual(localize_device_paths("stat /data/etc/init.d /usr/lib/libc; pid=${link#/proc/}; /bin/sh", root),
                          "stat /tmp/isolated-device/data/etc/init.d /tmp/isolated-device/usr/lib/libc; pid=${link#/tmp/isolated-device/proc/}; /bin/sh")
+        self.assertEqual(localize_device_paths("printf '/bin/sh\\n/data/bin/watchdog.sh'", root),
+                         "printf '/bin/sh\\n/tmp/isolated-device/data/bin/watchdog.sh'")
 
     @unittest.skipUnless(sys.platform.startswith("linux") and os.geteuid() == 0,
                          "Real Linux/root metadata; CI runs an explicit disposable root fixture")
@@ -181,7 +185,10 @@ class DisabledWriterTests(unittest.TestCase):
                 # Global durability is a device QA item; don't flush unrelated
                 # host filesystems. Real copy/hash/rename are still executed.
                 command = re.sub(r"(?m)^sync$", ":", command)
-                result = subprocess.run(["/bin/sh", "-eu", "-c", command], capture_output=True, text=True)
+                # Only synthetic fixture values can reach this trace. Keep a
+                # bounded tail on failure so the exact refusing guard is clear;
+                # production transport never enables shell xtrace.
+                result = subprocess.run(["/bin/sh", "-eux", "-c", command], capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr[-1000:])
                 actual = {path: writer.staging.offline.pm.digest(root / path.lstrip("/")) for path in writer.preflight.FILES}
                 observed = replace(observed, vendor_hashes=tuple(sorted(actual.items())))
