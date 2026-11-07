@@ -465,3 +465,12 @@ separate even though the HACS wizard is shared.
   internal to its SHA-bound full runtime/recovery bundle. Lite's
   other OTA slot is not a stock add-on or permanent factory retention. Do not
   turn this agreed release contract into an unsupported version/backend claim.
+
+- `public_version` is the per-profile integer shown on the device and HA;
+  catalog `version` remains the exact legacy UI/build identity and `revision`
+  remains monotonic OTA order. Never compare a public label with a wire build
+  ID or manufacture OTA from a rename. Lite template/API/HA numbers must match;
+  Monitor 1 release-versions.json independently pins S8/SCD40 full bundles and
+  the builder injects the same project version into native/internal bridge.
+  Missing fan shutdown may be a documented v1 limitation; missing core sensor
+  freshness/scales or lifecycle is not equivalent to that optional feature.

@@ -64,6 +64,16 @@ class CatalogTests(unittest.TestCase):
         # A catalog is not permission to send a Lite image to another board.
         with self.assertRaises(catalog.FirmwareError): catalog.parse_catalog(release("lite-mcu421"))
 
+    def test_public_number_has_strict_type_and_legacy_catalog_remains_readable(self):
+        data=release()
+        self.assertEqual(catalog.parse_catalog(data)["lite"].display_version,"2026.11.06-ui25-polling1")
+        for value in (True,0,"1"):
+            data["releases"]["lite"]["public_version"]=value
+            with self.assertRaises(catalog.FirmwareError):catalog.parse_catalog(data)
+        data["releases"]["lite"]["public_version"]=1
+        item=catalog.parse_catalog(data)["lite"]
+        self.assertEqual((item.display_version,item.version,item.revision),("1","2026.11.06-ui25-polling1",1))
+
     def test_no_foreign_mutable_local_or_credential_urls(self):
         for url in ("http://github.com/ivaschru/qingping-esphome/releases/download/v0.1.5/lite-template.bin",
                     "https://github.com/other/repo/releases/download/v0.1.5/lite-template.bin",

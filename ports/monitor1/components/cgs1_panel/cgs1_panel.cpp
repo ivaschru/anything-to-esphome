@@ -11,6 +11,7 @@
 
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#include "esphome/core/version.h"
 
 namespace esphome::cgs1_panel {
 namespace {
@@ -809,9 +810,16 @@ void Panel::wifi_progress_() {
 void Panel::about_() {
   print(36, 170, value_, TEXT, "Qingping");
   print(36, 226, value_, TEXT, "Air Monitor 1");
-  const char* labels[] = {tr_("Прошивка"), tr_("Интерфейс"), "Wi-Fi", tr_("IP-адрес")};
+  const char* labels[] = {tr_("Прошивка"), "ESPHome", "Wi-Fi", tr_("IP-адрес")};
+#ifdef ESPHOME_PROJECT_VERSION
+  const char* public_version = ESPHOME_PROJECT_VERSION;
+#else
+  // Manual/unversioned builds remain explicit development builds; never
+  // invent a released product version from the SDK version or a timestamp.
+  const char* public_version = tr_("Версия разработки");
+#endif
   auto address = ip_address();
-  const char* values[] = {"ESPHome", tr_("Версия разработки"),
+  const char* values[] = {public_version, ESPHOME_VERSION,
                           address != "Нет IPv4" ? tr_("Подключён") : tr_("Нет подключения"), address != "Нет IPv4" ? address.c_str() : tr_("Нет IPv4")};
   for (int i = 0; i < 4; ++i) {
     int y = 324 + i * 65;

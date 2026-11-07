@@ -38,6 +38,7 @@ def main():
     assert decoded.values["wifi_password"]=='test-quote"-backslash\\-password'
     assert decoded.values["ota_password"]=="test-ota-password"
     assert decoded.revision==2
+    assert decoded.public_version==1
     assert b"test-ota-password" not in wire
     rejected=json.loads(subprocess.check_output([str(binary),"invalid"]))
     assert rejected=={"error":"device_profile_unavailable"}

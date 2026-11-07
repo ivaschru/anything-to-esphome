@@ -72,6 +72,9 @@ substitutions:
 packages:
   lite: !include cgdn1.yaml
 esphome:
+  project:
+    name: ivaschru.qingping_lite_direct_i2c
+    version: {json.dumps(str(release["public_version"]))}
   build_path: {json.dumps(str(ROOT / '.build/lite-app'))}
   compile_process_limit: 2
   includes:
@@ -103,7 +106,8 @@ api:
       then:
         - api.respond:
             data: !lambda |-
-              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]});
+              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]});
+              static_assert(cgdn1_ui::PUBLIC_VERSION == {release["public_version"]});
 esp32:
   framework:
     sdkconfig_options:
@@ -129,7 +133,7 @@ esp32:
     (output / "lite-template.json").write_text(json.dumps({
         "pm_policy": "polling-only-gpio13-high-v1",
         "pm_source_sha256": hashlib.sha256((ROOT / "ports/lite/components/cgdn1_pm/cgdn1_pm.h").read_bytes()).hexdigest(),
-        "model": "CGDN1", "ui": release["version"], "font": "Inter (OFL)",
+        "model": "CGDN1", "ui": release["version"], "public_version": release["public_version"], "font": "Inter (OFL)",
         "esphome": "2026.9.1", "size": len(binary), "sha256": digest,
         "release_source_sha256": source_digest(ROOT),
         "slots": counts, "format": "esp32-app-fixed-slots-v1",

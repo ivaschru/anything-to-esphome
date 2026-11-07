@@ -196,6 +196,21 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(entity.supported_features & UpdateEntityFeature.INSTALL)
         self.assertEqual(entity.extra_state_attributes["update_readiness"], "profile_or_backend_required")
 
+    async def test_short_versions_preserve_build_identity_and_ota_sequence(self):
+        from dataclasses import replace
+        from custom_components.qingping_esphome.update import QingpingFirmwareUpdate
+        release=replace(self.release,public_version=2)
+        self.record["public_version"]=1
+        entity=QingpingFirmwareUpdate(self.manager,SimpleNamespace(data={"lite":release}),self.mac)
+        self.assertEqual(entity.installed_version,"1")
+        self.assertEqual(entity.latest_version,"2")
+        self.assertTrue(entity.version_is_newer("2","1"))
+        self.record["firmware_version"]=release.version
+        self.assertFalse(entity.version_is_newer("2","1"),"A label must not manufacture an OTA")
+        self.record["firmware_version"]="older-build"
+        self.record["firmware_revision"]=release.revision+1
+        self.assertFalse(entity.version_is_newer("2","1"),"Public numbering cannot reset revision ordering")
+
     async def test_readback_rejects_changed_settings_and_requires_repeated_physical_sources(self):
         from aioesphomeapi import SensorState
         from custom_components.qingping_esphome.firmware_catalog import FirmwareError
@@ -226,6 +241,8 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         # A device imported from another HA receives the same native entity
         # and administrator-only service boundary as an installer-owned one.
         self.record["outcome"] = "auto_adopted"
+        from dataclasses import replace
+        self.release = replace(self.release,public_version=1)
         """Exercise HA's own entity/service pipeline, not a direct method call."""
         import logging
         from datetime import timedelta
@@ -275,7 +292,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         state = self.hass.states.get(entity.entity_id)
         self.assertEqual(state.state, "on")
         self.assertEqual(state.attributes["device_class"], "firmware")
-        self.assertEqual(state.attributes["latest_version"], self.release.version)
+        self.assertEqual(state.attributes["latest_version"], self.release.display_version)
         self.engine.install = AsyncMock()
         for context in (Context(user_id=regular.id), Context()):
             with self.assertRaises(HomeAssistantError):

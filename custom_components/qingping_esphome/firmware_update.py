@@ -109,7 +109,7 @@ def validate_template(data, manifest_bytes, release):
         manifest = json.loads(manifest_bytes)
         if (release.profile != "lite" or manifest["model"] != "CGDN1"
                 or manifest["format"] != "esp32-app-fixed-slots-v1"
-                or manifest["ui"] != release.version or manifest["size"] != len(data)
+                or manifest["ui"] != release.version or manifest.get("public_version") != release.public_version or manifest["size"] != len(data)
                 or release.version.encode() not in data
                 or manifest["sha256"] != release.image.sha256
                 or hashlib.sha256(data).hexdigest() != release.image.sha256):
@@ -285,6 +285,8 @@ class FirmwareUpdates:
                           template_sha256=attempt["template_sha256"], image_sha256=attempt["image_sha256"],
                           build=info.compilation_time, peer=private_ipv4(client.connected_address),
                           outcome="native_verified")
+            if attempt.get("public_version") is not None:
+                record["public_version"] = attempt["public_version"]
             attempt["state"] = "verified"
             await self.manager.save_records()
         finally:
@@ -353,6 +355,7 @@ class FirmwareUpdates:
                 if client: await client.disconnect()
             attempt = {"id": secrets.token_hex(16), "at": datetime.now(timezone.utc).isoformat(),
                        "version": release.version, "revision": release.revision, "state": "consumed",
+                       "public_version": release.public_version,
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
                        "settings_before": {name: snapshot[name] for name in SETTINGS}}
             record["update_attempt"] = attempt

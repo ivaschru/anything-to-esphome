@@ -15,10 +15,10 @@ spec.loader.exec_module(publisher)
 
 
 class FirmwarePublisherTests(unittest.TestCase):
-    def pair(self, version):
+    def pair(self, version, public_version=None):
         binary = fixture(version.encode() + b"\0")
         manifest = json.dumps({"model": "CGDN1", "format": "esp32-app-fixed-slots-v1",
-            "ui": version, "size": len(binary), "sha256": hashlib.sha256(binary).hexdigest(),
+            "ui": version, **({"public_version": public_version} if public_version is not None else {}), "size": len(binary), "sha256": hashlib.sha256(binary).hexdigest(),
             "slots": {key: binary.count(marker) for key, marker in image.SLOTS.items()}}).encode()
         return binary, manifest
 
@@ -58,6 +58,18 @@ class FirmwarePublisherTests(unittest.TestCase):
         # HACS-only release retains the full history and immutable image URL.
         same=publisher.build("v0.1.12",self.metadata("public-ui-4",4),binary,manifest,index)
         self.assertEqual(same,index)
+
+    def test_next_public_version_is_required_for_a_changed_numbered_firmware(self):
+        binary,manifest=self.pair("build-one",1)
+        first=self.metadata("build-one",2);first["lite"]["public_version"]=1
+        previous=publisher.build("v0.2.0",first,binary,manifest)
+        binary,manifest=self.pair("build-two",1)
+        second=self.metadata("build-two",3);second["lite"]["public_version"]=1
+        with self.assertRaises(ValueError):publisher.build("v0.2.1",second,binary,manifest,previous)
+        second["lite"]["public_version"]=2
+        binary,manifest=self.pair("build-two",2)
+        current=publisher.build("v0.2.1",second,binary,manifest,previous)
+        self.assertEqual(publisher.catalog.parse_catalog(current)["lite"].display_version,"2")
 
     def test_mismatched_pair_prerelease_or_unqualified_model_refused(self):
         binary, manifest = self.pair("test-ui-1")

@@ -159,7 +159,8 @@ def reuse_current(root, opener=urllib.request.urlopen):
         raise RuntimeError("Same firmware version has different source; publish a new UI version/revision")
     binary = reader(release.image.url, release.image.size)
     if (not binary or len(binary)!=release.image.size or hashlib.sha256(binary).hexdigest()!=release.image.sha256
-            or manifest.get("sha256")!=release.image.sha256 or manifest.get("ui")!=release.version):
+            or manifest.get("sha256")!=release.image.sha256 or manifest.get("ui")!=release.version
+            or manifest.get("public_version")!=release.public_version):
         raise RuntimeError("Published firmware image differs")
     image = importlib.import_module(package.__name__ + ".image")
     image.layout(binary)

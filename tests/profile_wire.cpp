@@ -5,6 +5,6 @@
 int main(int argc,char **){
  JsonDocument document;
  auto root=document.to<JsonObject>();
- esphome::qf_update_profile::respond(root,argc>1?"bad":"1234567890abcdef1234567890abcdef","test-ota-password","2026.11.07-ui25-profile1",2);
+ esphome::qf_update_profile::respond(root,argc>1?"bad":"1234567890abcdef1234567890abcdef","test-ota-password","2026.11.07-ui25-profile1",2,1);
  std::string wire;serializeJson(document,wire);std::cout<<wire;
 }

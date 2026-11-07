@@ -2,8 +2,10 @@
 
 Status: agreed direction, 2026-11-07. This contract does not itself publish a
 firmware asset, relabel an installed device or enable an unfinished backend.
-First numbered releases are being prepared; existing date/UI identifiers
-remain current build identities until a verified migration is implemented.
+Numbered release candidates are being prepared. `public_version` is the short
+product number; the legacy `version` wire field remains the exact UI/build
+identity and `revision` remains the internal OTA sequence. Existing devices
+are not relabelled just because new source metadata exists.
 
 ## What has its own version
 
@@ -84,3 +86,25 @@ build, install, OTA, hardware and battery checks separately. Unknown hardware
 and unfinished families stay development/research entries without an
 installable version. Never publish private credentials, personalised BIN/ELF
 or unqualified experimental firmware as a release asset.
+
+
+A missing fan-off option is an acceptable explicitly documented v1 limitation
+when the normal measurements, display/input and HA lifecycle work. It is not a
+reason by itself to block a release. Unqualified core measurement scales,
+permanent polling, display/input or power lifecycle are different gaps; raw
+finite trial reports do not establish a usable sensor firmware.
+
+The current preparation adds Lite public version 1 to its screen, sealed
+profile and standard HA firmware entity, while retaining its diagnostic build
+ID and OTA revision 2. Monitor 1's build controller sources separate public
+versions for S8/SCD40 and injects the same per-profile project version into
+native and internal-bridge programs. This is preparation, not evidence of a
+new physical installation or permission to enable unfinished update backends.
+
+
+"Full ESPHome" identifies the product/runtime, not a promise that every optional
+feature exists in v1. A documented missing fan-off option can be added in v2
+without changing the hardware line or requiring a new initial installation.
+The MCU 4.2.x ports currently have core polling/scales/lifecycle gaps beyond
+fan-off; do not confuse a factory display running during a trial with a
+qualified complete ESPHome port.

@@ -132,6 +132,9 @@ class AutoAdoption:
                         else {})
             profile = decode_profile(response.response_data, key, mac, fresh.name, challenge,
                                      public_versions=versions)
+            if (release and profile.version == release.version
+                    and release.public_version is not None and profile.public_version != release.public_version):
+                return False
             # Awaited IO can cross unload, rekey, reconnect or entry deletion.
             # Recheck the exact HA binding and don't import stale data or race
             # a consumed install intent. We never disconnect HA's client.
@@ -162,6 +165,9 @@ class AutoAdoption:
                 if old and old not in history: history.append(old)
                 imported["prior_firmware_evidence"] = history
                 imported.pop("image_sha256", None); imported.pop("template_sha256", None)
+                imported.pop("public_version", None)
+            if profile.public_version is not None:
+                imported["public_version"] = profile.public_version
             if imported == record: return True
             imported["profile_read_at"] = datetime.now(timezone.utc).isoformat()
             self.manager.records[mac] = imported

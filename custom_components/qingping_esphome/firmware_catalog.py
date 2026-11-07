@@ -88,6 +88,13 @@ class Release:
     # device moves after several newer releases. This bounded public history
     # comes from the same validated catalog, never from the device itself.
     adoption_versions: tuple[tuple[str, int], ...] = ()
+    public_version: int | None = None
+
+    @property
+    def display_version(self):
+        # Keep the exact old UI/build identity for native verification. A short
+        # public label must never reset or replace the internal OTA sequence.
+        return str(self.public_version) if self.public_version is not None else self.version
 
     @classmethod
     def parse(cls, profile, data):
@@ -121,7 +128,8 @@ class Release:
                    _text(data.get("backend")), minimum,
                    Asset.parse(data.get("image"), filename=stem + ".bin", maximum=MAX_IMAGE_BYTES),
                    Asset.parse(data.get("manifest"), filename=stem + ".json", maximum=MAX_INDEX_BYTES),
-                   release_url, _text(data.get("summary"), maximum=255), tuple(admitted))
+                   release_url, _text(data.get("summary"), maximum=255), tuple(admitted),
+                   _positive(data["public_version"], 2**53 - 1) if "public_version" in data else None)
 
     def supports_install(self, integration_version):
         """New catalogs cannot silently demand a backend absent from this HA."""

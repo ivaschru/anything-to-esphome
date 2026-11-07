@@ -54,3 +54,16 @@ text_sensor:
   - platform: version
     name: ESPHome version
     hide_timestamp: false
+  - platform: template
+    name: Firmware version
+    entity_category: diagnostic
+    update_interval: never
+    # The matched full bundle receives this per-hardware version from the
+    # committed builder. An unversioned engineering YAML must not claim v1.
+    lambda: |-
+      #ifdef ESPHOME_PROJECT_VERSION
+      return {ESPHOME_PROJECT_VERSION};
+      #else
+      return {"Development build"};
+      #endif
+

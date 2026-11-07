@@ -33,7 +33,7 @@ VALUES = {"ssid": "test-network", "wifi_password": "test-wifi-password", "ap_ssi
 def sealed(challenge, *, changes=None, key=KEY, mac=MAC):
     data = {"format": profile.PROFILE, "challenge": challenge, "mac": MAC, "name": NAME,
             "profile": "lite", "hardware": "0001", "source_stock_version": "4.5.8",
-            "version": "2026.11.07-ui25-profile1", "revision": 2, "personalization": dict(VALUES)}
+            "version": "2026.11.07-ui25-profile1", "revision": 2, "public_version": 1, "personalization": dict(VALUES)}
     data.update(changes or {})
     nonce = secrets.token_bytes(12)
     aes_key = hmac.digest(base64.b64decode(key), profile.KEY_DOMAIN, hashlib.sha256)
@@ -48,6 +48,7 @@ class ProfileTests(unittest.TestCase):
         response = sealed(challenge)
         value = profile.decode_profile(response, KEY, MAC, NAME, challenge)
         self.assertEqual(value.values, {**VALUES, "name": NAME})
+        self.assertEqual(value.public_version,1)
         for secret in VALUES.values():
             self.assertNotIn(secret.encode(), response)
             self.assertNotIn(secret, repr(value))
@@ -67,7 +68,7 @@ class ProfileTests(unittest.TestCase):
     def test_no_defaults_for_hardware_private_firmware_or_incomplete_secrets(self):
         c=secrets.token_hex(16)
         for changes in [{"hardware":"9999"},{"profile":"monitor1-s8"},{"revision":True},
-                        {"version":"private-experiment"},{"personalization":{}},
+                        {"version":"private-experiment"},{"public_version":True},{"public_version":0},{"personalization":{}},
                         {"personalization":{**VALUES,"wifi_password":"x"*500}}]:
             with self.subTest(changes=list(changes)), self.assertRaises(profile.ProfileError):
                 profile.decode_profile(sealed(c,changes=changes),KEY,MAC,NAME,c)

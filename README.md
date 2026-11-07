@@ -207,6 +207,22 @@ old device. Private quiet builds, external-MCU Lite and other hardware families
 are not silently converted to public Lite firmware. Host/SDK tests and the
 firmware build passed; physical migration QA is still pending.
 
+### Simple firmware versions
+
+Firmware product versions are independent integers **1, 2, 3…** for each
+compatible hardware profile. The repository/HACS version is separate. Exact
+UI/build identifiers and a monotonic OTA revision remain internal verification
+metadata; an old device is not relabelled or reflashed merely to change a label.
+The first numbered candidates are Lite 1 and independent Monitor 1 S8/SCD40
+full bundles 1. See [the release contract](docs/FIRMWARE_VERSIONING.md) for
+qualification, unsupported boards and current preparation limits.
+
+The product direction is full ESPHome only for Lite, Monitor 1 and Monitor 2.
+Monitor 1's bridge remains internal installation/recovery infrastructure, not
+a separate reduced edition. An unknown/incomplete port is not made installable
+by assigning it the same version number. Missing fan shutdown may be an
+explicit v1 limitation when the normal sensor/display/HA lifecycle works.
+
 ### Publishing firmware
 
 Use a clean committed snapshot. Prepare the public template with

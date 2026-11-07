@@ -3,7 +3,8 @@
     "version": "2026.11.07-ui25-profile1",
     "revision": 2,
     "backend": "esp32-noise-app-v1",
-    "minimum_integration": "0.1.9",
-    "summary": "Air Monitor Lite CGDN1 direct-I2C HW0001/stock4.5.8. Encrypted automatic HA adoption; PM OFF retains GPIO13 HIGH (polling only)."
+    "minimum_integration": "0.2.0",
+    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 1. Automatic HA adoption. Fan shutdown is unavailable; PM OFF stops polling only.",
+    "public_version": 1
   }
 }

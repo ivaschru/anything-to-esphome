@@ -31,7 +31,7 @@ inline std::string hex(const uint8_t *bytes, size_t length) {
 }
 
 inline void respond(JsonObject root, const std::string &challenge, const std::string &ota_password,
-                    const char *ui_version, unsigned firmware_revision) {
+                    const char *ui_version, unsigned firmware_revision, unsigned public_version) {
   // A bounded challenge is carried in the GCM AAD and plaintext. Failures
   // return a fixed, value-free object; never log a JSON body or password.
   root["error"] = "device_profile_unavailable";
@@ -64,6 +64,7 @@ inline void respond(JsonObject root, const std::string &challenge, const std::st
   body["profile"] = "lite"; body["hardware"] = "0001";
   body["source_stock_version"] = "4.5.8";
   body["version"] = ui_version; body["revision"] = firmware_revision;
+  body["public_version"] = public_version;
   auto values = body["personalization"].to<JsonObject>();
   // Read the active network, including changes made on the touch UI, rather
   // than a factory/build-time SSID. The public wrapper supplies the same
