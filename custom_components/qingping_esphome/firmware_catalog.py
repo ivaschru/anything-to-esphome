@@ -20,8 +20,8 @@ MAX_INDEX_BYTES = 65536
 MAX_IMAGE_BYTES = 0x1E0000 - 1
 # This is deliberately an implementation allowlist, not the marketing catalog.
 # MCU Lite, Linux Monitor 1 and Monitor 2 need their own qualified updater.
-UPDATE_BACKENDS = {"lite": "esp32-noise-app-v1"}
-KNOWN_PROFILES = {"lite", "lite-mcu421", "monitor1-s8", "monitor1-scd40", "monitor2"}
+UPDATE_BACKENDS = {"lite": "esp32-noise-app-v1", "lite-434": "esp32-noise-app-v1"}
+KNOWN_PROFILES = {"lite-434", "lite", "lite-mcu421", "monitor1-s8", "monitor1-scd40", "monitor2"}
 
 
 class FirmwareError(ValueError):
@@ -180,4 +180,23 @@ def parse_catalog(data):
             or not isinstance(data.get("releases"), dict)
             or len(data["releases"]) > len(KNOWN_PROFILES)):
         raise FirmwareError("invalid_catalog")
-    return {profile: Release.parse(profile, item) for profile, item in data["releases"].items()}
+    extra = data.get("hardware_releases", {})
+    # A separate bounded extension keeps already-installed older integrations
+    # reading their original map. Never let an extension replace an old key.
+    if (not isinstance(extra, dict) or set(extra) - {"lite-434"}
+            or set(extra) & set(data["releases"])):
+        raise FirmwareError("invalid_catalog")
+    return {profile: Release.parse(profile, item) for profile, item in {**data["releases"], **extra}.items()}
+
+
+def device_release_profile(record):
+    """Route legacy public Lite devices by authenticated original provenance.
+
+    This selects an update, not a relabelled installed firmware. The old public
+    2 stays installed until the independent revision-4 transfer is verified.
+    Marketing model, IP, room and current public number cannot select a board.
+    """
+    profile = record.get("profile", "lite")
+    if profile == "lite" and record.get("hardware") == "0001" and record.get("source_stock_version") == "4.3.4":
+        return "lite-434"
+    return profile

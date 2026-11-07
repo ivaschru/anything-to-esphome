@@ -451,3 +451,43 @@ class SnapshotGenerations(unittest.IsolatedAsyncioTestCase):
                     native.assert_not_called()
             finally:
                 await manager.stop();await hass.async_stop(force=True)
+
+
+@unittest.skipUnless(HAS_HA, 'HA SDK required')
+class Firmware434Routing(unittest.IsolatedAsyncioTestCase):
+    async def test_standard_update_selects_434_one_without_relabelling_old_two(self):
+        from homeassistant.core import HomeAssistant
+        from homeassistant.components.update import UpdateEntityFeature
+        from custom_components.qingping_esphome.update import QingpingFirmwareUpdate
+        from custom_components.qingping_esphome.firmware_update import FirmwareUpdates,private_values,validate_template
+        from custom_components.qingping_esphome.firmware_catalog import parse_catalog
+        import test_firmware434 as own
+        old=own.channel.next_catalog('lite',*own.channel_tests.pair())
+        meta,binary,manifest=own.pair()
+        index=own.channel.next_catalog('lite-434',meta,binary,manifest,old)
+        releases=parse_catalog(index)
+        with tempfile.TemporaryDirectory() as directory:
+            hass=HomeAssistant(directory)
+            mac='001122334455'
+            record={'profile':'lite','hardware':'0001','source_stock_version':'4.3.4',
+                    'firmware_version':'quiet-two','firmware_revision':3,'public_version':2,
+                    'name':'fixture-only','ota_password':'fixture-only',
+                    'noise_key':base64.b64encode(b'K'*32).decode(),
+                    'personalization':{k:'fixture-only' for k in ('ssid','wifi_password','name','ap_ssid','ap_password','ota_password')}}
+            manager=SimpleNamespace(hass=hass,records={mac:record})
+            manager.updates=FirmwareUpdates(manager,'0.2.9')
+            try:
+                entity=QingpingFirmwareUpdate(manager,SimpleNamespace(data=releases),mac)
+                self.assertEqual(entity.installed_version,'2')
+                self.assertEqual(entity.latest_version,'1')
+                self.assertTrue(entity.version_is_newer('1','2'))
+                self.assertEqual(entity.release.profile,'lite-434')
+                self.assertTrue(entity.supported_features & UpdateEntityFeature.INSTALL)
+                self.assertEqual(private_values(record)['source_stock_version'],'4.3.4')
+                validate_template(binary,manifest,entity.release)
+                record['source_stock_version']='4.5.8'
+                self.assertEqual(entity.release.profile,'lite')
+                record['profile']='lite-434'
+                with self.assertRaises(ValueError):private_values(record)
+            finally:
+                await manager.updates.stop();await hass.async_stop(force=True)

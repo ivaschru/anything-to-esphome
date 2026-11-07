@@ -27,7 +27,7 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
-| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | Existing ESPHome devices only; factory Bluetooth installation is not qualified |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 1](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v1)**, profile `lite-434`; native update with integration 0.2.9+. Factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
@@ -299,6 +299,28 @@ The rebuilt template keeps GPIO13 HIGH when PM is OFF, preserving CO₂
 communication. PM OFF stops polling and marks PM readings unavailable; it does
 not stop the fan. HACS updates the installer only: devices already running
 ESPHome are not reflashed automatically.
+
+### Lite 4.3.4 firmware 1
+
+Original stock **4.3.4 / HW0001** now has its own `lite-434` release line and
+[firmware 1](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v1).
+It retains the direct-I²C sensors, full local UI, HA API and encrypted OTA.
+**PM OFF stops PM polling only; it does not stop the fan.** GPIO13 stays HIGH;
+no quiet-mode claim, rail pulses or guessed commands are part of this release.
+
+Integration **0.2.9+** selects this release for existing managed ESPHome devices
+whose authenticated original provenance is 4.3.4/HW0001. A legacy public 2
+remains labelled 2 until the actual profile-specific version 1 is installed;
+the internal OTA order advances from revision 3 to 4. Stock 4.5.8 devices keep
+their own Lite 2 line. New firmware-only versions do not require a HACS release.
+
+This first 4.3.4 artifact passed the pinned ESPHome build, actual PM component
+lifecycle tests, sealed-profile interoperability and HA routing tests. It was
+not installed during publication. Prior direct-I²C measurement qualification
+does not qualify a new factory Bluetooth installation route; that route remains
+blocked. Native installation requires USB and the user's standard HA Update
+command. Public templates contain placeholders and must never be booted without
+local personalization. See [the profile](ports/lite-434/README.md).
 
 ### Lite firmware 2
 

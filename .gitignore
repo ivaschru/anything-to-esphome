@@ -15,3 +15,5 @@ secrets.yaml
 custom_components/qingping_esphome/firmware/lite-template.json
 ports/monitor1/build/
 ports/monitor1/.esphome/
+
+custom_components/qingping_esphome/firmware/lite-434-template.json
