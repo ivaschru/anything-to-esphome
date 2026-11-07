@@ -1,0 +1,52 @@
+name: Firmware
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Qualified hardware profile from the selected source revision
+        type: choice
+        options: [lite]
+        required: true
+      publish:
+        description: Publish the exact verified public pair (false only prepares a preview)
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: firmware-catalog
+  cancel-in-progress: false
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r ports/lite/requirements.txt
+      # Reuse an unchanged qualified pair. Changed firmware uses the ordinary
+      # public-placeholder build; no private image, key or device is an input.
+      - run: python tools/prepare_release_template.py
+      - run: python -m unittest discover -s tests -p 'test_firmware*.py' -v
+      - name: Prepare the exact profile publication
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: python tools/publish_firmware.py --profile "$PROFILE"
+      - name: Publish immutable tag and catalog in one CAS transaction
+        if: inputs.publish
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python tools/publish_firmware.py --profile "$PROFILE" --publish
+      # There is deliberately no gh release create, HACS ZIP, manifest version
+      # edit, HA call or OTA here. Git tags alone do not enter HACS Releases.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ inputs.profile }}
+          path: |
+            custom_components/qingping_esphome/firmware/lite-template.bin
+            custom_components/qingping_esphome/firmware/lite-template.json
+            .build/firmware-publication/**/intent.json

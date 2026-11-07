@@ -390,3 +390,64 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+@unittest.skipUnless(HAS_HA, "Optional Home Assistant SDK not installed")
+class SnapshotGenerations(unittest.IsolatedAsyncioTestCase):
+    async def test_old_controls_and_real_time_state_are_preserved(self):
+        from aioesphomeapi import SwitchState,NumberState,SelectState,SensorState,TextSensorState,TimeState
+        from custom_components.qingping_esphome.firmware_update import FirmwareUpdates,SETTINGS,SOURCES
+        names=sorted((SETTINGS-{'Display design','Screen transitions'})|SOURCES|{'Charging','Local UI version'})
+        entities=[SimpleNamespace(key=i,name=name) for i,name in enumerate(names)]
+        states=[]
+        for entity in entities:
+            key,name=entity.key,entity.name
+            if name in ('Night mode start','Night mode end'):state=TimeState(key=key,hour=22,minute=35,second=0)
+            elif name=='Local UI version':state=TextSensorState(key=key,state='old-public-v1')
+            elif name in SOURCES:state=SensorState(key=key,state=425.0)
+            else:state=NumberState(key=key,state=1.0)
+            states.append(state)
+        client=SimpleNamespace(list_entities_services=AsyncMock(return_value=(entities,[])),subscribe_states=lambda cb:[cb(s) for s in states])
+        engine=FirmwareUpdates(SimpleNamespace(hass=None), '0.2.2')
+        value=await engine.snapshot(client)
+        self.assertEqual(value['Night mode start'],[22,35,0])
+        self.assertNotIn('Display design',value)
+        self.assertIn('PM sensor',value)
+        # A partial inventory must not masquerade as an old supported build.
+        client.list_entities_services=AsyncMock(return_value=(entities[:2],[]))
+        from custom_components.qingping_esphome.firmware_catalog import FirmwareError
+        with self.assertRaises(FirmwareError):await engine.snapshot(client)
+
+    async def test_same_plugin_exposes_next_firmware_in_standard_ha_entity(self):
+        from custom_components.qingping_esphome.firmware_catalog import parse_catalog
+        from custom_components.qingping_esphome.firmware_update import FirmwareUpdates
+        from custom_components.qingping_esphome.update import QingpingFirmwareUpdate,CatalogCoordinator
+        from homeassistant.components.update import UpdateEntityFeature
+        from test_firmware_updates import release
+        data=release();row=data['releases']['lite']
+        row.update(public_version=3,revision=4,version='quiet-three',minimum_integration='0.2.2',
+                   release_url='https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v3')
+        for key,ext in (('image','bin'),('manifest','json')):
+            row[key]['url']='https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v3/lite-template.'+ext
+        next_release=parse_catalog(data)['lite']
+        with tempfile.TemporaryDirectory() as folder:
+            from homeassistant.core import HomeAssistant
+            from homeassistant.config_entries import ConfigEntries
+            from custom_components.qingping_esphome.manager import Manager
+            hass=HomeAssistant(folder);hass.config_entries=ConfigEntries(hass,{})
+            manager=Manager(hass,SimpleNamespace(data={'lan_host':'192.168.50.2','http_port':1887,'mqtt_port':1886}))
+            manager.updates=FirmwareUpdates(manager,'0.2.2')
+            key='001122334455'
+            manager.records[key]={'profile':'lite','hardware':'0001','source_stock_version':'4.5.8','public_version':2,'firmware_version':'quiet-two','firmware_revision':3,'name':'fixture-only','ota_password':'fixture-only',
+                'noise_key':base64.b64encode(b'x'*32).decode(),'personalization':{k:'fixture-only' for k in ('ssid','wifi_password','name','ap_ssid','ap_password','ota_password')}}
+            try:
+                coordinator=SimpleNamespace(data=None)
+                with patch('custom_components.qingping_esphome.update.fetch_catalog',AsyncMock(return_value={'lite':next_release})),patch('custom_components.qingping_esphome.firmware_update.APIClient') as native:
+                    coordinator.data=await CatalogCoordinator._async_update_data(SimpleNamespace(hass=hass))
+                    entity=QingpingFirmwareUpdate(manager,coordinator,key)
+                    self.assertEqual(entity.installed_version,'2');self.assertEqual(entity.latest_version,'3')
+                    self.assertTrue(entity.version_is_newer('3','2'))
+                    self.assertTrue(entity.supported_features & UpdateEntityFeature.INSTALL)
+                    self.assertEqual(manager.updates.integration_version,'0.2.2')
+                    native.assert_not_called()
+            finally:
+                await manager.stop();await hass.async_stop(force=True)

@@ -125,13 +125,15 @@ def reuse_current(root, opener=urllib.request.urlopen):
         transport = urllib.request.build_opener(NoRedirect)
         for _ in range(4):
             parsed = urlsplit(url)
-            if parsed.scheme != "https" or parsed.netloc not in {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"}:
+            if parsed.scheme != "https" or parsed.netloc not in {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "raw.githubusercontent.com"}:
                 raise RuntimeError("Unverified public firmware source URL")
+            if parsed.netloc == "raw.githubusercontent.com" and url != catalog.CATALOG_URL:
+                catalog.asset_url(url)
             try:
                 response = transport.open(url, timeout=45)
             except urllib.error.HTTPError as error:
                 if error.code in (301,302,303,307,308): url=urljoin(url,error.headers.get("Location", "")); continue
-                if error.code == 404 and url == catalog.CATALOG_URL: return None
+                if error.code == 404 and url in {catalog.CATALOG_URL, catalog.LEGACY_CATALOG_URL}: return None
                 raise RuntimeError("Could not verify published firmware source") from None
             except Exception:
                 raise RuntimeError("Could not verify published firmware source") from None
@@ -144,6 +146,10 @@ def reuse_current(root, opener=urllib.request.urlopen):
     # the bounded downloader above, not a caller-selected URL or output path.
     reader = download if opener is urllib.request.urlopen else lambda url,maximum: opener(url,maximum)
     raw = reader(catalog.CATALOG_URL, catalog.MAX_INDEX_BYTES)
+    if raw is None:
+        # One-time build bootstrap while the new channel is not initialized.
+        # Only an explicit 404 qualifies; network/index faults never fall back.
+        raw = reader(catalog.LEGACY_CATALOG_URL, catalog.MAX_INDEX_BYTES)
     if raw is None: return False
     releases = catalog.parse_catalog(json.loads(raw))
     current = json.loads((root / "firmware/releases.json").read_text())["lite"]

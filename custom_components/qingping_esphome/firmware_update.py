@@ -17,11 +17,11 @@ import secrets
 import time
 from urllib.parse import urljoin, urlsplit
 
-from aioesphomeapi import APIClient, BinarySensorState, NumberState, SelectState, SensorState, SwitchState, TextSensorState
+from aioesphomeapi import APIClient, BinarySensorState, NumberState, SelectState, SensorState, SwitchState, TextSensorState, TimeState
 from aiohttp import ClientError, ClientTimeout
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .firmware_catalog import CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog
+from .firmware_catalog import CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog, asset_url
 from .image import SLOTS, layout, mac_normalize, personalize, private_ipv4
 from .native_ota import encryption_available, upload_app
 
@@ -31,8 +31,19 @@ SETTINGS = {"PM sensor", "LED", "Night mode", "Bluetooth", "Bluetooth heat compe
             "Night mode start", "Night mode end", "Display heat", "Display heat at brightness 1",
             "Display heat lag", "Display heat time", "Bluetooth heat", "Bluetooth heat time"}
 SOURCES = {"CO2", "Temperature (raw)", "Humidity (raw)"}
+# Earlier public firmware has no design/motion selectors. Preserve every
+# recognized control actually exposed by that build, with a conservative
+# baseline so a missing or partial entity list cannot disable all guards.
+BASE_SETTINGS = {"PM sensor", "LED", "Night mode", "Bluetooth", "Display brightness",
+                 "Idle screen", "Idle screen delay", "Heat model", "Temperature offset", "Humidity offset"}
 PRIVATE_FIELDS = {"ssid", "wifi_password", "name", "ap_ssid", "ap_password", "ota_password"}
-STATE_TYPES = (BinarySensorState, NumberState, SelectState, SensorState, SwitchState, TextSensorState)
+STATE_TYPES = (BinarySensorState, NumberState, SelectState, SensorState, SwitchState, TextSensorState, TimeState)
+
+
+def setting_state(value):
+    # ESPHome TimeState has hour/minute/second, not .state. Serialize the full
+    # value so restored nightly times are also protected across HA restarts.
+    return [value.hour,value.minute,value.second] if isinstance(value,TimeState) else value.state
 
 
 def private_values(record):
@@ -68,12 +79,14 @@ No HA authorization header or private data is ever sent. GitHub assets use
 signed CDN URLs, whose query strings must never appear in errors or logs.
 """
     session = async_get_clientsession(hass)
-    allowed = {"github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"}
+    allowed = {"github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com", "raw.githubusercontent.com"}
     try:
         for _ in range(4):
             parsed = urlsplit(url)
             if parsed.scheme != "https" or parsed.netloc not in allowed:
                 raise FirmwareError("firmware_download_failed")
+            if parsed.netloc == "raw.githubusercontent.com" and url != CATALOG_URL:
+                asset_url(url)
             async with session.get(url, allow_redirects=False, timeout=ClientTimeout(total=30)) as response:
                 if response.status in (301, 302, 303, 307, 308):
                     url = urljoin(url, response.headers.get("Location", ""))
@@ -222,15 +235,18 @@ class FirmwareUpdates:
     async def snapshot(self, client):
         entities, _ = await client.list_entities_services()
         names = {entity.key: entity.name for entity in entities}
+        present = set(names.values()) & SETTINGS
+        if not BASE_SETTINGS.issubset(present):
+            raise FirmwareError("update_device_unavailable")
         values = {}
         def state(value):
             if isinstance(value, STATE_TYPES) and value.key in names:
                 name = names[value.key]
                 if name in SETTINGS | SOURCES | {"Charging", "Local UI version"}:
-                    values[name] = value.state
+                    values[name] = setting_state(value)
         client.subscribe_states(state)
         deadline = self._now() + 12
-        required = SETTINGS | SOURCES | {"Charging", "Local UI version"}
+        required = present | SOURCES | {"Charging", "Local UI version"}
         while not required.issubset(values) and self._now() < deadline:
             await self._sleep(.1)
         if not required.issubset(values):
@@ -258,7 +274,7 @@ class FirmwareUpdates:
             if client is None or values.get("Local UI version") != attempt["version"]:
                 raise FirmwareError("update_verification_required")
             before = attempt["settings_before"]
-            if any(values[name] != before[name] for name in SETTINGS):
+            if any(name not in values or values[name] != before[name] for name in before):
                 raise FirmwareError("update_settings_changed")
             entities, _ = await client.list_entities_services()
             names = {entity.key: entity.name for entity in entities}
@@ -270,7 +286,7 @@ class FirmwareUpdates:
                 # a later subscription must not leave the initial snapshot
                 # as our only evidence that persisted values survived boot.
                 if isinstance(value, STATE_TYPES) and names.get(value.key) in SETTINGS:
-                    values[names[value.key]] = value.state
+                    values[names[value.key]] = setting_state(value)
                 if isinstance(value, SensorState) and names.get(value.key) in samples and elapsed > 2:
                     samples[names[value.key]].append((elapsed, value.state))
             client.subscribe_states(state)
@@ -281,7 +297,7 @@ class FirmwareUpdates:
             if any(len(rows) < 3 or rows[-1][0] - rows[0][0] < 100
                    or any(not math.isfinite(row[1]) for row in rows) for rows in samples.values()):
                 raise FirmwareError("update_sensor_check_failed")
-            if any(values[name] != before[name] for name in SETTINGS):
+            if any(name not in values or values[name] != before[name] for name in before):
                 raise FirmwareError("update_settings_changed")
             record.update(firmware_version=attempt["version"], firmware_revision=attempt["revision"],
                           template_sha256=attempt["template_sha256"], image_sha256=attempt["image_sha256"],
@@ -359,7 +375,7 @@ class FirmwareUpdates:
                        "version": release.version, "revision": release.revision, "state": "consumed",
                        "public_version": release.public_version,
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
-                       "settings_before": {name: snapshot[name] for name in SETTINGS}}
+                       "settings_before": {name: snapshot[name] for name in SETTINGS if name in snapshot}}
             record["update_attempt"] = attempt
             # A failed journal prevents the first OTA connection; a persisted
             # consumed intent survives HA restart and cannot become a retry.

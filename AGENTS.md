@@ -431,13 +431,22 @@ separate even though the HACS wizard is shared.
   consumed history. UI notification failure cannot undo a committed journal.
   Run test_firmware*.py with the real supported HA SDK and independent Noise
   loopback responder; these are not hardware OTA qualification.
-- `firmware/releases.json` owns profile-local version/revision, independent of
-  HACS. `tools/build_firmware_catalog.py --tag vX.Y.Z --check-previous` validates
-  the public template/manifest/UI literal and exports a new stable catalog plus
-  both immutable assets. Changed bytes require a higher revision and new UI
-  version; unchanged firmware retains its previous entry/URLs. Stable release
-  CI publishes the catalog and public pair beside the ZIP; no private build,
-  prerelease promotion or overwrite of existing output/release is allowed.
+- Firmware-only publication is independent of HACS: `firmware/releases.json`
+  owns qualified per-profile counters, `.github/workflows/firmware.yml` builds
+  and `tools/publish_firmware.py --profile lite` previews the exact pair.
+  `--publish` creates an immutable `firmware-lite-vN` data tag and atomically
+  advances the `firmware-catalog` branch with a CAS lease. No GitHub Release,
+  HACS ZIP/version change, HA action or OTA belongs in that workflow. HACS
+  also inspects non-latest Releases, so make_latest=false is not isolation.
+  Keep exact public placeholders/manifest/source provenance and monotonic
+  counters/history. Never overwrite a firmware tag or replay a lost push;
+  inspect remote refs and public bytes first. The data tag is the sole narrow
+  exception allowing public template BIN in a Git tree, never in main/private.
+  HACS-only release CI retains its embedded qualified template and the frozen
+  pre-0.2.2 compatibility catalog, without publishing a new firmware version.
+  Keep old release assets readable; new readers support both URL generations.
+  See docs/FIRMWARE_CHANNEL.md; run test_firmware*.py, including the real bare
+  Git atomic-push/CAS fixtures. Compilation/CI is not physical OTA proof.
 - The owner chose to retain the three advertised-name Bluetooth prefixes for
   now (2026-11-06). Do not expand to acceptAllDevices without a new decision.
   An empty filtered picker does not prove that all nearby BLE is invisible.

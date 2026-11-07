@@ -2,7 +2,7 @@
 
 Status: agreed direction, 2026-11-07. This contract does not itself publish a
 firmware asset, relabel an installed device or enable an unfinished backend.
-Lite version 1 passed a physical upgrade and HA adoption check on one direct-I2C unit; Monitor 1 numbered bundles remain source/build preparation. `public_version` is the short
+Lite version 2 passed separate USB upgrade/sensor/settings checks on three direct-I2C units; Monitor 1 numbered bundles remain source/build preparation. `public_version` is the short
 product number; the legacy `version` wire field remains the exact UI/build
 identity and `revision` remains the internal OTA sequence. Existing devices
 are not relabelled just because new source metadata exists.
@@ -14,8 +14,8 @@ There is one user-facing product per supported hardware profile, with public
 versions **1, 2, 3, ...**. No Lite stock add-on or reduced Monitor 1/2 stock
 interface edition is planned. Internal platform/package identity still gates
 compatibility; it is not another edition offered to the user. The HACS integration has its own
-independent version. One GitHub release can publish the catalog for all lines
-while changing only the images that actually changed.
+independent version. Firmware-only publication updates the independent catalog for the selected
+qualified line without a GitHub/HACS release. See [the publication runbook](FIRMWARE_CHANNEL.md).
 
 The factory `HW 0001` string is not sufficient identity: the direct-I2C Lite
 and a different external-MCU Lite both report it. Preserve existing model,
