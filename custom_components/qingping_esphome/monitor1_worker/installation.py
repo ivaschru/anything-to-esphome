@@ -13,6 +13,7 @@ import time
 from preparation import PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
 from build_worker import STOP_FREE, adb_environment, build_report, environment, private_hash, run_owned, sync_directory
 from install_plan import source_closure, verify_plan
+from pm_extension_installation import PmExtensions
 
 
 def install_frame(job_id, state):
@@ -121,6 +122,7 @@ class Installations:
                 from full_ui_activation_installation import FullUiActivations
                 activation_owner = unique_json(read_private(other / "intent.json"))["owner"]
                 FullUiActivations(self).fence(other, activation_owner)
+                PmExtensions(self).fence(other, activation_owner)
                 if "full-ui-trial-intent.json" in os.listdir(other):
                     # A crash-released kernel lock does not retire a previous
                     # Full UI writer. Preserve its independent durable fence.

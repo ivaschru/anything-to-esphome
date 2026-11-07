@@ -1,3 +1,13 @@
+## Unreleased – initial PM next-boot engine
+
+- Prepare a separate owner/plan-bound PM transition through the fixed SDK
+  child. Before removing the persistent opt-out, inhibit stock restarts for
+  the remainder of the current boot. Preserve backups, consumed history and
+  an AFTER-effects marker; lost ACK permits only read reconciliation.
+- This engine is not yet connected to HTTP, the wizard or computer CLI.
+  Production-path commands and hardware have not been executed. Explicit
+  rewritten Linux/root interruption fixtures remain separate from device QA.
+
 ## 0.2.6 – separate permanent Full UI startup
 
 - After a successful fixed screen trial, offer a separately reviewed permanent

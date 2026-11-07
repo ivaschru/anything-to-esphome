@@ -117,6 +117,8 @@ class FullUiActivations:
                 names = os.listdir(other)
                 actor = unique_json(read_private(other / "intent.json"))["owner"]
                 self.fence(other, actor)
+                from pm_extension_installation import PmExtensions
+                PmExtensions(self.installations).fence(other, actor)
                 if "install-intent.json" in names and self.installations.status(actor, other.name)["state"] not in ("armed_waiting_reboot", "bridge_observed"):
                     raise PreparationError("usb_install_previous_unverified")
                 if trials.INTENT in names and trials.FullUiTrials(self.installations).status(actor, other.name)["state"] != "full_ui_trial_returned_observed":

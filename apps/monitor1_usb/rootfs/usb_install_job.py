@@ -189,9 +189,38 @@ def full_activation_job(directory):
     sync_directory(directory)
 
 
+def pm_enable_job(directory):
+    """Consume no new remote selector: use only this parent's fixed intent."""
+    from pm_extension_installation import INTENT, RESULT, checked_intent, checked_proof
+    from pm_extension_usb import arm_next_boot
+    directory = private_directory(Path(directory))
+    initial = unique_json(read_private(directory / INTENT))
+    owned_intent(directory.parent, directory.name, initial.get("owner"))
+    intent, raw = checked_intent(directory, initial.get("owner"), directory.name)
+    if RESULT in os.listdir(directory):
+        raise PreparationError("usb_pm_extension_consumed")
+    source = source_closure(directory)
+    plan = build_report(directory / "install-plan/plan.json")
+    import re
+    for name, pin in plan["files"].items():
+        if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", name) or name in (".", "..") or private_hash(directory / "install-plan" / name) != pin:
+            raise PreparationError("usb_pm_extension_unverified")
+    sys.path.insert(0, str(source))
+    import verify_bridge_boot_adb as observer
+    profile, profile_sha = observer.trial.candidate.read_profile(directory / "profile.json")
+    if (profile_sha != plan["basis"]["profile_sha256"] or
+            plan["api_identity"] != {key: profile[key] for key in ("node_name", "api_mac")}):
+        raise PreparationError("usb_pm_extension_unverified")
+    adb = observer.trial.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
+    proof = asyncio.run(arm_next_boot(adb, directory / "install-plan", intent["plan_sha256"], directory / "profile.json", observer, intent["nonce"]))
+    checked_proof(proof, intent["nonce"], proof.get("boot_id"))
+    write_new(directory / RESULT, (json.dumps({"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof}) + "\n").encode())
+    sync_directory(directory)
+
+
 if __name__ == "__main__":
     if (len(sys.argv) not in (3, 4, 5) or sys.argv[1] != "--job" or not USER.fullmatch(sys.argv[2]) or
-            (len(sys.argv) == 4 and sys.argv[3] not in ("--full-trial", "--full-activate")) or
+            (len(sys.argv) == 4 and sys.argv[3] not in ("--full-trial", "--full-activate", "--pm-enable")) or
             (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
@@ -200,7 +229,7 @@ if __name__ == "__main__":
     # no caller-controlled host path or search fallback is added to the CLI.
     directory = child_job_directory(sys.argv[2])
     if len(sys.argv) == 4:
-        (full_trial_job if sys.argv[3] == "--full-trial" else full_activation_job)(directory)
+        {"--full-trial": full_trial_job, "--full-activate": full_activation_job, "--pm-enable": pm_enable_job}[sys.argv[3]](directory)
     elif len(sys.argv) == 5:
         action = full_review_job if sys.argv[3] == "--full-review" else observe_job
         action(directory, sys.argv[4])

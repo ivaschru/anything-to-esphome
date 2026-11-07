@@ -104,6 +104,18 @@ separate even though the HACS wizard is shared.
   engines. GUI language changes preserve both separate confirmations; status
   cannot recreate a writer. Keep first-install qualification, PM-extension
   transition, browser writer and HA enrollment distinct from this operation.
+  The initial PM next-boot guard/SDK child is separate and not yet routed
+  through HTTP/GUI/computer CLI. Its parent consumes an owner/plan/source
+  intent before the fixed child. Reuse the original observer's fresh current
+  bridge/stock scope and closed API/owned forward before any flag command.
+  Create the exact RAM attempted marker FIRST to inhibit every stock restart
+  in this boot, then back up and remove only pm-helper.disabled for next boot.
+  Preserve owner lock, backup and AFTER-effects record forever; lost ACK may
+  only read that record, never resume/retry or signal/reboot. Unknown PM
+  history fences every other device writer. Run test_usb_pm_extension*.py and
+  test_monitor1_pm_extension_guard.py on the explicit Linux/root rewritten
+  tmpfs fixture. No production-path script, ARM ELF or hardware executes in
+  a host test; tmpfs substitution never relaxes production ext4 admission.
 
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile
