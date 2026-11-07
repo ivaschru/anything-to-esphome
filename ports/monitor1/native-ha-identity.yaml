@@ -66,4 +66,3 @@ text_sensor:
       #else
       return {"Development build"};
       #endif
-
