@@ -31,6 +31,7 @@ jobs:
         run: |
           mkdir -m 700 core-probe-work core-probe-result
           docker run --rm --entrypoint python3 --read-only \
+            --user "$(id -u):$(id -g)" \
             --cap-drop ALL --security-opt no-new-privileges \
             --cpus=1 --memory=2g --pids-limit=128 \
             --tmpfs /tmp:rw,nosuid,nodev,size=64m \
