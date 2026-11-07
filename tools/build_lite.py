@@ -75,6 +75,9 @@ substitutions:
 packages:
   lite: !include cgdn1.yaml
 esphome:
+  # Bind external-component changes into the SDK config/build identity too.
+  # ESPHome otherwise reuses build time when YAML is unchanged.
+  comment: "Public Lite source {source_digest(ROOT)}"
   project:
     name: ivaschru.qingping_lite_direct_i2c
     version: {json.dumps(str(release["public_version"]))}

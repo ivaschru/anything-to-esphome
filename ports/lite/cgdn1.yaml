@@ -207,7 +207,7 @@ api:
         gesture: string
       then:
         - lambda: |-
-            if (!id(oled).is_on()) { id(display_switch).turn_on(); return; }
+            if (id(local_ui).consume_dark_gesture(gesture)) return;
             id(night_activity_ms) = millis();
             id(local_ui).mark_touched();
             id(local_ui).gesture(gesture);

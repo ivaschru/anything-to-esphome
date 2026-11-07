@@ -191,8 +191,8 @@ class Cgdn1Ui : public Component {
   cgdn1_led::Sensor led_sensor() const { return shown_sensor_; }
   float led_value() const { return shown_value_; }
   void show_page(int page, int detail) {
-    if (ota_ || wifi_.trial_active() || page < 0 || page > 4 || detail < 0 || detail > 2) return;
-    model_.close(); model_.page = page; model_.info = detail;
+    if (ota_ || night_active_ || wifi_.trial_active() || page < 0 || page > 4 || detail < 0 || detail > 2) return;
+    settings_.close(); model_.close(); model_.page = page; model_.info = detail;
     model_.activity = millis(); touched_ = true; idle_shown_ = false;
     display_->turn_on(); display_->update();
   }
@@ -653,7 +653,7 @@ class Cgdn1Ui : public Component {
           else p.display().rectangle(20+i*20,80,14,7);
         }
       } else p.text(80,77,small_,b.kind==ValueKind::TIME?(m.part?"Минуты":"Часы"):b.unit,0);
-      p.text(80,96,status_font_,"Края – изменить; свайп – отмена",0);
+      p.text(80,96,status_font_,"− / + · Свайп – отмена",0);
       p.text(80,113,status_font_,b.kind==ValueKind::TIME&&!m.part?"Центр – минуты":"Центр – сохранить",0);
     } else if(m.view==V::CONFIRM) {
       p.text(7,7,small_,m.slot?"Другой слот":"Перезапуск");p.rule(23);
