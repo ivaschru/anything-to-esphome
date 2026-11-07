@@ -6,6 +6,15 @@
   compilation; no generic ELF, automatic HA updater or initial USB readiness
   is claimed. External-MCU Lite remains research beyond a missing fan switch.
 
+## 0.2.4 – fix integrated Monitor 1 HTTP access
+
+- Fix the administrator wizard endpoint to use Home Assistant's typed
+  application key. In 0.2.3, valid admin requests could fail with HTTP 500
+  before reaching the integrated worker.
+- Exercise real HTTP page/jobs requests and unloaded/non-admin responses
+  against the supported HA SDKs and packaged actor, without USB or tools.
+  Firmware versions and installation qualification are unchanged.
+
 ## 0.2.3 – integrated Monitor 1 USB worker
 
 - Official Core2026.11 native amd64/aarch64 CI now verifies isolated SDK,
