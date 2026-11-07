@@ -192,6 +192,11 @@ class AdoptionTests(unittest.IsolatedAsyncioTestCase):
         entries.async_entries=lambda domain:[e]
         await a.scan();self.assertIn(MAC,manager.records)
 
+    async def test_periodic_job_is_dispatched_on_the_ha_event_loop(self):
+        from homeassistant.core import HassJob, HassJobType
+        manager,a,e=self.manager()
+        self.assertEqual(HassJob(a._schedule).job_type,HassJobType.Callback)
+
     async def test_duplicate_mac_and_entry_removal_are_not_new_identity_authority(self):
         manager,a,e=self.manager()
         duplicate=types.SimpleNamespace(**vars(e));duplicate.entry_id="duplicate"

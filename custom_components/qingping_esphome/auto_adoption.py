@@ -14,6 +14,7 @@ import secrets
 import time
 
 from aioesphomeapi import SupportsResponseType, UserServiceArgType
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_interval
 
 from .device_profile import ACTION, ProfileError, decode_profile, noise_key_bytes
@@ -39,7 +40,11 @@ class AutoAdoption:
         self.cancel_interval = async_track_time_interval(self.hass, self._schedule, timedelta(minutes=1))
         self._schedule(None)
 
+    @callback
     def _schedule(self, _now):
+        # HA must execute this timer callback on its event loop. An ordinary
+        # synchronous callable is sent to an executor, where create_task has
+        # no running loop. The work itself remains an owned cancellable task.
         if not self.closed and (self.task is None or self.task.done()):
             self.task = asyncio.create_task(self.scan(), name="qingping-auto-profile")
 
