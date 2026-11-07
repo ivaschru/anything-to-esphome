@@ -1,3 +1,10 @@
+## Unreleased
+
+- Monitor 1 PM helper builds now reject incompatible EABI/float calling
+  conventions on the stock Qt input and generated artifacts, including
+  soft-float or missing float flags. This is static build admission; existing
+  firmware, loader qualification and installation readiness are unchanged.
+
 ## 0.2.1 / Lite firmware 2
 
 - Port guarded quiet PM operation for the qualified direct-I2C profile.

@@ -297,8 +297,13 @@ separate even though the HACS wizard is shared.
   independently verified stock QtCore SHA and the isolated CGS1 environment;
   outputs/logs stay private in a fresh ignored build directory. Public Qt
   headers are pinned; vendor Qt libraries and rebuilt helpers are not release
-  assets. Preserve ARM/glibc/input checks and never install the mock/test .so
-  or infer loader authority from a successful build. See PM_HELPER_BUILD.md.
+  assets. Preserve ARM/glibc/input checks, including EABI5 hard-float PCS on
+  both the stock Qt input and all generated ET_DYN/ET_EXEC artifacts. A
+  missing float flag is base PCS, not an unspecified hard-float success.
+  Run test_monitor1_build.py after changes; its synthetic parser fixtures
+  are static admission coverage, never loader/hardware proof. Never install
+  the mock/test .so or infer loader authority from a successful build.
+  See PM_HELPER_BUILD.md.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
