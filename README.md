@@ -13,10 +13,12 @@ Monitor 2 has no verified firmware port yet.
 
 ## Compatibility
 
-Monitor 1 also has an experimental [USB connection companion](apps/monitor1_usb/):
-choose a cable on the computer (WebUSB) or on the HA server. This first step
-only checks the selected stock device; it is not yet the complete flashing
-wizard and does not change the installation status below.
+Monitor 1 also has a separate experimental [USB app](apps/monitor1_usb/):
+choose computer WebUSB or server USB for private capture/profile/builds.
+Server USB additionally offers a reviewed stock-bridge installation and a
+separate post-boot check. First installation on a physical factory CGS1 is
+still unverified; computer writing and full native UI installation remain
+unfinished. This does not change ordinary HACS admission in the table below.
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |

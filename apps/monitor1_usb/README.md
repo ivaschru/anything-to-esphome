@@ -1,6 +1,6 @@
-# Monitor 1 USB companion — experimental preparation
+# Monitor 1 USB — experimental installer
 
-This app implements two experimental **read-only preparation paths** on its page:
+This app offers two USB locations for identification, private capture and builds:
 
 - **Computer USB:** Chrome/Edge WebUSB talks directly to the selected monitor.
 - **Home Assistant server USB:** the app's local ADB reads the selected USB
@@ -18,12 +18,15 @@ mode resolves the exact installed companion from Supervisor metadata and opens
 its native admin ingress page. Missing/stopped apps produce instructions;
 the integration never installs, starts or configures an app automatically.
 
-**This is not yet a complete flashing app.** It prepares a private profile and builds matched private firmware, but does not
-upload a program, run the bounded trial, activate firmware,
-reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.
-The explicit engineering writer/trial remains separate in
-[USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md). Source tests, a container
-startup and a UI preview are not a physical USB installation.
+For **server USB**, an explicitly reviewed experimental action now composes the
+original disabled staging, script commit, bounded bridge trial and next-boot
+bridge arming. A separate button reads the result after you power-cycle the
+monitor yourself. **First installation on an untouched physical CGS1 has not
+been verified.** This path installs the stock-side bridge only; the computer
+WebUSB writer and full native UI installation are still unfinished. Normal
+HACS CGS1 admission remains source-only and `installation_ready=false`.
+See [USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md) for the underlying engine.
+Source tests, container checks and an imitated UI run are not hardware evidence.
 
 ## Install and open
 
@@ -32,7 +35,7 @@ app/add-on repository, separate from the HACS integration release:
 
 1. In Settings → Apps (Add-ons) → app store → Repositories, add
    https://github.com/ivaschru/qingping-esphome
-2. Install **Qingping USB (experimental preparation)** and start it manually.
+2. Install **Qingping USB (experimental installer)** and start it manually.
    It is built locally by Supervisor; no firmware image is downloaded.
 3. Select Open Web UI as an administrator.
 4. Connect the USB-C **data** cable to the chosen computer/server. Enable
@@ -68,7 +71,7 @@ own fresh USB capture. Neither route needs or changes your Wi-Fi password.
 
 The companion creates a private owner-bound job under its `/data/jobs`, with
 an individual Noise key, a stable separate API MAC and the verified stock Qt
-input. The profile/key and captured vendor files never appear in HTTP status,
+input. The profile/key and captured vendor files never appear in ordinary HTTP status,
 public GitHub assets, normal logs or browser storage. Preserve the app's private
 data/backup securely: deleting it also loses these recovery/build inputs.
 
@@ -83,7 +86,8 @@ preserved rather than treated as safe deletion candidates.
 A prepared profile is **not built or installed firmware**. Archive identity is
 an untrusted historical claim; every future device operation still requires its
 own live USB identity/source checks. A browser capture never invents ADB's
-native USB path. The build action below is available. Writer/trial GUI integration remains pending.
+native USB path. The build action below is available for either capture; the
+experimental writer requires a server USB capture and its own later review.
 
 ## Build on the HA server
 
@@ -112,8 +116,8 @@ restart a build: select the saved job and check its state. An app restart can
 make a still-running old build unverified until its own terminal receipt is
 available; do not start a replacement or delete its history.
 
-**Built is not installed.** The writer/trial GUI and real first-install
-qualification are still unfinished. Neither a complete compile nor a synthetic
+**Built is not installed.** Real first-install qualification and the computer
+writer are still unfinished. Neither a complete compile nor a synthetic
 SDK/container test establishes device compatibility, live USB authority,
 Bluetooth proxy support or safe activation. Monitor 2 stays unverified.
 
@@ -141,6 +145,56 @@ The computer WebUSB writer adapter is still unfinished; its capture is never
 relabelled as native get-devpath evidence to pass the native planner. Browser
 jobs can still prepare profiles/build programs without that adapter.
 
+## Experimental server USB installation
+
+Keep the same monitor connected to the HA server. With the private plan ready,
+open its review and check the displayed device name, physical WLAN MAC, stock
+version and S8/SCD40 backend. Read the changes and acknowledge the experimental
+status before pressing **Install stock bridge**. The checkbox is cleared for a
+new review; changing interface language does not submit or repeat an operation.
+
+The fixed controller rechecks the original source/USB/boot/process/capacity
+scope, stages the disabled own files and commits the two exact startup scripts
+with preserved originals. It runs the original independent 60-second bridge
+trial. Only a verified stopped trial with completed owned ADB/forward cleanup
+can enter the separate next-boot arming step. That step preserves recovery,
+leaves PM preload disabled and does not start or reboot a program. Native UI
+and guardian programs intentionally remain on the server at this stage.
+
+The attempt is recorded before any controller starts. A lost response, page
+reload, language switch or app restart never grants a second installation.
+Use the saved job's status and **Check connected monitor**. An unknown result
+is not proof that the monitor was unchanged; do not delete the job, prepare a
+replacement or repeat the engine manually. Its original receipts and inputs
+are needed to review the result. There is no automatic rollback or reboot.
+
+After the operation reports arming, choose **Check the monitor** for a fresh
+device read. Only when that read confirms waiting on the idle stock boot,
+shut down through the monitor's own menu and power it on again. Reconnect server USB if
+needed and choose **Check connected monitor**. The reader distinguishes the
+original boot's completed arming from a different boot with the exact bridge
+process/socket and two fresh authenticated sensor updates. It does not launch
+anything. A saved success is historical evidence; a new read is required for
+current health. An unverified read does not authorize another install or an
+automatic reboot. Read observations are retained privately, up to 64 per job.
+
+## Keep private recovery files
+
+For a prepared job, **Download private ESPHome profile** saves its original verified
+profile, including the individual ESPHome Noise key. Only the owning HA
+administrator can explicitly download it. The browser treats it as an opaque
+attachment: it is not rendered in the page, parsed into form state, or stored
+in browser storage. Keep it outside public repositories and screenshots.
+Automatic ESPHome enrollment from this app is not implemented.
+
+**Download saved original files** rechecks the saved nine files and report and
+creates a private fixed-member archive. This remains available after the
+first-install factory check would refuse an already modified device. It reads
+the saved job only, makes no USB call and is not a new capture or full NAND
+backup. Keep both downloads and a secure backup of the app's private data.
+
+## Connection and access
+
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;
 the app never kills another ADB process or changes drivers.
@@ -164,7 +218,7 @@ python tools/monitor1-usb/generate_contract.py --check
 npm ci --prefix tools/monitor1-usb --ignore-scripts --no-audit --no-fund
 node tools/monitor1-usb/build.mjs
 node tests/test_usb_probe.mjs
-python -m unittest discover -s tests -p test_usb_companion.py
+python -m unittest discover -s tests -p 'test_usb_*.py'
 ```
 
 The generator checks both browser and server contracts against canonical

@@ -37,6 +37,11 @@
 <button id="refresh-jobs" class="secondary" data-text="refresh_preparations"></button>
 <label id="saved-job-label" for="saved-job" data-text="saved_preparations" hidden></label>
 <select id="saved-job" hidden></select>
+<div id="backup-controls" hidden>
+<p class="note" data-text="private_backup_help"></p>
+<button id="export-profile" class="secondary" data-text="export_profile"></button>
+<button id="export-originals" class="secondary" data-text="export_originals"></button>
+</div>
 <div id="build-controls" hidden>
 <p class="muted" data-text="build_help"></p>
 <button id="build-firmware" data-text="build_firmware"></button>
@@ -46,6 +51,20 @@
 <button id="prepare-plan" data-text="prepare_plan"></button>
 <button id="plan-status" class="secondary" data-text="check_plan"></button>
 <p id="plan-result" role="status" aria-live="polite"></p>
+<div id="install-controls" hidden>
+<h3 data-text="install_title"></h3>
+<p class="note" data-text="install_experimental"></p>
+<p id="install-target"></p>
+<p data-text="install_changes"></p>
+<p class="note" data-text="install_power"></p>
+<label id="install-ack-label"><input id="install-ack" type="checkbox"><span data-text="install_ack"></span></label>
+<button id="install-firmware" data-text="install_firmware" disabled></button>
+<button id="install-status" class="secondary" data-text="check_install"></button>
+<p id="install-result" role="status" aria-live="polite"></p>
+<progress id="install-progress" hidden></progress>
+<button id="observe-boot" class="secondary" data-text="observe_boot" hidden></button>
+<p id="boot-result" role="status" aria-live="polite"></p>
+</div>
 </div>
 </div>
 </section>

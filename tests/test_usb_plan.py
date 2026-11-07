@@ -46,7 +46,7 @@ class PlanTests(unittest.TestCase):
             worker.write_new(root / "bridge-program", body)
             capture = json.loads((self.directory / "capture/result.json").read_text())
             profile = json.loads((self.directory / "profile.json").read_text())
-            report = {"stage": "offline_plan_only", "installed": False, "installation_ready": False,
+            report = {"stage": "offline_plan_only", "plan_id": "f" * 32, "installed": False, "installation_ready": False,
                       "hardware_contacted": False, "device_writes": 0, "live_recheck_required": True,
                       "consumed_install_intent": False, "basis": {"source_commit": worker.SOURCE_COMMIT,
                           "profile_sha256": worker.private_hash(self.directory / "profile.json")["sha256"]},

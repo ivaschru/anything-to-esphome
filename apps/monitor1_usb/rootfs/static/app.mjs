@@ -1,4 +1,5 @@
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan} from "./usb-probe-bundle.mjs";
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
+  startInstall, readInstall, readInstallReview, observeBoot, downloadPrivateProfile} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
@@ -6,6 +7,8 @@ let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
 let planState;
+let installState,installReview,bootState;
+let installRunning=false,bootReading=false;
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -24,6 +27,8 @@ function translate() {
 }
 function renderBuild() {
   $("build-controls").hidden=!preparationReady;
+  $("backup-controls").hidden=!preparationReady;
+  $("export-profile").disabled=$("export-originals").disabled=busy || !preparationReady;
   $("build-firmware").disabled=busy || !preparationReady || (buildState && buildState.state!=="not_started");
   $("build-status").disabled=busy || !pendingPreparation;
   $("build-result").textContent=buildState ? text("build_"+buildState.state)+
@@ -33,8 +38,26 @@ function renderBuild() {
   $("plan-status").disabled=busy || !pendingPreparation;
   $("plan-result").textContent=planState ? text("plan_"+planState.state)+
     (planState.state==="plan_prepared" ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
+  const consumed=installState && installState.state!=="not_started";
+  $("prepare-plan").hidden=$("plan-status").hidden=!!consumed;
+  if(consumed) $("plan-result").textContent=text("plan_used");
+  $("prepare-plan").disabled=!!$("prepare-plan").disabled || !!consumed;
+  $("install-controls").hidden=planState?.state!=="plan_prepared" && !consumed;
+  const selectedJob=storedJobs.find(job=>job.job_id===pendingPreparation?.id);
+  $("install-target").textContent=installReview ? `${installReview.friendly_name} · CGS1 · ${installReview.co2_type===2 ? "S8" : "SCD40"} · ${installReview.wlan_mac}` : (selectedJob?.friendly_name || "");
+  $("install-ack").disabled=busy || !!consumed || !installReview;
+  $("install-ack-label").hidden=$("install-firmware").hidden=!!consumed;
+  $("install-firmware").disabled=busy || !!consumed || !installReview || !$("install-ack").checked;
+  $("install-status").disabled=busy || !pendingPreparation;
+  $("install-result").textContent=installRunning ? text("install_running") : (installState ? text("install_"+installState.state) : "");
+  $("install-progress").hidden=!installRunning;
+  $("install-progress").setAttribute("aria-label",text("install_running"));
+  $("observe-boot").hidden=!consumed;
+  $("observe-boot").disabled=busy;
+  $("boot-result").textContent=bootReading ? text("boot_checking") : (bootState ? text("boot_"+bootState.state) : "");
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;renderBuild();}
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;
+  installState=installReview=bootState=undefined;$("install-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -56,6 +79,8 @@ function renderJobs() {
     const option=document.createElement("option");option.value=job.job_id;
     option.textContent=job.friendly_name+" · "+(job.co2_type===2 ? "S8" : "SCD40")+" · …"+job.node_name.slice(-4)+
       (job.stage==="preparation_unverified" ? " · "+text("preparation_pending") : "");
+    if(storedJobs.filter(other=>other.friendly_name===job.friendly_name && other.co2_type===job.co2_type && other.node_name===job.node_name).length>1)
+      option.textContent+=" · #"+job.job_id.slice(-6); // Disambiguate separate private keys/jobs, not new devices.
     $("saved-job").append(option);
   }
   if(storedJobs.some(job=>job.job_id===selected)) $("saved-job").value=selected;
@@ -73,20 +98,23 @@ function renderDevices() {
 async function rpc(operation, data, binary=false) {
   const response = await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
-    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(binary || operation==="prepare" ? 250000 : 70000)});
+    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(operation==="install" ? 650000 :
+      operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000))});
   if (binary && response.ok) {
     const length=Number(response.headers.get("Content-Length"));
-    if (response.headers.get("Content-Type") !== "application/x-tar" || !Number.isInteger(length) ||
-        length <= 0 || length > 33*1024*1024) throw {code:"usb_capture_unverified"};
+    const mime=binary==="profile" ? "application/vnd.qingping.private-profile+json" : "application/x-tar";
+    const binaryError=binary==="profile" || operation.startsWith("export-") ? "usb_private_export_unverified" : "usb_capture_unverified";
+    if (response.headers.get("Content-Type") !== mime || !Number.isInteger(length) ||
+        length <= 0 || length > (binary==="profile" ? 16384 : 33*1024*1024)) throw {code:binaryError};
     const reader=response.body.getReader(), chunks=[];let size=0;
     try {
       while (true) {
         const {done,value}=await reader.read();if (done) break;
-        size+=value.length;if (size>length) throw {code:"usb_capture_unverified"};chunks.push(value);
+        size+=value.length;if (size>length) throw {code:binaryError};chunks.push(value);
       }
     } finally {reader.releaseLock();}
-    if (size!==length) throw {code:"usb_capture_unverified"};
-    return new Blob(chunks,{type:"application/x-tar"});
+    if (size!==length) throw {code:binaryError};
+    return new Blob(chunks,{type:mime});
   }
   const result = await response.json();
   if (!response.ok || result.error_code) throw {code:result.error_code || "failed"};
@@ -140,6 +168,18 @@ async function inspect(capture=false) {
 }
 $("inspect").onclick=()=>inspect();
 $("capture").onclick=()=>inspect(true);
+async function exportPrivate(profile=false) {
+  if(busy || !preparationReady || !pendingPreparation) return;
+  busy=true;controls();lastError=null;$("error").textContent="";
+  try {
+    const blob=await rpc(profile ? "export-profile" : "export-originals",{job_id:pendingPreparation.id},profile ? "profile" : true);
+    if(profile) downloadPrivateProfile(blob);else downloadCapture(blob);
+    lastStatus="private_backup_downloaded";$("status").textContent=text(lastStatus);
+  } catch(error) {lastError=error.code || "usb_private_export_unverified";$("error").textContent=text(lastError);}
+  finally {busy=false;controls();}
+}
+$("export-profile").onclick=()=>exportPrivate(true);
+$("export-originals").onclick=()=>exportPrivate();
 $("prepare-profile").onclick=async()=>{
   if (busy) return;
   const name=$("friendly-name").value;
@@ -182,7 +222,13 @@ $("saved-job").onchange=async()=>{
   if(busy) return;
   const job=storedJobs.find(item=>item.job_id===$("saved-job").value);
   pendingPreparation=job ? {id:job.job_id,transport:job.transport} : undefined;
-  if(job) $("friendly-name").value=job.friendly_name;
+  if(job) {
+    $("friendly-name").value=job.friendly_name;
+    // Restore the recorded cable location as display state only. Do not
+    // scan USB, select a live serial, issue a write or reinterpret the capture.
+    $("transport").value=job.transport==="ha_usb" ? "ha" : "browser";
+    translate();
+  }
   preparationReady=false;$("preparation-result").textContent="";resetBuild();controls();
   if(pendingPreparation) await checkPreparation();
 };
@@ -212,7 +258,10 @@ async function checkBuild(manual=true) {
     const result=await readBuild(rpc,id);
     if(pendingPreparation?.id!==id) return;
     buildState=result;renderBuild();
-    if(result.state==="built_not_installed") await checkPlan(false);
+    if(result.state==="built_not_installed") {
+      await checkInstall(false);
+      if(!installState || installState.state==="not_started") await checkPlan(false);
+    }
     // Poll only the same explicitly selected active job. A reload does not
     // select or restart work; owner selection performs GET status only.
     if(result.state==="building") buildTimer=setTimeout(()=>void checkBuild(),5000);
@@ -239,7 +288,11 @@ async function checkPlan(manual=true) {
   if(manual) {busy=true;controls();}
   try {
     const result=await readPlan(rpc,id);
-    if(pendingPreparation?.id===id) {planState=result;renderBuild();}
+    if(pendingPreparation?.id===id) {
+      planState=result;
+      if(result.state==="plan_prepared") await loadInstallReview();
+      renderBuild();
+    }
   } catch {if(pendingPreparation?.id===id) {planState={state:"plan_unverified"};renderBuild();}}
   finally {if(manual) {busy=false;controls();}}
 }
@@ -248,12 +301,54 @@ $("prepare-plan").onclick=async()=>{
   if(busy || buildState?.state!=="built_not_installed" || !pendingPreparation ||
     (planState && planState.state!=="not_prepared")) return;
   busy=true;controls();
-  try {planState=await preparePlan(rpc,pendingPreparation.id);renderBuild();}
+  try {planState=await preparePlan(rpc,pendingPreparation.id);if(planState.state==="plan_prepared") await loadInstallReview();renderBuild();}
   catch(error) {
     lastError=error.code || "usb_plan_unverified";planState={state:"plan_unverified"};
     $("error").textContent=text(lastError);
   }
   finally {busy=false;controls();}
+};
+async function loadInstallReview() {
+  const id=pendingPreparation?.id;if(!id) return;
+  try {
+    const value=await readInstallReview(rpc,id);
+    if(pendingPreparation?.id===id) {installReview=value;if(!installState) installState={state:"not_started"};}
+  } catch {installReview=undefined;lastError="usb_install_review_required";$("error").textContent=text(lastError);}
+}
+async function checkInstall(manual=true) {
+  if(!pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  try {
+    const value=await readInstall(rpc,id);
+    if(pendingPreparation?.id===id) {
+      installState=value;
+      if(value.state!=="not_started") await loadInstallReview();
+      renderBuild();
+    }
+  } catch {if(pendingPreparation?.id===id) {installState={state:"install_unverified"};renderBuild();}}
+  finally {if(manual) {busy=false;controls();}}
+}
+$("install-ack").onchange=()=>renderBuild();
+$("install-status").onclick=()=>checkInstall();
+$("install-firmware").onclick=async()=>{
+  if(busy || !installReview || !$("install-ack").checked || installState?.state!=="not_started") return;
+  installRunning=true;busy=true;controls();lastError=null;$("error").textContent="";
+  try {installState=await startInstall(rpc,installReview,true);}
+  catch(error) {
+    lastError=error.code || "usb_install_unverified";$("error").textContent=text(lastError);
+    if(!["usb_busy","usb_install_host_space","usb_install_review_required","usb_install_plan_required","usb_unauthorized"].includes(lastError))
+      installState={state:"install_unverified"};
+  } finally {installRunning=false;busy=false;$("install-ack").checked=false;controls();}
+};
+$("observe-boot").onclick=async()=>{
+  if(busy || !pendingPreparation || !installState || installState.state==="not_started") return;
+  bootReading=true;busy=true;controls();
+  try {
+    bootState=await observeBoot(rpc,pendingPreparation.id);
+    await checkInstall(false);
+  } catch {bootState={state:"boot_unverified"};}
+  finally {bootReading=false;busy=false;controls();}
 };
 window.addEventListener("pagehide",()=>{clearTimeout(buildTimer);void probe?.close().catch(()=>{});});
 translate();controls();void loadPreparations(); // Owner metadata only; no USB or writer resumes.
