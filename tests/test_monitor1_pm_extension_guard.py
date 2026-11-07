@@ -79,7 +79,7 @@ class ExecutedPmGuardTests(unittest.TestCase):
     def rewrite(self, script):
         # A single regex pass prevents recursively replacing /data segments
         # inside an already substituted private fixture path.
-        pattern = r'(?<![A-Za-z0-9_])(?:/bin/busybox|/(?:data|proc|sys|tmp|etc|lib|usr)(?=/|\b))'
+        pattern = r'(?:(?<![A-Za-z0-9_])|(?<=\\n))(?:/bin/busybox|/(?:data|proc|sys|tmp|etc|lib|usr)(?=/|\b))'
         text = re.sub(pattern, lambda match: str(self.path(match[0])), script)
         # This fixture deliberately uses tmpfs; production admission remains
         # ext4 with no environment/CLI override or runtime test mode.
@@ -88,11 +88,13 @@ class ExecutedPmGuardTests(unittest.TestCase):
     def execute(self, script):
         text = self.rewrite(script)
         self.assertNotRegex(text, r'(?<![A-Za-z0-9_])/(?:data|proc|sys|tmp|etc|lib|usr)(?=/|\b)')
-        return subprocess.run(['/bin/sh', '-e'], input=text.encode(), capture_output=True, timeout=20)
+        # Trace only this already rewritten, wholly synthetic fixture. A bounded
+        # failed assertion can identify the exact guard without device logs.
+        return subprocess.run(['/bin/sh', '-ex'], input=text.encode(), capture_output=True, timeout=20)
 
     def test_real_shell_completes_once_and_refuses_replay_without_removing_history(self):
         result = self.execute(self.script)
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(result.returncode, 0, result.stderr.decode()[-5000:])
         self.assertEqual(result.stdout, b'')
         self.assertFalse((self.base / self.policy.FLAG).exists())
         for path in (self.base / self.policy.BACKUP, self.path(self.policy.ATTEMPTED)):
@@ -115,7 +117,8 @@ class ExecutedPmGuardTests(unittest.TestCase):
         stop = ': > ' + self.policy.ATTEMPTED + '\nsync\n'
         self.assertEqual(self.script.count(stop), 1)
         broken = self.script.replace(stop, stop + 'exit 97\n')
-        self.assertEqual(self.execute(broken).returncode, 97)
+        result = self.execute(broken)
+        self.assertEqual(result.returncode, 97, result.stderr.decode()[-5000:])
         self.assertTrue((self.base / self.policy.FLAG).exists())
         self.assertTrue(self.path(self.policy.ATTEMPTED).is_file())
         self.assertFalse((self.base / self.policy.DONE).exists())
@@ -126,7 +129,8 @@ class ExecutedPmGuardTests(unittest.TestCase):
         stop = '\nrm ' + self.policy.BASE + '/' + self.policy.FLAG + '\nsync\n'
         self.assertEqual(self.script.count(stop), 1)
         broken = self.script.replace(stop, stop + 'exit 98\n')
-        self.assertEqual(self.execute(broken).returncode, 98)
+        result = self.execute(broken)
+        self.assertEqual(result.returncode, 98, result.stderr.decode()[-5000:])
         self.assertFalse((self.base / self.policy.FLAG).exists())
         self.assertTrue(self.path(self.policy.ATTEMPTED).is_file())
         self.assertFalse((self.base / self.policy.DONE).exists())

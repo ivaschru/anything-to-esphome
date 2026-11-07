@@ -58,6 +58,9 @@ class PmGuardTests(unittest.TestCase):
         expected = " ".join(str(fixture.root) + p for p in (
             "/data/etc/os-release", "/usr/lib/library", "/proc/sys/kernel/random/boot_id", "/tmp/inhibit")) + " /bin/sh"
         self.assertEqual(fixture.rewrite(original), expected)
+        original = "printf '/bin/sh\\n/data/bin/watchdog.sh'"
+        expected = "printf '/bin/sh\\n" + str(fixture.root) + "/data/bin/watchdog.sh'"
+        self.assertEqual(fixture.rewrite(original), expected)
 
     def test_unknown_boot_process_identity_or_shell_values_refuse(self):
         for frame in ({**self.frame, 'boot_id': self.baseline.boot_id}, {**self.frame, 'stock': (True, 1000)},
