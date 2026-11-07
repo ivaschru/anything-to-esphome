@@ -588,6 +588,9 @@ separate even though the HACS wizard is shared.
   monitor1_worker/frontend/monitor1 copies. Preserve the offline Tango notices.
   The authenticated admin HTTP adapter sends actual user IDs to one private
   stdio actor, never forged Supervisor headers or a new HTTP listener/token.
+  Use the supported HA SDK KEY_HASS/KEY_HASS_USER constants. Positive real
+  aiohttp page/jobs tests must use its typed AppKey without a string alias;
+  a worker-only or rejected-user test cannot validate the admin HTTP route.
   Authenticate/reserve before body reads; drain an interrupted pipe response
   before releasing its reservation. An exited/uncertain actor is not restarted
   to replay work. Unload closes stdin after current bounded operations, never

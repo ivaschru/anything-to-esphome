@@ -16,6 +16,7 @@ import sys
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http.const import KEY_HASS, KEY_HASS_USER
 
 DOMAIN = "qingping_esphome"
 MAX_INPUT = 24 * 1024**2
@@ -155,11 +156,14 @@ class Monitor1View(HomeAssistantView):
     requires_auth = True
 
     async def post(self, request, operation):
-        user = request.get("hass_user")
+        user = request.get(KEY_HASS_USER)
         headers = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
         if user is None or not user.is_admin:
             return web.json_response({"error_code": "usb_unauthorized"}, status=403, headers=headers)
-        manager = request.app["hass"].data.get(DOMAIN)
+        # HA owns a typed aiohttp AppKey; a same-spelled string is a different
+        # key and fails before the actor is reached. Use its SDK constants for
+        # application/request state instead of a legacy string-key fixture.
+        manager = request.app[KEY_HASS].data.get(DOMAIN)
         service = getattr(manager, "monitor1", None)
         if service is None:
             return web.json_response({"error_code": "usb_core_unavailable"}, status=503, headers=headers)
