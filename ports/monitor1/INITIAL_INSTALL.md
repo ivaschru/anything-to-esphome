@@ -2,7 +2,7 @@
 
 **Engineering sources cover capture, local patch/plan preparation, disabled
 staging and disabled script commit/rollback. Writers are not hardware qualified;
-activation and the HACS CGS1 installation route remain unavailable.** Do not treat
+the ordinary HACS CGS1 installation route remains unavailable.** Do not treat
 the commands below as a complete flashing instruction or an upgrade tool.
 
 The next executable step is now available separately as the experimental
@@ -21,10 +21,18 @@ After a successful trial, a separate experimental bridge-only
 [next-boot arming entry](USB_TRIAL.md#bridge-only-autostart-for-the-next-boot)
 is available. It changes only the bridge opt-out and has a same-boot disarm;
 it never starts a program, enables PM preload, reboots or proves installation.
-Full permanent activation, GUI integration and fresh-device QA remain open.
+Full native UI installation and fresh-device QA remain open.
 The separate [post-boot observer](USB_TRIAL.md#read-an-already-booted-bridge-without-starting-it)
 can read a new current bridge session and authenticated wire updates without
 performing a boot or granting another install/launch intent.
+
+The separate [HA USB app](../../apps/monitor1_usb/README.md) now offers an
+explicitly reviewed experimental **server USB / stock bridge** sequence using
+these same engines, followed by a manual power cycle and separate read-only
+observation. It preserves consumed receipts and does not retry lost replies.
+Computer WebUSB writing and a complete full-UI installer are still unfinished.
+The app has not been physically qualified for a first factory-device install;
+its synthetic tests do not change ordinary HACS admission or hardware status.
 
 The verified boundary is CGS1, stock `4.1.8_0287`, ARMv7/glibc 2.23 with
 CO2 type **2 (S8)** or **3 (SCD40)**. The two types select different native

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Ingress-only, read-only Monitor 1 USB companion.
+"""Ingress-only Monitor 1 USB companion with a separate experimental writer.
 
-Only generated fixed reads/pulls can reach ADB. No generic shell, push, activation,
-TCP daemon listener on the LAN or Home Assistant API access exists here.
+Ordinary probes/captures use generated fixed reads. The owner-reviewed native
+install invokes the original guarded engines once, with durable history. There
+is no generic command/path endpoint, LAN ADB or Home Assistant API access.
 Browser USB uses the same source contract in the offline frontend bundle.
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,6 +27,8 @@ import uuid
 from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, available_jobs
 from build_worker import Builds
 from install_plan import Plans
+from installation import Installations
+from backup_export import profile_export, capture_export
 
 HERE = Path(__file__).resolve().parent
 SERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -197,6 +200,7 @@ class Companion:
         self.job_root = job_root
         self.builds = Builds(job_root, CONTRACT)
         self.plans = Plans(self.builds)
+        self.installations = Installations(self.plans)
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -326,6 +330,55 @@ class Companion:
         self.session(user, nonce)
         return self.plans.status(user, job_id)
 
+    def install_review(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.installations.review(user, job_id)
+
+    def install_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.installations.status(user, job_id)
+
+    def install(self, user, nonce, read_input, deliver):
+        self.session(user, nonce)
+        if not self.device_lock.acquire(blocking=False):
+            raise Refusal("usb_busy")
+        try:
+            data = read_input()
+            if not isinstance(data, dict) or set(data) != {"job_id", "expected_plan_sha256", "experimental_reviewed"}:
+                raise Refusal("usb_request_invalid")
+            result = self.installations.start(user, data["job_id"], data["expected_plan_sha256"], data["experimental_reviewed"])
+            # Keep the global USB lease until the owner receives the result.
+            # A closed page does not start another operation or a rollback.
+            return deliver(result)
+        finally:
+            self.device_lock.release()
+
+    def observe(self, user, nonce, read_input, deliver):
+        self.session(user, nonce)
+        if not self.device_lock.acquire(blocking=False):
+            raise Refusal("usb_busy")
+        try:
+            data = read_input()
+            if not isinstance(data, dict) or set(data) != {"job_id"}:
+                raise Refusal("usb_request_invalid")
+            return deliver(self.installations.observe(user, data["job_id"]))
+        finally:
+            self.device_lock.release()
+
+    def export(self, user, nonce, read_input, deliver, profile=False):
+        self.session(user, nonce)
+        if not self.device_lock.acquire(blocking=False):
+            raise Refusal("usb_busy")
+        try:
+            data = read_input()
+            if not isinstance(data, dict) or set(data) != {"job_id"}:
+                raise Refusal("usb_request_invalid")
+            payload = profile_export(self.job_root, user, data["job_id"]) if profile else capture_export(
+                self.job_root, user, data["job_id"], CONTRACT)
+            return deliver(payload)
+        finally:
+            self.device_lock.release()
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -351,6 +404,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         if content_type == "application/x-tar":
             self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-capture.tar"')
+        elif content_type == "application/vnd.qingping.private-profile+json":
+            self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-private-profile.json"')
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'")
         self.end_headers()
@@ -382,6 +437,12 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})/plan", self.path)
             if match:
                 return self.reply(200, self.server.companion.plan_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/install-review", self.path)
+            if match:
+                return self.reply(200, self.server.companion.install_review(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/install", self.path)
+            if match:
+                return self.reply(200, self.server.companion.install_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             self.reply(404, {"error_code": "usb_not_found"})
         except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
@@ -391,7 +452,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/export-profile", "/export-originals"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -402,6 +463,17 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/prepare":
                 return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+            if self.path == "/install":
+                return self.server.companion.install(user, self.headers.get("X-Qingping-Nonce"),
+                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+            if self.path == "/observe":
+                return self.server.companion.observe(user, self.headers.get("X-Qingping-Nonce"),
+                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+            if self.path in ("/export-profile", "/export-originals"):
+                profile = self.path == "/export-profile"
+                mime = "application/vnd.qingping.private-profile+json" if profile else "application/x-tar"
+                return self.server.companion.export(user, self.headers.get("X-Qingping-Nonce"),
+                    lambda: self.json_body(int(size)), lambda payload: self.reply(200, payload, mime), profile=profile)
             if self.path in ("/build", "/plan"):
                 self.server.companion.session(user, self.headers.get("X-Qingping-Nonce"))
                 data = self.json_body(int(size))
