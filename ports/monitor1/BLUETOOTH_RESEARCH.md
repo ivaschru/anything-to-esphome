@@ -1,6 +1,7 @@
 # Bluetooth on CGS1: evidence and remaining blockers
 
-Status checked on 6 November 2026. A CGS1 Bluetooth proxy is **not implemented
+Source review updated on 7 November 2026; hardware observations below remain
+from 6 November. A CGS1 Bluetooth proxy is **not implemented
 or enabled**. Loading a Wi-Fi module, finding Bluetooth firmware on disk, or
 compiling a scanner is not proof of a working Home Assistant proxy.
 
@@ -54,6 +55,19 @@ holding it low disables Bluetooth and its UART. WL_DIS# is a separate pin
 4/GPIO9. These are **chip pins, not CGS1 SoC GPIO numbers or tty mappings**.
 The UART chapter describes four-wire flow control, but this pinout does not
 label a separate RTS pin; do not infer one. No vendor PDF is bundled here.
+
+On 7 November, Google web search for CGS1/RTL8723DS/UART/PCB returned an AI
+Overview that called chip pin 24 UART_RTS and asserted board BT_TX/BT_RX
+test points. These are not accepted wiring evidence. The manufacturer
+[Rev. 0.92 datasheet copy at LCSC](https://datasheet.lcsc.com/datasheet/pdf/c494e1c39d5f0a62747ce0c16bf5d494.pdf?productCode=C2762334),
+section 6.5, table 5 (printed page 9 / PDF page 15), identifies pin 24 as
+PCM_CLK, shared with GPIO3. No source inspected in that search established
+CGS1 BT test-point locations or a safe SoC UART/power mapping. This limited
+search does not prove that a schematic is globally absent.
+
+The FCCID.io attachment remained inaccessible through the document reader.
+The FCC.report record also stopped at a browser safety check; its exhibits
+were not read. These are access/coverage gaps, not negative PCB evidence.
 
 Liutyi's board and wireless close-ups confirm the chip marking on that S8
 board. They do not show enough continuous routing to establish the destination
