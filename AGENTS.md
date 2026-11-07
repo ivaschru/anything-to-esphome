@@ -64,6 +64,9 @@ separate even though the HACS wizard is shared.
   reboot or silently configure a VM/compiler/remote ADB. Keep exported 0700/
   0600 metadata, opaque browser download and a 64MiB cap. Physical QA and a
   browser-only writer remain independent. Run tests/test_usb_computer.py.
+  Keep the user walkthrough in apps/monitor1_usb/README.ru.md aligned with
+  actual button/CLI names and the English reference. Separate build location,
+  USB transport, bridge-only installation and unfinished Full UI qualification.
 
 - Companion profile preparation creates an owner-bound private job and an
   immutable intent before generating a Noise key. Keep fixed USTAR input
