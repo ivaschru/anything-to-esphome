@@ -12,7 +12,9 @@ import re
 from urllib.parse import urlsplit
 
 REPOSITORY = "ivaschru/qingping-esphome"
-CATALOG_URL = f"https://github.com/{REPOSITORY}/releases/latest/download/firmware-catalog.json"
+LEGACY_CATALOG_URL = f"https://github.com/{REPOSITORY}/releases/latest/download/firmware-catalog.json"
+CATALOG_BRANCH = "firmware-catalog"
+CATALOG_URL = f"https://raw.githubusercontent.com/{REPOSITORY}/{CATALOG_BRANCH}/firmware-catalog.json"
 CATALOG_FORMAT = "qingping-esphome-firmware-catalog-v1"
 MAX_INDEX_BYTES = 65536
 MAX_IMAGE_BYTES = 0x1E0000 - 1
@@ -38,18 +40,37 @@ def _positive(value, maximum):
     return value
 
 
-def asset_url(value, *, filename=None):
-    """No arbitrary URLs, mutable branch paths, credentials, ports or queries."""
+def firmware_tag(profile, version):
+    """Immutable data tags are not GitHub Releases, so HACS never adopts them."""
+    if profile not in KNOWN_PROFILES or type(version) is not int or not 1 <= version <= 2**53-1:
+        raise FirmwareError("invalid_catalog")
+    return f"firmware-{profile}-v{version}"
+
+
+def asset_url(value, *, filename=None, profile=None):
+    """Admit old release assets and exact profile-bound immutable data tags.
+
+    Only the catalog itself has a mutable branch URL. Firmware bytes cannot
+    come from main/catalog branches, another repository, an unqualified tag,
+    a query/fragment or a profile other than the one selected by HA.
+    """
     value = _text(value, maximum=512)
     parsed = urlsplit(value)
-    prefix = f"/{REPOSITORY}/releases/download/"
-    if (parsed.scheme != "https" or parsed.netloc != "github.com"
-            or parsed.query or parsed.fragment or not parsed.path.startswith(prefix)):
+    if parsed.scheme != "https" or parsed.query or parsed.fragment:
         raise FirmwareError("invalid_asset_url")
-    pieces = parsed.path[len(prefix):].split("/")
-    if len(pieces) != 2 or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", pieces[0]):
+    legacy = f"/{REPOSITORY}/releases/download/"
+    raw = f"/{REPOSITORY}/"
+    if parsed.netloc == "github.com" and parsed.path.startswith(legacy):
+        pieces = parsed.path[len(legacy):].split("/")
+        valid = len(pieces)==2 and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+",pieces[0])
+    elif parsed.netloc == "raw.githubusercontent.com" and parsed.path.startswith(raw):
+        pieces = parsed.path[len(raw):].split("/")
+        allowed = (profile,) if profile is not None else KNOWN_PROFILES
+        valid = len(pieces)==2 and any(
+            re.fullmatch(rf"firmware-{re.escape(p)}-v[1-9][0-9]*",pieces[0]) for p in allowed)
+    else:
         raise FirmwareError("invalid_asset_url")
-    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}", pieces[1]):
+    if not valid or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}",pieces[1]):
         raise FirmwareError("invalid_asset_url")
     if filename is not None and pieces[1] != filename:
         raise FirmwareError("invalid_asset_url")
@@ -63,13 +84,13 @@ class Asset:
     sha256: str
 
     @classmethod
-    def parse(cls, data, *, filename, maximum):
+    def parse(cls, data, *, filename, maximum, profile=None):
         if not isinstance(data, dict):
             raise FirmwareError("invalid_catalog")
         digest = data.get("sha256")
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise FirmwareError("invalid_catalog")
-        return cls(asset_url(data.get("url"), filename=filename),
+        return cls(asset_url(data.get("url"), filename=filename, profile=profile),
                    _positive(data.get("size"), maximum), digest)
 
 
@@ -107,8 +128,19 @@ class Release:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", minimum):
             raise FirmwareError("invalid_catalog")
         release_url = _text(data.get("release_url"), maximum=512)
-        if not re.fullmatch(r"https://github\.com/ivaschru/qingping-esphome/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+", release_url):
+        legacy_url = re.fullmatch(r"https://github\.com/ivaschru/qingping-esphome/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+", release_url)
+        public_number = _positive(data["public_version"],2**53-1) if "public_version" in data else None
+        tag = firmware_tag(profile,public_number) if public_number is not None else None
+        independent_url = f"https://github.com/{REPOSITORY}/tree/{tag}"
+        if not legacy_url and release_url != independent_url:
             raise FirmwareError("invalid_catalog")
+        if not legacy_url:
+            expected = f"https://raw.githubusercontent.com/{REPOSITORY}/{tag}/"
+            if (data.get("image",{}).get("url") != expected+stem+".bin"
+                    or data.get("manifest",{}).get("url") != expected+stem+".json"):
+                raise FirmwareError("invalid_asset_url")
+        if legacy_url and any(str(data.get(k,{}).get("url","")).startswith("https://raw.") for k in ("image","manifest")):
+            raise FirmwareError("invalid_asset_url")
         history = data.get("adoption_versions", [])
         revision = _positive(data.get("revision"), 2**53 - 1)
         if not isinstance(history, list) or len(history) > 128:
@@ -126,8 +158,8 @@ class Release:
         return cls(profile, _text(data.get("version")),
                    _positive(data.get("revision"), 2**53 - 1),
                    _text(data.get("backend")), minimum,
-                   Asset.parse(data.get("image"), filename=stem + ".bin", maximum=MAX_IMAGE_BYTES),
-                   Asset.parse(data.get("manifest"), filename=stem + ".json", maximum=MAX_INDEX_BYTES),
+                   Asset.parse(data.get("image"), filename=stem + ".bin", maximum=MAX_IMAGE_BYTES, profile=profile),
+                   Asset.parse(data.get("manifest"), filename=stem + ".json", maximum=MAX_INDEX_BYTES, profile=profile),
                    release_url, _text(data.get("summary"), maximum=255), tuple(admitted),
                    _positive(data["public_version"], 2**53 - 1) if "public_version" in data else None)
 

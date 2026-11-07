@@ -150,13 +150,24 @@ Replacing stock firmware can require opening the case after an early boot
 failure. USB supplies power, not data. The stock bootloader is preserved, but
 no full backup is created and later OTA may overwrite the remaining stock app.
 
+## Independent firmware releases
+
+From integration **0.2.2**, firmware checks use a separate [live catalog](https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-catalog/firmware-catalog.json).
+Firmware-only publication creates a profile tag such as `firmware-lite-v2`;
+it does not create a GitHub Release or change the HACS plugin version. Standard
+HA update entities still select the exact hardware profile and enforce the
+minimum integration version. Installation remains an explicit user action.
+The bundled first-install template is the qualified version packaged with the
+plugin; newer compatible device firmware is delivered through the live catalog.
+See [publishing and recovery](docs/FIRMWARE_CHANNEL.md). Old combined releases
+remain immutable; the commands below describing them are historical.
+
 ## Firmware updates in Home Assistant
 
 The integration now provides one standard **Firmware** update entity per
 verified installer-managed Lite. New releases appear in **Settings → System
-→ Updates**, alongside other Home Assistant updates. This requires a release
-containing this feature and its public `firmware-catalog.json`; source changes
-alone do not make a release available. The catalog is checked every six hours;
+→ Updates**, alongside other Home Assistant updates. This requires integration 0.2.2 or later and publication to the independent
+firmware catalog; source changes alone do not publish a device version. The catalog is checked every six hours;
 refresh the update entity to check sooner. Installation starts only when an
 administrator presses **Update**.
 
@@ -169,7 +180,7 @@ backends. A shared model name does not make their images interchangeable.
 For new installations, HA retains the original Wi-Fi, fallback AP and API/OTA
 keys in its private, atomic installer journal. Keep HA backups private: they
 can include this journal. An update downloads only a public template from an
-immutable GitHub release, checks its SHA-256 and manifest, then personalizes it
+immutable profile tag (or an older combined release), checks its SHA-256 and manifest, then personalizes it
 inside HA. Private images and credentials never go to GitHub. The native API
 must confirm the exact MAC/name, the managed firmware version, USB power and
 the saved settings before one encrypted app-only transfer. After reboot, HA
@@ -245,12 +256,12 @@ change under the same version refuses instead of rebuilding another image.
 Run `tools/check_profile_wire.py` after the initial compile to check real SDK
 firmware crypto against the Python decoder.
 
-`python tools/build_firmware_catalog.py --tag vX.Y.Z --check-previous` creates
-the catalog, public BIN and original manifest in a new
-`.build/firmware-release/vX.Y.Z/` directory. An installer-only release retains
-the previous firmware entry and immutable URLs. The stable-tag workflow uploads
-all three assets alongside the HACS ZIP. Prereleases do not become the stable
-catalog, and existing release files must never be overwritten.
+Publish firmware independently with the **Firmware** workflow or
+`python tools/publish_firmware.py --profile lite` for a preview, then `--publish`.
+The source metadata owns the profile version; the HACS manifest is unchanged.
+See [the complete publication/recovery runbook](docs/FIRMWARE_CHANNEL.md).
+`build_firmware_catalog.py` remains only for legacy combined-format validation;
+it is no longer the ordinary publishing command.
 
 ## Development
 

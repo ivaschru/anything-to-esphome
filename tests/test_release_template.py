@@ -32,7 +32,7 @@ class ReleaseTemplateTests(unittest.TestCase):
         prefix="https://github.com/ivaschru/qingping-esphome/releases/download/v0.1.9/"
         def asset(n,data):return {"url":prefix+n,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
         index={"format":"qingping-esphome-firmware-catalog-v1","releases":{"lite":{**info,"image":asset("lite-template.bin",binary),"manifest":asset("lite-template.json",manifest),"release_url":"https://github.com/ivaschru/qingping-esphome/releases/tag/v0.1.9"}}}
-        mapping={"https://github.com/ivaschru/qingping-esphome/releases/latest/download/firmware-catalog.json":json.dumps(index).encode(),prefix+"lite-template.bin":binary,prefix+"lite-template.json":manifest}
+        mapping={"https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-catalog/firmware-catalog.json":json.dumps(index).encode(),prefix+"lite-template.bin":binary,prefix+"lite-template.json":manifest}
         calls=[]
         def opener(url,maximum):calls.append(url);return mapping[url]
         return root,binary,manifest,opener,calls,mapping
@@ -45,6 +45,14 @@ class ReleaseTemplateTests(unittest.TestCase):
         self.assertEqual((output/"lite-template.bin").read_bytes(),binary)
         self.assertEqual((output/"lite-template.json").read_bytes(),manifest)
         self.assertEqual(len(calls),3)
+
+    def test_only_absent_new_channel_uses_legacy_build_bootstrap(self):
+        root,binary,manifest,opener,calls,mapping=self.current_fixture()
+        primary=next(iter(mapping));legacy="https://github.com/ivaschru/qingping-esphome/releases/latest/download/firmware-catalog.json"
+        mapping[legacy]=mapping[primary];mapping[primary]=None
+        with patch.object(release,"git_read",return_value=""):
+            self.assertTrue(release.reuse_current(root,opener))
+        self.assertEqual(calls[:2],[primary,legacy])
 
     def test_same_version_with_changed_source_refuses_before_any_image_write(self):
         root,_,_,opener,_,_=self.current_fixture()

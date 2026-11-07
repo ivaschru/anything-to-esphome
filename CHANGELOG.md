@@ -18,6 +18,19 @@
   soft-float or missing float flags. This is static build admission; existing
   firmware, loader qualification and installation readiness are unchanged.
 
+## 0.2.2 – independent firmware publication
+
+- Move live firmware discovery off the latest HACS Release to a dedicated
+  catalog branch and immutable profile tags in the same repository.
+- Add a preview/publish workflow with source pins, public-placeholder checks,
+  monotonic per-profile versions, create-only tags and one atomic CAS push.
+- Preserve the original Lite 2 bytes and old combined release URLs. A frozen
+  legacy catalog remains available to pre-0.2.2 readers during migration.
+- Keep plugin-only releases from advancing firmware versions; firmware-only
+  releases neither package nor bump the plugin. No automatic device OTA.
+- Protect restored ESPHome time settings and allow earlier public firmware
+  without the new design/motion selectors to retain its existing controls.
+
 ## 0.2.1 / Lite firmware 2
 
 - Port guarded quiet PM operation for the qualified direct-I2C profile.
