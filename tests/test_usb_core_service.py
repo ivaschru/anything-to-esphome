@@ -9,6 +9,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import sys
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock
@@ -24,6 +25,12 @@ if HAS_HA:
     spec = importlib.util.spec_from_file_location("monitor1_core_service", ROOT / "custom_components/qingping_esphome/monitor1.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module.__package__ = "qingping_core_contract"
+    helper_spec = importlib.util.spec_from_file_location("qingping_core_contract.monitor1_enrollment", ROOT / "custom_components/qingping_esphome/monitor1_enrollment.py")
+    enrollment = importlib.util.module_from_spec(helper_spec)
+    helper_spec.loader.exec_module(enrollment)
+    sys.modules[helper_spec.name] = enrollment
+
 
 
 @unittest.skipUnless(HAS_HA, "requires the real Home Assistant SDK")
@@ -110,6 +117,46 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
         # The positive HTTP route may start its private stdio actor only.
         self.assertEqual(list((self.service.root / "adb").iterdir()), [])
         self.assertEqual(list((self.service.root / "toolsets").iterdir()), [])
+
+    async def test_http_cannot_request_internal_key_operations_or_receive_private_mime(self):
+        client = await self.http_client()
+        response = await client.post("/api/qingping_esphome/monitor1/internal-enrollment-prepare", data=b"{}",
+            headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
+        self.assertEqual(response.status,403)
+        self.assertIsNone(self.service.process)
+        self.service.call = AsyncMock(return_value=(True,module.INTERNAL_MIME,b"SYNTHETIC_PRIVATE_PAYLOAD"))
+        response = await client.post("/api/qingping_esphome/monitor1/jobs", data=b"null",
+            headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
+        self.assertEqual(response.status,403)
+        self.assertNotIn("SYNTHETIC_PRIVATE_PAYLOAD",await response.text())
+
+    async def test_native_enrollment_and_lost_ack_status_keep_key_on_private_pipe(self):
+        from test_usb_ha_enrollment_core import DATA, entry
+        from unittest.mock import patch
+        items=[]
+        self.hass.config_entries=SimpleNamespace(async_entries=lambda domain:items)
+        public={"job_id":DATA["job_id"],"state":"unverified","entry_id":None,"enrollment_available":False,
+            "replay_allowed":False,"installation_ready":False}
+        async def exchange(user,nonce,operation,data):
+            if operation in ("internal-enrollment-prepare","internal-enrollment-package"):
+                return True,module.INTERNAL_MIME,json.dumps(DATA).encode()
+            if operation=="internal-enrollment-record":
+                return True,"application/json",json.dumps({**public,"state":data["state"],"entry_id":data["entry_id"]}).encode()
+            if operation=="internal-enrollment-status":return True,"application/json",json.dumps(public).encode()
+            self.fail(operation)
+        self.service.exchange=AsyncMock(side_effect=exchange)
+        with patch.object(enrollment,"enroll",AsyncMock(return_value=("created","ENTRY_1"))) as native:
+            async with self.service.reserve():
+                result=await self.service.call("a"*32,"b"*64,"enroll",{"job_id":DATA["job_id"],"expected_plan_sha256":"d"*64,"reviewed":True})
+            self.assertEqual(json.loads(result[2])["state"],"created")
+            self.assertNotIn(DATA["noise_psk"].encode(),result[2])
+            items.append(entry())
+            async with self.service.reserve():
+                result=await self.service.call("a"*32,"b"*64,"jobs/"+DATA["job_id"]+"/enroll",None)
+            self.assertEqual(json.loads(result[2])["state"],"already_configured")
+            self.assertNotIn(DATA["noise_psk"].encode(),result[2]);self.assertEqual(native.await_count,1)
+            # Status never rewrites a receipt or opens USB/a new native flow.
+            self.assertEqual(self.service.exchange.call_args_list[-1].args[2],"internal-enrollment-package")
 
     async def test_unloaded_http_service_returns_controlled_unavailable(self):
         client = await self.http_client(loaded=False)

@@ -1,5 +1,17 @@
 ## 0.2.7 – initial PM transition for Full UI
 
+## 0.2.8
+
+- Add a separate “Add to Home Assistant” step to Monitor 1's integrated USB
+  wizard after verified permanent Full UI startup. The private key stays on
+  Core's worker pipe; exact USB and fresh encrypted LAN checks precede the
+  standard native ESPHome flow. Existing conflicts require manual review.
+- Preserve one-use enrollment intent and status-only reconciliation across
+  lost responses/restarts. No device flash, reboot, automatic retry or private
+  payload in browser status. This remains an experimental initial-install
+  path; software tests do not qualify an untouched physical monitor.
+
+
 - Prepare a separate owner/plan-bound PM transition through the fixed SDK
   child. Before removing the persistent opt-out, inhibit stock restarts for
   the remainder of the current boot. Preserve backups, consumed history and

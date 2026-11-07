@@ -21,7 +21,8 @@ from homeassistant.components.http.const import KEY_HASS, KEY_HASS_USER
 DOMAIN = "qingping_esphome"
 MAX_INPUT = 24 * 1024**2
 MAX_OUTPUT = 64 * 1024**2
-MIMES = {"application/json", "application/x-tar",
+INTERNAL_MIME = "application/vnd.qingping.internal-ha-enrollment+json"
+MIMES = {INTERNAL_MIME,"application/json", "application/x-tar",
          "application/vnd.qingping.private-profile+json",
          "application/vnd.qingping.private-computer-bundle+tar"}
 
@@ -117,6 +118,8 @@ class Monitor1:
         async def bounded_exchange():
             try:
                 async with asyncio.timeout(900):
+                    if operation == "enroll" or re.fullmatch(r"jobs/[a-f0-9]{32}/enroll", operation):
+                        return await self.enrollment(user, nonce, operation, data)
                     return await self.exchange(user, nonce, operation, data)
             except TimeoutError:
                 self.failed = True
@@ -140,6 +143,44 @@ class Monitor1:
             raise
         finally:
             self.pending = None
+
+    async def enrollment(self, user, nonce, operation, data):
+        """Keep the entire flow under call()'s shield/reservation, not just IO."""
+        from .monitor1_enrollment import payload, enroll, existing
+        if operation == "enroll":
+            if (not isinstance(data, dict) or set(data) != {"job_id", "expected_plan_sha256", "reviewed"} or data["reviewed"] is not True or
+                    not isinstance(data["job_id"], str) or not re.fullmatch(r"[a-f0-9]{32}", data["job_id"]) or
+                    not isinstance(data["expected_plan_sha256"], str) or not re.fullmatch(r"[a-f0-9]{64}", data["expected_plan_sha256"])):
+                raise CoreRefusal("usb_enrollment_review_required")
+            job_id = data["job_id"]
+            ok, mime, raw = await self.exchange(user, nonce, "internal-enrollment-prepare", data)
+            if not ok:
+                return ok, mime, raw
+            if mime != INTERNAL_MIME:
+                raise CoreRefusal("usb_enrollment_unverified")
+            private = payload(raw, job_id)
+            try:
+                state, entry_id = await enroll(self.hass, private)
+            except Exception:
+                state, entry_id = "unverified", None
+            return await self.exchange(user, nonce, "internal-enrollment-record", {"job_id": job_id,
+                "intent_sha256": private["intent_sha256"], "state": state, "entry_id": entry_id})
+        if data is not None:
+            raise CoreRefusal("usb_request_invalid")
+        job_id = operation.split("/")[1]
+        result = await self.exchange(user, nonce, "internal-enrollment-status", {"job_id": job_id})
+        # If the browser/Core lost the final ACK, only inspect current entries.
+        # No USB read, native flow, new receipt or rekey is allowed on status.
+        if result[0] and result[1] == "application/json" and json.loads(result[2]).get("state") == "unverified":
+            ok, mime, raw = await self.exchange(user, nonce, "internal-enrollment-package", {"job_id": job_id})
+            if ok and mime == INTERNAL_MIME:
+                private = payload(raw, job_id)
+                current = existing(self.hass, private)
+                if current and current[0] == "already_configured":
+                    public = json.loads(result[2])
+                    public.update(state="already_configured", entry_id=current[1])
+                    return True, "application/json", json.dumps(public).encode()
+        return result
 
     async def stop(self):
         self.closing = True
@@ -172,6 +213,10 @@ class Monitor1View(HomeAssistantView):
                     or request.content_type != "application/json" or request.headers.get("Transfer-Encoding")
                     or request.content_length is None or not 0 < request.content_length <= MAX_INPUT):
                 raise CoreRefusal("usb_request_invalid")
+            # Internal key-bearing operations are pipe-only. Reject before
+            # starting an actor, parsing a body or forwarding any private MIME.
+            if operation.startswith("internal-"):
+                raise CoreRefusal("usb_request_invalid")
             async with service.reserve():
                 async with asyncio.timeout(90):
                     raw = await request.content.readexactly(request.content_length)
@@ -183,6 +228,8 @@ class Monitor1View(HomeAssistantView):
                 elif not isinstance(nonce, str) or not re.fullmatch(r"[a-f0-9]{64}", nonce):
                     raise CoreRefusal("usb_unauthorized")
                 ok, mime, body = await service.call(user.id, nonce, operation, data)
+            if mime == INTERNAL_MIME:
+                raise CoreRefusal("usb_enrollment_unverified")
             if mime != "application/json":
                 filename = {"application/x-tar": "qingping-cgs1-capture.tar",
                     "application/vnd.qingping.private-profile+json": "qingping-cgs1-private-profile.json",

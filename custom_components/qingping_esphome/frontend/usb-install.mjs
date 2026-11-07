@@ -178,3 +178,32 @@ export async function startPmExtension(rpc,review,acknowledged) {
     fail("usb_pm_extension_unverified");
   }
 }
+
+/** Native HA enrollment is separate from firmware success and never replayed. */
+export function enrollmentStatus(value,id) {
+  const keys=["job_id","state","enrollment_available","entry_id","replay_allowed","installation_ready"];
+  if(!value || Object.keys(value).sort().join()!==keys.sort().join() || !/^[a-f0-9]{32}$/.test(id) || value.job_id!==id ||
+     !["not_started","created","already_configured","conflict","manual_flow_required","unverified"].includes(value.state) ||
+     typeof value.enrollment_available!=="boolean" || value.replay_allowed!==false || value.installation_ready!==false ||
+     !(value.entry_id===null || (typeof value.entry_id==="string" && /^[A-Za-z0-9_-]{1,64}$/.test(value.entry_id))) ||
+     (["created","already_configured"].includes(value.state)!==(value.entry_id!==null)) ||
+     (value.state!=="not_started" && value.enrollment_available)) throw {code:"usb_enrollment_unverified"};
+  return value;
+}
+export async function readEnrollment(rpc,id) {
+  if(!/^[a-f0-9]{32}$/.test(id)) throw {code:"usb_enrollment_unverified"};
+  return enrollmentStatus(await rpc("jobs/"+id+"/enroll"),id);
+}
+export async function startEnrollment(rpc,review,acknowledged) {
+  if(acknowledged!==true || !review || !/^[a-f0-9]{32}$/.test(review.job_id) || !/^[a-f0-9]{64}$/.test(review.plan_sha256))
+    throw {code:"usb_enrollment_review_required"};
+  try {
+    return enrollmentStatus(await rpc("enroll",{job_id:review.job_id,expected_plan_sha256:review.plan_sha256,reviewed:true}),review.job_id);
+  } catch(error) {
+    if(["usb_unauthorized","usb_busy","usb_enrollment_review_required","usb_enrollment_activation_required"].includes(error?.code)) throw error;
+    // Reading current HA entries is safe after a lost reply; the flow itself
+    // cannot be started again, even if its readback remains unverified.
+    try {const value=await readEnrollment(rpc,review.job_id);if(value.state!=="not_started") return value;} catch {}
+    throw {code:"usb_enrollment_unverified"};
+  }
+}

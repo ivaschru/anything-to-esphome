@@ -1,6 +1,23 @@
 /** Shared English/Russian labels; language changes never reset USB. */
 export const strings = {
   en: {
+    enrollment_title:"Add to Home Assistant",
+    enrollment_help:"Connect USB and keep the monitor on the same local network as HA. Checks its current address and encrypted identity, then adds the verified device through the standard ESPHome integration. Existing conflicts need manual review. This step does not flash or restart the monitor.",
+    enrollment_ack:"Add this verified monitor to the ESPHome integration in this Home Assistant.",
+    enrollment_start:"Add to Home Assistant",
+    enrollment_status:"Read HA enrollment status",
+    enrollment_running:"Reading the monitor address and native session, verifying the encrypted LAN connection and adding the ESPHome entry…",
+    enrollment_not_started:"The permanent interface was observed. You can now add this monitor to HA.",
+    enrollment_created:"The monitor was added to the ESPHome integration. This saved result does not certify current device health.",
+    enrollment_already_configured:"An exact matching ESPHome entry exists in this Home Assistant.",
+    enrollment_conflict:"An ESPHome entry conflicts with this device identity, address or key. Review it in Settings → Devices & services → ESPHome; the wizard did not replace it.",
+    enrollment_manual_flow_required:"The native ESPHome flow needs a manual decision. Open Settings → Devices & services → ESPHome. Do not repeat firmware installation.",
+    enrollment_unverified:"HA enrollment could not be confirmed. Read status to check existing entries; no flow or firmware write will be repeated.",
+    usb_enrollment_review_required:"Confirm adding this exact verified monitor to HA.",
+    usb_enrollment_activation_required:"A verified permanent Full UI startup is required first.",
+    usb_enrollment_consumed:"HA enrollment was already requested. Read its status.",
+    usb_enrollment_unverified:"HA enrollment is unverified. Read status; do not repeat the request.",
+
     pm_title:"Prepare Full UI",
     pm_help:"Enables the stock software extension required for the full interface on the next ordinary boot. The current screen stays stock. Keep USB and power connected until the result; this step does not restart the monitor.",
     pm_ack:"I accept this experimental prerequisite and will power the monitor off and on after a confirmed result.",
@@ -165,6 +182,23 @@ export const strings = {
     failed:"The USB check was incomplete. Nothing was installed. Check the cable, ADB and selected connection."
   },
   ru: {
+    enrollment_title:"Добавить в Home Assistant",
+    enrollment_help:"Подключите USB и оставьте монитор в одной локальной сети с HA. Мастер проверит текущий адрес и зашифрованное подключение, затем добавит прибор через штатную интеграцию ESPHome. Конфликтующие записи требуют отдельного решения. Прибор не прошивается и не перезагружается.",
+    enrollment_ack:"Добавить этот проверенный монитор в интеграцию ESPHome этого Home Assistant.",
+    enrollment_start:"Добавить в Home Assistant",
+    enrollment_status:"Проверить добавление в HA",
+    enrollment_running:"Читаем адрес и текущую сессию прибора, проверяем зашифрованное подключение по сети и добавляем запись ESPHome…",
+    enrollment_not_started:"Постоянный интерфейс был проверен. Теперь можно добавить монитор в HA.",
+    enrollment_created:"Монитор добавлен в интеграцию ESPHome. Сохранённый результат не подтверждает текущую доступность прибора.",
+    enrollment_already_configured:"В этом Home Assistant уже есть полностью совпадающая запись ESPHome.",
+    enrollment_conflict:"Есть конфликт записи ESPHome с адресом, ключом или идентификатором прибора. Проверьте её в «Настройки → Устройства и службы → ESPHome». Мастер не заменил запись.",
+    enrollment_manual_flow_required:"Штатная настройка ESPHome требует отдельного решения. Откройте «Настройки → Устройства и службы → ESPHome». Не повторяйте установку прошивки.",
+    enrollment_unverified:"Добавление в HA не подтверждено. Проверка статуса прочитает существующие записи; настройка и прошивка повторно не запускаются.",
+    usb_enrollment_review_required:"Подтвердите добавление именно этого проверенного монитора в HA.",
+    usb_enrollment_activation_required:"Сначала нужен проверенный постоянный запуск полного интерфейса.",
+    usb_enrollment_consumed:"Добавление в HA уже запрашивалось. Прочитайте статус.",
+    usb_enrollment_unverified:"Добавление в HA не подтверждено. Прочитайте статус, не повторяя запрос.",
+
     pm_title:"Подготовить полный интерфейс",
     pm_help:"Включит штатное программное расширение, нужное для полного интерфейса, на следующую обычную загрузку. Текущий экран останется штатным. До результата оставьте USB и питание подключёнными; этот шаг не перезапускает прибор.",
     pm_ack:"Согласен на этот экспериментальный этап. После подтверждённого результата полностью выключу и включу прибор.",

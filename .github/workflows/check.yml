@@ -71,8 +71,8 @@ jobs:
           import importlib.util, json, pathlib, subprocess, sys
           root = pathlib.Path(importlib.util.find_spec("homeassistant").origin).parent
           requirements = []
-          for domain in ("bluetooth", "usb", "hassio", "esphome"):
-              requirements.extend(json.loads((root / "components" / domain / "manifest.json").read_text())["requirements"])
+          for domain in ("bluetooth", "usb", "hassio", "esphome", "assist_satellite", "assist_pipeline", "conversation", "tts", "ffmpeg"):
+              requirements.extend(json.loads((root / "components" / domain / "manifest.json").read_text()).get("requirements", []))
           subprocess.check_call([sys.executable, "-m", "pip", "install", *requirements])
           PY
       - run: python -m unittest discover -s tests -v
