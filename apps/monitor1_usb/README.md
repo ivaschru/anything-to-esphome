@@ -100,12 +100,20 @@ HA companion builds for either cable location; the monitor need not stay
 connected during compilation. No compiler/VM runs on the browser computer.
 
 The worker fetches the fixed reviewed public commit
-`e09440f9fa36da2aaad16212734879bb6304f6d2`, creates its isolated pinned SDK and
+`0de9c99e57192742b82616cf82c0fdad71c562c5`, creates its isolated pinned SDK and
 calls the canonical `build_candidate.py`. It links your verified private Qt
 input and individual profile, builds the matched guardian/native/bridge and
 initial trial guardian, then checks the actual output hashes. Private inputs,
 programs and logs stay in this app's `/data/jobs`; no public build service or
 GitHub artifact receives them. Internet downloads are public source/tools only.
+
+App 0.0.9 advances this default only for new builds. Existing jobs produced
+from the previous reviewed `e09440f9` source retain their original source,
+programs, keys and plans. Status and explicit computer export verify the same
+source throughout the intent, candidate, plan and downloaded bundle; membership
+in the reviewed set never permits mixing two revisions. Updating the app does
+not rebuild, restart, relabel or install an old job. Incomplete historical jobs
+still block new builds and cannot be adopted or replayed.
 
 The worker uses one logical CPU with nice 10 and sequential compilation.
 It requires 6 GiB free before starting, stops its own process group if free

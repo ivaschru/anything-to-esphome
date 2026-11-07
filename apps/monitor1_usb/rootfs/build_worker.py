@@ -21,9 +21,15 @@ import time
 from preparation import (PreparationError, USER, job_status, owned_intent,
                          private_directory, read_private, unique_json, write_new)
 
-# Reviewed public builder, including the bounded initial guardian. This is an
-# immutable commit, not main/HEAD from a download or a browser-supplied source.
-SOURCE_COMMIT = "e09440f9fa36da2aaad16212734879bb6304f6d2"
+# New builds use this exact reviewed revision, independently cross-built for
+# S8 and SCD40. It is never a ref/URL/source supplied by HTTP. Historical jobs
+# keep their own immutable source: moving this default must not relabel their
+# reports, plans, program pins, keys or consumed execution history.
+SOURCE_COMMIT = "0de9c99e57192742b82616cf82c0fdad71c562c5"
+# Keep this explicit rather than deriving history from the moving default:
+# a later pin change must add a reviewed producer, not silently remove one.
+REVIEWED_SOURCE_COMMITS = frozenset(("0de9c99e57192742b82616cf82c0fdad71c562c5",
+                                     "e09440f9fa36da2aaad16212734879bb6304f6d2"))
 SOURCE_URL = "https://github.com/ivaschru/qingping-esphome.git"
 MIN_FREE = 6 * 1024**3
 STOP_FREE = 512 * 1024**2
@@ -68,6 +74,25 @@ def checked_inputs(parent, job_id, owner, contract):
         if private_hash(directory / "capture" / relative) != {"size": item["size"], "sha256": item["sha256"]}:
             raise PreparationError("usb_build_unverified")
     return directory, job
+
+
+def bound_build_intent(directory):
+    """Verify one job's source binding, not permission to start a worker.
+
+    Callers still establish their normal owner/ingress authority first. The
+    old source is readable for existing jobs only; build() separately requires
+    the current default and never adopts/restarts a historical process.
+    """
+    intent = unique_json(read_private(directory / "build-intent.json"))
+    original = unique_json(read_private(directory / "intent.json"))
+    source, owner = intent.get("source_commit"), original.get("owner")
+    if (not isinstance(source, str) or source not in REVIEWED_SOURCE_COMMITS or
+            not isinstance(owner, str) or not USER.fullmatch(owner) or
+            type(intent.get("schema_version")) is not int or
+            intent != {"schema_version": 1, "job_id": directory.name, "owner": owner,
+                       "source_commit": source, "profile_sha256": private_hash(directory / "profile.json")["sha256"]}):
+        raise PreparationError("usb_build_unverified")
+    return intent
 
 
 def frame(job_id, state, phase):
@@ -134,16 +159,16 @@ class Builds:
         names = os.listdir(directory)
         if "build-intent.json" not in names:
             return frame(job_id, "not_started", "unverified")
-        intent = unique_json(read_private(directory / "build-intent.json"))
-        if (intent != {"schema_version": 1, "job_id": job_id, "owner": owner, "source_commit": SOURCE_COMMIT,
-                       "profile_sha256": unique_json(read_private(directory / "job.json"))["profile_sha256"]}):
-            raise PreparationError("usb_build_unverified")
+        bound_build_intent(directory)
         if "build-complete.json" in names:
             result = unique_json(read_private(directory / "build-complete.json"))
             if (set(result) != {"intent_sha256", "state", "artifacts"} or
                     result["intent_sha256"] != hashlib.sha256(read_private(directory / "build-intent.json")).hexdigest()):
                 raise PreparationError("usb_build_unverified")
             if result["state"] == "built_not_installed":
+                # A valid artifact hash is not enough: do not join a report
+                # from another reviewed revision to this job's old receipt.
+                verified_candidate_report(directory)
                 expected = {"native-program", "guardian-program", "bridge-program", "initial-trial-guardian-program"}
                 if set(result["artifacts"]) != expected:
                     raise PreparationError("usb_build_unverified")
@@ -217,10 +242,22 @@ def build_report(path):
         return unique_json(raw)
 
 
+def verified_candidate_report(directory):
+    """Join the completed candidate to its original source and private profile."""
+    intent = bound_build_intent(directory)
+    report = build_report(directory / "candidate/result.json")
+    if (report.get("complete_build") is not True or report.get("installed") is not False or
+            report.get("installation_ready") is not False or report.get("hardware_contacted") is not False or
+            report.get("source_commit") != intent["source_commit"] or
+            report.get("profile_sha256") != intent["profile_sha256"]):
+        raise PreparationError("usb_build_unverified")
+    return report
+
+
 def build(directory, contract, runner=run_owned):
     directory = private_directory(Path(directory))
     intent_raw = read_private(directory / "build-intent.json")
-    intent = unique_json(intent_raw)
+    intent = bound_build_intent(directory)
     checked_inputs(directory.parent, directory.name, intent["owner"], contract)
     if intent["source_commit"] != SOURCE_COMMIT or intent["job_id"] != directory.name:
         raise PreparationError("usb_build_unverified")
@@ -263,11 +300,7 @@ def build(directory, contract, runner=run_owned):
                     "--profile", str(directory / "profile.json"), "--qt-core",
                     str(directory / "capture/usr/lib/libQt5Core.so.5.9.4"),
                     "--output", str(directory / "candidate")], source, env, log, deadline)
-            report = build_report(directory / "candidate/result.json")
-            if (report.get("complete_build") is not True or report.get("installed") is not False or
-                    report.get("installation_ready") is not False or report.get("hardware_contacted") is not False or
-                    report.get("source_commit") != SOURCE_COMMIT or report.get("profile_sha256") != profile_hash):
-                raise PreparationError("usb_build_unverified")
+            report = verified_candidate_report(directory)
             pins = {**report["artifacts"], "initial-trial-guardian-program": report["initial_trial_guardian"]}
             if set(pins) != {"native-program", "guardian-program", "bridge-program", "initial-trial-guardian-program"}:
                 raise PreparationError("usb_build_unverified")

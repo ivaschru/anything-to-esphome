@@ -1,5 +1,11 @@
 ## Unreleased
 
+- Monitor 1 USB app 0.0.9 uses the cross-built `0de9c99e` source for new
+  private builds while retaining historical `e09440f9` jobs and plans.
+  Status, planning and computer export bind each payload to its original
+  source; two reviewed revisions cannot be mixed or relabelled. Incomplete
+  history stays consumed and blocks new workers. No device action or
+  installation-readiness change follows from updating the app.
 - Monitor 1 adds read-only runtime mode and fresh core-sensor readiness for
   native and internal bridge mode. PM OFF/warm-up is independent; the existing
   stock-only response-age diagnostic stays unavailable in native mode.
