@@ -216,7 +216,8 @@ class ComputerEngineTests(unittest.TestCase):
             self.assertEqual(images, {k: b"x" for k in plan["files"]})
             return {"state": "full_ui_trial_returned_observed", "native_observations": 2, "stock_return_observed": True,
                     "launch_acknowledged": False, "job": nonce, "hard_runtime_ms": 60000, "installed": False,
-                    "installation_ready": False, "boot_enabled": False, "replay_allowed": False, "forward_cleanup": "removed"}
+                    "installation_ready": False, "boot_enabled": False, "replay_allowed": False, "forward_cleanup": "removed",
+                    "boot_id": "22222222-2222-2222-2222-222222222222"}
         with patch.object(desktop, "observe", new=AsyncMock(return_value={"state": "bridge_observed"})) as read, \
                 patch.object(full_ui_trial_usb, "image_bytes", return_value=b"x"), \
                 patch.object(full_ui_trial_usb, "run_usb", new=AsyncMock(side_effect=operate)) as writer:

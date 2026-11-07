@@ -87,6 +87,8 @@ separate even though the HACS wizard is shared.
   refuse this capability. Keep server/computer routes on the same coordinator,
   export its exact checked helper bodies, and make full-trial-status local
   only. The GUI restores status, not a writer; language keeps form state.
+  Retain the trial's exact live Linux boot in its private proof for a later
+  independent permanent step; never expose it as current public health.
   Run test_usb_full_ui*.py, test_usb_computer.py and test_usb_install.mjs.
 
 - Computer export is an explicit owner-only bounded private bundle, not a

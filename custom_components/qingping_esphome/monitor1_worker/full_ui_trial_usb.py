@@ -34,7 +34,7 @@ async def run_usb(adb, plan, profile, canonical, nonce, images, trial=run):
     result = {"state": "full_ui_trial_unverified", "native_observations": 0,
               "stock_return_observed": False, "launch_acknowledged": False, "job": nonce,
               "hard_runtime_ms": 60000, "installed": False, "installation_ready": False,
-              "boot_enabled": False, "replay_allowed": False}
+              "boot_enabled": False, "replay_allowed": False, "boot_id": None}
     try:
         adb.deadline = time.monotonic() + 600
         if adb.serial != target["usb_serial"] or adb.usb() != target["usb_transport"]:
@@ -42,6 +42,7 @@ async def run_usb(adb, plan, profile, canonical, nonce, images, trial=run):
         boot = canonical.review.preflight.identity(adb, target["wlan_mac"], target["co2_type"])
         if boot == target["boot_id"]:
             raise FullUiTrialError("usb_full_ui_trial_unverified")
+        result["boot_id"] = boot
         bridge = plan["files"]["bridge-program"]
         canonical.review.staging.verify_remote_file(adb, canonical.BASE + "/program", bridge)
         port = canonical.reserve_port()

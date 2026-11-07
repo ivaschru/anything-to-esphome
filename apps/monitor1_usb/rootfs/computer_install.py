@@ -337,6 +337,9 @@ def full_trial_status(root, manifest):
         if set(receipt) != {"intent_sha256", "proof"} or receipt["intent_sha256"] != hashlib.sha256(raw).hexdigest():
             raise ValueError("Exact screen-trial result required")
         proof = checked_proof(receipt["proof"], intent["nonce"])
+        plan = unique_json(private_file(state / "install-plan/plan.json", 512 * 1024))
+        if proof["state"] == "full_ui_trial_returned_observed" and proof["boot_id"] == plan.get("target", {}).get("boot_id"):
+            raise ValueError("Post-install Linux boot required")
         result.update(state=proof["state"], native_observations=proof["native_observations"],
             stock_return_observed=proof["stock_return_observed"], launch_acknowledged=proof["launch_acknowledged"])
     return result

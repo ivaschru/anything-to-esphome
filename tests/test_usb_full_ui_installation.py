@@ -49,7 +49,7 @@ class TrialAuthorityTests(unittest.TestCase):
         return {"state": "full_ui_trial_returned_observed", "native_observations": 2, "stock_return_observed": True,
                 "launch_acknowledged": True, "job": nonce, "hard_runtime_ms": 60000, "installed": False,
                 "installation_ready": False, "boot_enabled": False, "replay_allowed": False,
-                "forward_cleanup": "removed", **changes}
+                "forward_cleanup": "removed", "boot_id": "22222222-2222-2222-2222-222222222222", **changes}
 
     def runner(self, command, cwd, env, log, deadline):
         self.assertEqual(command[-3:], ["--job", self.id, "--full-trial"])
@@ -102,7 +102,8 @@ class TrialAuthorityTests(unittest.TestCase):
         original = json.loads(path.read_text())
         for changes in ({"stock_return_observed": False}, {"native_observations": True},
                         {"native_observations": 1}, {"hard_runtime_ms": 0}, {"job": "f" * 16},
-                        {"forward_cleanup": "ambiguous_forward_preserved"}, {"boot_enabled": True}):
+                        {"forward_cleanup": "ambiguous_forward_preserved"}, {"boot_enabled": True}, {"boot_id": None},
+                        {"boot_id": "invalid"}):
             path.write_text(json.dumps({**original, "proof": {**original["proof"], **changes}}))
             with self.subTest(changes=changes), self.assertRaises(Exception):
                 self.manager.status(self.owner, self.id)

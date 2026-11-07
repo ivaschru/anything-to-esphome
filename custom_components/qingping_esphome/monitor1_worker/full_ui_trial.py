@@ -25,7 +25,7 @@ class FullUiTrialError(Exception):
 
 def checked_proof(proof, nonce):
     fields = {"state", "native_observations", "stock_return_observed", "launch_acknowledged", "job",
-              "hard_runtime_ms", "installed", "installation_ready", "boot_enabled", "replay_allowed", "forward_cleanup"}
+              "hard_runtime_ms", "installed", "installation_ready", "boot_enabled", "replay_allowed", "forward_cleanup", "boot_id"}
     if (not isinstance(proof, dict) or set(proof) != fields or proof["job"] != nonce or
             type(proof["hard_runtime_ms"]) is not int or proof["hard_runtime_ms"] != 60000 or
             type(proof["native_observations"]) is not int or not 0 <= proof["native_observations"] <= 2 or
@@ -35,8 +35,11 @@ def checked_proof(proof, nonce):
                                    "full_ui_trial_close_unverified", "full_ui_trial_rebuild_required") or
             proof["forward_cleanup"] not in ("removed", "absent", "not_created", "ambiguous_forward_preserved", "cleanup_unverified_preserved")):
         raise FullUiTrialError("usb_full_ui_trial_unverified")
+    boot = proof["boot_id"]
+    if boot is not None and (not isinstance(boot, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", boot)):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
     if proof["state"] == "full_ui_trial_returned_observed" and (proof["native_observations"] != 2 or
-            proof["stock_return_observed"] is not True or proof["forward_cleanup"] not in ("removed", "absent")):
+            proof["stock_return_observed"] is not True or boot is None or proof["forward_cleanup"] not in ("removed", "absent")):
         raise FullUiTrialError("usb_full_ui_trial_unverified")
     return proof
 
@@ -272,4 +275,4 @@ async def run(port, profile, expected, bridge_sha, boot, job, images, *, factory
     return {"state": "full_ui_trial_returned_observed" if returned and samples >= 2 and not invalid_native else "full_ui_trial_unverified",
             "native_observations": samples, "stock_return_observed": returned, "launch_acknowledged": launch_ack,
             "job": job, "hard_runtime_ms": TRIAL_MS, "installed": False, "installation_ready": False,
-            "boot_enabled": False, "replay_allowed": False}
+            "boot_enabled": False, "replay_allowed": False, "boot_id": boot}

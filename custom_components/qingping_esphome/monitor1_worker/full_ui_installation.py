@@ -75,6 +75,10 @@ class FullUiTrials:
         if set(result) != {"intent_sha256", "proof"} or result["intent_sha256"] != hashlib.sha256(raw).hexdigest():
             raise PreparationError("usb_full_ui_trial_unverified")
         proof = checked_proof(result["proof"], intent["nonce"])
+        if proof["state"] == "full_ui_trial_returned_observed" and proof["boot_id"] == plan["target"]["boot_id"]:
+            raise PreparationError("usb_full_ui_trial_unverified")
+        # The exact live Linux boot is retained privately for the later,
+        # independently reviewed permanent step. Public status omits it.
         return frame(job_id, proof["state"], available, proof)
 
     def start(self, owner, job_id, expected_plan_sha256, experimental_reviewed, runner=run_owned):
