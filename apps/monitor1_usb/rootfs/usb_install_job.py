@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 from preparation import USER, PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
-from build_worker import private_hash, sync_directory
+from build_worker import child_job_directory, private_hash, sync_directory
 from install_plan import source_closure, verify_plan
 
 
@@ -126,8 +126,12 @@ if __name__ == "__main__":
             (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
+    # run_owned already supplies the exact private job as cwd. Preserve every
+    # engine/receipt check below while allowing the Core backend's storage;
+    # no caller-controlled host path or search fallback is added to the CLI.
+    directory = child_job_directory(sys.argv[2])
     if len(sys.argv) == 5:
         action = full_review_job if sys.argv[3] == "--full-review" else observe_job
-        action(Path("/data/jobs") / sys.argv[2], sys.argv[4])
+        action(directory, sys.argv[4])
     else:
-        run_job(Path("/data/jobs") / sys.argv[2])
+        run_job(directory)

@@ -146,6 +146,7 @@ class Builds:
             command = [sys.executable, str(Path(__file__).resolve()), "--job", job_id, "--lock-fd", str(fd)]
             child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL, start_new_session=True, pass_fds=(fd,),
+                cwd=str(directory),
                 env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/build-home",
                      "PYTHONUNBUFFERED": "1"})
             self.children[job_id] = child
@@ -200,6 +201,25 @@ def environment(home):
             "PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
             "CMAKE_BUILD_PARALLEL_LEVEL": "1", "ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT": "1",
             "GIT_TERMINAL_PROMPT": "0"}
+
+
+def child_job_directory(job_id):
+    """Bind the child to the creator-selected private job, not a /data alias.
+
+    The parent already authenticates the owner, validates the job and consumes
+    its intent before Popen. It chooses cwd itself; an HTTP field never chooses
+    a host path. The child still verifies its original profile/source/intent
+    before any work. This supports HA-owned storage without mounting it over
+    /data or moving historical app jobs. A wrong, public or symlinked cwd is a
+    refusal, never permission to search another directory or retry a job.
+    """
+    if not isinstance(job_id, str) or not USER.fullmatch(job_id):
+        raise PreparationError("usb_job_unavailable")
+    directory = Path.cwd()
+    if directory.name != job_id:
+        raise PreparationError("usb_job_unavailable")
+    private_directory(directory.parent)
+    return private_directory(directory)
 
 
 def run_owned(command, cwd, env, log, deadline):
@@ -332,7 +352,7 @@ def main():
     with (Path(__file__).parent / "contract.json").open() as stream:
         contract = json.load(stream)
     try:
-        build(Path("/data/jobs") / sys.argv[2], contract)
+        build(child_job_directory(sys.argv[2]), contract)
     finally:
         os.close(lock_fd)
 

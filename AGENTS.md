@@ -4,6 +4,13 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- The agreed Monitor 1 direction is one HACS package without a required
+  Supervisor USB app. Core adapters are being implemented; do not claim they
+  exist or enable installation from an environment probe. Child workers bind
+  to the creator-selected private job cwd, never a guessed /data location.
+  Preserve owner/source/profile/consumed receipts and old app jobs in place.
+  Run test_usb_core_paths.py and the full USB suite after storage changes.
+
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
   Computer macOS/Linux ADB writes are experimental; browser-only WebUSB

@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Prepare Monitor 1 workers for HA-owned storage: child controllers verify
+  their creator-selected private job directory instead of assuming /data.
+  Existing app jobs stay in place; Core UI, tool delivery and lifecycle
+  integration remain separate work before a one-package HACS release.
 - Monitor 1 USB app 0.0.10 adds computer `local-status`: recover the recorded
   plan SHA and inspect historical receipts without USB, ADB or engine imports.
   Partial history stays unverified, preserved and without retry authority;

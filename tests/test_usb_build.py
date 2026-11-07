@@ -47,6 +47,7 @@ class BuildTests(unittest.TestCase):
             self.assertNotIn(key, json.dumps([command, options]))
             self.assertEqual(command[-4:-2], ["--job", self.job_id])
             self.assertTrue(options["start_new_session"])
+            self.assertEqual(options["cwd"], str(self.directory))
             self.assertEqual(set(options["env"]), {"PATH", "HOME", "PYTHONUNBUFFERED"})
             return SimpleNamespace(poll=lambda: None)
         with patch.object(worker.shutil, "disk_usage", return_value=SimpleNamespace(free=worker.MIN_FREE)), \
