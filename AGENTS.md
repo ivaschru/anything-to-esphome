@@ -56,6 +56,13 @@ separate even though the HACS wizard is shared.
   encrypted stream traffic and join its separate browser plan/consumed intent
   before any writer can use this primitive. Run test_usb_native_channel.mjs;
   synthetic transports do not qualify physical USB, installation or firmware.
+  BrowserApiRelay is likewise unwired: one kernel-owned loopback listener,
+  one active USB stream, fixed 240s/16-open/8MiB budgets and independent owned
+  teardown. It never accepts a remote host/port/key or parses Noise payloads.
+  A lost open/close ACK fences the channel before another local connection;
+  normal acknowledged closure permits read reconnect only. Test its actual
+  loopback byte pumps with test_usb_browser_relay.py. Parent/browser framing,
+  typed plan authority and writer admission are still separate missing work.
 
 - Native GUI installation composes the original stage/commit/bounded-trial
   engine and separate next-boot armer in a fixed private SDK child. Consume
