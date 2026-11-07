@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
+import runpy
 import shutil
 import subprocess
 import sys
@@ -13,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackagePolicyTests(unittest.TestCase):
-    def package(self, policy, source_hash_matches=True):
+    def package(self, policy, source_hash_matches=True, corrupt_core=False):
         # Run the actual packager in a disposable miniature source tree. The
         # binary deliberately has a correct digest in every refusal scenario.
         with tempfile.TemporaryDirectory(prefix="qingping-package-policy-") as d:
@@ -21,6 +22,20 @@ class PackagePolicyTests(unittest.TestCase):
             (root / "tools").mkdir()
             shutil.copyfile(ROOT / "tools/package_release.py", root / "tools/package_release.py")
             shutil.copyfile(ROOT / "tools/pm_policy.py", root / "tools/pm_policy.py")
+            # The actual HACS package now requires its shared Core worker/UI.
+            # Carry the real fixed public source set into this fixture instead
+            # of bypassing that guard or substituting a fake successful check.
+            definition = runpy.run_path(str(ROOT / "tools/monitor1-usb/package_core.py"))
+            generator = root / "tools/monitor1-usb/package_core.py"
+            generator.parent.mkdir(parents=True)
+            shutil.copyfile(ROOT / "tools/monitor1-usb/package_core.py", generator)
+            for name in (*definition["FILES"], *("static/"+n for n in definition["ASSETS"])):
+                target = root / "apps/monitor1_usb/rootfs" / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / "apps/monitor1_usb/rootfs" / name, target)
+            definition["package"](root)
+            if corrupt_core:
+                (root / "custom_components/qingping_esphome/monitor1_worker/core_actor.py").write_text("changed worker fixture")
             firmware = root / "custom_components/qingping_esphome/firmware"
             firmware.mkdir(parents=True)
             from tools.pm_policy import PATHS, digest
@@ -59,3 +74,8 @@ class PackagePolicyTests(unittest.TestCase):
     def test_matching_policy_source_and_binary_produce_hacs_layout(self):
         result = self.package("quiet-scd4x-window-v1")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_stale_embedded_worker_refuses_the_entire_hacs_archive(self):
+        result = self.package("quiet-scd4x-window-v1", corrupt_core=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Stale generated Core package", result.stderr)

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.2.3 – integrated Monitor 1 USB worker
 
 - Official Core2026.11 native amd64/aarch64 CI now verifies isolated SDK,
   synthetic ARM32 compilation and signed native ADB/Perl/Make relocation.
