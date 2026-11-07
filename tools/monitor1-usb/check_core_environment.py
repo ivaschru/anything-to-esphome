@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -28,8 +29,9 @@ def run(command, environment, *, capture=False, timeout=120):
     """Run only fixed probe commands, without inheriting credentials or stdin."""
     result = subprocess.run(command, env=environment, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL, timeout=timeout, check=True)
-    if capture and len(result.stdout) > 4096:
+                            stderr=subprocess.STDOUT if capture else subprocess.DEVNULL,
+                            timeout=timeout, check=True)
+    if capture and len(result.stdout) > 65536:
         raise ValueError("oversized fixed probe result")
     return result.stdout
 
@@ -54,7 +56,6 @@ def main():
         "python": platform.python_version(),
         "machine": platform.machine(),
         "requirements_sha256": hashlib.sha256(raw).hexdigest(),
-        "sdk_source_only_requirement": "paho-mqtt==1.6.1",
         "native_tools": {name: shutil.which(name) is not None for name in TOOLS},
         "libusb_discoverable": ctypes.util.find_library("usb-1.0") is not None,
         "sdk_imported": False,
@@ -86,13 +87,13 @@ def main():
             run([sys.executable, "-m", "venv", str(sdk)], environment)
             python = str(sdk / "bin/python")
             stage = "sdk_install"
-            run([python, "-m", "pip", "install", "--only-binary=:all:",
-                 # ESPHome pins this pure-Python package, whose 1.6.1
-                 # release has only an sdist. Requiring a nonexistent wheel
-                 # would test our probe policy, not Core compatibility.
-                 "--no-binary=paho-mqtt",
+            # Match the real builder's pinned requirements installation.
+            # Requiring wheels for pure-Python sdists changes that contract
+            # and cannot establish a Core incompatibility. This remains a
+            # disposable, credential-free child environment, never HA's pip.
+            run([python, "-m", "pip", "install",
                  "--no-input", "--disable-pip-version-check", "-q", "-r",
-                 str(REQUIREMENTS)], environment, timeout=1200)
+                 str(REQUIREMENTS)], environment, capture=True, timeout=1200)
             stage = "sdk_import"
             versions = json.loads(run([python, "-c",
                 "import esphome, importlib.metadata, json; "
@@ -112,10 +113,21 @@ def main():
                 raise ValueError("not an ARM32 little-endian ELF")
             # This file is never executed, uploaded or mistaken for firmware.
             report["synthetic_arm32_compiled"] = True
-    except Exception:
+    except Exception as error:
         # Only the stage is public. No environment, raw subprocess output,
         # traceback, arbitrary filesystem metadata or device data is emitted.
         report["failure_stage"] = stage
+        if stage == "sdk_install" and isinstance(error, subprocess.CalledProcessError):
+            # Extract at most a package requirement, never raw pip output,
+            # repository URLs, environment or traceback. All inputs here are
+            # public; the production worker still retains its logs privately.
+            output = (error.stdout or b"")[-65536:].decode("utf-8", errors="replace")
+            match = re.search(r"No matching distribution found for ([A-Za-z0-9_.\[\]<>=!~+,-]{1,160})", output)
+            report["sdk_failure_category"] = "missing_distribution" if match else (
+                "wheel_build_failed" if "Failed to build" in output or "Failed building wheel" in output
+                else "installation_failed")
+            if match:
+                report["sdk_failure_requirement"] = match.group(1)
     with OUTPUT.open("x", encoding="utf-8") as stream:
         json.dump(report, stream, indent=2)
         stream.write("\n")
