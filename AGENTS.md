@@ -45,6 +45,16 @@ separate even though the HACS wizard is shared.
   Run all test_usb_*.py plus tests/test_usb_probe.mjs; synthetic browser and
   engine mocks do not qualify physical initial installation.
 
+- Computer export is an explicit owner-only bounded private bundle, not a
+  public release asset. Include only pinned source/program/helper/profile
+  bodies and the local entry/instructions, never an SDK/cache/old plan/history.
+  Refuse consumed HA installations. The macOS/Linux CLI performs a NEW native
+  capture with actual local get-devpath before planning; never relabel browser
+  metadata. Reuse original engines/receipts, exact review and no-replay; do not
+  reboot or silently configure a VM/compiler/remote ADB. Keep exported 0700/
+  0600 metadata, opaque browser download and a 64MiB cap. Physical QA and a
+  browser-only writer remain independent. Run tests/test_usb_computer.py.
+
 - Companion profile preparation creates an owner-bound private job and an
   immutable intent before generating a Noise key. Keep fixed USTAR input
   validation, fresh native/browser capture and live-recheck-required semantics.

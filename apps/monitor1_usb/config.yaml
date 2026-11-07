@@ -1,7 +1,7 @@
 name: Qingping USB (experimental installer)
-version: "0.0.6"
+version: "0.0.7"
 slug: qingping_monitor1_usb
-description: Private CGS1 preparation and experimental server USB stock-bridge installation
+description: Private CGS1 builds and experimental server or computer USB stock-bridge installation
 url: https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb
 arch:
   - aarch64

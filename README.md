@@ -16,9 +16,11 @@ Monitor 2 has no verified firmware port yet.
 Monitor 1 also has a separate experimental [USB app](apps/monitor1_usb/):
 choose computer WebUSB or server USB for private capture/profile/builds.
 Server USB additionally offers a reviewed stock-bridge installation and a
-separate post-boot check. First installation on a physical factory CGS1 is
-still unverified; computer writing and full native UI installation remain
-unfinished. This does not change ordinary HACS admission in the table below.
+separate post-boot check. A private computer ADB installer can be downloaded
+after building; it runs on macOS/Linux without a local compiler or VM. First
+installation on a physical factory CGS1 is still unverified; browser-only
+WebUSB writing and full native UI installation remain unfinished. This does
+not change ordinary HACS admission in the table below.
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
