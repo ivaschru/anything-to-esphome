@@ -37,6 +37,14 @@ already ran privately on your HA server. Do not use sudo.
    bridge_observed confirms another boot and fresh authenticated readings.
    The tool never reboots, retries or automatically rolls back the monitor.
 
+7. Optional read-only Full UI prerequisite check, after the bridge's new boot:
+   .runtime/bin/python computer_install.py full-review --serial USB_SERIAL
+   It verifies native USB/current boot, bridge bytes, encrypted API identity
+   and the compiled native/guardian pair, then reads the original stock
+   preflight. pm_extension_required explains the initial disabled extension.
+   Even full_ui_preflight_observed is not an installation or launch grant.
+   This command never enables PM preload, stages, launches or reboots.
+
 Do not remove computer-state, receipts or any partial files to retry a write.
 An unverified outcome does not mean the monitor was unchanged. Preserve the
 entire private folder for review. The HA job cannot see these local receipts;

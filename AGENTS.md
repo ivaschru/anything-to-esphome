@@ -6,7 +6,8 @@ separate even though the HACS wizard is shared.
 
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
-  Computer writes and full native UI installation are unfinished. Generate
+  Computer macOS/Linux ADB writes are experimental; browser-only WebUSB
+  writes and full native UI installation are unfinished. Generate
   both fixed contracts from preflight_adb.py and rebuild
   the offline Tango bundle with tools/monitor1-usb; preserve exact lock/MIT
   notices and the source check in CI. No generic shell/setup/push/activation
@@ -44,6 +45,15 @@ separate even though the HACS wizard is shared.
   Keep profile download opaque with fixed attachment name, MIME and bounds.
   Run all test_usb_*.py plus tests/test_usb_probe.mjs; synthetic browser and
   engine mocks do not qualify physical initial installation.
+
+- Full UI review is read-only: fresh native USB/boot and bridge bytes, exact
+  Noise identity/pair pins, then only status/inspect_start. Explain the known
+  PM-extension prerequisite separately from unknown/busy state. Keep positive
+  observations distinct from readiness/launch authority; both stay false.
+  API close and acknowledged own-forward cleanup are independent and bounded.
+  Never expose a generic action/host/path or enable a loader from a read.
+  The same review is exported for computer USB. Test the API, USB lifetime,
+  owner/lease/proof DTO and EN/RU/lost-state UI; no hardware QA follows.
 
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile

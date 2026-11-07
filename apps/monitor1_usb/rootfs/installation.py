@@ -201,3 +201,41 @@ class Installations:
             pass  # Failed read is not absence or permission to install again.
         return {"job_id": job_id, "state": "bridge_observed" if observed else ("awaiting_reboot" if armed else "boot_unverified"),
                 "runtime_observed": observed, "device_writes": 0, "installed": False, "installation_ready": False}
+
+    def full_review(self, owner, job_id, runner=run_owned):
+        directory, _, _ = owned_intent(self.parent, job_id, owner)
+        if self.status(owner, job_id)["state"] != "bridge_observed":
+            raise PreparationError("usb_full_ui_bridge_required")
+        source = source_closure(directory)
+        observations = directory / "observations"
+        observations.mkdir(mode=0o700, exist_ok=True)
+        private_directory(observations)
+        if len(os.listdir(observations)) >= 64:
+            raise PreparationError("usb_observation_limit")
+        observation_id = secrets.token_hex(16)
+        output = observations / observation_id
+        output.mkdir(mode=0o700)
+        sync_directory(observations)
+        env = environment(directory / "build-home")
+        env.update(HOME="/data/adb", ADB_SERVER_SOCKET="tcp:localhost:5037")
+        command = [str(source / ".venv/bin/python"), str(Path(__file__).with_name("usb_install_job.py")),
+                   "--job", job_id, "--full-review", observation_id]
+        state = "full_ui_unverified"
+        try:
+            with (output / "read.log").open("xb") as log:
+                runner(command, directory, env, log, time.monotonic() + 180)
+            proof = build_report(output / "full-ui-review.json")
+            expected = {"state", "read_only", "device_writes", "launch_authorized", "installation_ready",
+                        "installed", "live_recheck_required", "forward_cleanup", "plan_sha256"}
+            if (set(proof) == expected and proof["read_only"] is True and proof["live_recheck_required"] is True and
+                    type(proof["device_writes"]) is int and proof["device_writes"] == 0 and
+                    all(proof[key] is False for key in ("launch_authorized", "installation_ready", "installed")) and
+                    proof["plan_sha256"] == private_hash(directory / "install-plan/plan.json")["sha256"] and
+                    proof["state"] in ("full_ui_preflight_observed", "pm_extension_required", "full_ui_unverified", "full_ui_close_unverified")):
+                state = proof["state"] if (proof["forward_cleanup"] in ("removed", "absent") or
+                    (proof["forward_cleanup"] == "not_created" and proof["state"] == "full_ui_unverified")) else "full_ui_close_unverified"
+        except Exception:
+            pass  # Unknown/denied reads cannot enable Full UI or a loader.
+        return {"job_id": job_id, "state": state, "read_only": True, "device_writes": 0,
+                "launch_authorized": False, "installation_ready": False, "installed": False,
+                "live_recheck_required": True}
