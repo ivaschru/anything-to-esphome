@@ -54,6 +54,7 @@ def main():
         "python": platform.python_version(),
         "machine": platform.machine(),
         "requirements_sha256": hashlib.sha256(raw).hexdigest(),
+        "sdk_source_only_requirement": "paho-mqtt==1.6.1",
         "native_tools": {name: shutil.which(name) is not None for name in TOOLS},
         "libusb_discoverable": ctypes.util.find_library("usb-1.0") is not None,
         "sdk_imported": False,
@@ -86,6 +87,10 @@ def main():
             python = str(sdk / "bin/python")
             stage = "sdk_install"
             run([python, "-m", "pip", "install", "--only-binary=:all:",
+                 # ESPHome pins this pure-Python package, whose 1.6.1
+                 # release has only an sdist. Requiring a nonexistent wheel
+                 # would test our probe policy, not Core compatibility.
+                 "--no-binary=paho-mqtt",
                  "--no-input", "--disable-pip-version-check", "-q", "-r",
                  str(REQUIREMENTS)], environment, timeout=1200)
             stage = "sdk_import"
