@@ -6,6 +6,7 @@ export {strings} from "../../custom_components/qingping_esphome/frontend/usb-lab
 export {downloadCapture} from "../../custom_components/qingping_esphome/frontend/usb-capture.mjs";
 export {prepareProfile, readPrepared, savedPreparations} from "../../custom_components/qingping_esphome/frontend/usb-preparation.mjs";
 export {startBuild, readBuild} from "../../custom_components/qingping_esphome/frontend/usb-build.mjs";
+export {preparePlan, readPlan} from "../../custom_components/qingping_esphome/frontend/usb-plan.mjs";
 
 /** A fresh store for one selection only, with no browser persistence. */
 function ephemeralCredentials() {

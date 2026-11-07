@@ -1,5 +1,5 @@
 name: Qingping USB (experimental preparation)
-version: "0.0.4"
+version: "0.0.5"
 slug: qingping_monitor1_usb
 description: Private CGS1 preparation and source build through computer USB or server USB
 url: https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb

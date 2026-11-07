@@ -48,6 +48,15 @@ separate even though the HACS wizard is shared.
   CI checks the actual multiarch image SDK with public requirements and a
   synthetic ARM32 program, never private firmware/vendor Qt or hardware QA.
 
+- Companion offline plans recheck the built source closure before running
+  canonical bootstrap_patches/prepare_install in that job's private SDK. Keep
+  this native-capture-only until a separate browser writer adapter exists;
+  never fabricate get-devpath evidence for a browser archive. Bind profile,
+  target and payload hashes, fsync private files before completion, and retain
+  partial/consumed plan history. Status/readback grants no USB write or replay.
+  The displayed free-space request is not measured device capacity. Check
+  tests/test_usb_plan.py and the bundled Node one-start/status-only contract.
+
 - The experimental first bridge now has an executable composition:
   `initial_bridge_trial_main.cpp` plus `trial_initial_bridge_adb.py`. Keep
   creator-owned intent/fork, nonblocking child identity before gate release,

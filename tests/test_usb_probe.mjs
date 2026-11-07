@@ -114,3 +114,4 @@ console.log("Browser USB: fixed source/identity reads, synchronous picker, no re
 await import("./test_usb_capture.mjs");
 await import("./test_usb_preparation.mjs");
 await import("./test_usb_build.mjs");
+await import("./test_usb_plan.mjs");

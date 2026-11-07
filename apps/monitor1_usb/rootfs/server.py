@@ -25,6 +25,7 @@ import uuid
 
 from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, available_jobs
 from build_worker import Builds
+from install_plan import Plans
 
 HERE = Path(__file__).resolve().parent
 SERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -195,6 +196,7 @@ class Companion:
         self.usb = usb or UsbReads()
         self.job_root = job_root
         self.builds = Builds(job_root, CONTRACT)
+        self.plans = Plans(self.builds)
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -316,6 +318,14 @@ class Companion:
         self.session(user, nonce)
         return self.builds.status(user, job_id)
 
+    def plan(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.plans.prepare(user, job_id)
+
+    def plan_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.plans.status(user, job_id)
+
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -369,6 +379,9 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})/build", self.path)
             if match:
                 return self.reply(200, self.server.companion.build_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/plan", self.path)
+            if match:
+                return self.reply(200, self.server.companion.plan_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             self.reply(404, {"error_code": "usb_not_found"})
         except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
@@ -378,7 +391,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -389,12 +402,13 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/prepare":
                 return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
-            if self.path == "/build":
+            if self.path in ("/build", "/plan"):
                 self.server.companion.session(user, self.headers.get("X-Qingping-Nonce"))
                 data = self.json_body(int(size))
                 if not isinstance(data, dict) or set(data) != {"job_id"}:
                     raise Refusal("usb_request_invalid")
-                return self.reply(200, self.server.companion.build(user, self.headers.get("X-Qingping-Nonce"), data["job_id"]))
+                operation = self.server.companion.build if self.path == "/build" else self.server.companion.plan
+                return self.reply(200, operation(user, self.headers.get("X-Qingping-Nonce"), data["job_id"]))
             data = json.loads(self.rfile.read(int(size)))
             if not isinstance(data, dict) or set(data) != {"serial"}:
                 raise Refusal("usb_request_invalid")
