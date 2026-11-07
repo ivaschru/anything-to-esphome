@@ -78,14 +78,28 @@ def prefix_tools(root, environment, report):
              str(package)], environment, capture=True)
     # These paths belong only to child tool invocations. The HA/Python
     # process never inherits a replacement library path or Perl environment.
+    library_dirs = {prefix / "lib", prefix / "usr/lib"}
+    perl_dirs = {prefix / p for p in ("usr/lib/perl5/core_perl", "usr/share/perl5/core_perl",
+                                    "usr/lib/perl5/vendor_perl", "usr/share/perl5/vendor_perl")}
+    # Alpine's libperl may be in the versioned CORE directory rather than
+    # /usr/lib. Discover only inside this signed, extracted private prefix;
+    # never satisfy a relocation test with the host's unrelated Perl modules.
+    for path in prefix.glob("usr/lib/perl5/**/libperl.so*"):
+        if path.resolve().is_relative_to(prefix):
+            library_dirs.add(path.parent)
+    for name in ("Config.pm", "strict.pm"):
+        for path in prefix.glob("usr/**/" + name):
+            if path.resolve().is_relative_to(prefix):
+                perl_dirs.add(path.parent)
+    if len(library_dirs) > 16 or len(perl_dirs) > 16:
+        raise ValueError("unexpected fixed Perl layout")
     tool_environment = {**environment,
-        "LD_LIBRARY_PATH": os.pathsep.join(str(prefix / p) for p in ("lib", "usr/lib")),
-        "PERL5LIB": os.pathsep.join(str(prefix / p) for p in (
-            "usr/lib/perl5/core_perl", "usr/share/perl5/core_perl",
-            "usr/lib/perl5/vendor_perl", "usr/share/perl5/vendor_perl"))}
-    report["tool_prefix_stage"] = "check"
+        "LD_LIBRARY_PATH": os.pathsep.join(map(str, sorted(library_dirs))),
+        "PERL5LIB": os.pathsep.join(map(str, sorted(perl_dirs)))}
+    report["tool_prefix_stage"] = "adb"
     run([str(prefix / "usr/bin/adb"), "version"], tool_environment, capture=True)
     report["tool_prefix_checks"]["adb_version"] = True
+    report["tool_prefix_stage"] = "perl"
     assert run([str(prefix / "usr/bin/perl"), "-MCwd", "-MFile::Spec", "-MDigest::SHA",
                 "-e", 'print "ok"'], tool_environment, capture=True) == b"ok"
     report["tool_prefix_checks"]["perl_modules"] = True
