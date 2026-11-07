@@ -134,3 +134,20 @@ retain their original source binding; updating the app never relabels their
 programs, keys or consumed installation history. Neither these compile
 fixtures nor older private hardware proof establish a fresh installation
 through USB/HACS.
+
+## HACS-only environment verification
+
+The separate USB app is the current implementation, not proof that a Core
+backend is impossible. The `Monitor 1 Core environment probe` workflow checks
+the unchanged official Core 2026.11.0 images on native amd64 and aarch64
+hosted runners. It overrides the image entrypoint; Home Assistant is not
+started, and no host configuration, USB devices or credentials are mounted.
+The container has one CPU and 2 GiB memory; no local Mac VM is involved.
+
+The public `core-environment-*` report records availability of ADB, Git, Perl,
+Make and nice separately from an isolated pinned Python SDK and a tiny ARM32
+cross-compile. Missing tools do not disappear merely because Zig works.
+The synthetic ELF is not executed or published. `backend_ready` remains false:
+this does not qualify a full firmware build, Core job/auth/lifecycle adapters,
+ADB access, initial installation or a real monitor. SDK failure records only
+its fixed stage; read the report before drawing a compatibility conclusion.

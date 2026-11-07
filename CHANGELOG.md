@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Add a disposable official HA Core image probe for the Monitor 1 HACS-only
+  backend: native tool inventory, isolated pinned Python SDK and synthetic
+  ARM32 compilation. No HA server, USB, firmware or installation is run.
 - Monitor 1 USB app 0.0.10 adds computer `local-status`: recover the recorded
   plan SHA and inspect historical receipts without USB, ADB or engine imports.
   Partial history stays unverified, preserved and without retry authority;
