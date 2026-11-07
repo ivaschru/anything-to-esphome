@@ -35,13 +35,14 @@ class RuntimePublicationTests(unittest.TestCase):
         (port/'release-versions.json').write_bytes((ROOT/'ports/monitor1/release-versions.json').read_bytes())
         (port/'runtime.cpp').write_text('// Synthetic source, not a sensor program\n')
         (self.root/'LICENSE').write_text('Synthetic license fixture')
+        (self.root/'NOTICE.md').write_text('Synthetic third-party notice fixture')
         self.source = self.commit()
         self.package = publisher.public_source(self.root, self.source)
         self.values = [publisher.manifest(self.root, self.source, profile, self.package) for profile in publisher.PROFILES]
         self.previous = {'format':publisher.channel.catalog.CATALOG_FORMAT, 'releases':{}}
 
     def commit(self):
-        git(self.root, 'add', 'ports', 'LICENSE')
+        git(self.root, 'add', 'ports', 'LICENSE', 'NOTICE.md')
         git(self.root, 'commit', '-m', 'Synthetic public source')
         return git(self.root, 'rev-parse', 'HEAD').decode().strip()
 
@@ -57,6 +58,11 @@ class RuntimePublicationTests(unittest.TestCase):
         with tarfile.open(fileobj=io.BytesIO(package), mode='r:gz') as source:
             self.assertEqual(source.extractfile('ports/monitor1/runtime.cpp').read(), b'// Synthetic source, not a sensor program\n')
             self.assertNotIn('ports/monitor1/secrets.yaml',source.getnames())
+
+    def test_nested_snapshot_uses_root_relative_committed_paths(self):
+        nested = self.root/'.build/isolated-source'
+        nested.mkdir(parents=True)
+        self.assertEqual(publisher.public_source(nested,self.source),self.package)
 
     def test_tracked_generated_and_symlink_payloads_are_refused(self):
         for name in ('secrets.yaml','program.elf','library.so','archive.zip','build/result.json'):

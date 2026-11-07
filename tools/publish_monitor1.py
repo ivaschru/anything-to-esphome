@@ -24,7 +24,7 @@ import publish_firmware as channel
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = {"monitor1-s8": 2, "monitor1-scd40": 3}
 FORMAT = "qingping-monitor1-runtime-source-v1"
-SOURCE_PATHS = ("ports/monitor1", "LICENSE")
+SOURCE_PATHS = ("ports/monitor1", "LICENSE", "NOTICE.md")
 LIMITATIONS = [
     "Initial USB/HACS installation is experimental and is not enabled by this release.",
     "Automatic HA firmware installation is not implemented for this Linux package.",
@@ -57,7 +57,11 @@ def public_source(root, revision):
     never used by this publisher and no path supplied by a device is admitted.
     """
     exact_source(root, revision)
-    raw = channel.git(root, "archive", "--format=tar", revision, *SOURCE_PATHS)
+    # An isolated source archive may sit inside another checkout's ignored
+    # .build directory. Git archive pathspecs inherit that cwd prefix unless
+    # reset at the actual repository root; show <commit>:path does not.
+    repository = channel.git(root, "rev-parse", "--show-toplevel").decode().strip()
+    raw = channel.git(root, "-C", repository, "archive", "--format=tar", revision, *SOURCE_PATHS)
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as archive:
         members = archive.getmembers()
         if not members or len(raw) > 32 * 1024 * 1024:
