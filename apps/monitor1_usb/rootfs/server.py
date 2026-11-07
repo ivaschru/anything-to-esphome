@@ -42,9 +42,10 @@ class Refusal(Exception):
 
 
 class UsbReads:
-    def __init__(self, executable="adb", run=subprocess.run, capture_root=Path("/data/adb")):
+    def __init__(self, executable="adb", run=subprocess.run, capture_root=Path("/data/adb"), environment=None):
         self.executable, self.run = executable, run
         self.capture_root = capture_root
+        self.environment = environment
 
     def command(self, arguments, deadline, read_timeout=10):
         remaining = deadline - time.monotonic()
@@ -56,7 +57,7 @@ class UsbReads:
             # localhost; no -a/-H/tcpip/reverse/forward operation is exposed.
             result = self.run([self.executable, *arguments], capture_output=True,
                 timeout=min(read_timeout, remaining), check=False,
-                env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/adb",
+                env=self.environment if self.environment is not None else {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/adb",
                      "ADB_SERVER_SOCKET": "tcp:localhost:5037"})
         except Exception:
             raise Refusal("usb_operation_failed") from None
@@ -423,7 +424,7 @@ class Handler(BaseHTTPRequestHandler):
                 nonce = self.server.companion.page(user)
                 data = (HERE / "static/index.html").read_text().replace("__PAGE_NONCE__", nonce).encode()
                 return self.reply(200, data, "text/html; charset=utf-8")
-            assets = {"app.mjs": "text/javascript", "style.css": "text/css",
+            assets = {"app.mjs": "text/javascript", "core-bridge.mjs": "text/javascript", "style.css": "text/css",
                       "usb-probe-bundle.mjs": "text/javascript", "usb-probe-NOTICES.txt": "text/plain"}
             name = self.path.removeprefix("/")
             if name in assets:

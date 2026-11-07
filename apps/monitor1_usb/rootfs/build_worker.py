@@ -210,9 +210,8 @@ def environment(home):
         # no HTTP data chooses a path, executable, environment or remote host.
         # Native tools are already admitted separately by that actor. Never
         # pass the Core/Supervisor environment through to pip/build tools.
-        private_directory(root / "tools")
-        private_directory(root / "tools/bin")
-        result.update(PATH=str(root / "tools/bin") + ":" + result["PATH"],
+        tools = core_toolset(Path(home).parent, root)
+        result.update(PATH=str(tools / "bin") + ":" + result["PATH"],
                       QINGPING_MONITOR1_CORE_ROOT=str(root),
                       ANDROID_USER_HOME=str(root / "adb"))
         port = os.environ.get("QINGPING_MONITOR1_ADB_PORT")
@@ -244,11 +243,35 @@ def core_root(directory):
     return root
 
 
+def core_toolset(directory, root):
+    """Use this profile's immutable prefix, never a moving default tool path.
+
+    A prepared profile without its completed Core binding remains readable,
+    but cannot start a build/install after a lost response or partial setup.
+    This file is created only by the private actor, not uploaded via HTTP.
+    """
+    binding = unique_json(read_private(directory / "core-context.json"))
+    toolset = binding.get("toolset_sha256")
+    if (not isinstance(toolset, str) or len(toolset) != 64 or
+            any(c not in "0123456789abcdef" for c in toolset) or
+            binding != {"schema_version": 1, "job_id": directory.name,
+                        "profile_sha256": private_hash(directory / "profile.json")["sha256"],
+                        "toolset_sha256": toolset}):
+        raise PreparationError("usb_job_unavailable")
+    private_directory(root / "toolsets")
+    tools = private_directory(root / "toolsets" / toolset)
+    private_directory(tools / "bin")
+    marker = unique_json(read_private(tools / "complete.json"))
+    if marker.get("schema_version") != 1 or marker.get("manifest_sha256") != toolset:
+        raise PreparationError("usb_operation_failed")
+    return tools
+
+
 def adb_executable(directory):
     root = core_root(directory)
     if root is None:
         return Path("/usr/bin/adb")
-    path = root / "tools/bin/adb"
+    path = core_toolset(directory, root) / "bin/adb"
     info = path.lstat()
     if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or
             stat.S_IMODE(info.st_mode) != 0o700 or path.resolve() != path):

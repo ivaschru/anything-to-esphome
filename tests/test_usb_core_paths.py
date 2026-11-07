@@ -1,6 +1,8 @@
 """Actual private-directory admission, without a worker, USB or HA process."""
 from pathlib import Path
 import tempfile
+import json
+import hashlib
 import os
 import unittest
 from unittest.mock import patch
@@ -52,9 +54,18 @@ class CoreJobDirectoryTests(unittest.TestCase):
                 worker.child_job_directory(self.job_id)
 
     def tools(self):
-        (self.root / "tools").mkdir(mode=0o700)
-        (self.root / "tools/bin").mkdir(mode=0o700)
-        adb = self.root / "tools/bin/adb"
+        tools=self.root / "toolsets" / ("b"*64)
+        (self.root / "toolsets").mkdir(mode=0o700)
+        tools.mkdir(mode=0o700)
+        (tools / "bin").mkdir(mode=0o700)
+        profile=b"synthetic-private-profile"
+        (self.directory / "profile.json").write_bytes(profile)
+        (self.directory / "profile.json").chmod(0o600)
+        for path,value in ((tools / "complete.json", {"schema_version":1,"manifest_sha256":"b"*64}),
+            (self.directory / "core-context.json", {"schema_version":1,"job_id":self.job_id,
+             "profile_sha256":hashlib.sha256(profile).hexdigest(),"toolset_sha256":"b"*64})):
+            path.write_text(json.dumps(value));path.chmod(0o600)
+        adb = tools / "bin/adb"
         adb.write_text("synthetic-not-an-executable\n")
         adb.chmod(0o700)
         return adb
@@ -65,7 +76,7 @@ class CoreJobDirectoryTests(unittest.TestCase):
                 "QINGPING_MONITOR1_ADB_PORT": "45678", "SUPERVISOR_TOKEN": "synthetic-do-not-inherit"}, clear=True):
             result = worker.adb_environment(self.directory)
             self.assertEqual(worker.adb_executable(self.directory), adb)
-        self.assertTrue(result["PATH"].startswith(str(self.root / "tools/bin") + ":"))
+        self.assertTrue(result["PATH"].startswith(str(adb.parent) + ":"))
         self.assertEqual(result["ADB_SERVER_SOCKET"], "tcp:127.0.0.1:45678")
         self.assertEqual(result["ANDROID_USER_HOME"], str(self.root / "adb"))
         self.assertNotIn("SUPERVISOR_TOKEN", result)
@@ -104,3 +115,17 @@ class CoreJobDirectoryTests(unittest.TestCase):
             self.assertEqual(worker.adb_executable(self.directory), Path("/usr/bin/adb"))
         self.assertEqual(result["HOME"], "/data/adb")
         self.assertEqual(result["ADB_SERVER_SOCKET"], "tcp:localhost:5037")
+
+    def test_profile_binding_cannot_join_another_toolset_or_modified_profile(self):
+        self.tools()
+        with patch.dict(os.environ, {"QINGPING_MONITOR1_CORE_ROOT":str(self.root)}, clear=True):
+            (self.directory / "profile.json").write_text("changed")
+            with self.assertRaisesRegex(Exception,"usb_job_unavailable"):
+                worker.environment(self.directory / "build-home")
+
+    def test_partial_core_profile_is_read_only_and_not_silently_bound(self):
+        self.tools()
+        (self.directory / "core-context.json").unlink()
+        with patch.dict(os.environ, {"QINGPING_MONITOR1_CORE_ROOT":str(self.root)}, clear=True):
+            with self.assertRaises(FileNotFoundError):
+                worker.environment(self.directory / "build-home")

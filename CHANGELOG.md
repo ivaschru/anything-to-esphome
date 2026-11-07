@@ -1,11 +1,19 @@
 ## Unreleased
 
+- Official Core2026.11 native amd64/aarch64 CI now verifies isolated SDK,
+  synthetic ARM32 compilation and signed native ADB/Perl/Make relocation.
+  This is software environment evidence without USB or hardware qualification.
+
 - Prepare Monitor 1 workers for HA-owned storage: child controllers verify
   their creator-selected private job directory instead of assuming /data.
   Core child configuration binds the private tool directory and loopback
   ADB context, without inheriting HA credentials or changing legacy defaults.
-  Existing app jobs stay in place; Core UI, tool delivery and lifecycle
-  integration remain separate work before a one-package HACS release.
+  Existing app jobs stay in place. The same engines and offline wizard are
+  now packaged inside the HACS integration with actual HA administrator auth,
+  a private stdio actor, immutable per-job toolsets and explicit native tool
+  preparation. No separate Supervisor app is required for new Core jobs.
+  Native server tools currently require Alpine3.24 x86_64/ARM64; device and
+  full-UI first-install qualification remain unchanged.
 - Monitor 1 USB app 0.0.10 adds computer `local-status`: recover the recorded
   plan SHA and inspect historical receipts without USB, ADB or engine imports.
   Partial history stays unverified, preserved and without retry authority;

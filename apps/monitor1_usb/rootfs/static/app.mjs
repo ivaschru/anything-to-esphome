@@ -1,8 +1,10 @@
+import {embedded, coreFetch} from "./core-bridge.mjs";
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
   startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
-let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
+let coreToolsReady=false,coreToolsState="tools_required";
+let language = "en", busy = embedded, probe, lastError, lastStatus, devices = [], captureProgress;
 let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
@@ -23,6 +25,7 @@ function translate() {
     $("status").textContent = text("copying") + ` ${captureProgress}/9`;
   $("capture-progress").setAttribute("aria-label", text("copying"));
   $("preparation-result").textContent=preparationReady ? text("profile_prepared") : "";
+  if(embedded) $("core-tools-status").textContent=text("core_"+coreToolsState);
   renderDevices();
   renderJobs();
   renderBuild();
@@ -75,6 +78,15 @@ function controls() {
   $("preparation-status").hidden=!pendingPreparation;
   $("refresh-jobs").disabled=$("saved-job").disabled=busy;
   $("ha-picker").hidden = $("transport").value !== "ha";
+  if(embedded) {
+    $("core-tools-prepare").disabled=busy || coreToolsReady;
+    $("core-tools").setAttribute("aria-busy",String(busy && coreToolsState==="tools_preparing"));
+    if(!coreToolsReady) {
+      $("scan").disabled=true;
+      $("prepare-profile").disabled=true;
+      if($("transport").value==="ha") $("capture").disabled=$("inspect").disabled=true;
+    }
+  }
   renderBuild();
 }
 function clear() {$("identity").replaceChildren(); $("status").textContent = $("error").textContent = "";lastError = lastStatus = null;
@@ -104,7 +116,9 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const response = await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
+  const duration=operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+    operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
+  const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
     ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(operation==="install" ? 650000 :
       operation==="full-review" ? 210000 : (operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000)))});
@@ -377,4 +391,15 @@ $("observe-boot").onclick=async()=>{
   finally {bootReading=false;busy=false;controls();}
 };
 window.addEventListener("pagehide",()=>{clearTimeout(buildTimer);void probe?.close().catch(()=>{});});
-translate();controls();void loadPreparations(); // Owner metadata only; no USB or writer resumes.
+if(embedded) {
+  $("core-tools").hidden=false;
+  $("core-tools-prepare").onclick=async()=>{
+    if(busy || coreToolsReady) return;
+    busy=true;coreToolsState="tools_preparing";lastError=null;controls();translate();
+    try {const result=await rpc("tools",{});coreToolsReady=result.state==="tools_ready";coreToolsState=result.state;}
+    catch(error) {lastError=error.code || "usb_core_tools_failed";coreToolsState="tools_required";}
+    finally {busy=false;controls();translate();}
+  };
+  void rpc("tools-status").then(result=>{coreToolsReady=result.state==="tools_ready";coreToolsState=result.state;controls();translate();}).catch(error=>{lastError=error.code;translate();}).finally(()=>{busy=false;controls();void loadPreparations();});
+}
+translate();controls();if(!embedded) void loadPreparations(); // Owner metadata only; no USB or writer resumes.

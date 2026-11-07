@@ -4,15 +4,20 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
-- The agreed Monitor 1 direction is one HACS package without a required
-  Supervisor USB app. Core adapters are being implemented; do not claim they
-  exist or enable installation from an environment probe. Child workers bind
-  to the creator-selected private job cwd, never a guessed /data location.
-  Preserve owner/source/profile/consumed receipts and old app jobs in place.
-  Core child environment is root/job-bound and credential-free; use its
-  private tool wrapper and owned loopback ADB context, never silently the
-  shared 5037 server. It is internal process configuration, not HTTP input.
-  Run test_usb_core_paths.py and the full USB suite after storage changes.
+- Monitor 1's new HACS jobs use the integrated admin Core adapter without
+  requiring a Supervisor USB app. Preserve old app jobs/keys/history in place.
+  Child workers verify creator-selected private cwd and per-job profile/toolset
+  pins; no HTTP host/path/environment or shared5037 fallback is admitted.
+  The Core integration never inherits credentials into tools or SDK children.
+  Full native UI/physical initial-install qualification stay independent.
+
+- `monitor1-core-probe.yml` checks the unmodified official Core 2026.11.0
+  images on disposable native amd64/aarch64 CI runners. Override the image
+  entrypoint: no running HA, host /config, USB/device mapping, credentials,
+  Docker socket or Mac VM. Keep one CPU/2GiB and private scratch; publish
+  only the allowlisted capability JSON, never the synthetic ELF or SDK.
+  Missing tools and SDK results are separate. A synthetic ARM32 compile
+  never enables a HACS backend, installer, full UI or hardware readiness.
 
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
@@ -29,9 +34,9 @@ separate even though the HACS wizard is shared.
   separate from permanently consumed install/launch/prune/reboot receipts.
   Do not promote this probe or its synthetic/container tests into hardware
   qualification or change CGS1 installation_ready/source_only from them.
-  The HACS Monitor 1 card opens computer WebUSB without the app. Server USB
-  resolves the exact installed URL/slug and uses native admin ingress;
-  never infer a repository ID, install/start an app, or log ingress credentials.
+  New HACS USB jobs run in the integrated Core wizard. The legacy app retains
+  its own actual Supervisor ingress guards; never fake those headers or silently
+  migrate/adopt old jobs. No Supervisor app is automatically installed/started.
   The capture action reads only the nine generated preflight files, verifies
   local byte counts/SHA and rechecks source/identity after copying. Keep the
   archive private, fixed-member USTAR with 0600 files/0700 directories, never
@@ -576,3 +581,28 @@ separate even though the HACS wizard is shared.
   the builder injects the same project version into native/internal bridge.
   Missing fan shutdown may be a documented v1 limitation; missing core sensor
   freshness/scales or lifecycle is not equivalent to that optional feature.
+
+- HACS packages Monitor 1's shared engines deterministically with
+  `python tools/monitor1-usb/package_core.py`; CI --check rejects drift and
+  unknown packaged files. Edit apps/monitor1_usb/rootfs, never its generated
+  monitor1_worker/frontend/monitor1 copies. Preserve the offline Tango notices.
+  The authenticated admin HTTP adapter sends actual user IDs to one private
+  stdio actor, never forged Supervisor headers or a new HTTP listener/token.
+  Authenticate/reserve before body reads; drain an interrupted pipe response
+  before releasing its reservation. An exited/uncertain actor is not restarted
+  to replay work. Unload closes stdin after current bounded operations, never
+  kills a device writer; the actor's kernel flock blocks replacement adoption.
+  Tools are exact signed Alpine3.24 APK closures for tested x86_64/aarch64,
+  fetched/hashed/verified/extracted privately, without apk add/scripts or Core
+  interpreter/library mutation. Unsupported platforms refuse server tools.
+  Page/status never download tools or start ADB; explicit preparation and USB
+  actions are independent. Only the actual foreground child owns the loopback
+  socket: join procfs fd/listener inode, reject a bind race, never PID adoption,
+  LAN ADB or shared5037. Keep per-job toolset/profile pins across upgrades.
+  Use the same offline wizard in a same-origin frame with exact source/origin/
+  random channel checks and HA fetchWithAuth in the parent; no HA token enters
+  the iframe/browser storage/URLs. Requests are consumed once, language changes
+  preserve forms, and disconnect removes the listener. Run test_usb_*.py with
+  the real HA SDK, test_monitor1_core_frontend.mjs, and package_core.py --check.
+  Core software tests do not qualify untouched-device installation, full UI,
+  unsupported platforms, BLE hardware or Monitor2. Owner updates HA manually.
