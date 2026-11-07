@@ -1,10 +1,10 @@
 {
   "lite": {
-    "version": "2026.11.07-ui25-quiet2",
-    "revision": 3,
+    "version": "2026.11.07-ui25-sources3",
+    "revision": 4,
     "backend": "esp32-noise-app-v1",
-    "minimum_integration": "0.2.1",
-    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 2. PM OFF uses guarded quiet operation while CO2/temperature/humidity continue.",
-    "public_version": 2
+    "minimum_integration": "0.2.5",
+    "summary": "Lite firmware 3: persistent native HA display source settings for CO2, temperature, humidity and PM. Physical exports stay local. Fan-off is not qualified on every board.",
+    "public_version": 3
   }
 }

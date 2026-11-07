@@ -23,7 +23,7 @@ _refs = {
 # entities, not a parallel preference schema or duplicated defaults/ranges.
 _bindings = {
     "numbers": (number.Number, {0:"display_level",3:"idle_screen_delay",13:"tc_temp_offset",14:"tc_rh_offset",17:"hc_a6",18:"hc_a1",19:"hc_tau_d1",20:"hc_tau_d2",21:"hc_a_bt",22:"hc_tau_bt"}),
-    "switches": (switch.Switch, {1:"display_switch",6:"night_switch",9:"pm_enabled",10:"led_switch",12:"ble_switch",16:"hc_bt_comp"}),
+    "switches": (switch.Switch, {1:"display_switch",6:"night_switch",9:"pm_enabled",10:"led_switch",12:"ble_switch",16:"hc_bt_comp",24:"ha_values_enabled"}),
     "selects": (select.Select, {2:"idle_screen",4:"ui_design",5:"ui_motion",11:"led_pm_standard",15:"hc_model",23:"display_test_pattern"}),
     "times": (datetime.TimeEntity, {7:"night_start",8:"night_end"}),
 }

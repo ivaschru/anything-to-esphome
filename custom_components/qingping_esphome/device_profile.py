@@ -21,7 +21,7 @@ ACTION = "qingping_update_profile_v1"
 ENVELOPE = "qingping-update-profile-envelope-v1"
 PROFILE = "qingping-device-update-profile-v1"
 KEY_DOMAIN = b"qingping-esphome/update-profile/v1"
-PROFILE_VERSIONS = {"2026.11.07-ui25-profile1": 2, "2026.11.07-ui25-quiet2": 3}
+PROFILE_VERSIONS = {"2026.11.07-ui25-profile1": 2, "2026.11.07-ui25-quiet2": 3, "2026.11.07-ui25-sources3": 4}
 MAX_RESPONSE = 8192
 
 
@@ -81,11 +81,15 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None)
         # An authenticated API endpoint is not proof of an arbitrary board.
         # Admit only published capability/profile generations (built-in or validated catalog), never a
         # marketing model match or an unrecognised private experimental UI.
+        # Stock 4.3.4 is supported by the qualified native generation >=3,
+        # including later exact catalog-bound generations, not the factory BLE
+        # installer or legacy generation2. Avoid pinning it to one UI string:
+        # otherwise every firmware-only release breaks its next profile read.
         if (data.get("format") != PROFILE or data.get("challenge") != challenge
                 or data.get("mac") != mac_normalize(mac) or data.get("name") != name
                 or data.get("profile") != "lite" or data.get("hardware") != "0001"
                 or not (data.get("source_stock_version") == "4.5.8" or
-                    data.get("source_stock_version") == "4.3.4" and data.get("version") == "2026.11.07-ui25-quiet2")
+                    data.get("source_stock_version") == "4.3.4" and versions.get(data.get("version"), 0) >= 3)
                 or data.get("version") not in versions
                 or type(data.get("revision")) is not int
                 or data["revision"] < 2 or data["revision"] != versions[data["version"]]): raise ValueError

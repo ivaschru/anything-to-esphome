@@ -9,7 +9,7 @@
 namespace esphome::cgdn1_ui {
 enum class Key : uint8_t { BRIGHTNESS, DISPLAY, IDLE, DELAY, DESIGN, MOTION,
   NIGHT, NIGHT_START, NIGHT_END, PM, LED, PM_STANDARD, BLE, TEMP_OFFSET, RH_OFFSET,
-  HEAT_MODEL, BT_COMP, HEAT6, HEAT1, LAG, OLED_TIME, BT_HEAT, BT_TIME, PATTERN, COUNT };
+  HEAT_MODEL, BT_COMP, HEAT6, HEAT1, LAG, OLED_TIME, BT_HEAT, BT_TIME, PATTERN, HA_VALUES, COUNT };
 enum class ValueKind : uint8_t { NUMBER, BOOLEAN, CHOICE, TIME };
 struct ValueBinding {
   const char *title{""}, *unit{""};
@@ -29,7 +29,7 @@ inline const std::vector<MenuGroup> &menu_groups() {
     {"Экран",0,{{M::VALUE,"Яркость",int(K::BRIGHTNESS)},{M::VALUE,"Дисплей",int(K::DISPLAY)},{M::VALUE,"Заставка",int(K::IDLE)},{M::VALUE,"Задержка",int(K::DELAY)},{M::VALUE,"Дизайн",int(K::DESIGN)},{M::VALUE,"Переходы",int(K::MOTION)},{M::BACK,"Назад",0}}},
     {"Ночной режим",0,{{M::VALUE,"Включён",int(K::NIGHT)},{M::VALUE,"Начало",int(K::NIGHT_START)},{M::VALUE,"Окончание",int(K::NIGHT_END)},{M::BACK,"Назад",0}}},
     {"Датчики",0,{{M::VALUE,"Сенсор PM",int(K::PM)},{M::VALUE,"Индикатор LED",int(K::LED)},{M::VALUE,"Пороги PM",int(K::PM_STANDARD)},{M::BACK,"Назад",0}}},
-    {"Подключения",0,{{M::WIFI,"Wi-Fi",0},{M::VALUE,"Bluetooth",int(K::BLE)},{M::INFO,"Home Assistant",0},{M::INFO,"Время и дата",1},{M::BACK,"Назад",0}}},
+    {"Подключения",0,{{M::WIFI,"Wi-Fi",0},{M::VALUE,"Bluetooth",int(K::BLE)},{M::INFO,"Home Assistant",0},{M::VALUE,"Показания HA",int(K::HA_VALUES)},{M::INFO,"Время и дата",1},{M::BACK,"Назад",0}}},
     {"Расширенные",0,{{M::VALUE,"Поправка T",int(K::TEMP_OFFSET)},{M::VALUE,"Поправка RH",int(K::RH_OFFSET)},{M::VALUE,"Модель нагрева",int(K::HEAT_MODEL)},{M::VALUE,"Компенс. BT",int(K::BT_COMP)},{M::GROUP,"Параметры нагрева",6},{M::BACK,"Назад",0}}},
     {"Параметры нагрева",5,{{M::VALUE,"Нагрев, ярк. 6",int(K::HEAT6)},{M::VALUE,"Нагрев, ярк. 1",int(K::HEAT1)},{M::VALUE,"Лаг дисплея",int(K::LAG)},{M::VALUE,"Время OLED",int(K::OLED_TIME)},{M::VALUE,"Нагрев BT",int(K::BT_HEAT)},{M::VALUE,"Время BT",int(K::BT_TIME)},{M::BACK,"Назад",0}}},
     {"Система",0,{{M::INFO,"Об устройстве",2},{M::VALUE,"Тест дисплея",int(K::PATTERN)},{M::RESTART,"Перезапуск",0},{M::SLOT,"Другой слот",0},{M::BACK,"Назад",0}}}

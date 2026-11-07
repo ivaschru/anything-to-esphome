@@ -1,3 +1,18 @@
+## Lite 3 source candidate – native HA sources and night wake
+
+- Add six native display-source text settings to the physical ESPHome device,
+  with validated entity IDs, unit conversion and independent local fallback.
+  Preserve physical exports and raw sensor safety; no helper migration.
+- Mirror the HA-values enable switch in local settings. Imported PM values can
+  be displayed while the physical PM sensor is OFF, with an HA source badge.
+- Wake the night screen on a normal tap/swipe for 30 seconds. Consume the wake
+  gesture, then allow normal menu use; inactivity returns to black without
+  disabling the schedule or committing an unseen draft.
+- Fan policy is unchanged. A quiet GPIO policy is not an acoustic guarantee
+  for every board; the child 4.3.4 unit still needs separate investigation.
+- Source candidate only: new assets and compatibility metadata need hardware
+  qualification before publication; no integration or device auto-update.
+
 ## Monitor 1 runtime version 1 (independent firmware channel)
 
 - Publish separate immutable S8 and SCD40 full-runtime source kits, with exact

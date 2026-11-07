@@ -533,11 +533,24 @@ separate even though the HACS wizard is shared.
   Run test_pm_quiet_policy.py and test_pm_polling_policy.py (ASan/UBSan).
   Public manifest binds the coordinated driver/rail closure via tools/pm_policy.py;
   never reuse a polling-only template for version2. Version1 remains historical.
+- Lite native HA source settings use six persistent validated text entities
+  (CO2/T/RH/PM1/PM2.5/PM10), plus one shared local/HA enable switch. Imports
+  affect display/LED only, never physical exports, raw heat input or PM guards.
+  Bound API state/unit subscriptions and rebind storage; invalid units/state,
+  disconnect and expiry use per-value fresh local fallback. Empty means local.
+  No template-helper provisioning or migration: existing source IDs are set
+  manually after installation. Keep shared slots for older personalizers but
+  do not subscribe to the old combined feed in new native-source builds.
+  Run test_lite_ha_sources.py, profile/firmware and real native SDK checks.
 - The agreed Lite design uses grouped typed-entity settings, transactional
   drafts, two independent Cancel-default slot confirmations, native-size
   outline/classic digits, fixed status, and finite 240ms page transitions.
   Outline assets are never reduced. Use the bundled OFL font licenses.
-  Night is fully black; only centre wakes manual-off, consuming the gesture.
+  Night is black while idle; any recognized tap/swipe gives a temporary 30 s wake.
+  First wake is consumed; later gestures navigate/edit normally. Inactivity
+  cancels unsaved UI drafts and darkens the panel without disabling the
+  schedule. Outside night, only centre wakes manual-off. Test rollover and
+  original Display intent with test_lite_display_wake.py before SDK/hardware QA.
   API/Wi-Fi absence must not reboot standalone sensors. Unknown clocks are
   explicit. Preserve the optional per-device HA display feed and original
   stock provenance through fixed slots/sealed metadata; minimum HACS0.2.1.

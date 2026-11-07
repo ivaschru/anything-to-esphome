@@ -1,7 +1,9 @@
 #pragma once
 #include "esphome/core/defines.h"
 #include "ui_model.h"
+#include "display_wake.h"
 #include "settings_entities.h"
+#include "esphome/components/cgdn1_ha_sources/sources_runtime.h"
 #include "design_render.h"
 #include "esphome/components/cgdn1_display/stock_icons.h"
 #include "ui_painter.h"
@@ -29,6 +31,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
 #include "esphome/core/version.h"
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <memory>
@@ -46,13 +49,14 @@ static constexpr unsigned PUBLIC_VERSION = 0;
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
 static constexpr unsigned PUBLIC_VERSION = 0;
 #else
-static constexpr const char *UI_VERSION = "2026.11.07-ui25-quiet2";
+static constexpr const char *UI_VERSION = "2026.11.07-ui25-sources3";
 // Product version is independent from the exact diagnostic UI/build identity.
-static constexpr unsigned PUBLIC_VERSION = 2;
+static constexpr unsigned PUBLIC_VERSION = 3;
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};
   cgdn1_display::DisplayValues summary;
+  std::array<bool, 6> ha_sources{};
   ESPTime clock{};
   bool summary_enabled{true}, usb{false}, powering_off{false};
   uint32_t activity{0}, idle_delay{10000};
@@ -68,20 +72,25 @@ class Cgdn1Ui : public Component {
     settings_.restart=[restart]{restart->press();}; settings_.other_slot=[slot]{slot->press();};
   }
   void request_display(bool on) {
-    display_requested_=on;
-    if(on && !night_active_) display_->turn_on(); else display_->turn_off();
+    display_wake_.request(on);
+    if (display_wake_.visible(millis())) display_->turn_on(); else display_->turn_off();
   }
   void set_night_active(bool active) {
-    if(active==night_active_)return;
-    night_active_=active;
-    if(active) display_->turn_off(); else if(display_requested_)display_->turn_on();
+    if (active == display_wake_.night()) return;
+    display_wake_.set_night(active);
+    if (display_wake_.visible(millis())) display_->turn_on(); else display_->turn_off();
   }
   bool consume_dark_gesture(const std::string &gesture) {
-    if(display_->is_on())return false;
-    if(gesture=="tap_centre" && !night_active_) {
-      request_display(true); settings_.close(); model_.close(); display_->update();
+    const bool known = gesture == "tap_left" || gesture == "tap_centre" || gesture == "tap_right" ||
+                       gesture == "swipe_left" || gesture == "swipe_right";
+    if (!known) return !display_->is_on();
+    if (display_->is_on()) { display_wake_.activity(millis()); return false; }
+    if (display_wake_.night() || gesture == "tap_centre") {
+      if (display_wake_.night()) display_wake_.wake(millis()); else display_wake_.request(true);
+      settings_.close(); model_.close(); touched_ = true;
+      display_->turn_on(); display_->update();
     }
-    return true;
+    return true;  // wake only; never apply the same tap to an unseen setting
   }
   void set_display(cgdn1_display::Cgdn1Display *v) { display_ = v; }
   void set_brightness(number::Number *v) { brightness_ = v; }
@@ -191,7 +200,7 @@ class Cgdn1Ui : public Component {
   cgdn1_led::Sensor led_sensor() const { return shown_sensor_; }
   float led_value() const { return shown_value_; }
   void show_page(int page, int detail) {
-    if (ota_ || night_active_ || wifi_.trial_active() || page < 0 || page > 4 || detail < 0 || detail > 2) return;
+    if (ota_ || display_wake_.night() || wifi_.trial_active() || page < 0 || page > 4 || detail < 0 || detail > 2) return;
     settings_.close(); model_.close(); model_.page = page; model_.info = detail;
     model_.activity = millis(); touched_ = true; idle_shown_ = false;
     display_->turn_on(); display_->update();
@@ -215,6 +224,11 @@ class Cgdn1Ui : public Component {
   }
   void loop() override {
     const uint32_t now = millis();
+    if (!ota_ && display_->is_on() && !display_wake_.visible(now)) {
+      // Expired night interaction cancels only unsaved UI drafts. Persistent
+      // settings and the schedule remain unchanged; no deferred click is saved.
+      settings_.close(); model_.close(); display_->turn_off();
+    }
 #ifdef CGDN1_WEAK17_PROBE
     const bool weak_was_active = weak17_.active();
     if (weak_was_active) weak17_.tick(now, weak17_environment_() && weak17_inputs_() &&
@@ -420,7 +434,7 @@ class Cgdn1Ui : public Component {
     } else { slide_active_=false; render_reading_(p,in,model_.page); }
   }
 
-  void mark_touched() { touched_ = true; }
+  void mark_touched() { touched_ = true; display_wake_.activity(millis()); }
 
  private:
 #ifdef CGDN1_WEAK17_PROBE
@@ -575,21 +589,24 @@ class Cgdn1Ui : public Component {
       const float value=page==0?in.co2:page==1?in.temperature:in.humidity;
       shown_sensor_=page==0?cgdn1_led::SENSOR_CO2:page==1?cgdn1_led::SENSOR_TEMP:cgdn1_led::SENSOR_HUMI;
       shown_value_=value;
+      if (in.ha_sources[size_t(page)]) p.text(153,24,status_font_,"HA",1);
       hero_(p,number(value,page==1?1:0),80,35);
       p.text(80,105,small_,page==0?"CO₂ / ppm":page==1?"°C":"% RH",0);
       if(!std::isfinite(value))p.text(80,119,status_font_,now<300000?"Первые данные":"Нет свежих данных",0);
     } else if(page==3) {
-      if(!pm_->ready()) {
+      const bool ha_pm = in.ha_sources[3] || in.ha_sources[4] || in.ha_sources[5];
+      if(!pm_->ready() && !ha_pm) {
         p.text(80,33,small_,"PM2.5",0);
         p.text(80,58,medium_,!pm_->enabled()?"Выключен":"Прогрев",0);
         p.text(80,99,small_,!pm_->enabled()?"Центр – настройки":"Ещё "+std::to_string((pm_->warmup_remaining_ms()+999)/1000)+" с",0);
       } else {
-        const bool fresh=pm_seen_ && uint32_t(now-pm_ms_)<=cgdn1_display::DisplaySources::MAX_AGE_MS;
-        shown_sensor_=cgdn1_led::SENSOR_PM25; shown_value_=fresh?in.pm25:NAN;
+        const bool fresh=pm_->ready() && pm_seen_ && uint32_t(now-pm_ms_)<=cgdn1_display::DisplaySources::MAX_AGE_MS;
+        if (ha_pm) p.text(153,24,status_font_,"HA",1);
+        shown_sensor_=cgdn1_led::SENSOR_PM25; shown_value_=(fresh || in.ha_sources[4])?in.pm25:NAN;
         hero_(p,number(shown_value_,0),80,31);
         p.text(80,92,small_,"PM2.5 / мкг/м³",0);
-        p.text(7,114,status_font_,"PM1 "+number(fresh?in.pm1:NAN,0),-1,false,72);
-        p.text(153,114,status_font_,"PM10 "+number(fresh?in.pm10:NAN,0),1,false,72);
+        p.text(7,114,status_font_,"PM1 "+number((fresh || in.ha_sources[3])?in.pm1:NAN,0),-1,false,72);
+        p.text(153,114,status_font_,"PM10 "+number((fresh || in.ha_sources[5])?in.pm10:NAN,0),1,false,72);
       }
     } else render_info_(p,in);
   }
@@ -774,7 +791,8 @@ class Cgdn1Ui : public Component {
     }
   }
   SettingsEntities settings_;
-  bool display_requested_{true},night_active_{false},slide_active_{false};
+  DisplayWake display_wake_;
+  bool slide_active_{false};
   int slide_from_{0},slide_direction_{1}; uint32_t slide_start_{0},slide_tick_{0};
   ESPTime last_clock_{};
   Model model_;

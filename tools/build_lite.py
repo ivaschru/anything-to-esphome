@@ -70,7 +70,7 @@ def main():
 substitutions:
   name: {json.dumps(values['name'])}
   trial_mode: "false"
-  ha_display: "true"
+  ha_display: "false"
   ha_display_entity: sensor.qingping_unused_display_feed
 packages:
   lite: !include cgdn1.yaml
@@ -89,8 +89,11 @@ esphome:
     - priority: 1000
       then:
         - lambda: |-
-            qf_template::active_display_feed = qf_template::read(qf_template::display_feed_entity);
-            id(ha_display_feed).set_entity_id(qf_template::active_display_feed.empty() ? "sensor.qingping_unused_display_feed" : qf_template::active_display_feed.c_str());
+            // Keep the old public slot layout readable by existing personalizers.
+            // Version 3 source bindings are ordinary native text settings; the
+            // legacy combined helper is neither migrated nor subscribed to.
+            (void)qf_template::read(qf_template::display_feed_entity);
+            qf_template::active_display_feed.clear();
             wifi::WiFiAP station;
             station.set_ssid(qf_template::read(qf_template::ssid));
             station.set_password(qf_template::read(qf_template::wifi_password));
