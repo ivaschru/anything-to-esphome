@@ -1,5 +1,7 @@
 # Monitor 1 USB — experimental installer
 
+**English** · [Русский: пошаговая инструкция](README.ru.md)
+
 This app offers two USB locations for identification, private capture and builds:
 
 - **Computer USB:** Chrome/Edge WebUSB talks directly to the selected monitor.
@@ -118,8 +120,8 @@ restart a build: select the saved job and check its state. An app restart can
 make a still-running old build unverified until its own terminal receipt is
 available; do not start a replacement or delete its history.
 
-**Built is not installed.** Real first-install qualification and the computer
-writer are still unfinished. Neither a complete compile nor a synthetic
+**Built is not installed.** Physical first-install qualification and the
+browser-only WebUSB writer are still unfinished. Neither a complete compile nor a synthetic
 SDK/container test establishes device compatibility, live USB authority,
 Bluetooth proxy support or safe activation. Monitor 2 stays unverified.
 

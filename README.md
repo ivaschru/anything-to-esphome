@@ -22,6 +22,9 @@ installation on a physical factory CGS1 is still unverified; browser-only
 WebUSB writing and full native UI installation remain unfinished. This does
 not change ordinary HACS admission in the table below.
 
+See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
+([Russian walkthrough](apps/monitor1_usb/README.ru.md)) for both cable locations.
+
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
