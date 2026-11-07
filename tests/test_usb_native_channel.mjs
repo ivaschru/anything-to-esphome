@@ -52,4 +52,9 @@ function fixture() {
  const f=fixture();await f.link.select();f.device.serial='foreign-usb';
  await assert.rejects(f.link.openApi());assert(!f.calls.includes('tcp:6053'));assert.equal(f.state.closed,1);await f.link.close();
 }
+{
+ const f=fixture();await f.link.select();await f.link.openApi();await f.link.closeApi();
+ assert.equal(await f.link.openApi(),f.api);assert.equal(f.calls.filter(c=>c==='tcp:6053').length,2);
+ await f.link.close();assert.equal(f.state.closed,1);assert.equal(f.state.apiClosed,2);
+}
 console.log('Live WebUSB transport: original picker, typed evidence, source/boot fences, fixed API socket, no adoption/retry and owned cleanup passed');

@@ -13,7 +13,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
-  #nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#busy=false;
+  #nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -134,8 +134,8 @@ export class BrowserNativeChannel {
   }
 
   async openApi() {
-    if(this.#busy || this.#apiUsed || this.#closed) error('usb_selection_consumed');
-    this.#apiUsed=true; // No second socket after a lost ACK.
+    if(this.#busy || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
+    this.#apiUsed=true;this.#apiCount++; // Consume before a possibly lost ACK.
     try {
       this.evidence();
       const identity=await this.#identity();
@@ -151,6 +151,19 @@ export class BrowserNativeChannel {
       // handing out this socket is not native identity or writer authority.
       return socket;
     } catch {await this.close();error('usb_channel_unverified');}
+  }
+
+  async closeApi() {
+    if(!this.#api || this.#closed || this.#busy) error('usb_channel_unverified');
+    const socket=this.#api;this.#api=undefined;
+    try {
+      await this.#cleanup(()=>socket.close());
+      if(this.#closed) error('usb_selection_consumed');
+      // An acknowledged teardown permits a new read connection, not another
+      // install/launch request. Reusing the selected USB handle across normal
+      // ESPHome disconnects must never require replaying a consumed writer.
+      this.#apiUsed=false;
+    } catch {await this.close();error('usb_close_unverified');}
   }
 
   async close() {

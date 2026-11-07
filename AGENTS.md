@@ -49,7 +49,9 @@ separate even though the HACS wizard is shared.
   picker, RAM-only credentials, one actual selected handle and an unpredictable
   channel nonce. Reports cannot reopen/adopt a connection. Recheck fixed
   stock/identity/boot before handoff; only the fixed device tcp:6053 socket is
-  available, once, with bounded IO and independent owned cleanup. No generic
+  available one at a time, with bounded IO and independent owned cleanup.
+  A new read socket needs positively acknowledged old-socket closure; a lost
+  open/close ACK retires the channel. No writer permission follows. No generic
   shell/push/launch or HTTP transport adoption. A future Core relay must bound
   encrypted stream traffic and join its separate browser plan/consumed intent
   before any writer can use this primitive. Run test_usb_native_channel.mjs;
