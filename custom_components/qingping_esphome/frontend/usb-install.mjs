@@ -63,3 +63,46 @@ export async function reviewFullUi(rpc,id) {
     fail("usb_full_ui_unverified");
   return value;
 }
+
+/** Historical trial result only: never reinterpret return as installation. */
+export function fullTrialStatus(value,id) {
+  const keys=["job_id","state","trial_available","hard_runtime_ms","native_observations","stock_return_observed",
+    "launch_acknowledged","installed","installation_ready","boot_enabled","replay_allowed","live_recheck_required"];
+  if(!value || Object.keys(value).sort().join()!==keys.sort().join() || !/^[a-f0-9]{32}$/.test(id) || value.job_id!==id ||
+     !["not_started","full_ui_trial_returned_observed","full_ui_trial_unverified","full_ui_trial_close_unverified",
+       "full_ui_trial_rebuild_required"].includes(value.state) || typeof value.trial_available!=="boolean" ||
+     value.hard_runtime_ms!==60000 || value.installed!==false || value.installation_ready!==false ||
+     value.boot_enabled!==false || value.replay_allowed!==false || value.live_recheck_required!==true)
+    fail("usb_full_ui_trial_unverified");
+  const unknown=value.native_observations===null && value.stock_return_observed===null && value.launch_acknowledged===null;
+  if(!unknown && (!Number.isInteger(value.native_observations) || value.native_observations<0 || value.native_observations>2 ||
+      typeof value.stock_return_observed!=="boolean" || typeof value.launch_acknowledged!=="boolean"))
+    fail("usb_full_ui_trial_unverified");
+  if(value.state==="not_started" && !unknown) fail("usb_full_ui_trial_unverified");
+  if(value.state==="full_ui_trial_returned_observed" && (value.native_observations!==2 ||
+      value.stock_return_observed!==true || !value.trial_available)) fail("usb_full_ui_trial_unverified");
+  return value;
+}
+export async function readFullUiTrial(rpc,id) {
+  if(!/^[a-f0-9]{32}$/.test(id)) fail("usb_full_ui_trial_unverified");
+  return fullTrialStatus(await rpc("jobs/"+id+"/full-trial"),id);
+}
+export async function startFullUiTrial(rpc,review,acknowledged) {
+  if(acknowledged!==true || !review || !/^[a-f0-9]{32}$/.test(review.job_id) || !/^[a-f0-9]{64}$/.test(review.plan_sha256))
+    fail("usb_full_ui_trial_review_required");
+  try {
+    return fullTrialStatus(await rpc("full-trial",{job_id:review.job_id,expected_plan_sha256:review.plan_sha256,
+      experimental_reviewed:true}),review.job_id);
+  } catch(error) {
+    if(["usb_unauthorized","usb_busy","usb_full_ui_trial_review_required","usb_full_ui_bridge_required",
+       "usb_full_ui_trial_rebuild_required","usb_install_host_space","usb_install_previous_unverified",
+       "usb_full_ui_trial_previous_unverified"].includes(error?.code)) throw error;
+    // A timeout/disconnected page may hide a consumed writer. One GET of
+    // the same job is safe; no second POST, reset or automatic activation.
+    try {
+      const value=await readFullUiTrial(rpc,review.job_id);
+      if(value.state!=="not_started") return value;
+    } catch {}
+    fail("usb_full_ui_trial_unverified");
+  }
+}

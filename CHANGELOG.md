@@ -5,6 +5,12 @@
   the host connection; permanent plans retain their existing encoding.
   Initial-install hardware qualification and PM-extension admission remain
   required. This source change does not publish or install a new firmware.
+- Connect the fixed RAM screen trial to the owner-scoped HA USB wizard and
+  downloaded computer CLI, using one durable plan-bound intent. Observe the
+  native physical-readiness signal and stock return without enabling boot.
+  Add EN/RU progress, status-only recovery and independent transport cleanup.
+  Older source jobs are preserved and refuse the new action; fresh physical
+  first-install, PM-extension transition and permanent UI remain separate.
 
 ## Monitor 1 runtime version 1 (independent firmware channel)
 

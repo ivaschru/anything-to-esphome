@@ -9,6 +9,7 @@ attempt. Fresh-device hardware qualification remains outstanding.
 """
 import argparse
 import asyncio
+import fcntl
 import hashlib
 import json
 import os
@@ -23,8 +24,10 @@ import uuid
 # before checking all its body pins would execute unverified bundled Python.
 # A contract test keeps this fixed set equal to the companion's reviewed set.
 # Membership admits a producer; the manifest/report must still bind ONE source.
-REVIEWED_SOURCE_COMMITS = frozenset(("0de9c99e57192742b82616cf82c0fdad71c562c5",
+REVIEWED_SOURCE_COMMITS = frozenset(("53d97b9609e8e0fcdfc5d003101f620098dbc734",
+                                     "0de9c99e57192742b82616cf82c0fdad71c562c5",
                                      "e09440f9fa36da2aaad16212734879bb6304f6d2"))
+TRIAL_SOURCE_COMMITS = frozenset(("53d97b9609e8e0fcdfc5d003101f620098dbc734",))
 MAX_PACKAGE = 64 * 1024**2
 
 
@@ -304,20 +307,107 @@ async def full_review(root, modules, adb):
     return result
 
 
+def full_trial_status(root, manifest):
+    """Fixed local read, no engine import, ADB discovery or write replay."""
+    result = {"state": "not_started", "local_receipt_only": True, "read_only": True,
+              "hardware_contacted": False, "installed": False, "installation_ready": False,
+              "boot_enabled": False, "replay_allowed": False}
+    state = private_root(root / "computer-state")
+    if "full-ui-trial-intent.json" not in os.listdir(state):
+        return result
+    result["state"] = "full_ui_trial_unverified"
+    raw = private_file(state / "full-ui-trial-intent.json", 16384)
+    intent = unique_json(raw)
+    prepared = unique_json(private_file(state / "prepared.json", 16384))
+    if (set(intent) != {"plan_sha256", "source_commit", "install_intent_sha256", "nonce", "experimental_reviewed"} or
+            intent["plan_sha256"] != prepared.get("plan_sha256") or
+            intent["source_commit"] != manifest["source_commit"] or intent["source_commit"] not in TRIAL_SOURCE_COMMITS or
+            intent["install_intent_sha256"] != hashlib.sha256(private_file(state / "install-intent.json", 16384)).hexdigest() or
+            intent["experimental_reviewed"] is not True or not isinstance(intent["nonce"], str) or
+            not re.fullmatch(r"[a-f0-9]{16}", intent["nonce"]) or intent["nonce"] == "0" * 16 or
+            prepared.get("profile_sha256") != manifest["profile_sha256"] or
+            hashlib.sha256(private_file(state / "install-plan/plan.json", 512 * 1024)).hexdigest() != intent["plan_sha256"]):
+        raise ValueError("Exact consumed screen-trial basis required")
+    if "full-ui-trial-result.json" in os.listdir(state):
+        # The helper was independently verified by load_bundle before import.
+        if not {"full_ui_trial.py", "full_ui_review.py"} <= set(manifest["files"]):
+            raise ValueError("Verified screen-trial helper required")
+        from full_ui_trial import checked_proof
+        receipt = unique_json(private_file(state / "full-ui-trial-result.json", 16384))
+        if set(receipt) != {"intent_sha256", "proof"} or receipt["intent_sha256"] != hashlib.sha256(raw).hexdigest():
+            raise ValueError("Exact screen-trial result required")
+        proof = checked_proof(receipt["proof"], intent["nonce"])
+        result.update(state=proof["state"], native_observations=proof["native_observations"],
+            stock_return_observed=proof["stock_return_observed"], launch_acknowledged=proof["launch_acknowledged"])
+    return result
+
+
+async def full_trial(root, modules, adb, manifest, digest, reviewed):
+    """One explicit computer trial; same API/USB engine as the HA route."""
+    if (reviewed is not True or not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest) or
+            manifest["source_commit"] not in TRIAL_SOURCE_COMMITS or
+            not {"full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_review.py"} <= set(manifest["files"])):
+        raise ValueError("Reviewed matched source and explicit screen trial required")
+    state = private_root(root / "computer-state")
+    if "full-ui-trial-intent.json" in os.listdir(state):
+        raise ValueError("Screen trial already consumed; read full-trial-status")
+    prepared = unique_json(private_file(state / "prepared.json", 16384))
+    intent_raw = private_file(state / "install-intent.json", 16384)
+    if (prepared != {"plan_sha256": digest, "profile_sha256": manifest["profile_sha256"]} or
+            unique_json(intent_raw) != {"plan_sha256": digest, "experimental_reviewed": True}):
+        raise ValueError("Exact prepared installation required")
+    canonical = modules[3].trial
+    _, plan = canonical.review.staging.load_plan(state / "install-plan", digest)
+    profile, profile_sha = canonical.candidate.read_profile(root / "profile.json")
+    if (profile_sha != manifest["profile_sha256"] or profile_sha != plan["basis"]["profile_sha256"] or
+            plan["basis"]["source_commit"] != manifest["source_commit"]):
+        raise ValueError("Exact private profile/source required")
+    # Observe the actual post-install boot before consuming this distinct
+    # intent. This read cannot arm/reset/reboot or promote old receipt flags.
+    observed = await observe(root, modules, adb)
+    if observed["state"] != "bridge_observed":
+        raise ValueError("Observed new bridge boot required")
+    from full_ui_trial import checked_proof
+    from full_ui_trial_usb import image_bytes, run_usb
+    images = {kind: image_bytes(state / "install-plan" / kind, plan["files"][kind])
+              for kind in ("native-program", "guardian-program")}
+    lock = os.open(state / "full-ui-trial.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(lock)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or
+                stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError("Owned private screen-trial lease required")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        record = {"plan_sha256": digest, "source_commit": manifest["source_commit"],
+                  "install_intent_sha256": hashlib.sha256(intent_raw).hexdigest(),
+                  "nonce": uuid.uuid4().hex[:16], "experimental_reviewed": True}
+        write_new(state / "full-ui-trial-intent.json", record)
+        raw = private_file(state / "full-ui-trial-intent.json", 16384)
+        proof = await run_usb(adb, plan, profile, canonical, record["nonce"], images)
+        checked_proof(proof, record["nonce"])
+        write_new(state / "full-ui-trial-result.json", {"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof})
+    finally:
+        os.close(lock)
+    return full_trial_status(root, manifest)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "local-status"))
+    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "full-trial", "full-trial-status", "local-status"))
     parser.add_argument("--serial")
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--plan-sha256")
     parser.add_argument("--experimental-reviewed", action="store_true")
     args = parser.parse_args()
-    if args.action != "local-status" and not args.serial:
+    if args.action not in ("local-status", "full-trial-status") and not args.serial:
         parser.error("--serial is required for USB operations")
     os.umask(0o077)
     root, source, manifest = load_bundle(Path(__file__).resolve().parent)
     if args.action == "local-status":
         print(json.dumps(local_status(root, manifest), ensure_ascii=False, indent=2))
+        return
+    if args.action == "full-trial-status":
+        print(json.dumps(full_trial_status(root, manifest), ensure_ascii=False, indent=2))
         return
     modules = engines(source)
     executable = shutil.which(args.adb)
@@ -334,6 +424,8 @@ def main():
         result = asyncio.run(observe(root, modules, adb))
     elif args.action == "full-review":
         result = asyncio.run(full_review(root, modules, adb))
+    elif args.action == "full-trial":
+        result = asyncio.run(full_trial(root, modules, adb, manifest, args.plan_sha256, args.experimental_reviewed))
     else:
         state = private_root(root / "computer-state")
         prepared = unique_json(private_file(state / "prepared.json", 16384))

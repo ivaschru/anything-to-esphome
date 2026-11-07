@@ -37,6 +37,8 @@ def package_export(builds, owner, job_id):
                 "computer_install.py": Path(__file__).with_name("computer_install.py").read_bytes(),
                 "full_ui_review.py": Path(__file__).with_name("full_ui_review.py").read_bytes(),
                 "full_ui_usb.py": Path(__file__).with_name("full_ui_usb.py").read_bytes(),
+                "full_ui_trial.py": Path(__file__).with_name("full_ui_trial.py").read_bytes(),
+                "full_ui_trial_usb.py": Path(__file__).with_name("full_ui_trial_usb.py").read_bytes(),
                 "README.txt": Path(__file__).with_name("computer-instructions.txt").read_bytes(),
                 "runtime-requirements.txt": RUNTIME_REQUIREMENTS}
     for name, expected in report["source_sha256"].items():

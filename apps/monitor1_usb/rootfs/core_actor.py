@@ -53,10 +53,10 @@ class Actor:
                 self.usb_ready()
             value = {"devices": self.companion.discover(user, nonce)} if operation == "devices" else self.companion.jobs(user, nonce)
             return value, "application/json"
-        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|install-review|install))?", operation)
+        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|install-review|install|full-trial))?", operation)
         if match and data is None:
             method = {None: "status", "build": "build_status", "plan": "plan_status",
-                      "install-review": "install_review", "install": "install_status"}[match[2]]
+                      "install-review": "install_review", "install": "install_status", "full-trial": "full_trial_status"}[match[2]]
             return getattr(self.companion, method)(user, nonce, match[1]), "application/json"
         if not isinstance(data, dict):
             raise Refusal("usb_request_invalid")
@@ -75,10 +75,11 @@ class Actor:
                 self.prepared or (lambda value: value)), "application/json"
         if operation in ("build", "plan") and set(data) == {"job_id"}:
             return getattr(self.companion, operation)(user, nonce, data["job_id"]), "application/json"
-        if operation == "install":
+        if operation in ("install", "full-trial"):
             if self.usb_ready is not None:
                 self.usb_ready()
-            return self.companion.install(user, nonce, lambda: data, lambda value: value), "application/json"
+            return self.companion.install(user, nonce, lambda: data, lambda value: value,
+                                          full=operation == "full-trial"), "application/json"
         if operation in ("observe", "full-review"):
             if self.usb_ready is not None:
                 self.usb_ready()

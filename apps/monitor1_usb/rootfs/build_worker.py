@@ -25,10 +25,11 @@ from preparation import (PreparationError, USER, job_status, owned_intent,
 # S8 and SCD40. It is never a ref/URL/source supplied by HTTP. Historical jobs
 # keep their own immutable source: moving this default must not relabel their
 # reports, plans, program pins, keys or consumed execution history.
-SOURCE_COMMIT = "0de9c99e57192742b82616cf82c0fdad71c562c5"
+SOURCE_COMMIT = "53d97b9609e8e0fcdfc5d003101f620098dbc734"
 # Keep this explicit rather than deriving history from the moving default:
 # a later pin change must add a reviewed producer, not silently remove one.
-REVIEWED_SOURCE_COMMITS = frozenset(("0de9c99e57192742b82616cf82c0fdad71c562c5",
+REVIEWED_SOURCE_COMMITS = frozenset(("53d97b9609e8e0fcdfc5d003101f620098dbc734",
+                                     "0de9c99e57192742b82616cf82c0fdad71c562c5",
                                      "e09440f9fa36da2aaad16212734879bb6304f6d2"))
 SOURCE_URL = "https://github.com/ivaschru/qingping-esphome.git"
 MIN_FREE = 6 * 1024**3

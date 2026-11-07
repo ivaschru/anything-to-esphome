@@ -18,7 +18,7 @@ on the computer and reuses these same engines; it never rewrites a browser
 report to invent native transport evidence. Lite's
 Bluetooth transports stay separate. Subsequent ordinary updates use the network.
 
-## Fixed Full UI trial mode (source stage)
+## Fixed Full UI trial mode (experimental)
 
 The ordinary full-runtime API now has a separate `full_runtime_launch_trial`
 action with only the already prepared `job` argument. It selects exactly
@@ -34,12 +34,25 @@ the effective limit, including any stricter diagnostic compile-time ceiling.
 New matched native/guardian/bridge builds are required; do not retrofit pins
 or send this action to an old build and infer success from a lost response.
 
-This is currently runtime source, not a completed GUI first-install path or
-physical qualification. The host trial coordinator still needs one consumed
-intent, fresh identity/pair admission and separate proof of native acquisition
-and stock return. In particular the existing verified PM-extension prerequisite
-remains; its fresh loader trial must not be performed remotely on a working
-monitor without the separate recovery conditions.
+The shared host coordinator now uploads the exact pair through an owned native
+USB forward, consumes a separate owner/plan/source-bound intent and observes
+native acquisition/readiness plus the same session's stock return. The HA
+wizard offers **Run a 60-second screen trial** after a positive prerequisite
+read and separate acknowledgement. The downloaded computer entry offers
+`full-trial --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed`;
+`full-trial-status` reads only its local historical receipt, without USB/ADB.
+Lost replies never reissue a write; native startup can be observed even if
+the launch ACK was lost. Two increasing guardian generations are two live
+observations, not two fresh CO2 polls. Core readiness uses physical sources,
+never Home Assistant display feeds. API/USB cleanup must complete separately.
+
+This is not a completed GUI first-install path or physical qualification.
+The existing verified PM-extension prerequisite remains; its fresh loader
+transition is not part of this trial and must not be improvised remotely on
+a working monitor. Permanent install/boot and automatic HA enrollment remain
+separate. Older source jobs refuse this capability without relabelling their
+programs, keys, plans or consumed history. A compile or fixture cannot justify
+resetting an existing device to make this first-install path accept it.
 
 ## Prepared stage, commit and trial in one sequence
 

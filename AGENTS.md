@@ -76,6 +76,18 @@ separate even though the HACS wizard is shared.
   mode is enabled by a trial. Keep actual stock/PM/DRM/image/RAM admission.
   Run test_full_runtime_limit_plan.cpp on Linux; no host fixture qualifies
   the initial UI transition or lifts its PM-extension prerequisite.
+  The separate owner-reviewed first-screen step consumes full-ui-trial intent
+  before the fixed SDK child, uploads only the matched native/guardian pair
+  and observes two live guardian generations plus physical core readiness and
+  exact stock return. Unknown replies never repeat uploads/launch or enable
+  permanent startup. Only an explicit core_display_repair_pending response
+  permits bounded advancement of that same existing device admission state;
+  a read-only status cannot advance the repair. API close and own-forward
+  cleanup stay independent. Old source jobs retain their bytes/history and
+  refuse this capability. Keep server/computer routes on the same coordinator,
+  export its exact checked helper bodies, and make full-trial-status local
+  only. The GUI restores status, not a writer; language keeps form state.
+  Run test_usb_full_ui*.py, test_usb_computer.py and test_usb_install.mjs.
 
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile

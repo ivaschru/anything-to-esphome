@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 from preparation import USER, PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
-from build_worker import adb_executable, child_job_directory, private_hash, sync_directory
+from build_worker import adb_executable, build_report, child_job_directory, private_hash, sync_directory
 from install_plan import source_closure, verify_plan
 
 
@@ -121,8 +121,45 @@ def full_review_job(directory, observation_id):
     sync_directory(output)
 
 
+def full_trial_job(directory):
+    """Execute one durable parent intent, never a caller-supplied service list."""
+    from full_ui_installation import INTENT, RESULT, checked_intent, checked_proof
+    from full_ui_trial_usb import image_bytes, run_usb
+    directory = private_directory(Path(directory))
+    initial = unique_json(read_private(directory / INTENT))
+    owned_intent(directory.parent, directory.name, initial.get("owner"))
+    intent, raw = checked_intent(directory, initial.get("owner"), directory.name)
+    if RESULT in os.listdir(directory):
+        raise PreparationError("usb_full_ui_trial_consumed")
+    source = source_closure(directory)
+    # The original plan has acquired engine receipts since install. Rehash
+    # every immutable payload named by that exact consumed plan, preserving
+    # (and never deleting/ignoring as new write authority) its later history.
+    plan = build_report(directory / "install-plan/plan.json")
+    for name, pin in plan["files"].items():
+        import re
+        if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", name) or name in (".", "..") or private_hash(directory / "install-plan" / name) != pin:
+            raise PreparationError("usb_full_ui_trial_unverified")
+    sys.path.insert(0, str(source))
+    import trial_initial_bridge_adb as canonical
+    profile, profile_sha = canonical.candidate.read_profile(directory / "profile.json")
+    if (profile_sha != plan["basis"]["profile_sha256"] or
+            plan["api_identity"] != {key: profile[key] for key in ("node_name", "api_mac")}):
+        raise PreparationError("usb_full_ui_trial_unverified")
+    # Bytes never enter the parent/HTTP status. Fixed plan roles only, each
+    # rehashed above and again by the API coordinator/device compiled manifest.
+    images = {kind: image_bytes(directory / "install-plan" / kind, plan["files"][kind])
+              for kind in ("native-program", "guardian-program")}
+    adb = canonical.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
+    proof = asyncio.run(run_usb(adb, plan, profile, canonical, intent["nonce"], images))
+    checked_proof(proof, intent["nonce"])
+    write_new(directory / RESULT, (json.dumps({"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof}) + "\n").encode())
+    sync_directory(directory)
+
+
 if __name__ == "__main__":
-    if (len(sys.argv) not in (3, 5) or sys.argv[1] != "--job" or not USER.fullmatch(sys.argv[2]) or
+    if (len(sys.argv) not in (3, 4, 5) or sys.argv[1] != "--job" or not USER.fullmatch(sys.argv[2]) or
+            (len(sys.argv) == 4 and sys.argv[3] != "--full-trial") or
             (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
@@ -130,7 +167,9 @@ if __name__ == "__main__":
     # engine/receipt check below while allowing the Core backend's storage;
     # no caller-controlled host path or search fallback is added to the CLI.
     directory = child_job_directory(sys.argv[2])
-    if len(sys.argv) == 5:
+    if len(sys.argv) == 4:
+        full_trial_job(directory)
+    elif len(sys.argv) == 5:
         action = full_review_job if sys.argv[3] == "--full-review" else observe_job
         action(directory, sys.argv[4])
     else:

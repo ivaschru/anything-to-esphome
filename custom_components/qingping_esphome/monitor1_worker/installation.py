@@ -118,6 +118,13 @@ class Installations:
             # no PID/timeout/absent result is accepted as permission to repeat.
             for other in private_directory(Path(self.parent)).iterdir():
                 private_directory(other)
+                if "full-ui-trial-intent.json" in os.listdir(other):
+                    # A crash-released kernel lock does not retire a previous
+                    # Full UI writer. Preserve its independent durable fence.
+                    from full_ui_installation import FullUiTrials
+                    prior = unique_json(read_private(other / "intent.json"))
+                    if FullUiTrials(self).status(prior["owner"], other.name)["state"] != "full_ui_trial_returned_observed":
+                        raise PreparationError("usb_full_ui_trial_previous_unverified")
                 if "install-intent.json" not in os.listdir(other):
                     continue
                 prior = unique_json(read_private(other / "intent.json"))
