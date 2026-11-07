@@ -1,3 +1,19 @@
+## 0.2.7 – initial PM transition for Full UI
+
+- Prepare a separate owner/plan-bound PM transition through the fixed SDK
+  child. Before removing the persistent opt-out, inhibit stock restarts for
+  the remainder of the current boot. Preserve backups, consumed history and
+  an AFTER-effects marker; lost ACK permits only read reconciliation.
+- Connect the shared engine to the authenticated server wizard and private
+  computer CLI, with EN/RU progress, separate review and local-only status.
+  Recognize the initial disabled-stock prerequisite only after a positive
+  independent scope; after PM preparation require another boot and fresh
+  Full UI preflight before the screen trial.
+- Production-path commands and hardware have not been executed. Rewritten
+  Linux/root interruption fixtures pass independently of device qualification.
+  Browser-only writing, HA enrollment, CGS1 BLE and Monitor 2 remain unfinished
+  or unverified.
+
 ## 0.2.6 – separate permanent Full UI startup
 
 - After a successful fixed screen trial, offer a separately reviewed permanent

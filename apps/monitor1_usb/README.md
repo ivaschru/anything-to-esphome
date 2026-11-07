@@ -56,9 +56,39 @@ Keep USB on the same Linux boot as the trial. The computer commands are:
 
 The second command reads local history without USB/ADB/engine execution. Never
 repeat the first after a lost reply. An uncertain durable attempt blocks other
-writers, even after server restart. The initial PM-extension transition and
-automatic HA enrollment remain unfinished; software tests do not qualify an
+writers, even after server restart. The initial PM-extension transition is described below; automatic HA
+enrollment remains unfinished; software tests do not qualify an
 untouched device or enable CGS1 Bluetooth or Monitor 2.
+
+## Initial Full UI prerequisite
+
+After the first bridge boot, **Check Full UI prerequisites** may offer
+**Prepare Full UI**. A wrapper mismatch alone is insufficient: the original
+USB observer must positively verify the exact disabled stock, original arm
+completion, current bridge/boot and physical wire readings on that same boot.
+Review the separate acknowledgement, then **Prepare the next boot** once.
+
+The fixed SDK child rechecks the private original plan and live process/file
+scope. Before clearing the persistent PM opt-out, it creates the existing
+RAM inhibition marker so an unrelated stock restart cannot load the extension
+in this boot. It preserves a flag backup, owner lock and AFTER-effects record.
+It never signals SnowApp, uploads code or reboots. A lost reply permits only
+reading the completion record and saved result, never replay or rollback.
+
+After a confirmed result, power the monitor off and on through its normal
+controls, then check Full UI prerequisites again. The screen trial and
+permanent-start steps remain independent. Computer commands use the same engine:
+
+```sh
+.runtime/bin/python computer_install.py pm-enable --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+.runtime/bin/python computer_install.py pm-status
+```
+
+`pm-status` reads local history without USB/ADB/engines. Do not power-cycle
+or repeat a write while its outcome is uncertain. The computer's later screen
+trial requires the exact PM completion, a different boot and the actual Full
+UI preflight; it never relabels the original bridge-only observer's scope.
+These software and rewritten Linux/root tests are not untouched-device QA.
 
 ## Install and open
 

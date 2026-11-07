@@ -116,6 +116,8 @@ class FullUiTrials:
                 # An uncertain permanent child outlives a crash-released lock.
                 from full_ui_activation_installation import FullUiActivations
                 FullUiActivations(self.installations).fence(other, prior["owner"])
+                from pm_extension_installation import PmExtensions
+                PmExtensions(self.installations).fence(other, prior["owner"])
                 if "install-intent.json" in names and self.installations.status(prior["owner"], other.name)["state"] not in (
                         "armed_waiting_reboot", "bridge_observed"):
                     raise PreparationError("usb_install_previous_unverified")

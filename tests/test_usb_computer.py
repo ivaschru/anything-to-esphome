@@ -22,6 +22,7 @@ with patch.object(sys, "path", [str(HERE), *sys.path]):
     import full_ui_usb
     import full_ui_trial_usb
     import full_ui_activation_usb
+    import pm_extension_usb
 
 
 class ComputerExportTests(unittest.TestCase):
@@ -189,7 +190,8 @@ class ComputerEngineTests(unittest.TestCase):
             canonical.candidate.read_profile.return_value = ({}, self.profile_sha)
             observed = asyncio.run(desktop.full_review(self.root, self.modules, None))
             self.assertEqual(observed, result)
-            reader.assert_awaited_once_with(None, plan, {}, canonical)
+            self.assertEqual(reader.await_args.args, (None, plan, {}, canonical))
+            self.assertTrue(callable(reader.await_args.kwargs["initial_pm_reader"]))
             saved = list((self.state / "observations").glob("*/full-ui-review.json"))
             self.assertEqual(len(saved), 1)
             self.assertEqual(json.loads(saved[0].read_text()), {**result, "plan_sha256": self.digest})
@@ -287,6 +289,56 @@ class ComputerEngineTests(unittest.TestCase):
                 patch("builtins.print"):
             desktop.main()
             engine.assert_not_called(); adb.assert_not_called()
+
+    def recorded_pm_basis(self):
+        source = next(iter(desktop.TRIAL_SOURCE_COMMITS))
+        profile = {"node_name": "fixture", "api_mac": "02:00:00:00:00:01"}
+        plan = {"basis": {"profile_sha256": self.profile_sha, "source_commit": source}, "api_identity": profile,
+                "target": {"boot_id": "11111111-1111-1111-1111-111111111111", "wlan_mac": "02:00:00:00:00:01", "co2_type": 3}}
+        plan_root = self.state / "install-plan";plan_root.mkdir(mode=0o700)
+        desktop.write_new(plan_root / "plan.json", plan)
+        digest = hashlib.sha256((plan_root / "plan.json").read_bytes()).hexdigest()
+        (self.state / "prepared.json").write_text(json.dumps({"plan_sha256": digest, "profile_sha256": self.profile_sha}))
+        desktop.write_new(self.state / "install-intent.json", {"plan_sha256": digest, "experimental_reviewed": True})
+        canonical = SimpleNamespace(candidate=SimpleNamespace(read_profile=Mock(return_value=(profile, self.profile_sha))),
+            review=SimpleNamespace(preflight=SimpleNamespace(identity=Mock(return_value="33333333-3333-3333-3333-333333333333"))))
+        self.sequence.trial = canonical
+        manifest = {"source_commit": source, "profile_sha256": self.profile_sha,
+                    "files": {key: {} for key in ("pm_extension_guard.py", "pm_extension_usb.py")}}
+        return plan, digest, canonical, manifest
+
+    def test_computer_pm_is_consumed_once_and_status_never_imports_engines(self):
+        plan, digest, canonical, manifest = self.recorded_pm_basis()
+        async def operate(adb, directory, actual, profile_path, observer, nonce):
+            self.assertTrue((self.state / "pm-extension-intent.json").exists())
+            return {"state": "pm_extension_armed_waiting_reboot", "nonce": nonce,
+                "boot_id": "22222222-2222-2222-2222-222222222222", "device_request_sent": True,
+                "arming_acknowledged": False, "completion_observed": True, "api_disconnect": "completed", "forward_cleanup": "removed",
+                "installed": False, "installation_ready": False, "replay_allowed": False}
+        with patch.object(pm_extension_usb, "arm_next_boot", new=AsyncMock(side_effect=operate)) as writer:
+            with self.assertRaises(ValueError):asyncio.run(desktop.pm_enable(self.root, self.modules, None, manifest, digest, False))
+            writer.assert_not_awaited()
+            result = asyncio.run(desktop.pm_enable(self.root, self.modules, None, manifest, digest, True))
+            self.assertEqual(result["state"], "pm_extension_armed_waiting_reboot")
+            self.assertTrue(result["local_receipt_only"] and result["next_boot_armed"])
+            self.assertNotIn("nonce", result);self.assertNotIn("boot_id", result)
+            with self.assertRaises(ValueError):asyncio.run(desktop.pm_enable(self.root, self.modules, None, manifest, digest, True))
+            writer.assert_awaited_once()
+        with patch.object(sys, "argv", ["computer_install.py", "pm-status"]), \
+                patch.object(desktop, "load_bundle", return_value=(self.root, None, manifest)), \
+                patch.object(desktop, "engines") as engine, patch.object(desktop.shutil, "which") as adb, patch("builtins.print"):
+            desktop.main();engine.assert_not_called();adb.assert_not_called()
+        # After PM enable, the old bridge-only observer's disabled flag is
+        # intentionally absent. Require a NEW boot and Full UI preflight,
+        # rather than weakening that original observer or fabricating proof.
+        with patch.object(desktop, "observe", new=AsyncMock()) as old, \
+                patch.object(desktop, "full_review", new=AsyncMock(return_value={"state": "full_ui_preflight_observed"})) as review:
+            canonical.review.preflight.identity.return_value = "22222222-2222-2222-2222-222222222222"
+            with self.assertRaises(ValueError):asyncio.run(desktop.trial_admission(self.root, self.modules, None, manifest, canonical, plan))
+            review.assert_not_awaited();old.assert_not_awaited()
+            canonical.review.preflight.identity.return_value = "33333333-3333-3333-3333-333333333333"
+            asyncio.run(desktop.trial_admission(self.root, self.modules, None, manifest, canonical, plan))
+            review.assert_awaited_once();old.assert_not_awaited()
 
     def test_full_trial_waits_for_actual_bridge_boot_before_consuming_intent(self):
         source = next(iter(desktop.TRIAL_SOURCE_COMMITS))

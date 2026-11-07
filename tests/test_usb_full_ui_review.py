@@ -45,6 +45,8 @@ class FullUiReviewTests(unittest.TestCase):
     def test_precise_pm_prerequisite_is_separate_from_unknown_refusal(self):
         self.capture.update(ok=False, stock_error="pm_helper_not_in_verified_state")
         self.assertEqual(self.run_review()["state"], "pm_extension_required")
+        self.capture["stock_error"] = "unexpected_stock_wrapper"
+        self.assertEqual(self.run_review()["state"], "pm_extension_scope_required")
         self.capture["stock_error"] = "untrusted private output must not escape"
         result = self.run_review()
         self.assertEqual(result["state"], "full_ui_unverified")

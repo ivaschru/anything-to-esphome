@@ -33,7 +33,7 @@ export async function startInstall(rpc,review,acknowledged) {
       experimental_reviewed:true}),review.job_id);
   } catch(error) {
     if(["usb_unauthorized","usb_busy","usb_install_review_required","usb_install_plan_required",
-        "usb_install_host_space","usb_install_previous_unverified"].includes(error?.code)) throw error;
+        "usb_install_host_space","usb_install_previous_unverified","usb_pm_extension_previous_unverified"].includes(error?.code)) throw error;
     try {
       const value=await readInstall(rpc,review.job_id);
       if(value.state!=="not_started") return value;
@@ -95,8 +95,8 @@ export async function startFullUiTrial(rpc,review,acknowledged) {
       experimental_reviewed:true}),review.job_id);
   } catch(error) {
     if(["usb_unauthorized","usb_busy","usb_full_ui_trial_review_required","usb_full_ui_bridge_required",
-       "usb_full_ui_trial_rebuild_required","usb_install_host_space","usb_install_previous_unverified",
-       "usb_full_ui_trial_previous_unverified"].includes(error?.code)) throw error;
+       "usb_full_ui_trial_rebuild_required","usb_install_host_space","usb_install_previous_unverified","usb_pm_extension_previous_unverified",
+       "usb_full_ui_trial_previous_unverified","usb_pm_extension_previous_unverified"].includes(error?.code)) throw error;
     // A timeout/disconnected page may hide a consumed writer. One GET of
     // the same job is safe; no second POST, reset or automatic activation.
     try {
@@ -138,9 +138,43 @@ export async function startFullUiActivation(rpc,review,acknowledged,screenReview
       experimental_reviewed:true,screen_reviewed:true}),review.job_id);
   } catch(error) {
     if(["usb_unauthorized","usb_busy","usb_full_ui_activation_review_required","usb_full_ui_activation_trial_required",
-       "usb_install_host_space","usb_install_previous_unverified","usb_full_ui_trial_previous_unverified",
-       "usb_full_ui_activation_previous_unverified"].includes(error?.code)) throw error;
+       "usb_install_host_space","usb_install_previous_unverified","usb_pm_extension_previous_unverified","usb_full_ui_trial_previous_unverified",
+       "usb_full_ui_activation_previous_unverified","usb_pm_extension_previous_unverified"].includes(error?.code)) throw error;
     try {const value=await readFullUiActivation(rpc,review.job_id);if(value.state!=="not_started") return value;} catch {}
     fail("usb_full_ui_activation_unverified");
+  }
+}
+
+/** A distinct next-boot prerequisite, never a replayable activation action. */
+export function pmStatus(value,id) {
+  const keys=["job_id","state","pm_available","arming_acknowledged","completion_observed","next_boot_armed",
+    "installed","installation_ready","replay_allowed","live_recheck_required"];
+  if(!value || Object.keys(value).sort().join()!==keys.sort().join() || !/^[a-f0-9]{32}$/.test(id) || value.job_id!==id ||
+     !["not_started","pm_extension_unverified","pm_extension_armed_waiting_reboot"].includes(value.state) ||
+     typeof value.pm_available!=="boolean" || ![null,true,false].includes(value.arming_acknowledged) ||
+     ![null,true,false].includes(value.completion_observed) || value.next_boot_armed!==(value.state==="pm_extension_armed_waiting_reboot" ? true : null) ||
+     value.installed!==false || value.installation_ready!==false || value.replay_allowed!==false || value.live_recheck_required!==true)
+    fail("usb_pm_extension_unverified");
+  if(value.state!=="not_started" && value.pm_available) fail("usb_pm_extension_unverified");
+  if(value.state==="not_started" && (value.arming_acknowledged!==null || value.completion_observed!==null)) fail("usb_pm_extension_unverified");
+  if(value.state==="pm_extension_armed_waiting_reboot" && (value.completion_observed!==true || typeof value.arming_acknowledged!=="boolean"))
+    fail("usb_pm_extension_unverified");
+  return value;
+}
+export async function readPmExtension(rpc,id) {
+  if(!/^[a-f0-9]{32}$/.test(id)) fail("usb_pm_extension_unverified");
+  return pmStatus(await rpc("jobs/"+id+"/pm-enable"),id);
+}
+export async function startPmExtension(rpc,review,acknowledged) {
+  if(acknowledged!==true || !review || !/^[a-f0-9]{32}$/.test(review.job_id) || !/^[a-f0-9]{64}$/.test(review.plan_sha256))
+    fail("usb_pm_extension_review_required");
+  try {
+    return pmStatus(await rpc("pm-enable",{job_id:review.job_id,expected_plan_sha256:review.plan_sha256,experimental_reviewed:true}),review.job_id);
+  } catch(error) {
+    if(["usb_unauthorized","usb_busy","usb_pm_extension_review_required","usb_pm_extension_bridge_required","usb_install_host_space",
+       "usb_pm_extension_previous_unverified","usb_full_ui_activation_previous_unverified","usb_full_ui_trial_previous_unverified",
+       "usb_install_previous_unverified"].includes(error?.code)) throw error;
+    try {const value=await readPmExtension(rpc,review.job_id);if(value.state!=="not_started") return value;} catch {}
+    fail("usb_pm_extension_unverified");
   }
 }

@@ -53,9 +53,19 @@ already ran privately on your HA server. Do not use sudo.
    Even full_ui_preflight_observed is not an installation or launch grant.
    This command never enables PM preload, stages, launches or reboots.
 
+7a. If the initial PM extension is required, prepare its next ordinary boot:
+   .runtime/bin/python computer_install.py pm-enable --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+   The same fixed SDK engine checks original completion and current scope,
+   inhibits stock restarts in this boot, saves the opt-out backup and clears
+   only that opt-out. No stock signal, upload or reboot is sent. Read history:
+   .runtime/bin/python computer_install.py pm-status
+   After a confirmed result only, power the monitor fully off and on using its
+   normal controls, then run full-review again. Do not repeat a lost request
+   or power-cycle during an uncertain write. The local status uses no ADB.
+
 8. Only a new matched build with the fixed Full UI trial supports this next
    experimental step. After a positive prerequisite check and a verified PM
-   extension transition (not performed by this command), review the exact plan
+   extension transition from step 7a (not performed by this command), review the exact plan
    and run ONCE while watching the screen:
    .runtime/bin/python computer_install.py full-trial --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
    It uploads only the pinned native/guardian pair to RAM. Existing device

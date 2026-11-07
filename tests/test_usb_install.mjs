@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {installStatus,readInstall,startInstall,readInstallReview,observeBoot,reviewFullUi,
-  fullTrialStatus,readFullUiTrial,startFullUiTrial,fullActivationStatus,readFullUiActivation,startFullUiActivation} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
+  fullTrialStatus,readFullUiTrial,startFullUiTrial,fullActivationStatus,readFullUiActivation,startFullUiActivation,pmStatus,readPmExtension,startPmExtension} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
 import {strings} from "../custom_components/qingping_esphome/frontend/usb-labels.mjs";
 const id="c".repeat(32), review={job_id:id,plan_sha256:"d".repeat(64),model:"CGS1",co2_type:3,
   friendly_name:"Fixture",wlan_mac:"02:00:00:00:00:01",stock_version:"4.1.8_0287",
@@ -69,3 +69,18 @@ assert.deepEqual(await readFullUiActivation(async()=>permanent,id),permanent);
 for(const change of [{installed:true},{activation_available:true},{boot_enabled:false},{native_observations:true},{native_observations:1},
     {trial_job:"private"},{state:"not_started"}]) assert.throws(()=>fullActivationStatus({...permanent,...change},id));
 console.log("Permanent USB UI: separate screen review, one POST, private status and no replay passed");
+
+const pm={job_id:id,state:"pm_extension_armed_waiting_reboot",pm_available:false,arming_acknowledged:false,
+  completion_observed:true,next_boot_armed:true,installed:false,installation_ready:false,replay_allowed:false,live_recheck_required:true};
+calls=[];
+await assert.rejects(startPmExtension(async()=>{calls.push("unexpected");},review,false));
+assert.deepEqual(calls,[]);
+assert.deepEqual(await startPmExtension(async(op,body)=>{calls.push([op,body]);return pm;},review,true),pm);
+assert.deepEqual(calls,[["pm-enable",{job_id:id,expected_plan_sha256:review.plan_sha256,experimental_reviewed:true}]]);
+calls=[];
+assert.deepEqual(await startPmExtension(async(op,body)=>{calls.push(op);if(body)throw Error("lost reply");return pm;},review,true),pm);
+assert.deepEqual(calls,["pm-enable","jobs/"+id+"/pm-enable"]);
+assert.deepEqual(await readPmExtension(async()=>pm,id),pm);
+for(const change of [{installed:true},{pm_available:true},{completion_observed:false},{next_boot_armed:false},{nonce:"private"}])
+  assert.throws(()=>pmStatus({...pm,...change},id));
+console.log("PM prerequisite: separate review, one POST, private status and no replay passed");
