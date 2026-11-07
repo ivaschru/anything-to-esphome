@@ -8,7 +8,7 @@ export {strings} from "../../custom_components/qingping_esphome/frontend/usb-lab
 export {downloadCapture} from "../../custom_components/qingping_esphome/frontend/usb-capture.mjs";
 export {prepareProfile, readPrepared, savedPreparations} from "../../custom_components/qingping_esphome/frontend/usb-preparation.mjs";
 export {startBuild, readBuild} from "../../custom_components/qingping_esphome/frontend/usb-build.mjs";
-export {prepareBrowserPlan,readBrowserPlan} from "../../custom_components/qingping_esphome/frontend/usb-browser-plan.mjs";
+export {prepareBrowserPlan,readBrowserPlan,reviewBrowserPlan} from "../../custom_components/qingping_esphome/frontend/usb-browser-plan.mjs";
 export {preparePlan, readPlan} from "../../custom_components/qingping_esphome/frontend/usb-plan.mjs";
 export {startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi,
   startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment} from "../../custom_components/qingping_esphome/frontend/usb-install.mjs";

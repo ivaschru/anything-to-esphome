@@ -38,8 +38,9 @@ const builds=await import("../custom_components/qingping_esphome/frontend/usb-bu
 const nativePlans=await import("../custom_components/qingping_esphome/frontend/usb-plan.mjs");
 const browserPlans=await import("../custom_components/qingping_esphome/frontend/usb-browser-plan.mjs");
 const appSource=await readFile(new URL("../apps/monitor1_usb/rootfs/static/app.mjs",import.meta.url),"utf8");
-async function appFixture(lost=false) {
-  const elements=new Map(),requests=[];
+async function appFixture(lost=false,late=false) {
+  const elements=new Map(),requests=[],events=new Map();
+  let releaseSelection,closedLinks=0;
   function element(id) {
     if(!elements.has(id)) elements.set(id,{value:id==="transport" ? "browser" : "",hidden:false,disabled:false,checked:false,textContent:"",
       dataset:{},style:{},setAttribute(){},removeAttribute(){},replaceChildren(){},append(){}});
@@ -48,7 +49,9 @@ async function appFixture(lost=false) {
   const job={job_id:id,stage:"profile_prepared",model:"CGS1",co2_type:2,transport:"browser_usb",
     node_name:"fixture-cgs1",friendly_name:"Synthetic monitor",live_recheck_required:true,installed:false,installation_ready:false};
   let status=empty;
-  const deps={embedded:true,strings,...preparation,...builds,...nativePlans,...browserPlans,
+  const control={channel_id:"e".repeat(32),close:async()=>({state:"closed"})};
+  const deps={embedded:true,strings,createNativeChannel:()=>({close:async()=>{closedLinks++;}}),
+    openBrowserControl:()=>late ? new Promise(resolve=>{releaseSelection=()=>resolve(control);}) : Promise.resolve(control),...preparation,...builds,...nativePlans,...browserPlans,
     coreFetch:async(operation,data)=>{
       requests.push([operation,data]);
       let result;
@@ -57,6 +60,8 @@ async function appFixture(lost=false) {
       else if(operation==="jobs/"+id) result=job;
       else if(operation==="jobs/"+id+"/build") result={job_id:id,state:"built_not_installed",phase:"complete",hardware_contacted:false,installed:false,installation_ready:false};
       else if(operation==="jobs/"+id+"/browser-plan") result=status;
+      else if(operation==="browser-review") result={job_id:id,plan_sha256:prepared.plan_sha256,state:"browser_scope_verified",
+        hardware_contacted:true,device_writes:0,installed:false,installation_ready:false,writer_enabled:false,native_get_devpath:false,live_recheck_required:true};
       else if(operation==="browser-plan") {
         if(lost) throw Error("synthetic lost response");
         result=status=prepared;
@@ -67,7 +72,7 @@ async function appFixture(lost=false) {
   // ES module imports so the fixture can supply the surrounding HA/DOM edge.
   const source=appSource.replace(/import\s*\{([\s\S]*?)\}\s*from\s*"[^"]+";/g,(_,names)=>`const {${names}}=deps;`);
   const context={deps,document:{getElementById:element,querySelector:()=>({content:"test-page-nonce"}),
-      querySelectorAll:()=>[],createElement:()=>({}),documentElement:{}},window:{addEventListener(){},isSecureContext:true},navigator:{usb:{}},
+      querySelectorAll:()=>[],createElement:()=>({}),documentElement:{}},window:{addEventListener(name,callback){events.set(name,callback);},isSecureContext:true},navigator:{usb:{}},
     localStorage:{getItem:()=>"en",setItem(){}},setTimeout,clearTimeout,AbortSignal,Response,crypto:globalThis.crypto,console};
   runInNewContext(source,context,{filename:"actual-shared-wizard.mjs"});
   await new Promise(resolve=>setImmediate(resolve));
@@ -79,6 +84,18 @@ async function appFixture(lost=false) {
   await element("prepare-plan").onclick();
   assert.equal(requests.filter(([op])=>op==="browser-plan").length,1);
   assert.ok(element("install-controls").hidden,"Detached browser files never reveal native writer");
+  if(!lost) {
+    assert.equal(element("browser-review-controls").hidden,false);
+    const checking=element("browser-review").onclick();
+    if(late) {
+      events.get("pagehide")();
+      assert.equal(closedLinks,1,"Close the link while its picker/registration is still pending");
+      releaseSelection();
+    }
+    await checking;
+    assert.equal(requests.filter(([op])=>op==="browser-review").length,late ? 0 : 1);
+    assert.ok(element("browser-review-result").textContent.includes(strings.en[late ? "browser_review_unverified" : "browser_review_verified"]));
+  }
   assert.ok(element("prepare-plan").disabled,"Consumed/unknown preparation is not repeatable");
   const before=requests.length;
   element("language").value="ru";
@@ -90,4 +107,5 @@ async function appFixture(lost=false) {
 }
 await appFixture();
 await appFixture(true);
+await appFixture(false,true);
 console.log("Actual shared wizard: browser job restore, detached plan, RU retention, lost ACK and no native writer passed");

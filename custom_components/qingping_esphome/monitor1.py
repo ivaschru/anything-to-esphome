@@ -122,6 +122,14 @@ class Monitor1:
         async def bounded_exchange():
             try:
                 async with asyncio.timeout(900):
+                    if operation == "browser-review":
+                        from .monitor1_browser_review import review
+                        from .monitor1_browser_relay import RelayRefusal
+                        try:
+                            value = await review(self, user, nonce, data)
+                        except RelayRefusal:
+                            raise CoreRefusal("usb_browser_scope_unverified") from None
+                        return True, "application/json", json.dumps(value).encode()
                     if operation == "enroll" or re.fullmatch(r"jobs/[a-f0-9]{32}/enroll", operation):
                         return await self.enrollment(user, nonce, operation, data)
                     result = await self.exchange(user, nonce, operation, data)

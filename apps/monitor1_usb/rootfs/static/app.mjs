@@ -1,5 +1,5 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,reviewBrowserPlan,createNativeChannel,openBrowserControl,
   startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
@@ -9,7 +9,7 @@ let language = "en", busy = embedded, probe, lastError, lastStatus, devices = []
 let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
-let planState;
+let planState,browserScopeState,browserControl,browserLink,unloading=false;
 let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
 let computerDownloaded=false;
@@ -60,6 +60,9 @@ function renderBuild() {
   $("plan-status").disabled=busy || !pendingPreparation;
   $("plan-result").textContent=planState ? text(browserPlanning() && planState.state==="not_started" ? "browser_plan_not_started" : "plan_"+planState.state)+
     (["plan_prepared","browser_plan_prepared"].includes(planState.state) ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
+  $("browser-review-controls").hidden=!browserPlanning() || planState?.state!=="browser_plan_prepared";
+  $("browser-review").disabled=busy;
+  $("browser-review-result").textContent=browserScopeState ? text("browser_review_"+browserScopeState) : "";
   const consumed=installState && installState.state!=="not_started";
   $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
   $("export-computer").disabled=busy || !pendingPreparation || !!consumed;
@@ -132,7 +135,7 @@ function renderBuild() {
   $("enrollment-progress").setAttribute("aria-label",text("enrollment_running"));
   $("enrollment-controls").setAttribute("aria-busy",String(enrollmentRunning));
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;browserScopeState=undefined;computerDownloaded=false;
   installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=enrollmentState=undefined;
   $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=$("enrollment-ack").checked=false;renderBuild();}
 function controls() {
@@ -182,7 +185,7 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="browser-plan" || operation==="plan" || operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation==="browser-review" ? 200000 : operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="browser-plan" || operation==="plan" || operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
@@ -413,6 +416,29 @@ $("prepare-plan").onclick=async()=>{
   }
   finally {busy=false;controls();}
 };
+$("browser-review").onclick=async()=>{
+  if(busy || !browserPlanning() || planState?.state!=="browser_plan_prepared") return;
+  // The picker executes in this original click, before any network await.
+  const link=createNativeChannel();browserLink=link;
+  const selection=openBrowserControl(link,rpc);
+  busy=true;browserScopeState="running";controls();
+  try {
+    browserControl=await selection;
+    if(unloading) throw {code:"usb_channel_unverified"};
+    await reviewBrowserPlan(rpc,pendingPreparation.id,planState.plan_sha256,browserControl.channel_id);
+    browserScopeState="verified";
+  } catch {browserScopeState="unverified";}
+  finally {
+    if(browserControl) {
+      try {if((await browserControl.close())?.state!=="closed") browserScopeState="unverified";}
+      catch {browserScopeState="unverified";}
+      browserControl=undefined;
+    }
+    try {await link.close();}catch {browserScopeState="unverified";}
+    if(browserLink===link) browserLink=undefined;
+    busy=false;controls();
+  }
+};
 async function loadInstallReview() {
   const id=pendingPreparation?.id;if(!id) return;
   try {
@@ -557,7 +583,7 @@ $("observe-boot").onclick=async()=>{
   } catch {bootState={state:"boot_unverified"};}
   finally {bootReading=false;busy=false;controls();}
 };
-window.addEventListener("pagehide",()=>{clearTimeout(buildTimer);void probe?.close().catch(()=>{});});
+window.addEventListener("pagehide",()=>{unloading=true;clearTimeout(buildTimer);void browserLink?.close().catch(()=>{});void probe?.close().catch(()=>{});void browserControl?.close().catch(()=>{});});
 if(embedded) {
   $("core-tools").hidden=false;
   $("core-tools-prepare").onclick=async()=>{

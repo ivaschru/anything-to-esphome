@@ -44,7 +44,7 @@ separate even though the HACS wizard is shared.
   and the global USB lease covers delivery. Browser RECV stays bounded and
   memory-only; it must not invent native get-devpath or native-plan authority.
 
-- BrowserNativeChannel is an unwired live WebUSB transport primitive, not a
+- BrowserNativeChannel is a live read/API WebUSB transport primitive, not a
   writer or native get-devpath substitute. Keep the original synchronous
   picker, RAM-only credentials, one actual selected handle and an unpredictable
   channel nonce. Reports cannot reopen/adopt a connection. Recheck fixed
@@ -79,6 +79,16 @@ separate even though the HACS wizard is shared.
   browser staging and writer admission remain unwired. Run all USB tests
   on the actual HA SDK and Node peer/control/parent tests before changing this
   exception. Preserve ordinary native operation serialization.
+  The GUI may now use a fresh original-click channel for browser-review:
+  the private actor rehashes its owned detached plan, then Core requests only
+  the peer's fixed scope-check and compares exact original channel/target/boot
+  before and after IO. No USB path, caller target, shell or writer is admitted.
+  A successful read grants no cached write authority. The ordinary operation
+  holds its reservation while finite frame IO progresses independently. Manual
+  close callers share one cleanup/registry ACK; a normal pending poll must not
+  turn acknowledged close into a failure. Lost close ACK remains unverified.
+  Run test_usb_browser_review.py, positive real-HA HTTP review and shared DOM/
+  peer/control tests; a synthetic frame answer is not physical USB proof.
 
 - Native GUI installation composes the original stage/commit/bounded-trial
   engine and separate next-boot armer in a fixed private SDK child. Consume

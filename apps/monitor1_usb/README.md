@@ -436,3 +436,14 @@ computer installation, add the ESPHome integration through Settings → Devices
 & services, using the address displayed by the monitor and the
 `api_encryption_key` from your private profile. Never publish that profile or
 key. First installation on an untouched physical CGS1 remains unqualified.
+
+### Browser USB preparation in the development branch
+
+After its private build, a computer USB job has its own **Prepare installation
+files** step. It retains the browser capture; it does not invent a native USB
+path. **Select and check the computer USB monitor** opens a new Chrome USB
+selection and compares the actual connection, boot and fixed factory files with
+that build. It performs no device write. A successful check does not enable a
+server USB install or a later write using cached evidence. Lost preparation
+responses can only read the same job's status. Browser writing is still being
+integrated; this source-branch feature is not part of stable HACS 0.2.8.

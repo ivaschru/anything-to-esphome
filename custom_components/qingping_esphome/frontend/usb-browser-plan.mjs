@@ -33,3 +33,16 @@ export async function prepareBrowserPlan(rpc,id) {
     fail(); // An empty status after a lost POST never authorizes another POST.
   }
 }
+
+/** Explicit read against a newly selected live handle; no writer is created. */
+export async function reviewBrowserPlan(rpc,id,planSha,channelId) {
+  if(!/^[a-f0-9]{32}$/.test(id) || !/^[a-f0-9]{64}$/.test(planSha) || !/^[a-f0-9]{32}$/.test(channelId)) fail();
+  const result=await rpc("browser-review",{job_id:id,expected_plan_sha256:planSha,channel_id:channelId});
+  const keys=["job_id","plan_sha256","state","hardware_contacted","device_writes","installed","installation_ready",
+    "writer_enabled","native_get_devpath","live_recheck_required"];
+  if(!result || Object.keys(result).sort().join()!==keys.sort().join() || result.job_id!==id || result.plan_sha256!==planSha ||
+    result.state!=="browser_scope_verified" || result.hardware_contacted!==true || result.device_writes!==0 ||
+    ["installed","installation_ready","writer_enabled","native_get_devpath"].some(k=>result[k]!==false) || result.live_recheck_required!==true)
+    throw {code:"usb_browser_scope_unverified"};
+  return result;
+}

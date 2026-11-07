@@ -31,7 +31,7 @@ if HAS_HA:
     helper_spec.loader.exec_module(enrollment)
     sys.modules[helper_spec.name] = enrollment
 
-    for stem in ("monitor1_browser_relay", "monitor1_browser_channel", "monitor1_browser_registry"):
+    for stem in ("monitor1_browser_relay", "monitor1_browser_channel", "monitor1_browser_registry", "monitor1_browser_review"):
         part_spec = importlib.util.spec_from_file_location("qingping_core_contract." + stem, ROOT / "custom_components/qingping_esphome" / (stem + ".py"))
         part = importlib.util.module_from_spec(part_spec)
         sys.modules[part_spec.name] = part
@@ -200,6 +200,59 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status,403)
         self.assertEqual(list((self.service.root / "adb").iterdir()),[])
         self.assertEqual(list((self.service.root / "toolsets").iterdir()),[])
+
+    async def test_browser_scope_review_reaches_private_plan_and_live_peer_through_admin_http(self):
+        client = await self.http_client()
+        page = await client.post("/api/qingping_esphome/monitor1/page", data=b"null", headers={"Content-Type": "application/json"})
+        nonce = (await page.json())["nonce"]
+        headers = {"Content-Type": "application/json", "X-Qingping-Nonce": nonce}
+        evidence = {"kind": "browser_webusb", "channel": "22222222-2222-2222-2222-222222222222", "serial": "synthetic-usb",
+            "wlan_mac": "02:00:00:00:00:01", "boot_id": "33333333-3333-3333-3333-333333333333", "co2_type": 3,
+            "stock_version": "4.1.8_0287", "native_get_devpath": False}
+        response = await client.post("/api/qingping_esphome/monitor1/browser/open", json={"evidence": evidence}, headers=headers)
+        identity = (await response.json())["channel_id"]
+        context = {"schema_version": 1, "job_id": "c" * 32, "plan_sha256": "d" * 64,
+            "source_commit": "53d97b9609e8e0fcdfc5d003101f620098dbc734", "writer_enabled": False,
+            "target": {"kind": "browser_webusb", "usb_serial": evidence["serial"], **{key: evidence[key] for key in
+                       ("wlan_mac", "boot_id", "co2_type", "stock_version")}}}
+        # The private producer itself is tested by BrowserPlanTests; retain
+        # actual HTTP, reservation, channel framing and owner/page checks here.
+        self.service.exchange = AsyncMock(return_value=(True, "application/json", json.dumps(context).encode()))
+        data = {"job_id": context["job_id"], "expected_plan_sha256": context["plan_sha256"], "channel_id": identity}
+        reviewing = asyncio.ensure_future(client.post("/api/qingping_esphome/monitor1/browser-review", json=data, headers=headers))
+        self.addAsyncCleanup(self.cancel_pending, reviewing)
+        response = await asyncio.wait_for(client.post("/api/qingping_esphome/monitor1/browser/poll", json={"channel_id": identity}, headers=headers), 2)
+        request = (await response.json())["request"]
+        self.assertEqual(request["operation"], "scope-check")
+        self.assertTrue(self.service.lock.locked(), "Frame delivery must bypass only the existing ordinary reservation")
+        response = await client.post("/api/qingping_esphome/monitor1/browser/answer",
+            json={"channel_id": identity, "frame": {"id": request["id"], "ok": True, "data": evidence}}, headers=headers)
+        self.assertEqual(response.status, 200)
+        result = await asyncio.wait_for(reviewing, 2)
+        self.assertEqual(result.status, 200, await result.text())
+        value = await result.json()
+        self.assertEqual(value["state"], "browser_scope_verified")
+        self.assertFalse(value["writer_enabled"] or value["native_get_devpath"] or value["installed"])
+        self.assertEqual(value["device_writes"], 0)
+        self.assertEqual(self.service.exchange.call_args.args[2], "internal-browser-plan-context")
+        # No browser request can directly call the private producer, even with
+        # a valid admin/page nonce. A target/command cannot be injected either.
+        before = self.service.exchange.await_count
+        response = await client.post("/api/qingping_esphome/monitor1/internal-browser-plan-context", json=data, headers=headers)
+        self.assertEqual(response.status, 403)
+        response = await client.post("/api/qingping_esphome/monitor1/browser-review", json={**data, "target": context["target"]}, headers=headers)
+        self.assertEqual(response.status, 403)
+        self.assertEqual(self.service.exchange.await_count, before)
+        self.assertEqual(list((self.service.root / "adb").iterdir()), [])
+        self.assertEqual(list((self.service.root / "toolsets").iterdir()), [])
+
+    async def cancel_pending(self, task):
+        if not task.done():
+            task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     async def test_unloaded_http_service_returns_controlled_unavailable(self):
         client = await self.http_client(loaded=False)

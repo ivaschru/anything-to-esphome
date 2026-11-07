@@ -117,7 +117,7 @@ export class BrowserNativeChannel {
   }
 
   async checkInitialScope() {
-    if(this.#busy || this.#api) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed) error('usb_busy');
     this.#busy=true;
     try {
       this.evidence();

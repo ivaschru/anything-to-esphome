@@ -65,6 +65,32 @@ class BrowserRegistry:
         # reported fields do not prove the identity of an attached monitor.
         return current["capability"]
 
+    async def check_plan(self, owner, nonce, identity, target):
+        """Fresh fixed read on the original handle, without writer admission.
+
+        The plan target must come from Core's checked private worker context,
+        never directly from the browser request. Both before and after IO,
+        retain this exact registry object and its original deadline.
+        """
+        capability = self.capability(owner, nonce, identity)
+        current = self.current
+        reported = current["reported_evidence"]
+        expected = {"kind": "browser_webusb", **{key: reported[source] for key, source in
+            (("usb_serial", "serial"), ("wlan_mac", "wlan_mac"), ("boot_id", "boot_id"),
+             ("co2_type", "co2_type"), ("stock_version", "stock_version"))}}
+        if (not isinstance(target, dict) or target != expected or type(target.get("co2_type")) is not int):
+            raise RelayRefusal
+        try:
+            observed = await capability.check_scope()
+            if (self.current is not current or self.capability(owner, nonce, identity) is not capability or
+                    capability.closed or not isinstance(observed, dict) or observed != reported or
+                    type(observed.get("co2_type")) is not int or observed.get("native_get_devpath") is not False):
+                raise RelayRefusal
+            return True
+        except BaseException:
+            capability._retire()
+            raise RelayRefusal from None
+
     async def dispatch(self, owner, nonce, operation, data):
         if operation == "open":
             return self.open(owner, nonce, data)

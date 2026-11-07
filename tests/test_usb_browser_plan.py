@@ -275,6 +275,30 @@ class BrowserPlanTests(unittest.TestCase):
         self.assertFalse(self.calls)
         self.assertFalse((self.directory / plans.INTENT).exists())
 
+    def test_private_plan_context_rehashes_target_and_never_exports_key(self):
+        result = self.prepare()
+        context = self.manager.context(self.owner, self.id, result['plan_sha256'])
+        self.assertEqual(context['target']['kind'], 'browser_webusb')
+        self.assertFalse(context['writer_enabled'])
+        key = json.loads((self.directory / 'profile.json').read_text())['api_encryption_key']
+        self.assertNotIn(key, json.dumps(context))
+        app = core_actor.Companion(self.fixture.fixture.fixture.capture.usb, self.fixture.fixture.fixture.parent)
+        app.browser_plans = self.manager
+        nonce = app.page(self.owner)
+        usb = Mock()
+        actor = core_actor.Actor(app, usb_ready=usb)
+        body, mime = actor.dispatch({'user': self.owner, 'nonce': nonce, 'operation': 'internal-browser-plan-context',
+            'data': {'job_id': self.id, 'expected_plan_sha256': result['plan_sha256']}})
+        self.assertEqual(body, context)
+        self.assertEqual(mime, 'application/json')
+        usb.assert_not_called()
+        for owner, digest in (('b' * 32, result['plan_sha256']), (self.owner, 'e' * 64)):
+            with self.assertRaises(Exception):
+                self.manager.context(owner, self.id, digest)
+        (self.directory / 'browser-plan/bridge-program').write_bytes(b'changed')
+        with self.assertRaises(Exception):
+            self.manager.context(self.owner, self.id, result['plan_sha256'])
+
     def test_actual_core_actor_uses_only_fixed_local_plan_routes(self):
         app = core_actor.Companion(self.fixture.fixture.fixture.capture.usb,
                                                     self.fixture.fixture.fixture.parent)

@@ -7,6 +7,9 @@
   exact completed private build. Preserve source/profile/producer hashes and
   one-use preparation history; the wizard restores status without replaying
   work or enabling the server USB installer for a browser job.
+- Recheck the selected browser monitor against its private plan through a
+  fresh original-click USB handle and fixed source/identity reads. Retire the
+  channel on changed scope or uncertain cleanup; no cached writer permission.
 - Browser device writing and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 

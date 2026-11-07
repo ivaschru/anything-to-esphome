@@ -127,6 +127,24 @@ class BrowserPlans:
         plan = verify(directory, intent)
         return frame(job_id, 'browser_plan_prepared', plan, complete['plan_sha256'])
 
+    def context(self, owner, job_id, expected_sha256):
+        """Private Core-pipe handoff, with no profile key or writer permission.
+
+        A public report cannot choose its target: status rechecks this actual
+        owned plan and all inputs before the exact digest is joined. No live
+        channel/boot proof is inferred from this detached document.
+        """
+        result = self.status(owner, job_id)
+        if (result['state'] != 'browser_plan_prepared' or not isinstance(expected_sha256, str) or
+                not re.fullmatch(r'[a-f0-9]{64}', expected_sha256) or result['plan_sha256'] != expected_sha256):
+            raise PreparationError('usb_browser_plan_unverified')
+        directory, _, _ = owned_intent(self.parent, job_id, owner)
+        plan = build_report(directory / 'browser-plan/plan.json')
+        if private_hash(directory / 'browser-plan/plan.json')['sha256'] != expected_sha256:
+            raise PreparationError('usb_browser_plan_unverified')
+        return {'schema_version': 1, 'job_id': job_id, 'plan_sha256': expected_sha256,
+                'source_commit': SOURCE, 'target': plan['target'], 'writer_enabled': False}
+
     def prepare(self, owner, job_id, runner=run_owned):
         directory, original, _ = owned_intent(self.parent, job_id, owner)
         if original['transport'] != 'browser_usb':

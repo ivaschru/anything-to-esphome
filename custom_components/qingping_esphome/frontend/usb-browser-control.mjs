@@ -16,15 +16,19 @@ export async function openBrowserControl(link,rpc) {
        registration.state!=='registered' || registration.writer_enabled!==false) throw Error();
   } catch {await peer.close().catch(()=>{});throw {code:'usb_channel_unverified'};}
   const identity=registration.channel_id,tasks=new Set();
-  let closed=false,stopping=false,failed=false,retirementSent=false;
-  async function retire() {
+  let closed=false,stopping=false,failed=false,retiring;
+  function retire() {
+    if(retiring) return retiring;
     closed=true;
-    await peer.close().catch(()=>{failed=true;});
-    if(!retirementSent) {
-      retirementSent=true;
+    // All callers await the same cleanup/ACK. A second close must not report
+    // success while the first registry retirement is still uncertain.
+    retiring=(async()=>{
+      await peer.close().catch(()=>{failed=true;});
       try {const result=await rpc('browser/close',{channel_id:identity});if(result?.state!=='retired') failed=true;}
       catch {failed=true;}
-    }
+      return {state:failed?'unverified':'closed'};
+    })();
+    return retiring;
   }
   async function answer(request) {
     try {
@@ -47,7 +51,7 @@ export async function openBrowserControl(link,rpc) {
           const task=answer(value.request);tasks.add(task);task.finally(()=>tasks.delete(task));
         }
       }
-    } catch {failed=true;}
+    } catch {if(!closed) failed=true;}
     finally {
       if(stopping && !failed) await Promise.allSettled(tasks);
       await retire();

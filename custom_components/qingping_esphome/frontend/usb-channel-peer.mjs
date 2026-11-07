@@ -22,7 +22,7 @@ function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
-  #opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
+  #checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   constructor(link) {this.#link=link;}
 
   async dispatch(request) {
@@ -33,7 +33,12 @@ export class BrowserChannelPeer {
     this.#seen.add(request.id);
     let data=null;
     try {
-      if(request.operation==='api-open' && request.data===null) {
+      if(this.#checking && request.operation!=='channel-close') fail();
+      if(request.operation==='scope-check' && request.data===null) {
+        if(this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {data=await this.#link.checkInitialScope();}finally {this.#checking=false;}
+      } else if(request.operation==='api-open' && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#opening=true;
         try {

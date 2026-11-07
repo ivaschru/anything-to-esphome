@@ -1,8 +1,8 @@
 """Ephemeral request/answer framing for an authenticated browser USB peer.
 
-Unwired until the admin adapter joins actual user/page ownership. The browser
+The admin adapter joins actual user/page ownership. The browser
 can answer only an outstanding server-created request. It cannot choose a
-command, host, port, key, file or writer. There are no install/launch operations
+command, host, port, key, file or writer. The fixed scope-check reuses only original-file/identity reads. There are no install/launch operations
 in this protocol. A dropped request/answer retires the channel, never retries.
 """
 import asyncio
@@ -11,7 +11,7 @@ import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 
-OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close"}
+OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check"}
 MAX_BYTES = 65536
 
 
@@ -46,7 +46,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(90 if operation == "scope-check" else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -57,9 +57,18 @@ class BrowserChannel:
                 self.abandoned_reads.add(identity)
                 future.add_done_callback(lambda done: None if done.cancelled() else done.exception())
                 raise
+            # The shield's outer future is already cancelled. Retire this
+            # inner wait as cancelled before failing the rest of the channel;
+            # Python 3.14 otherwise reports an unhandled shield exception.
+            if not future.done():
+                future.cancel()
             self._retire()
+            if future.done() and not future.cancelled():
+                future.exception()
             raise RelayRefusal from None
         except BaseException:
+            if not future.done():
+                future.cancel()
             self._retire()
             # Retiring may also fail the simultaneous opposite byte pump.
             # Consume our own failed future, without exposing packet content.
@@ -122,6 +131,17 @@ class BrowserChannel:
         if len(self.retired_reads) > 16:
             self._retire()
             raise RelayRefusal
+
+    async def check_scope(self):
+        """Only the peer's fixed original-file/identity reader, never a shell.
+
+        Return data is still reported transport evidence. The caller must
+        compare it with this channel and its separately verified owned plan.
+        A cached successful report can never renew a write/launch intent.
+        """
+        if self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        return await self._request("scope-check")
 
     async def open_api(self):
         if self.opened or self.opening:

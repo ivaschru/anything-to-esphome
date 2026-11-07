@@ -70,6 +70,10 @@ class Actor:
             return self.companion.capture(user, nonce, data["serial"], lambda body: body), "application/x-tar"
         # Only Core's private parent uses these operations. Its HTTP view
         # refuses every internal name before this dispatch can be reached.
+        if operation == "internal-browser-plan-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+            # HTTP rejects internal-* before body IO. The parent receives only
+            # the checked target/digest; this offline read never opens USB.
+            return self.companion.browser_plans.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation.startswith("internal-enrollment-"):
             enrollments = HaEnrollments(self.companion.installations)
             if operation == "internal-enrollment-prepare" and set(data) == {"job_id", "expected_plan_sha256", "reviewed"}:

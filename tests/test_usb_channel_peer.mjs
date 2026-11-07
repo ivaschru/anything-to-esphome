@@ -6,11 +6,11 @@ function fixture() {
  let controller,closed=0,apiClosed=0,written=[];
  const makeSocket=()=>({readable:new ReadableStream({start(c){controller=c;}}),
   writable:new WritableStream({write(value){written.push(value);}})});
- const link={openApi:async()=>makeSocket(),closeApi:async()=>{apiClosed++;},close:async()=>{closed++;}};
+ const link={checkInitialScope:async()=>({kind:'browser_webusb',serial:'synthetic-usb'}),openApi:async()=>makeSocket(),closeApi:async()=>{apiClosed++;},close:async()=>{closed++;}};
  return {peer:new BrowserChannelPeer(link),push:value=>controller.enqueue(value),get closed(){return closed;},get apiClosed(){return apiClosed;},written};
 }
 {
- const f=fixture();assert.deepEqual(await f.peer.dispatch(request('api-open')),{id:next.toString(16).padStart(32,'0'),ok:true,data:null});
+ const f=fixture();assert.deepEqual((await f.peer.dispatch(request('scope-check'))).data,{kind:'browser_webusb',serial:'synthetic-usb'});assert.deepEqual(await f.peer.dispatch(request('api-open')),{id:next.toString(16).padStart(32,'0'),ok:true,data:null});
  assert.equal((await f.peer.dispatch(request('api-write',btoa('opaque bytes')))).ok,true);
  assert.equal(new TextDecoder().decode(f.written[0]),'opaque bytes');
  f.push(new TextEncoder().encode('opaque bytes'));
@@ -26,7 +26,13 @@ function fixture() {
  const f=fixture();const original=request('api-open');await f.peer.dispatch(original);
  await assert.rejects(f.peer.dispatch(original));assert.equal(f.closed,1);
 }
-for(const body of [request('shell','reboot'),request('api-open',{host:'foreign'}),request('api-write','bad-base64!')]) {
+for(const body of [request('scope-check',{command:'arbitrary'}),request('shell','reboot'),request('api-open',{host:'foreign'}),request('api-write','bad-base64!')]) {
  const f=fixture();const result=await f.peer.dispatch(body);assert.equal(result.ok,false);assert.equal(f.closed,1);
 }
 console.log('Browser API peer: exact finite frames, opaque bounded bytes, concurrent read/close EOF, consumed IDs and no generic command passed');
+
+{
+ const f=fixture();await f.peer.dispatch(request('api-open'));
+ assert.equal((await f.peer.dispatch(request('scope-check'))).ok,false);
+ assert.equal(f.closed,1);
+}
