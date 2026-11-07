@@ -456,3 +456,12 @@ separate even though the HACS wizard is shared.
   upgrade, never guessed secrets. Unload retires only owned reads/timers.
   Run test_device_profile.py and test_firmware_update_ha.py with the HA SDK;
   check_profile_wire.py uses actual build SDK mbedTLS. Host proof is not QA.
+
+- Firmware numbering follows docs/FIRMWARE_VERSIONING.md: full ESPHome only
+  for Lite/Monitor 1/Monitor 2, independent integer versions per exact hardware
+  profile, with a
+  separate monotonically increasing OTA revision and independent HACS version.
+  No reduced stock-interface product is offered. Monitor 1's bridge remains
+  internal to its SHA-bound full runtime/recovery bundle. Lite's
+  other OTA slot is not a stock add-on or permanent factory retention. Do not
+  turn this agreed release contract into an unsupported version/backend claim.
