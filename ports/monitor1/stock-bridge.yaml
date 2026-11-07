@@ -108,6 +108,15 @@ sensor:
     lambda: return cgs1::stock.response_age();
 
 text_sensor:
+  - platform: template
+    name: Runtime mode
+    id: runtime_mode
+    entity_category: diagnostic
+    update_interval: 5s
+    # The internal stock-side/recovery program has the same HA identity as
+    # full mode. State the current source explicitly without renaming any
+    # existing measurements or presenting this bridge as a separate product.
+    lambda: return {"stock_bridge"};
   - platform: version
     name: ESPHome version
     hide_timestamp: false
@@ -144,6 +153,18 @@ switch:
       - lambda: cgs1::pm.request(false);
 
 binary_sensor:
+  - platform: template
+    name: Core sensors ready
+    id: core_sensors_ready
+    entity_category: diagnostic
+    # These getters use the existing authenticated response and its 35s
+    # expiry. No extra miIO request, calibration or hardware read is issued.
+    # PM OFF is legitimate; its unavailable reading is not a core failure.
+    lambda: |-
+      return std::isfinite(cgs1::stock.co2()) &&
+             std::isfinite(cgs1::stock.temperature()) &&
+             std::isfinite(cgs1::stock.humidity()) &&
+             std::isfinite(cgs1::stock.tvoc_ppm());
   - platform: template
     name: PM control available
     entity_category: diagnostic

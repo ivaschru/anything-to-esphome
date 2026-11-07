@@ -51,6 +51,14 @@ sensor:
     lambda: return NAN;
 
 text_sensor:
+  - platform: template
+    name: Runtime mode
+    id: runtime_mode
+    entity_category: diagnostic
+    update_interval: 5s
+    # This is the running program's mode, not a mode selector or evidence
+    # that an installer/guardian has been qualified on another monitor.
+    lambda: return {"full"};
   - platform: version
     name: ESPHome version
     hide_timestamp: false
@@ -66,3 +74,18 @@ text_sensor:
       #else
       return {"Development build"};
       #endif
+
+binary_sensor:
+  - platform: template
+    name: Core sensors ready
+    id: core_sensors_ready
+    entity_category: diagnostic
+    # CO2 keeps its real SDK 15s timeout in BOTH the S8 and SCD40 profiles.
+    # The other getters already expire their physical collectors' samples;
+    # reading their caches neither polls SnowApp nor touches another sensor.
+    # PM is optional/off/warming independently and never gates core health.
+    lambda: |-
+      return std::isfinite(id(ui_co2).state) &&
+             std::isfinite(cgs1_thermal::runtime.temperature()) &&
+             std::isfinite(cgs1_thermal::runtime.humidity()) &&
+             std::isfinite(cgs1_direct_trial::voc.estimate());

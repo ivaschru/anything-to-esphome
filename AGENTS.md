@@ -350,6 +350,15 @@ separate even though the HACS wizard is shared.
   complete in SDK builds.
   See ports/monitor1/UI_LANGUAGE_BACKLIGHT.md and the pure C++ regressions.
 
+- Monitor 1 runtime diagnostics keep the same read-only `Runtime mode` and
+  `Core sensors ready` exports in the native and internal bridge identities.
+  Readiness uses only the existing fresh physical CO2/T/RH/TVOC values, never
+  HA display feeds or another hardware read. PM OFF/warm-up is independent.
+  Preserve the historical Stock response age entity as unavailable in full
+  mode; do not relabel native samples or change existing HA entity names.
+  Run tests/test_monitor1_runtime_diagnostics.py after this wiring changes;
+  host fixtures are not a deployment or hardware qualification.
+
 - The wizard defaults to English and offers Russian in `frontend/i18n.mjs`.
   Store only the language preference in localStorage. Translate text nodes in
   place: never rebuild the form, repeat setup, disconnect BLE or restart a
