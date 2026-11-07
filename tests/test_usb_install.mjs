@@ -84,3 +84,18 @@ assert.deepEqual(await readPmExtension(async()=>pm,id),pm);
 for(const change of [{installed:true},{pm_available:true},{completion_observed:false},{next_boot_armed:false},{nonce:"private"}])
   assert.throws(()=>pmStatus({...pm,...change},id));
 console.log("PM prerequisite: separate review, one POST, private status and no replay passed");
+
+const {enrollmentStatus,readEnrollment,startEnrollment}=await import('../custom_components/qingping_esphome/frontend/usb-install.mjs');
+const enrolled={job_id:id,state:'created',enrollment_available:false,entry_id:'ENTRY_1',replay_allowed:false,installation_ready:false};
+calls=[];
+await assert.rejects(startEnrollment(async()=>calls.push('unexpected'),review,false));
+assert.deepEqual(calls,[]);
+assert.deepEqual(await startEnrollment(async(op,body)=>{calls.push([op,body]);return enrolled;},review,true),enrolled);
+assert.deepEqual(calls,[['enroll',{job_id:id,expected_plan_sha256:review.plan_sha256,reviewed:true}]]);
+calls=[];
+assert.deepEqual(await startEnrollment(async(op,body)=>{calls.push(op);if(body)throw Error('lost reply');return enrolled;},review,true),enrolled);
+assert.deepEqual(calls,['enroll','jobs/'+id+'/enroll']);
+assert.deepEqual(await readEnrollment(async()=>enrolled,id),enrolled);
+for(const change of [{enrollment_available:true},{noise_psk:'private'},{installation_ready:true},{entry_id:null},{replay_allowed:true},{state:'not_started'}])
+  assert.throws(()=>enrollmentStatus({...enrolled,...change},id));
+console.log('HA enrollment: reviewed native step, exact redacted DTO and status-only lost-ACK recovery passed');

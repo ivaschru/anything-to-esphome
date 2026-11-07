@@ -419,3 +419,20 @@ replays a consumed operation. New users do not need to add the app repository.
 
 Regenerate the shared HACS engine/UI with `python tools/monitor1-usb/package_core.py`
 after rebuilding the offline bundle; CI runs its `--check` mode.
+
+### Add to HA after permanent startup
+
+The integrated HACS wizard offers “Add to Home Assistant” after a verified
+permanent Full UI startup. Keep USB connected and the monitor on HA's local
+network. Confirm the step: the wizard reads the current address from the
+monitor, verifies its encrypted LAN session and uses the standard ESPHome
+config flow. No IP/key copy is required. Existing conflicting entries need
+a separate decision in HA settings. Lost responses never replay the flow;
+“Read HA enrollment status” only reads history/current entries, not live
+device health.
+
+The legacy USB app and computer CLI have no HA configuration authority. After
+computer installation, add the ESPHome integration through Settings → Devices
+& services, using the address displayed by the monitor and the
+`api_encryption_key` from your private profile. Never publish that profile or
+key. First installation on an untouched physical CGS1 remains unqualified.

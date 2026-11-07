@@ -1,6 +1,6 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
-  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,
+  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
@@ -23,6 +23,8 @@ const attemptedFullActivations=new Set();
 let fullActivationState,fullActivationRunning=false;
 let pmState,pmRunning=false;
 const attemptedPm=new Set();
+let enrollmentState,enrollmentRunning=false;
+const attemptedEnrollments=new Set();
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -114,10 +116,20 @@ function renderBuild() {
   $("full-activation-progress").hidden=!fullActivationRunning;
   $("full-activation-progress").setAttribute("aria-label",text("full_activation_running"));
   $("full-activation-controls").setAttribute("aria-busy",String(fullActivationRunning));
+  $("enrollment-controls").hidden=!embedded || !enrollmentState;
+  const enrollmentConsumed=enrollmentState?.state!=="not_started" || attemptedEnrollments.has(pendingPreparation?.id);
+  $("enrollment-ack-label").hidden=$("enrollment-start").hidden=enrollmentConsumed || !enrollmentState?.enrollment_available;
+  $("enrollment-ack").disabled=busy;
+  $("enrollment-start").disabled=busy || enrollmentConsumed || !installReview || !enrollmentState?.enrollment_available || !$("enrollment-ack").checked;
+  $("enrollment-status").disabled=busy;
+  $("enrollment-result").textContent=enrollmentRunning ? text("enrollment_running") : (enrollmentState ? text("enrollment_"+enrollmentState.state) : "");
+  $("enrollment-progress").hidden=!enrollmentRunning;
+  $("enrollment-progress").setAttribute("aria-label",text("enrollment_running"));
+  $("enrollment-controls").setAttribute("aria-busy",String(enrollmentRunning));
 }
 function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
-  installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=undefined;
-  $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=false;renderBuild();}
+  installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=enrollmentState=undefined;
+  $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=$("enrollment-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -165,7 +177,7 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
@@ -475,7 +487,7 @@ async function checkFullActivation(manual=true) {
   if(manual) {busy=true;controls();}
   try {
     const value=await readFullUiActivation(rpc,id);
-    if(pendingPreparation?.id===id) fullActivationState=value;
+    if(pendingPreparation?.id===id) {fullActivationState=value;if(value.state==="full_ui_active_observed") await checkEnrollment(false);}
   } catch {if(pendingPreparation?.id===id) fullActivationState={state:"full_ui_activation_unverified"};}
   finally {if(manual) busy=false;controls();}
 }
@@ -487,13 +499,32 @@ $("full-activate").onclick=async()=>{
      attemptedFullActivations.has(id) || !$("full-screen-ack").checked || !$("full-activation-ack").checked) return;
   attemptedFullActivations.add(id); // A second click cannot resend a lost request.
   busy=true;fullActivationRunning=true;controls();lastError=null;$("error").textContent="";
-  try {fullActivationState=await startFullUiActivation(rpc,installReview,true,true);}
+  try {fullActivationState=await startFullUiActivation(rpc,installReview,true,true);if(fullActivationState.state==="full_ui_active_observed") await checkEnrollment(false);}
   catch(error) {
     lastError=error.code || "usb_full_ui_activation_unverified";$("error").textContent=text(lastError);
     fullActivationState={state:"full_ui_activation_unverified"};
   } finally {
     busy=false;fullActivationRunning=false;$("full-screen-ack").checked=$("full-activation-ack").checked=false;controls();
   }
+};
+async function checkEnrollment(manual=true) {
+  if(!embedded || !pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  try {const value=await readEnrollment(rpc,id);if(pendingPreparation?.id===id) enrollmentState=value;}
+  catch {if(pendingPreparation?.id===id) enrollmentState={state:"unverified"};}
+  finally {if(manual) busy=false;controls();}
+}
+$("enrollment-status").onclick=()=>checkEnrollment();
+$("enrollment-ack").onchange=()=>renderBuild();
+$("enrollment-start").onclick=async()=>{
+  const id=pendingPreparation?.id;
+  if(busy || !embedded || !id || !installReview || enrollmentState?.state!=="not_started" ||
+     !enrollmentState.enrollment_available || attemptedEnrollments.has(id) || !$("enrollment-ack").checked) return;
+  attemptedEnrollments.add(id);busy=true;enrollmentRunning=true;controls();lastError=null;$("error").textContent="";
+  try {enrollmentState=await startEnrollment(rpc,installReview,true);}
+  catch(error) {lastError=error.code || "usb_enrollment_unverified";$("error").textContent=text(lastError);enrollmentState={state:"unverified"};}
+  finally {busy=false;enrollmentRunning=false;$("enrollment-ack").checked=false;controls();}
 };
 $("install-firmware").onclick=async()=>{
   if(busy || !installReview || !$("install-ack").checked || installState?.state!=="not_started") return;

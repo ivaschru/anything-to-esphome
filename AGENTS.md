@@ -123,6 +123,25 @@ separate even though the HACS wizard is shared.
   boot and actual Full UI preflight; never weaken/reuse the old bridge-only
   observer whose PM opt-out is intentionally absent. Keep pm-status local-only.
 
+- Native HA enrollment is a separate explicit Core-only step after the bound
+  permanent Full UI receipt. Consume its owner/plan/source intent before the
+  fixed read-only SDK child. Read only wlan0's current IPv4 over exact native
+  USB; require the current boot, compiled pair, physical readiness and two
+  fresh guardian generations, then independently repeat encrypted LAN checks.
+  No caller host/port/key, scanner, monitor mutation or arbitrary command.
+  Internal key-bearing MIME/operations stay on the private parent/actor pipe;
+  HTTP refuses them before body IO and never forwards that MIME. Native HA's
+  user/encryption_key flow is the sole entry writer; stop on migration,
+  overwrite/password/unknown forms and pre-existing conflicts. Native HA owns
+  same-MAC races; read back the exact entry and never force undo/replay it.
+  Lost replies/status may inspect entries only, without USB/flow/receipt writes.
+  Preserve consumed intents and original profiles across restart. Computer
+  exports/legacy app still use manual native ESPHome addition; do not pretend
+  their local activation receipt is a Core-owned USB job. Run all test_usb_*.py
+  on both HA SDKs, including the actual ESPHome handler's step contract and
+  positive admin HTTP key-isolation tests, plus Node USB/Core/i18n tests.
+  Host tests remain separate from fresh-device hardware qualification.
+
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile
   bodies and the local entry/instructions, never an SDK/cache/old plan/history.

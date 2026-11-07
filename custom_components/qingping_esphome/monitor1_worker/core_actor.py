@@ -15,6 +15,7 @@ import sys
 
 from preparation import PreparationError, USER, private_directory, unique_json
 from server import Companion, Refusal
+from ha_enrollment import HaEnrollments, MIME as ENROLLMENT_MIME
 
 MAX_REQUEST = 24 * 1024**2
 MAX_RESPONSE = 64 * 1024**2
@@ -67,6 +68,26 @@ class Actor:
             if operation == "inspect":
                 return self.companion.inspect(user, nonce, data["serial"]), "application/json"
             return self.companion.capture(user, nonce, data["serial"], lambda body: body), "application/x-tar"
+        # Only Core's private parent uses these operations. Its HTTP view
+        # refuses every internal name before this dispatch can be reached.
+        if operation.startswith("internal-enrollment-"):
+            enrollments = HaEnrollments(self.companion.installations)
+            if operation == "internal-enrollment-prepare" and set(data) == {"job_id", "expected_plan_sha256", "reviewed"}:
+                if self.usb_ready is not None:
+                    self.usb_ready()
+                if not self.companion.device_lock.acquire(blocking=False):
+                    raise Refusal("usb_busy")
+                try:
+                    return enrollments.prepare(user, data["job_id"], data["expected_plan_sha256"], data["reviewed"]), ENROLLMENT_MIME
+                finally:
+                    self.companion.device_lock.release()
+            if operation == "internal-enrollment-package" and set(data) == {"job_id"}:
+                return enrollments.package(user, data["job_id"]), ENROLLMENT_MIME
+            if operation == "internal-enrollment-status" and set(data) == {"job_id"}:
+                return enrollments.status(user, data["job_id"]), "application/json"
+            if operation == "internal-enrollment-record" and set(data) == {"job_id", "intent_sha256", "state", "entry_id"}:
+                return enrollments.record(user, **data), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation == "prepare":
             if self.tools_ready is not None:
                 self.tools_ready()

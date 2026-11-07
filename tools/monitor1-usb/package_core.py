@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "apps/monitor1_usb/rootfs"
 COMPONENT = ROOT / "custom_components/qingping_esphome"
 FILES = (
+    "ha_enrollment.py", "ha_enrollment_usb.py",
     "backup_export.py", "build_worker.py", "computer_install.py", "computer_package.py",
     "full_ui_review.py", "full_ui_usb.py", "full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_installation.py", "install_plan.py", "installation.py",
     "pm_extension_guard.py", "pm_extension_usb.py", "pm_extension_installation.py",
