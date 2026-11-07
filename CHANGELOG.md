@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Monitor 1 adds read-only runtime mode and fresh core-sensor readiness for
+  native and internal bridge mode. PM OFF/warm-up is independent; the existing
+  stock-only response-age diagnostic stays unavailable in native mode.
 - Monitor 1 PM helper builds now reject incompatible EABI/float calling
   conventions on the stock Qt input and generated artifacts, including
   soft-float or missing float flags. This is static build admission; existing
