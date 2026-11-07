@@ -83,7 +83,7 @@ class ExecutedPmGuardTests(unittest.TestCase):
         text = re.sub(pattern, lambda match: str(self.path(match[0])), script)
         # This fixture deliberately uses tmpfs; production admission remains
         # ext4 with no environment/CLI override or runtime test mode.
-        return text.replace("'ef53'", "'1021994'")
+        return text.replace("= ef53 ]", "= 1021994 ]")
 
     def execute(self, script):
         text = self.rewrite(script)
