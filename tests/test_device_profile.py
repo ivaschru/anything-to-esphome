@@ -166,12 +166,47 @@ class AdoptionTests(unittest.IsolatedAsyncioTestCase):
                              "template_sha256":"old-template","update_attempt":attempt}
         await a.scan()
         row=manager.records[MAC]
-        self.assertEqual(row["outcome"],"native_verified")
+        self.assertEqual(row["outcome"],"auto_adopted")
         self.assertEqual(row["update_attempt"],attempt)
         self.assertNotIn("image_sha256",row)
         self.assertEqual(row["prior_firmware_evidence"][0]["image_sha256"],"old-image")
         await a.refresh(MAC)
         self.assertEqual(len(manager.records[MAC]["prior_firmware_evidence"]),1)
+
+    async def test_recompiled_same_version_retires_only_old_image_evidence(self):
+        # A diagnostic version string can be reused by a separate compile.
+        # It must not turn the previous image hash into proof of current bytes.
+        manager, adoption, entry = self.manager()
+        manager.records[MAC] = {
+            "outcome": "native_verified", "firmware_version": "2026.11.07-ui25-profile1",
+            "firmware_revision": 2, "public_version": 1, "build": "previous-build",
+            "image_sha256": "previous-image", "template_sha256": "previous-template",
+        }
+        await adoption.scan()
+        row = manager.records[MAC]
+        self.assertEqual(row["outcome"], "auto_adopted")
+        self.assertEqual(row["build"], "test-build")
+        self.assertEqual(row["public_version"], 1)
+        self.assertNotIn("image_sha256", row)
+        self.assertNotIn("template_sha256", row)
+        self.assertEqual(row["prior_firmware_evidence"][0]["build"], "previous-build")
+        await adoption.refresh(MAC)
+        self.assertEqual(len(manager.records[MAC]["prior_firmware_evidence"]), 1)
+
+    async def test_unchanged_verified_build_keeps_its_image_evidence(self):
+        # Refreshing settings on the exact verified build is not an upgrade.
+        manager, adoption, entry = self.manager()
+        manager.records[MAC] = {
+            "outcome": "native_verified", "firmware_version": "2026.11.07-ui25-profile1",
+            "firmware_revision": 2, "public_version": 1, "build": "test-build",
+            "image_sha256": "current-image", "template_sha256": "current-template",
+        }
+        await adoption.scan()
+        row = manager.records[MAC]
+        self.assertEqual(row["outcome"], "native_verified")
+        self.assertEqual(row["image_sha256"], "current-image")
+        self.assertEqual(row["template_sha256"], "current-template")
+        self.assertNotIn("prior_firmware_evidence", row)
 
     async def test_unload_cancels_only_owned_read_and_no_late_import(self):
         manager,a,e=self.manager();started=asyncio.Event();cancelled=asyncio.Event()

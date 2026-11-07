@@ -153,14 +153,16 @@ class AutoAdoption:
                         "ota_password": profile.values["ota_password"],
                         "personalization": profile.values, "firmware_version": profile.version,
                         "firmware_revision": profile.revision, "build": fresh.compilation_time,
-                        "outcome": "native_verified" if record and record.get("outcome") == "native_verified" else "auto_adopted",
+                        "outcome": ("native_verified" if record and record.get("outcome") == "native_verified"
+                                    and record.get("firmware_version") == profile.version
+                                    and record.get("build") == fresh.compilation_time else "auto_adopted"),
                         "source_entry_id": entry.entry_id}
-            if record and record.get("firmware_version") != profile.version:
+            if record and (record.get("firmware_version") != profile.version or record.get("build") != fresh.compilation_time):
                 # Another HA may have updated the same monitor. An observed
                 # version is not evidence that our earlier personalised image
                 # hash describes its current bytes. Retain old evidence once,
                 # but don't relabel it as the newly discovered image.
-                old = {k: record[k] for k in ("firmware_version", "firmware_revision", "image_sha256", "template_sha256") if k in record}
+                old = {k: record[k] for k in ("firmware_version", "firmware_revision", "public_version", "build", "image_sha256", "template_sha256") if k in record}
                 history = list(record.get("prior_firmware_evidence", []))
                 if old and old not in history: history.append(old)
                 imported["prior_firmware_evidence"] = history
