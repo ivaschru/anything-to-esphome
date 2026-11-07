@@ -98,12 +98,36 @@ def observe_job(directory, observation_id):
     observer.staging.store_receipt(output / "bridge-boot-observation.json", result, initial=True)
 
 
+def full_review_job(directory, observation_id):
+    directory = private_directory(Path(directory))
+    output = private_directory(private_directory(directory / "observations") / observation_id)
+    intent = unique_json(read_private(directory / "install-intent.json"))
+    owned_intent(directory.parent, directory.name, intent.get("owner"))
+    digest = private_hash(directory / "install-plan/plan.json")["sha256"]
+    if intent.get("job_id") != directory.name or intent.get("plan_sha256") != digest:
+        raise PreparationError("usb_full_ui_unverified")
+    source = source_closure(directory)
+    sys.path.insert(0, str(source))
+    import trial_initial_bridge_adb as canonical
+    from full_ui_usb import inspect
+    plan = canonical.review.staging.offline.read_json(directory / "install-plan/plan.json")[0]
+    profile, profile_sha = canonical.candidate.read_profile(directory / "profile.json")
+    if profile_sha != plan["basis"]["profile_sha256"]:
+        raise PreparationError("usb_full_ui_unverified")
+    adb = canonical.TrialAdb(Path("/usr/bin/adb"), plan["target"]["usb_serial"])
+    result = asyncio.run(inspect(adb, plan, profile, canonical))
+    result["plan_sha256"] = digest
+    write_new(output / "full-ui-review.json", (json.dumps(result) + "\n").encode())
+    sync_directory(output)
+
+
 if __name__ == "__main__":
     if (len(sys.argv) not in (3, 5) or sys.argv[1] != "--job" or not USER.fullmatch(sys.argv[2]) or
-            (len(sys.argv) == 5 and (sys.argv[3] != "--observe" or not USER.fullmatch(sys.argv[4])))):
+            (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
     if len(sys.argv) == 5:
-        observe_job(Path("/data/jobs") / sys.argv[2], sys.argv[4])
+        action = full_review_job if sys.argv[3] == "--full-review" else observe_job
+        action(Path("/data/jobs") / sys.argv[2], sys.argv[4])
     else:
         run_job(Path("/data/jobs") / sys.argv[2])

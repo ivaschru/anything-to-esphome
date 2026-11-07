@@ -50,3 +50,16 @@ export async function observeBoot(rpc,id) {
      value.installed!==false || value.installation_ready!==false) fail("usb_boot_unverified");
   return value;
 }
+
+/** Separate live read: it never grants a stage/launch or replays installation. */
+export async function reviewFullUi(rpc,id) {
+  if(!/^[a-f0-9]{32}$/.test(id)) fail("usb_full_ui_unverified");
+  const value=await rpc("full-review",{job_id:id});
+  const keys=["job_id","state","read_only","device_writes","launch_authorized","installation_ready","installed","live_recheck_required"];
+  if(!value || Object.keys(value).sort().join()!==keys.sort().join() || value.job_id!==id ||
+     !["full_ui_preflight_observed","pm_extension_required","full_ui_unverified","full_ui_close_unverified"].includes(value.state) ||
+     value.read_only!==true || value.device_writes!==0 || value.launch_authorized!==false ||
+     value.installation_ready!==false || value.installed!==false || value.live_recheck_required!==true)
+    fail("usb_full_ui_unverified");
+  return value;
+}

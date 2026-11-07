@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {installStatus,readInstall,startInstall,readInstallReview,observeBoot} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
+import {installStatus,readInstall,startInstall,readInstallReview,observeBoot,reviewFullUi} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
 import {strings} from "../custom_components/qingping_esphome/frontend/usb-labels.mjs";
 const id="c".repeat(32), review={job_id:id,plan_sha256:"d".repeat(64),model:"CGS1",co2_type:3,
   friendly_name:"Fixture",wlan_mac:"02:00:00:00:00:01",stock_version:"4.1.8_0287",
@@ -23,4 +23,12 @@ const observed={job_id:id,state:"bridge_observed",runtime_observed:true,device_w
 assert.deepEqual(await observeBoot(async()=>observed,id),observed);
 await assert.rejects(observeBoot(async()=>({...observed,device_writes:1}),id));
 assert.deepEqual(Object.keys(strings.en).sort(),Object.keys(strings.ru).sort());
+const full={job_id:id,state:"pm_extension_required",read_only:true,device_writes:0,launch_authorized:false,
+  installation_ready:false,installed:false,live_recheck_required:true};
+calls=[];
+assert.deepEqual(await reviewFullUi(async(op,body)=>{calls.push([op,body]);return full;},id),full);
+assert.deepEqual(calls,[["full-review",{job_id:id}]]);
+await assert.rejects(reviewFullUi(async()=>({...full,launch_authorized:true}),id));
+await assert.rejects(reviewFullUi(async()=>({...full,installation_ready:true}),id));
+await assert.rejects(reviewFullUi(async()=>({...full,state:"installed"}),id));
 console.log("Experimental USB install: exact review, one POST, status-only reconciliation and no invented readiness passed");

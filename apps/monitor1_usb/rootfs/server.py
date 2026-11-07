@@ -354,7 +354,7 @@ class Companion:
         finally:
             self.device_lock.release()
 
-    def observe(self, user, nonce, read_input, deliver):
+    def observe(self, user, nonce, read_input, deliver, full=False):
         self.session(user, nonce)
         if not self.device_lock.acquire(blocking=False):
             raise Refusal("usb_busy")
@@ -362,7 +362,8 @@ class Companion:
             data = read_input()
             if not isinstance(data, dict) or set(data) != {"job_id"}:
                 raise Refusal("usb_request_invalid")
-            return deliver(self.installations.observe(user, data["job_id"]))
+            reader = self.installations.full_review if full else self.installations.observe
+            return deliver(reader(user, data["job_id"]))
         finally:
             self.device_lock.release()
 
@@ -456,7 +457,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/export-profile", "/export-originals", "/export-computer"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/full-review", "/export-profile", "/export-originals", "/export-computer"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -470,9 +471,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/install":
                 return self.server.companion.install(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
-            if self.path == "/observe":
+            if self.path in ("/observe", "/full-review"):
                 return self.server.companion.observe(user, self.headers.get("X-Qingping-Nonce"),
-                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result), full=self.path == "/full-review")
             if self.path in ("/export-profile", "/export-originals", "/export-computer"):
                 profile = self.path == "/export-profile"
                 computer = self.path == "/export-computer"

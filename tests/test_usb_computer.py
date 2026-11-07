@@ -158,6 +158,40 @@ class ComputerEngineTests(unittest.TestCase):
                 desktop.prepare(root, modules, "fixture native ADB object")
             capture.assert_called_once()
 
+    def test_full_review_requires_original_intent_and_profile_before_usb(self):
+        # This test exercises the downloaded CLI's authority join, not a
+        # monitor: neither the API inspector nor any install engine may run
+        # until the original consumed intent and private profile agree.
+        import full_ui_usb
+        plan = {"basis": {"profile_sha256": self.profile_sha}}
+        staging = SimpleNamespace(load_plan=Mock(return_value=(None, plan)))
+        canonical = SimpleNamespace(review=SimpleNamespace(staging=staging),
+            candidate=SimpleNamespace(read_profile=Mock(return_value=({}, self.profile_sha))))
+        self.sequence.trial = canonical
+        result = {"state": "pm_extension_required", "read_only": True,
+            "device_writes": 0, "launch_authorized": False,
+            "installation_ready": False, "installed": False,
+            "live_recheck_required": True, "forward_cleanup": "removed"}
+        with patch.object(full_ui_usb, "inspect", new=AsyncMock(return_value=result)) as reader:
+            with self.assertRaises(FileNotFoundError):
+                asyncio.run(desktop.full_review(self.root, self.modules, None))
+            reader.assert_not_awaited()
+            desktop.write_new(self.state / "install-intent.json",
+                {"plan_sha256": self.digest, "experimental_reviewed": True})
+            canonical.candidate.read_profile.return_value = ({}, "c" * 64)
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_review(self.root, self.modules, None))
+            reader.assert_not_awaited()
+            canonical.candidate.read_profile.return_value = ({}, self.profile_sha)
+            observed = asyncio.run(desktop.full_review(self.root, self.modules, None))
+            self.assertEqual(observed, result)
+            reader.assert_awaited_once_with(None, plan, {}, canonical)
+            saved = list((self.state / "observations").glob("*/full-ui-review.json"))
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(json.loads(saved[0].read_text()), {**result, "plan_sha256": self.digest})
+        self.sequence.run.assert_not_awaited()
+        self.arm.arm.assert_not_called()
+
     def test_observer_uses_same_boot_after_effects_or_new_boot_proof_without_writer(self):
         plan_root = self.state / "install-plan"
         plan_root.mkdir(mode=0o700)

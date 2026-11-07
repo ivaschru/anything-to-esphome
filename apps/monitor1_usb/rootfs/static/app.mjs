@@ -1,5 +1,5 @@
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
-  startInstall, readInstall, readInstallReview, observeBoot, downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
+  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
@@ -10,6 +10,7 @@ let planState;
 let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
 let computerDownloaded=false;
+let fullReviewState,fullReviewReading=false;
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -59,9 +60,12 @@ function renderBuild() {
   $("observe-boot").hidden=!consumed;
   $("observe-boot").disabled=busy;
   $("boot-result").textContent=bootReading ? text("boot_checking") : (bootState ? text("boot_"+bootState.state) : "");
+  $("full-review-controls").hidden=installState?.state!=="bridge_observed";
+  $("full-review").disabled=busy;
+  $("full-review-result").textContent=fullReviewReading ? text("full_review_reading") : (fullReviewState ? text("full_review_"+fullReviewState.state) : "");
 }
 function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
-  installState=installReview=bootState=undefined;$("install-ack").checked=false;renderBuild();}
+  installState=installReview=bootState=fullReviewState=undefined;$("install-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -103,7 +107,7 @@ async function rpc(operation, data, binary=false) {
   const response = await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
     ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(operation==="install" ? 650000 :
-      operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000))});
+      operation==="full-review" ? 210000 : (operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000)))});
   if (binary && response.ok) {
     const length=Number(response.headers.get("Content-Length"));
     const mime=binary==="computer" ? "application/vnd.qingping.private-computer-bundle+tar" : (
@@ -346,6 +350,13 @@ async function checkInstall(manual=true) {
 }
 $("install-ack").onchange=()=>renderBuild();
 $("install-status").onclick=()=>checkInstall();
+$("full-review").onclick=async()=>{
+  if(busy || !pendingPreparation || installState?.state!=="bridge_observed") return;
+  busy=true;fullReviewReading=true;controls();
+  try {fullReviewState=await reviewFullUi(rpc,pendingPreparation.id);}
+  catch(error) {lastError=error.code || "usb_full_ui_unverified";$("error").textContent=text(lastError);fullReviewState={state:"full_ui_unverified"};}
+  finally {busy=false;fullReviewReading=false;controls();}
+};
 $("install-firmware").onclick=async()=>{
   if(busy || !installReview || !$("install-ack").checked || installState?.state!=="not_started") return;
   installRunning=true;busy=true;controls();lastError=null;$("error").textContent="";

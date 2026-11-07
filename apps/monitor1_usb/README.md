@@ -231,6 +231,24 @@ that opt-out. Uploading the native/guardian pair alone cannot satisfy this
 gate. A separate verified extension transition and full lifecycle are needed;
 the wizard does not bypass that check or offer a fake completed Full UI mode.
 
+After verifying the bridge's new boot, **Check Full UI prerequisites** reads
+the actual native USB/current boot, exact bridge file, authenticated API
+identity and the matching native/guardian manifest, then calls only the
+original `full_runtime_status` and read-only `full_runtime_inspect_start`.
+It explains `pm_extension_required` separately from an unknown or busy state.
+The same optional read is available in a newly downloaded computer package:
+
+```sh
+.runtime/bin/python computer_install.py full-review --serial USB_SERIAL
+```
+
+Even `full_ui_preflight_observed` stays `installation_ready=false` and
+`launch_authorized=false`. It is a snapshot requiring a new check before any
+future operation, not Full UI installation. API disconnect and the exact
+acknowledged owned USB forward are retired independently; an unknown cleanup
+cannot become a positive result. No PM flag, program upload, launch, reboot,
+session reset or cache cleanup is exposed by this read.
+
 The attempt is recorded before any controller starts. A lost response, page
 reload, language switch or app restart never grants a second installation.
 Use the saved job's status and **Check the monitor**. An unknown result

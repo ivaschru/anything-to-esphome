@@ -207,9 +207,34 @@ async def observe(root, modules, adb):
             "installed": False, "installation_ready": False}
 
 
+async def full_review(root, modules, adb):
+    from full_ui_usb import inspect
+    state = private_root(root / "computer-state")
+    prepared = unique_json(private_file(state / "prepared.json", 16384))
+    intent = unique_json(private_file(state / "install-intent.json", 16384))
+    digest = prepared["plan_sha256"]
+    if intent != {"plan_sha256": digest, "experimental_reviewed": True}:
+        raise ValueError("Exact consumed computer intent required")
+    canonical = modules[3].trial
+    _, plan = canonical.review.staging.load_plan(state / "install-plan", digest)
+    profile, profile_sha = canonical.candidate.read_profile(root / "profile.json")
+    if profile_sha != plan["basis"]["profile_sha256"]:
+        raise ValueError("Exact private profile required")
+    observations = state / "observations"
+    observations.mkdir(mode=0o700, exist_ok=True)
+    private_root(observations)
+    if len(os.listdir(observations)) >= 64:
+        raise ValueError("Observation budget exhausted; preserve history")
+    output = observations / uuid.uuid4().hex
+    output.mkdir(mode=0o700)
+    result = await inspect(adb, plan, profile, canonical)
+    write_new(output / "full-ui-review.json", {**result, "plan_sha256": digest})
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "install", "status", "observe"))
+    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review"))
     parser.add_argument("--serial", required=True)
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--plan-sha256")
@@ -230,6 +255,8 @@ def main():
         result = asyncio.run(install(root, modules, adb, args.plan_sha256, args.experimental_reviewed))
     elif args.action == "observe":
         result = asyncio.run(observe(root, modules, adb))
+    elif args.action == "full-review":
+        result = asyncio.run(full_review(root, modules, adb))
     else:
         state = private_root(root / "computer-state")
         prepared = unique_json(private_file(state / "prepared.json", 16384))
