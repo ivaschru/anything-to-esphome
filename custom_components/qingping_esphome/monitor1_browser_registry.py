@@ -1,0 +1,91 @@
+"""One ephemeral, owner/page-bound API-only browser capability.
+
+Reported WebUSB evidence is context, not native USB, plan or writer authority.
+There is no public operation that asks Core to create a command or open an API
+socket. Browser polls deliver only requests already created by private code.
+"""
+import asyncio
+import hmac
+import re
+import secrets
+import time
+
+from .monitor1_browser_channel import BrowserChannel
+from .monitor1_browser_relay import RelayRefusal
+
+
+class BrowserRegistry:
+    def __init__(self):
+        self.current = None
+        self.used = set()
+        self.timer = None
+        self.stopped = False
+
+    def open(self, owner, nonce, data):
+        if self.stopped or not isinstance(data, dict) or set(data) != {"evidence"}:
+            raise RelayRefusal
+        evidence = data["evidence"]
+        fields = {"kind", "channel", "serial", "wlan_mac", "boot_id", "co2_type", "stock_version", "native_get_devpath"}
+        if (not isinstance(evidence, dict) or set(evidence) != fields or evidence["kind"] != "browser_webusb" or
+                evidence["native_get_devpath"] is not False or evidence["stock_version"] != "4.1.8_0287" or
+                type(evidence["co2_type"]) is not int or evidence["co2_type"] not in (2, 3) or
+                any(not isinstance(evidence[k], str) for k in ("channel", "serial", "wlan_mac", "boot_id")) or
+                not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", evidence["serial"]) or
+                any(not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", evidence[k]) for k in ("channel", "boot_id")) or
+                not re.fullmatch(r"[a-f0-9]{2}(?::[a-f0-9]{2}){5}", evidence["wlan_mac"]) or
+                evidence["wlan_mac"] == "00:00:00:00:00:00" or int(evidence["wlan_mac"][:2], 16) & 1 or
+                evidence["channel"] in self.used or len(self.used) >= 32):
+            raise RelayRefusal
+        if self.current is not None and not self.current["capability"].closed:
+            raise RelayRefusal
+        if self.timer is not None:
+            self.timer.cancel()
+        identity = secrets.token_hex(16)
+        self.used.add(evidence["channel"])
+        self.current = {"id": identity, "owner": owner, "nonce": nonce, "deadline": time.monotonic() + 240,
+                        "reported_evidence": dict(evidence), "capability": BrowserChannel()}
+        self.timer = asyncio.create_task(self._expire(identity))
+        return {"channel_id": identity, "state": "registered", "writer_enabled": False}
+
+    async def _expire(self, identity):
+        try:
+            await asyncio.sleep(240)
+            if self.current is not None and self.current["id"] == identity:
+                self.current["capability"]._retire()
+        except asyncio.CancelledError:
+            pass
+
+    def capability(self, owner, nonce, identity):
+        current = self.current
+        if (self.stopped or not isinstance(identity, str) or not re.fullmatch(r"[a-f0-9]{32}", identity) or
+                current is None or current["id"] != identity or not hmac.compare_digest(current["owner"], owner) or
+                not hmac.compare_digest(current["nonce"], nonce) or time.monotonic() >= current["deadline"]):
+            raise RelayRefusal
+        # Private callers must still join a real plan/consumed intent. These
+        # reported fields do not prove the identity of an attached monitor.
+        return current["capability"]
+
+    async def dispatch(self, owner, nonce, operation, data):
+        if operation == "open":
+            return self.open(owner, nonce, data)
+        expected = {"channel_id", "frame"} if operation == "answer" else {"channel_id"}
+        if not isinstance(data, dict) or set(data) != expected:
+            raise RelayRefusal
+        capability = self.capability(owner, nonce, data["channel_id"])
+        if operation == "poll":
+            return {"request": await capability.poll()}
+        if operation == "answer":
+            capability.answer(data["frame"])
+            return {"state": "accepted"}
+        if operation == "close":
+            if not capability.closed:
+                capability._retire()
+            return {"state": "retired"}
+        raise RelayRefusal
+
+    def stop(self):
+        self.stopped = True
+        if self.timer is not None:
+            self.timer.cancel()
+        if self.current is not None:
+            self.current["capability"]._retire()

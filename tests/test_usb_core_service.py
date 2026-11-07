@@ -22,7 +22,7 @@ if HAS_HA:
     from aiohttp.test_utils import TestClient, TestServer
     from homeassistant.components.http.const import KEY_HASS, KEY_HASS_USER
 
-    spec = importlib.util.spec_from_file_location("monitor1_core_service", ROOT / "custom_components/qingping_esphome/monitor1.py")
+    spec = importlib.util.spec_from_file_location("qingping_core_contract.monitor1", ROOT / "custom_components/qingping_esphome/monitor1.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.__package__ = "qingping_core_contract"
@@ -30,6 +30,12 @@ if HAS_HA:
     enrollment = importlib.util.module_from_spec(helper_spec)
     helper_spec.loader.exec_module(enrollment)
     sys.modules[helper_spec.name] = enrollment
+
+    for stem in ("monitor1_browser_relay", "monitor1_browser_channel", "monitor1_browser_registry"):
+        part_spec = importlib.util.spec_from_file_location("qingping_core_contract." + stem, ROOT / "custom_components/qingping_esphome" / (stem + ".py"))
+        part = importlib.util.module_from_spec(part_spec)
+        sys.modules[part_spec.name] = part
+        part_spec.loader.exec_module(part)
 
 
 
@@ -157,6 +163,43 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(DATA["noise_psk"].encode(),result[2]);self.assertEqual(native.await_count,1)
             # Status never rewrites a receipt or opens USB/a new native flow.
             self.assertEqual(self.service.exchange.call_args_list[-1].args[2],"internal-enrollment-package")
+
+    async def test_browser_frames_require_a_real_page_before_reading_or_starting_actor(self):
+        client = await self.http_client()
+        response = await client.post("/api/qingping_esphome/monitor1/browser/open",data=b"not json",
+            headers={"Content-Type":"application/json","X-Qingping-Nonce":"a"*64})
+        self.assertEqual(response.status,403);self.assertIsNone(self.service.process)
+
+    async def test_browser_api_frame_delivery_uses_actual_owner_nonce_without_pipe_reservation(self):
+        client = await self.http_client()
+        page = await client.post("/api/qingping_esphome/monitor1/page",data=b"null",headers={"Content-Type":"application/json"})
+        nonce = (await page.json())["nonce"]
+        headers={"Content-Type":"application/json","X-Qingping-Nonce":nonce}
+        evidence={"kind":"browser_webusb","channel":"22222222-2222-2222-2222-222222222222","serial":"synthetic-usb",
+            "wlan_mac":"02:00:00:00:00:01","boot_id":"33333333-3333-3333-3333-333333333333","co2_type":3,
+            "stock_version":"4.1.8_0287","native_get_devpath":False}
+        response=await client.post("/api/qingping_esphome/monitor1/browser/open",json={"evidence":evidence},headers=headers)
+        self.assertEqual(response.status,200,await response.text())
+        registered=await response.json();self.assertFalse(registered["writer_enabled"])
+        identity=registered["channel_id"]
+        capability=self.service.browser_registry.capability("a"*32,nonce,identity)
+        async with self.service.reserve():
+            opening=asyncio.create_task(capability.open_api())
+            response=await client.post("/api/qingping_esphome/monitor1/browser/poll",json={"channel_id":identity},headers=headers)
+            self.assertEqual(response.status,200,await response.text());request=(await response.json())["request"]
+            self.assertEqual(request["operation"],"api-open")
+            response=await client.post("/api/qingping_esphome/monitor1/browser/answer",json={"channel_id":identity,"frame":{"id":request["id"],"ok":True,"data":None}},headers=headers)
+            self.assertEqual(response.status,200,await response.text());stream=await opening
+            closing=asyncio.create_task(stream.close())
+            response=await client.post("/api/qingping_esphome/monitor1/browser/poll",json={"channel_id":identity},headers=headers)
+            request=(await response.json())["request"];self.assertEqual(request["operation"],"api-close")
+            response=await client.post("/api/qingping_esphome/monitor1/browser/answer",json={"channel_id":identity,"frame":{"id":request["id"],"ok":True,"data":None}},headers=headers)
+            self.assertEqual(response.status,200);await closing
+        wrong={**headers,"X-Qingping-Nonce":"b"*64}
+        response=await client.post("/api/qingping_esphome/monitor1/browser/poll",json={"channel_id":identity},headers=wrong)
+        self.assertEqual(response.status,403)
+        self.assertEqual(list((self.service.root / "adb").iterdir()),[])
+        self.assertEqual(list((self.service.root / "toolsets").iterdir()),[])
 
     async def test_unloaded_http_service_returns_controlled_unavailable(self):
         client = await self.http_client(loaded=False)

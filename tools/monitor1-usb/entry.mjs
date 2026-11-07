@@ -1,3 +1,5 @@
+import {BrowserNativeChannel} from "../../custom_components/qingping_esphome/frontend/usb-native-channel.mjs";
+export {openBrowserControl} from "../../custom_components/qingping_esphome/frontend/usb-browser-control.mjs";
 import {Adb, AdbDaemonTransport} from "@yume-chan/adb";
 import {AdbDaemonWebUsbDeviceManager} from "@yume-chan/adb-daemon-webusb";
 import {BrowserUsbProbe} from "../../custom_components/qingping_esphome/frontend/usb-probe.mjs";
@@ -38,4 +40,13 @@ export function createProbe() {
     createClient: transport => new Adb(transport),
     ephemeralCredentials,
   }, contract);
+}
+
+/** Unwired read/API-only transport, not a browser installation action. */
+export function createNativeChannel() {
+  return new BrowserNativeChannel({
+    manager:AdbDaemonWebUsbDeviceManager.BROWSER,
+    authenticate:options=>AdbDaemonTransport.authenticate(options),
+    createClient:transport=>new Adb(transport),ephemeralCredentials,
+  },contract);
 }

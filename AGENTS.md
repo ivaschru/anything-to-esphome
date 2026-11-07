@@ -69,8 +69,16 @@ separate even though the HACS wizard is shared.
   positively acknowledged API-close; its one late answer never satisfies a
   later request. Cancellation/unknown delivery of a byte write fences the
   channel. Preserve actual loopback/framing and concurrent read/close EOF
-  tests. This framing is still unwired to the admin HTTP adapter or a writer;
-  no browser lease/plan identity can be inferred from arbitrary JSON alone.
+  tests. The admin adapter now provides owner/page-nonce-bound ephemeral
+  registration/poll/answer/retire only. Mirror page authorization solely from
+  successful private worker responses; check it before frame-body reads. Frame
+  IO bypasses the worker reservation, while the parent grants only two finite
+  poll/answer/close requests alongside a pending ordinary operation, never a
+  second writer or transport registration. Reports remain context_only and
+  writer_enabled=false; no plan authority follows from JSON. GUI installation,
+  browser plan/staging and writer admission remain unwired. Run all USB tests
+  on the actual HA SDK and Node peer/control/parent tests before changing this
+  exception. Preserve ordinary native operation serialization.
 
 - Native GUI installation composes the original stage/commit/bounded-trial
   engine and separate next-boot armer in a fixed private SDK child. Consume

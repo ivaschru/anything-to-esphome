@@ -1,6 +1,7 @@
 /** Shared English/Russian labels; language changes never reset USB. */
 export const strings = {
   en: {
+    usb_channel_unverified:"The selected USB channel is unverified. Preserve this operation’s history and do not repeat an installation.",
     enrollment_title:"Add to Home Assistant",
     enrollment_help:"Connect USB and keep the monitor on the same local network as HA. Checks its current address and encrypted identity, then adds the verified device through the standard ESPHome integration. Existing conflicts need manual review. This step does not flash or restart the monitor.",
     enrollment_ack:"Add this verified monitor to the ESPHome integration in this Home Assistant.",
@@ -182,6 +183,7 @@ export const strings = {
     failed:"The USB check was incomplete. Nothing was installed. Check the cable, ADB and selected connection."
   },
   ru: {
+    usb_channel_unverified:"Канал выбранного USB-прибора не подтверждён. Сохраните историю операции и не повторяйте установку.",
     enrollment_title:"Добавить в Home Assistant",
     enrollment_help:"Подключите USB и оставьте монитор в одной локальной сети с HA. Мастер проверит текущий адрес и зашифрованное подключение, затем добавит прибор через штатную интеграцию ESPHome. Конфликтующие записи требуют отдельного решения. Прибор не прошивается и не перезагружается.",
     enrollment_ack:"Добавить этот проверенный монитор в интеграцию ESPHome этого Home Assistant.",

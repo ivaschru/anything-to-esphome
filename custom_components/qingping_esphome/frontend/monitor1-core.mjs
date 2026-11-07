@@ -17,7 +17,7 @@ export async function openCoreWizard(container,hass,language="en") {
   frame.title=language==="ru" ? "Установка Qingping Monitor 1" : "Qingping Monitor 1 installation";
   frame.setAttribute("allow","usb");
   frame.style.cssText="width:100%;height:1100px;border:0;display:block;background:var(--card-background-color,#fff)";
-  let closed=false,busy=false;
+  let closed=false,busy=false,frameRequests=0;
   const seen=new Set();
   const listener=async event=>{
     const data=event.data;
@@ -29,10 +29,14 @@ export async function openCoreWizard(container,hass,language="en") {
     if(data.kind!=="qingping-core-request" || typeof data.id!=="string" || !/^[a-f0-9-]{36}$/.test(data.id)
         || typeof data.operation!=="string" || !/^[a-z][a-z0-9/-]{0,100}$/.test(data.operation)) return;
     const reply=message=>{if(!closed) frame.contentWindow.postMessage({kind:"qingping-core-response",channel,id:data.id,...message},location.origin);};
-    if(busy || seen.has(data.id) || seen.size>=4096) {reply({error:"usb_busy"});return;}
+    // Only finite reply/delivery/retirement frames may run while a native
+    // operation owns the ordinary request. Otherwise that operation could
+    // deadlock waiting for its own browser. This grants no second writer.
+    const frameIO=/^browser\/(poll|answer|close)$/.test(data.operation);
+    if((busy && !frameIO) || (frameIO && frameRequests>=2) || seen.has(data.id) || seen.size>=4096) {reply({error:"usb_busy"});return;}
     // Consume before authenticated IO, including a lost response. Status
     // refresh uses a new read ID; a writer is never repeated automatically.
-    seen.add(data.id);busy=true;
+    seen.add(data.id);if(frameIO) frameRequests++;else busy=true;
     try {
       const body=JSON.stringify(data.data===undefined ? null : data.data);
       if(new TextEncoder().encode(body).byteLength>24*1024*1024) throw Error();
@@ -44,7 +48,7 @@ export async function openCoreWizard(container,hass,language="en") {
       if(result.byteLength!==length) throw Error();
       reply({status:response.status,mime:response.headers.get("Content-Type"),body:result});
     } catch {reply({error:"usb_core_unverified"});}
-    finally {busy=false;}
+    finally {if(frameIO) frameRequests--;else busy=false;}
   };
   window.addEventListener("message",listener);
   frame.srcdoc=html.replace("__PAGE_NONCE__",nonce).replace("<head>",`<head><base href="/api/qingping_esphome/static/monitor1/"><meta name="qingping-core-channel" content="${channel}">`);

@@ -38,9 +38,31 @@ assert.equal(calls.length,2,"An already consumed request is never sent again");
 assert.equal(messages.at(-1).error,"usb_busy");
 await listener({...event,data:{...event.data,id:"22345678-1234-4234-8234-123456789abc",operation:"../shell"}});
 assert.equal(calls.length,2,"Paths/commands cannot enter the finite route adapter");
+
+// A writer can await its own finite browser IO without granting a second
+// ordinary writer. Two frame deliveries are the entire parallel exception.
+const oldFetch=hass.fetchWithAuth,held=new Map();
+hass.fetchWithAuth=async(path,init)=>{
+  if(path.endsWith('/install') || path.endsWith('/browser/poll') || path.endsWith('/browser/answer')) {
+    calls.push({path,init});return await new Promise(resolve=>held.set(path,resolve));
+  }
+  return oldFetch(path,init);
+};
+const send=operation=>listener({...event,data:{...event.data,id:crypto.randomUUID(),operation}});
+const writerRequest=send('install');await Promise.resolve();
+const beforeFrames=calls.length;
+const pollRequest=send('browser/poll'),answerRequest=send('browser/answer');await Promise.resolve();
+assert.equal(calls.length,beforeFrames+2,'Finite frame delivery progresses while the writer awaits');
+await send('browser/answer');assert.equal(calls.length,beforeFrames+2,'A third frame exceeds its budget');
+await send('install');await send('browser/open');
+assert.equal(calls.length,beforeFrames+2,'Parallel exception cannot register a new transport or second writer');
+for(const resolve of held.values())resolve(new Response('{}',{headers:{'Content-Type':'application/json','Content-Length':'2'}}));
+await Promise.all([writerRequest,pollRequest,answerRequest]);
+hass.fetchWithAuth=oldFetch;
+const beforeClose=calls.length;
 close();
 assert.equal(listeners.size,0);
 assert.equal(frame.removed,true);
 await listener({...event,data:{...event.data,id:"32345678-1234-4234-8234-123456789abc"}});
-assert.equal(calls.length,2,"Disconnected components retain no authenticated listener");
+assert.equal(calls.length,beforeClose,"Disconnected components retain no authenticated listener");
 console.log("Integrated Core frame: actual HA authentication, origin/source/nonce fences, no replay and cleanup passed");

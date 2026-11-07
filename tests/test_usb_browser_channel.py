@@ -7,7 +7,7 @@ import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/qingping_esphome'
-for name in ('monitor1_browser_relay','monitor1_browser_channel'):
+for name in ('monitor1_browser_relay','monitor1_browser_channel','monitor1_browser_registry'):
     spec=importlib.util.spec_from_file_location('qingping_browser_contract.'+name,ROOT/(name+'.py'))
     module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
 channel_module=sys.modules['qingping_browser_contract.monitor1_browser_channel']
@@ -90,3 +90,32 @@ class ChannelTests(unittest.IsolatedAsyncioTestCase):
             for task in list(tasks):task.cancel()
             await asyncio.gather(browser_task,*tasks,return_exceptions=True)
             await relay.close()
+
+
+class RegistryTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.registry=sys.modules['qingping_browser_contract.monitor1_browser_registry'].BrowserRegistry()
+        self.addCleanup(self.registry.stop)
+        self.evidence={'kind':'browser_webusb','channel':'22222222-2222-2222-2222-222222222222','serial':'synthetic-usb',
+            'wlan_mac':'02:00:00:00:00:01','boot_id':'33333333-3333-3333-3333-333333333333','co2_type':3,
+            'stock_version':'4.1.8_0287','native_get_devpath':False}
+
+    async def test_reported_context_grants_no_writer_and_capability_stays_owner_page_bound(self):
+        result=self.registry.open('owner','nonce',{'evidence':self.evidence})
+        self.assertEqual(set(result),{'channel_id','state','writer_enabled'});self.assertFalse(result['writer_enabled'])
+        capability=self.registry.capability('owner','nonce',result['channel_id'])
+        self.assertIsInstance(capability,channel_module.BrowserChannel)
+        for owner,nonce,identity in [('foreign','nonce',result['channel_id']),('owner','foreign',result['channel_id']),('owner','nonce','0'*32)]:
+            with self.assertRaises(relay_module.RelayRefusal):self.registry.capability(owner,nonce,identity)
+        self.assertEqual(capability.pending,{})
+
+    async def test_re_registration_cannot_adopt_a_live_or_retired_browser_nonce(self):
+        first=self.registry.open('owner','nonce',{'evidence':self.evidence})
+        with self.assertRaises(relay_module.RelayRefusal):self.registry.open('owner','nonce',{'evidence':self.evidence})
+        await self.registry.dispatch('owner','nonce','close',{'channel_id':first['channel_id']})
+        with self.assertRaises(relay_module.RelayRefusal):self.registry.open('owner','nonce',{'evidence':self.evidence})
+
+    async def test_native_path_or_command_fields_are_refused_before_registration(self):
+        for change in [{'native_get_devpath':True},{'usb_transport':'usb:invented'},{'host':'foreign'},{'co2_type':True}]:
+            with self.assertRaises(relay_module.RelayRefusal):self.registry.open('owner','nonce',{'evidence':{**self.evidence,**change}})
+        self.assertIsNone(self.registry.current)

@@ -8,6 +8,8 @@ to adopt ambiguous durable work. All filesystem/process IO is off HA's loop.
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import hmac
+import time
 import os
 from pathlib import Path
 import re
@@ -52,6 +54,8 @@ class Monitor1:
         self.pending = None
         self.closing = False
         self.failed = False
+        self.browser_pages = {}
+        self.browser_registry = None
 
     @asynccontextmanager
     async def reserve(self):
@@ -120,7 +124,20 @@ class Monitor1:
                 async with asyncio.timeout(900):
                     if operation == "enroll" or re.fullmatch(r"jobs/[a-f0-9]{32}/enroll", operation):
                         return await self.enrollment(user, nonce, operation, data)
-                    return await self.exchange(user, nonce, operation, data)
+                    result = await self.exchange(user, nonce, operation, data)
+                    if result[0]:
+                        current = time.monotonic()
+                        self.browser_pages = {key: value for key, value in self.browser_pages.items() if current - value[1] < 1800}
+                        if operation == "page" and result[1] == "application/json":
+                            page_nonce = json.loads(result[2]).get("nonce")
+                            if isinstance(page_nonce, str) and re.fullmatch(r"[a-f0-9]{64}", page_nonce):
+                                self.browser_pages[page_nonce] = (user, current)
+                        elif nonce in self.browser_pages and hmac.compare_digest(self.browser_pages[nonce][0], user):
+                            # Refresh only after an actual positive worker
+                            # authorization. Browser frame polling does not
+                            # renew the worker's independent page lifetime.
+                            self.browser_pages[nonce] = (user, current)
+                    return result
             except TimeoutError:
                 self.failed = True
                 raise CoreRefusal("usb_core_unverified") from None
@@ -182,8 +199,27 @@ class Monitor1:
                     return True, "application/json", json.dumps(public).encode()
         return result
 
+    def browser_admit(self, user, nonce):
+        value = self.browser_pages.get(nonce) if isinstance(nonce, str) else None
+        if (self.closing or self.failed or value is None or not hmac.compare_digest(value[0], user) or
+                time.monotonic() - value[1] >= 1800):
+            raise CoreRefusal("usb_unauthorized")
+
+    async def browser_call(self, user, nonce, operation, data):
+        self.browser_admit(user, nonce)
+        from .monitor1_browser_registry import BrowserRegistry
+        from .monitor1_browser_relay import RelayRefusal
+        if self.browser_registry is None:
+            self.browser_registry = BrowserRegistry()
+        try:
+            return await self.browser_registry.dispatch(user, nonce, operation, data)
+        except RelayRefusal:
+            raise CoreRefusal("usb_channel_unverified") from None
+
     async def stop(self):
         self.closing = True
+        if self.browser_registry is not None:
+            self.browser_registry.stop()
         # EOF is observed after the current bounded engine operation. Do not
         # kill it mid-write on unload, discard receipts or signal device PIDs.
         # The actor's flock prevents a new instance adopting that live worker.
@@ -217,6 +253,19 @@ class Monitor1View(HomeAssistantView):
             # starting an actor, parsing a body or forwarding any private MIME.
             if operation.startswith("internal-"):
                 raise CoreRefusal("usb_request_invalid")
+            if operation.startswith("browser/"):
+                # Frame delivery must not reserve the worker pipe: a private
+                # native API operation can be awaiting the browser's answer.
+                # Actual admin + previously worker-verified user/page nonce
+                # admission precedes even this bounded JSON body read.
+                browser_nonce = request.headers.get("X-Qingping-Nonce")
+                service.browser_admit(user.id, browser_nonce)
+                if request.content_length > 96 * 1024:
+                    raise CoreRefusal("usb_request_invalid")
+                async with asyncio.timeout(10):
+                    raw = await request.content.readexactly(request.content_length)
+                result = await service.browser_call(user.id, browser_nonce, operation.split("/", 1)[1], json.loads(raw))
+                return web.json_response(result, headers=headers)
             async with service.reserve():
                 async with asyncio.timeout(90):
                     raw = await request.content.readexactly(request.content_length)
