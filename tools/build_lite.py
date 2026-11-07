@@ -9,6 +9,7 @@ Run with the pinned ESPHome interpreter: python tools/build_lite.py.
 from pathlib import Path
 import base64
 import hashlib
+from pm_policy import POLICY, digest as pm_digest
 import importlib.util
 import json
 import shutil
@@ -54,6 +55,7 @@ def main():
 }
 }  // namespace qf_template
 '''
+    header += 'namespace qf_template { inline std::string active_display_feed; }\n'
     header += '#include "esphome/components/cgdn1_ui/update_profile.h"\n'
     (work / "public_template_slots.h").write_text(header)
     secrets_values = dict(values)
@@ -68,10 +70,14 @@ def main():
 substitutions:
   name: {json.dumps(values['name'])}
   trial_mode: "false"
-  ha_display: "false"
+  ha_display: "true"
+  ha_display_entity: sensor.qingping_unused_display_feed
 packages:
   lite: !include cgdn1.yaml
 esphome:
+  # Bind external-component changes into the SDK config/build identity too.
+  # ESPHome otherwise reuses build time when YAML is unchanged.
+  comment: "Public Lite source {source_digest(ROOT)}"
   project:
     name: ivaschru.qingping_lite_direct_i2c
     version: {json.dumps(str(release["public_version"]))}
@@ -83,6 +89,8 @@ esphome:
     - priority: 1000
       then:
         - lambda: |-
+            qf_template::active_display_feed = qf_template::read(qf_template::display_feed_entity);
+            id(ha_display_feed).set_entity_id(qf_template::active_display_feed.empty() ? "sensor.qingping_unused_display_feed" : qf_template::active_display_feed.c_str());
             wifi::WiFiAP station;
             station.set_ssid(qf_template::read(qf_template::ssid));
             station.set_password(qf_template::read(qf_template::wifi_password));
@@ -106,7 +114,7 @@ api:
       then:
         - api.respond:
             data: !lambda |-
-              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]});
+              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]}, qf_template::read(qf_template::source_stock_version), qf_template::active_display_feed);
               static_assert(cgdn1_ui::PUBLIC_VERSION == {release["public_version"]});
 esp32:
   framework:
@@ -125,15 +133,15 @@ esp32:
         raise ValueError("Compiler changed the placeholder contract: " + str(counts))
     # Exercise the exact release personalizer before exporting any template.
     digest = hashlib.sha256(binary).hexdigest()
-    test_values = {key: (b"x" * 32 if key == "noise_psk" else "q" * 31 if key == "name" else "example") for key in image.SLOTS}
+    test_values = {key: (b"x" * 32 if key == "noise_psk" else "q" * 31 if key == "name" else "" if key == "display_feed_entity" else "4.5.8" if key == "source_stock_version" else "example") for key in image.SLOTS}
     image.personalize(binary, test_values, digest)
     output = ROOT / "custom_components/qingping_esphome/firmware"
     output.mkdir(exist_ok=True)
     (output / "lite-template.bin").write_bytes(binary)
     (output / "lite-template.json").write_text(json.dumps({
-        "pm_policy": "polling-only-gpio13-high-v1",
-        "pm_source_sha256": hashlib.sha256((ROOT / "ports/lite/components/cgdn1_pm/cgdn1_pm.h").read_bytes()).hexdigest(),
-        "model": "CGDN1", "ui": release["version"], "public_version": release["public_version"], "font": "Inter (OFL)",
+        "pm_policy": POLICY,
+        "pm_source_sha256": pm_digest(ROOT),
+        "model": "CGDN1", "ui": release["version"], "public_version": release["public_version"], "font": "Inter + Roboto Condensed (OFL)",
         "esphome": "2026.9.1", "size": len(binary), "sha256": digest,
         "release_source_sha256": source_digest(ROOT),
         "slots": counts, "format": "esp32-app-fixed-slots-v1",

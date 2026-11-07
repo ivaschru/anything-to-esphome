@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import re
 import struct
 import zlib
 
 SLOTS = {
+    "display_feed_entity": b"QF_DISPLAY_FEED_ENTITY_" + b"E" * 42,
+    # Original factory software is provenance, not a guessed PCB revision.
+    "source_stock_version": b"QF_ORIGINAL_STOCK_VERSION_" + b"V" * 8,
     "ssid": b"QF_SSID_" + b"S" * 24,
     "wifi_password": b"QF_WIFI_PASSWORD_" + b"W" * 46,
     "name": b"qingping-" + b"z" * 22,
@@ -78,6 +82,10 @@ def personalize(template, values, expected_sha256):
     data = bytearray(template)
     for name, marker in SLOTS.items():
         value = values[name]
+        if name == "display_feed_entity" and value and not re.fullmatch(r"sensor\.[a-z0-9_]+", value):
+            raise ValueError("Invalid display feed entity")
+        if name == "source_stock_version" and value not in {"4.3.4", "4.5.8"}:
+            raise ValueError("Unqualified original stock generation")
         value = value.encode("utf-8") if isinstance(value, str) else bytes(value)
         if name == "noise_psk":
             if len(value) != 32: raise ValueError("Noise key должен содержать 32 байта")

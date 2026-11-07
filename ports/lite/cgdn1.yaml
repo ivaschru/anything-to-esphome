@@ -17,6 +17,10 @@ packages:
 
 esphome:
   on_boot:
+    # Wire the gate before any loop-driven asynchronous sensor reading.
+    - priority: -100
+      then:
+        - lambda: id(co2_bus_reader).set_transaction_gate(id(pm_power));
     - priority: 300
       then:
         - lambda: |-
@@ -66,7 +70,7 @@ external_components:
   - source:
       type: local
       path: components
-    components: [cgdn1_boot, cgdn1_tcomp, cgdn1_display, cgdn1_touch, cgdn1_led, cgdn1_night, cgdn1_notify, cgdn1_pm, cgdn1_ui]
+    components: [cgdn1_boot, cgdn1_tcomp, cgdn1_display, cgdn1_touch, cgdn1_led, cgdn1_night, cgdn1_notify, cgdn1_pm, cgdn1_ui, scd4x]
 
 # Power latch (GPIO23/13/18 HIGH from a global constructor, before anything else runs) and the
 # back-button long-press power-off. Must always be present: without it the unit switches itself off.
@@ -105,14 +109,47 @@ cgdn1_ui:
   pm_power_id: pm_power
   battery_id: battery_level
   pm25_id: pm25
+  font_status: ui_status
   font_small: ui_small
   font_title: ui_title
   font_medium: ui_medium
   font_large: ui_large
   font_number: ui_number
   font_summary: ui_summary
+  restart_button: ui_restart
+  slot_button: ui_other_slot
+  numbers:
+    "0": display_level
+    "3": idle_screen_delay
+    "13": tc_temp_offset
+    "14": tc_rh_offset
+    "17": hc_a6
+    "18": hc_a1
+    "19": hc_tau_d1
+    "20": hc_tau_d2
+    "21": hc_a_bt
+    "22": hc_tau_bt
+  switches:
+    "1": display_switch
+    "6": night_switch
+    "9": pm_enabled
+    "10": led_switch
+    "12": ble_switch
+    "16": hc_bt_comp
+  selects:
+    "2": idle_screen
+    "4": ui_design
+    "5": ui_motion
+    "11": led_pm_standard
+    "15": hc_model
+    "23": display_test_pattern
+  times:
+    "7": night_start
+    "8": night_end
+
 
 wifi:
+  reboot_timeout: 0s
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
@@ -170,7 +207,7 @@ api:
         gesture: string
       then:
         - lambda: |-
-            if (!id(oled).is_on()) { id(display_switch).turn_on(); return; }
+            if (id(local_ui).consume_dark_gesture(gesture)) return;
             id(night_activity_ms) = millis();
             id(local_ui).mark_touched();
             id(local_ui).gesture(gesture);
@@ -192,7 +229,8 @@ api:
         - lambda: |-
             id(night_activity_ms) = millis();
             id(local_ui).select_network(ssid);
-  # Default reboot_timeout (15 min): with no API client ESPHome reboots (in trial mode -> stock).
+  # Standalone measurements/UI must survive an absent HA server.
+  reboot_timeout: 0s
   encryption:
     key: !secret api_key
 
@@ -222,22 +260,27 @@ bluetooth_proxy:
 
 button:
   - platform: restart
+    id: ui_restart
     name: "Restart"
   # Boots the firmware in the other OTA slot: stock right after the install, the previous
   # ESPHome image after an ESPHome OTA update. Refused (logged, no reboot) if that slot does
   # not hold a valid image.
   - platform: template
+    id: ui_other_slot
     name: "Boot other firmware slot"
     entity_category: config
     on_press:
       - lambda: id(boot).boot_other_slot();
 
-# PM OFF stops polling only. GPIO13 must remain HIGH: LOW can interrupt CO2
-# communication as well. This switch does not stop the fan or cut sensor power.
+# Qualified direct-I2C profile: PM OFF keeps GPIO13 LOW between bounded
+# SCD4x transactions. Fresh-source and transaction guards fall back to HIGH.
 # GPIO18 and whole-board shutdown ownership remain unchanged. After the reader's
 # boot probe, apply the restored polling preference and invalidate OFF values.
 # Each ON waits 30 s before measurements; an intervening OFF cancels that wait.
 cgdn1_pm:
+  co2_source: co2
+  temperature_source: t_raw
+  humidity_source: rh_raw
   id: pm_power
   reader_id: pm_reader
   enable_pin: GPIO13
@@ -290,9 +333,10 @@ i2c:
 sensor:
   # SCD40 CO2 @0x62 (stock cmds 0x21b1/0x3f86 = start/stop periodic measurement).
   - platform: scd4x
+    id: co2_bus_reader
     i2c_id: bus_a
     address: 0x62
-    update_interval: 60s
+    update_interval: 15s
     co2:
       id: co2
       name: "CO2"
@@ -652,7 +696,6 @@ cgdn1_touch:
         id(night_activity_ms) = millis();  // real touch resets inactivity
         id(local_ui).mark_touched();
         id(touch_wake) = !id(oled).is_on();
-        if (id(touch_wake)) id(display_switch).turn_on();
   on_release:
     - lambda: id(night_activity_ms) = millis();  # idle counts from the last touched sample
   on_gesture:
@@ -660,7 +703,7 @@ cgdn1_touch:
         id: touch_event
         event_type: !lambda return gesture;
     - lambda: |-
-        if (id(touch_wake)) return;  // this touch woke the panel: consumed
+        if (id(local_ui).consume_dark_gesture(gesture)) return;
         if (id(notify_q).active()) {  // a message is up: the gesture is for it, not the pages
           id(notify_q).gesture(gesture);
           id(notify_sync).execute();
@@ -894,30 +937,17 @@ interval:
   - interval: 20ms
     then:
       - lambda: 'if (id(pages).animating()) id(oled).update();'
-  - interval: 1s  # night mode: stock 1 s system task (FUN_400ea3f0)
+  - interval: 1s
     then:
       - lambda: |-
-          // An MQTT message on screen keeps the panel lit; night mode turns it off 5 s after.
-          if ((id(notify_q).active() || id(local_ui).active()) && id(oled).is_on()) id(night_activity_ms) = millis();
-          cgdn1_night::Inputs in;
-          in.enabled = id(night_switch).state;
-          in.pages_shown = id(local_ui).pages_ready();  // past the boot screen
-          const ESPTime t = id(ha_time).now();
-          in.clock_valid = t.is_valid();
-          in.hour = t.hour;
-          in.minute = t.minute;
-          in.start = id(night_start).hour * 60 + id(night_start).minute;
-          in.end = id(night_end).hour * 60 + id(night_end).minute;
-          in.display_on = id(oled).is_on();
-          in.idle_s = id(touch).is_touched() ? 0 : (millis() - id(night_activity_ms)) / 1000;
-          auto &ne = id(night_engine);
-          const bool was = ne.active();
-          const cgdn1_night::Action a = ne.tick(in);
-          if (ne.active() != was)
-            ESP_LOGI("night", "%s (%02u:%02u, window %02u:%02u-%02u:%02u)", ne.active() ? "start" : "end",
-                     in.hour, in.minute, in.start / 60, in.start % 60, in.end / 60, in.end % 60);
-          if (a == cgdn1_night::Action::DISPLAY_OFF) id(display_switch).turn_off();
-          else if (a == cgdn1_night::Action::DISPLAY_ON) id(display_switch).turn_on();
+          // The design's night mode is fully black for the configured window,
+          // including touch. Manual display-off has its own remembered intent.
+          const auto clock = id(ha_time).now();
+          id(local_ui).set_night_active(id(night_switch).state && clock.is_valid() &&
+              cgdn1_night::in_window(clock.hour, clock.minute,
+                id(night_start).hour*60+id(night_start).minute,
+                id(night_end).hour*60+id(night_end).minute));
+
   - interval: 1s  # the stock model steps once per second: do not change
     then:
       - lambda: |-
@@ -993,70 +1023,76 @@ spi:
 # Black (900): the heaviest weight. Boot screen only: the readings use the extracted stock glyphs.
 font:
   - file: "fonts/Inter.ttf"
+    id: ui_status
+    size: 11
+    bpp: 1
+    glyphsets: [GF_Latin_Core, GF_Cyrillic_Core]
+    glyphs: "₂°³−–…·—"
+  - file: "fonts/Inter.ttf"
     id: f_text
     size: 14
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_small
     size: 13
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_info
     size: 13
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_title
     size: 14
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_msg24
     size: 24
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_msg20
     size: 20
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: f_msg17
     size: 17
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: ui_small
     size: 13
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: ui_title
     size: 14
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
   - file: "fonts/Inter.ttf"
     id: ui_medium
     size: 27
     bpp: 1
-    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї°µ³−–…·—"
-  - file: "fonts/Inter.ttf"
+    glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёҐґЄєІіЇї₂°µ³−–…·—"
+  - file: "fonts/RobotoCondensed.ttf"
     id: ui_large
-    size: 49
+    size: 76
     bpp: 1
-    glyphs: "0123456789,.−—- /°C%?"
+    glyphs: "0123456789:,.−—- /°C%?"
   - file: "fonts/Inter.ttf"
     id: ui_number
     size: 36
     bpp: 1
-    glyphs: "0123456789,.−—- /°C%?"
+    glyphs: "0123456789:,.−—- /°C%?"
   - file: "fonts/Inter.ttf"
     id: ui_summary
     size: 56
     bpp: 1
-    glyphs: "0123456789,.−—- /°C%?"
+    glyphs: "0123456789:,.−—- /°C%?"
 
 display:
   - platform: cgdn1_display
@@ -1158,7 +1194,8 @@ display:
       values.co2 = local.co2; values.temperature = local.temperature;
       values.humidity = std::isfinite(local.temperature) ? id(rh_comp).state : NAN;
       values.pm1 = id(pm1).state; values.pm25 = id(pm25).state; values.pm10 = id(pm10).state;
-      values.summary_enabled = id(idle_screen).active_index().value_or(0) == 1;
+      values.summary_enabled = id(idle_screen).active_index().value_or(0) != 0;
+      values.clock = clock;
       values.idle_delay = uint32_t(id(idle_screen_delay).state * 1000.0f);
       values.activity = id(night_activity_ms); values.usb = id(usb_power).state;
       values.powering_off = id(boot).powering_off();
@@ -1189,6 +1226,22 @@ output:
     frequency: 5000Hz
 
 select:
+  - platform: template
+    id: ui_design
+    name: "Display design"
+    entity_category: config
+    options: ["Qingping", "Classic"]
+    initial_option: "Qingping"
+    optimistic: true
+    restore_value: true
+  - platform: template
+    id: ui_motion
+    name: "Screen transitions"
+    entity_category: config
+    options: ["Slide", "None"]
+    initial_option: "Slide"
+    optimistic: true
+    restore_value: true
   # Keep existing moving pages as the default for upstream users. The optional
   # fixed layout has no pixel drift: lower brightness limits wear but cannot
   # eliminate OLED burn-in. Night mode and the Display switch remain in charge.
@@ -1197,7 +1250,7 @@ select:
     name: "Idle screen"
     icon: mdi:monitor-dashboard
     entity_category: config
-    options: ["Selected sensor", "CO2 + temperature"]
+    options: ["Selected sensor", "CO2 + temperature", "Clock + date", "Clock + CO2 + temperature", "Clock", "Large CO2", "Summary"]
     initial_option: "Selected sensor"
     optimistic: true
     restore_value: true
@@ -1274,6 +1327,28 @@ datetime:
     initial_value: "07:00:00"
 
 text_sensor:
+  # Requested PM state stays shared with the local menu; these read-only
+  # diagnostics distinguish quiet operation from startup or protective fallback.
+  - platform: template
+    name: "PM power control"
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(pm_power).rail_state();
+  - platform: template
+    name: "PM guard detail"
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(pm_power).source_guard_detail();
+  - platform: template
+    name: "CO2 bus detail"
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(co2_bus_reader).io_detail();
+  - platform: template
+    name: "CO2 transaction window"
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(pm_power).window_detail();
   - platform: template
     name: "Local UI version"
     entity_category: diagnostic
@@ -1356,8 +1431,8 @@ switch:
     restore_mode: DISABLED
     lambda: return id(oled).is_on();
     turn_on_action:
-      - lambda: id(oled).turn_on();
+      - lambda: id(local_ui).request_display(true);
     turn_off_action:
-      - lambda: id(oled).turn_off();
+      - lambda: id(local_ui).request_display(false);
 
 # Diagnostic identity/state never includes a Wi-Fi name or password.

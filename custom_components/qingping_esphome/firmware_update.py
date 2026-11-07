@@ -26,7 +26,7 @@ from .image import SLOTS, layout, mac_normalize, personalize, private_ipv4
 from .native_ota import encryption_available, upload_app
 
 SETTINGS = {"PM sensor", "LED", "Night mode", "Bluetooth", "Bluetooth heat compensation",
-            "Display brightness", "Idle screen", "Idle screen delay", "Heat model",
+            "Display design", "Screen transitions", "Display brightness", "Idle screen", "Idle screen delay", "Heat model",
             "Temperature offset", "Humidity offset", "Display", "PM standard",
             "Night mode start", "Night mode end", "Display heat", "Display heat at brightness 1",
             "Display heat lag", "Display heat time", "Bluetooth heat", "Bluetooth heat time"}
@@ -39,7 +39,7 @@ def private_values(record):
     """Legacy v1 records lack Wi-Fi/AP values: refuse rather than rotate them."""
     data = record.get("personalization")
     if (record.get("profile") != "lite" or record.get("hardware") != "0001"
-            or record.get("source_stock_version") != "4.5.8" or not isinstance(data, dict)
+            or record.get("source_stock_version") not in {"4.3.4", "4.5.8"} or not isinstance(data, dict)
             or not PRIVATE_FIELDS.issubset(data) or data["name"] != record.get("name")
             or data["ota_password"] != record.get("ota_password")):
         raise FirmwareError("update_profile_required")
@@ -47,6 +47,8 @@ def private_values(record):
         values = {key: data[key] for key in PRIVATE_FIELDS}
         if any(not isinstance(value, str) for value in values.values()):
             raise ValueError
+        values["display_feed_entity"] = data.get("display_feed_entity", "")
+        values["source_stock_version"] = record["source_stock_version"]
         values["noise_psk"] = base64.b64decode(record["noise_key"], validate=True)
         if len(values["noise_psk"]) != 32: raise ValueError
         return values

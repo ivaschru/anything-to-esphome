@@ -21,3 +21,7 @@ The native OTA adapter follows the ESPHome 2026.9.1 OTA protocol documented in
 ESPHome is MIT-licensed, copyright ESPHome contributors. The adapter implements
 that wire protocol using Home Assistant's aioesphomeapi Noise implementation;
 the project does not bundle another copy of the ESPHome uploader or SDK.
+
+Roboto Condensed font: Google Fonts / Roboto Project Authors, SIL Open Font
+License1.1. Bundled original font and complete license are under ports/lite/fonts/.
+The system fonts used by the design mockup are not redistributed.

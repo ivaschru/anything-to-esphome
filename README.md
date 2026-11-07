@@ -285,3 +285,15 @@ The rebuilt template keeps GPIO13 HIGH when PM is OFF, preserving CO₂
 communication. PM OFF stops polling and marks PM readings unavailable; it does
 not stop the fan. HACS updates the installer only: devices already running
 ESPHome are not reflashed automatically.
+
+### Lite firmware 2
+
+The direct-I2C profile adds guarded quiet PM operation and the reviewed OLED
+interface: native outline/classic digits, clock/date layouts, shared local/HA
+settings, slide transitions, blackout night mode and two-step slot confirmation.
+Faults fall back to HIGH to preserve measurements, so a failed quiet guard can
+restart the fan. [Port details and exact limits](ports/lite/README.md).
+Original stock 4.3.4/4.5.8 provenance and optional existing HA display feed are
+preserved by native updates. Factory Bluetooth admission remains 4.5.8/HW0001;
+external-MCU Lite uses a separate, unqualified profile. Integration 0.2.1 is
+required for the new personalization fields. No discovery action auto-flashes.

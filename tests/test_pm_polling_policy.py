@@ -20,6 +20,8 @@ HAL = r'''
 namespace esphome {
 inline uint32_t clock_ms = 0;
 inline uint32_t millis() { return clock_ms; }
+inline uint32_t micros() { return clock_ms * 1000; }
+inline void delayMicroseconds(uint32_t) {}
 namespace setup_priority { constexpr float DATA = 600; }
 struct GPIOPin {
   bool configured = false, high_before_setup = false;
@@ -37,6 +39,8 @@ struct Component {
   virtual ~Component() = default;
   virtual float get_setup_priority() const { return 0; }
   virtual void setup() {}
+  virtual void loop() {}
+  virtual void on_shutdown() {}
   virtual void dump_config() {}
   void status_set_warning() { warning = true; }
   void status_clear_warning() { warning = false; }
@@ -54,7 +58,9 @@ struct Component {
   }
 };
 namespace sensor {
-struct Sensor { float state = 123; void publish_state(float v) { state = v; } };
+struct Sensor { float state = 123; std::function<void(float)> callback;
+void add_on_state_callback(std::function<void(float)> f) { callback=f; }
+void publish_state(float v) { state=v; if(callback)callback(v); } };
 }
 namespace pmsa003i {
 struct PMSA003IComponent {
@@ -85,6 +91,7 @@ def run_component(header=None):
         for relative in (
             "esphome/core/component.h", "esphome/core/hal.h",
             "esphome/core/log.h", "esphome/components/pmsa003i/pmsa003i.h",
+            "esphome/components/sensor/sensor.h",
         ):
             path = work / relative
             path.parent.mkdir(parents=True, exist_ok=True)
