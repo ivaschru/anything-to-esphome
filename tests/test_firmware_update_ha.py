@@ -437,7 +437,7 @@ class SnapshotGenerations(unittest.IsolatedAsyncioTestCase):
             manager=Manager(hass,SimpleNamespace(data={'lan_host':'192.168.50.2','http_port':1887,'mqtt_port':1886}))
             manager.updates=FirmwareUpdates(manager,'0.2.2')
             key='001122334455'
-            manager.records[key]={'profile':'lite','hardware':'0001','source_stock_version':'4.5.8','public_version':2,'firmware_version':'quiet-two','firmware_revision':3,
+            manager.records[key]={'profile':'lite','hardware':'0001','source_stock_version':'4.5.8','public_version':2,'firmware_version':'quiet-two','firmware_revision':3,'name':'fixture-only','ota_password':'fixture-only',
                 'noise_key':base64.b64encode(b'x'*32).decode(),'personalization':{k:'fixture-only' for k in ('ssid','wifi_password','name','ap_ssid','ap_password','ota_password')}}
             try:
                 coordinator=SimpleNamespace(data=None)
