@@ -44,6 +44,17 @@ separate even though the HACS wizard is shared.
   and the global USB lease covers delivery. Browser RECV stays bounded and
   memory-only; it must not invent native get-devpath or native-plan authority.
 
+- BrowserNativeChannel is an unwired live WebUSB transport primitive, not a
+  writer or native get-devpath substitute. Keep the original synchronous
+  picker, RAM-only credentials, one actual selected handle and an unpredictable
+  channel nonce. Reports cannot reopen/adopt a connection. Recheck fixed
+  stock/identity/boot before handoff; only the fixed device tcp:6053 socket is
+  available, once, with bounded IO and independent owned cleanup. No generic
+  shell/push/launch or HTTP transport adoption. A future Core relay must bound
+  encrypted stream traffic and join its separate browser plan/consumed intent
+  before any writer can use this primitive. Run test_usb_native_channel.mjs;
+  synthetic transports do not qualify physical USB, installation or firmware.
+
 - Native GUI installation composes the original stage/commit/bounded-trial
   engine and separate next-boot armer in a fixed private SDK child. Consume
   the exact owner/plan intent before spawn; require stopped trial, completed
