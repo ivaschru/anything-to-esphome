@@ -1,0 +1,27 @@
+{
+  "pm_policy": "lite-434-polling-only-v1",
+  "profile": "lite-434",
+  "source_stock_version": "4.3.4",
+  "hardware": "0001",
+  "fan_shutdown": false,
+  "model": "CGDN1",
+  "ui": "2026.11.08-ui25-434v1",
+  "public_version": 1,
+  "font": "Inter + Roboto Condensed (OFL)",
+  "esphome": "2026.9.1",
+  "size": 1545200,
+  "sha256": "8bbf522433c7375d03ab0cc54c0dc7f1cdb97dd38b58ee832332f1fcdb6decea",
+  "release_source_sha256": "4cdb6f4b064f9737ff428f24ded610e71e1158c621011ce02affcdffcb7fbc4f",
+  "slots": {
+    "display_feed_entity": 1,
+    "source_stock_version": 1,
+    "ssid": 1,
+    "wifi_password": 1,
+    "name": 2,
+    "ap_ssid": 1,
+    "ap_password": 1,
+    "ota_password": 1,
+    "noise_psk": 1
+  },
+  "format": "esp32-app-fixed-slots-v1"
+}
