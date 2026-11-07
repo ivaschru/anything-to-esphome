@@ -1,0 +1,48 @@
+name: Monitor 1 runtime publication
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        description: Independent source-built full runtime line
+        options: [both, monitor1-s8, monitor1-scd40]
+        required: true
+      publish:
+        type: boolean
+        description: Publish immutable source kits (no device or HACS update)
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: firmware-catalog
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s tests -p 'test_monitor1_publication.py' -v
+      - run: python -m unittest discover -s tests -p 'test_monitor1_candidate.py' -v
+      - name: Preview source-built runtime releases
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: python tools/publish_monitor1.py --profile "$PROFILE" --source-commit "$GITHUB_SHA"
+      - name: Publish the exact tags and catalog atomically
+        if: inputs.publish
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python tools/publish_monitor1.py --profile "$PROFILE" --source-commit "$GITHUB_SHA" --publish
+      # No private profile, vendor Qt library, compiled program, HACS package,
+      # USB/HA/device call or hardware qualification is part of this workflow.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: monitor1-runtime-publication
+          path: .build/monitor1-publication/**/intent.json
+          if-no-files-found: ignore

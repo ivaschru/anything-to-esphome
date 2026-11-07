@@ -2,7 +2,7 @@
 
 Status: agreed direction, 2026-11-07. This contract does not itself publish a
 firmware asset, relabel an installed device or enable an unfinished backend.
-Lite version 2 passed separate USB upgrade/sensor/settings checks on three direct-I2C units; Monitor 1 numbered bundles remain source/build preparation. `public_version` is the short
+Lite version 2 passed separate USB upgrade/sensor/settings checks on three direct-I2C units; Monitor 1 version 1 is distributed as two immutable source-built runtime kits; it is not a generic ELF or an automatic HA update. `public_version` is the short
 product number; the legacy `version` wire field remains the exact UI/build
 identity and `revision` remains the internal OTA sequence. Existing devices
 are not relabelled just because new source metadata exists.
@@ -25,8 +25,8 @@ A friendly name is not hardware identity.
 | Release line | Package family | First numbered release | Current readiness |
 |---|---|---|---|
 | Lite, direct-I2C / original stock 4.5.8 | ESP32 application replacement | 1 | One battery APP upgrade, live sensors, retained settings/keys and automatic HA adoption verified; a physical two-server move is not claimed |
-| Monitor 1 / S8 | Full ESPHome runtime bundle | 1 planned | Runtime/source builds tested; common initial USB installer and automatic updater remain separate unfinished capabilities |
-| Monitor 1 / SCD40 | Full ESPHome runtime bundle | 1 planned | Separate CO2 backend; same source/runtime qualification boundary |
+| Monitor 1 / S8 | Full ESPHome runtime bundle | 1 (source-built runtime) | Runtime/source builds tested; common initial USB installer and automatic updater remain separate unfinished capabilities |
+| Monitor 1 / SCD40 | Full ESPHome runtime bundle | 1 (source-built runtime) | Separate CO2 backend; same source/runtime qualification boundary |
 | Lite, external MCU / original stock 4.2.1 | Not yet qualified | None | In development; no installation image |
 | Monitor 2 | Not yet qualified | None | Unverified |
 
@@ -98,7 +98,7 @@ This release adds Lite public version 1 to its screen, sealed
 profile and standard HA firmware entity, while retaining its diagnostic build
 ID and OTA revision 2. Monitor 1's build controller sources separate public
 versions for S8/SCD40 and injects the same per-profile project version into
-native and internal-bridge programs. The Monitor 1 metadata remains preparation, not evidence of a new ARM bundle installation or permission to enable unfinished update backends.
+native and internal-bridge programs. Monitor 1 version 1 source kits have independent immutable tags. Their `runtime_releases` catalog entries explicitly require a private local build and never enter the installable `releases` map. Publication is not evidence of a new ARM bundle installation or permission to enable unfinished update backends.
 
 
 "Full ESPHome" identifies the product/runtime, not a promise that every optional

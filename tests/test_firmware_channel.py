@@ -52,6 +52,15 @@ class ChannelTests(unittest.TestCase):
         self.assertNotIn('run: python tools/package_release.py',workflow)
         self.assertNotIn('gh release create', '\n'.join(x for x in workflow.splitlines() if not x.lstrip().startswith('#')))
 
+    def test_later_lite_firmware_preserves_source_built_runtime_releases(self):
+        meta,binary,manifest=pair();old=channel.next_catalog('lite',meta,binary,manifest)
+        runtime={'monitor1-s8':{'delivery':'source-build-private-profile','public_version':1}}
+        old['runtime_releases']=runtime
+        meta,binary,manifest=pair(3,'quiet-three',4)
+        new=channel.next_catalog('lite',meta,binary,manifest,old)
+        self.assertEqual(new['runtime_releases'],runtime)
+        self.assertEqual(set(channel.catalog.parse_catalog(new)),{'lite'})
+
     def test_url_tag_profile_number_and_origin_are_bound(self):
         meta,binary,manifest=pair();good=channel.next_catalog('lite',meta,binary,manifest)
         for target in ('https://raw.githubusercontent.com/ivaschru/qingping-esphome/main/lite-template.bin',

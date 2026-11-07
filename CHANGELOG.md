@@ -1,5 +1,14 @@
 ## Unreleased
 
+## Monitor 1 runtime version 1 (independent firmware channel)
+
+- Publish separate immutable S8 and SCD40 full-runtime source kits, with exact
+  source, private-build recipe, hardware identity and explicit qualification.
+- Keep installable Lite firmware unchanged. Monitor 1 requires local private
+  compilation; no generic ELF, automatic HA updater or initial USB readiness
+  is claimed. External-MCU Lite remains research beyond a missing fan switch.
+
+
 - Add a disposable official HA Core image probe for the Monitor 1 HACS-only
   backend: native tool inventory, isolated pinned Python SDK and synthetic
   ARM32 compilation. No HA server, USB, firmware or installation is run.
