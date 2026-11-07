@@ -87,6 +87,14 @@ separate even though the HACS wizard is shared.
   built_not_installed never changes readiness or enables a USB writer.
   CI checks the actual multiarch image SDK with public requirements and a
   synthetic ARM32 program, never private firmware/vendor Qt or hardware QA.
+  New default source pins apply only to new builds. Preserve the exact
+  historical intent/report/plan/computer-bundle source binding, keys, bytes
+  and consumed history through the finite explicit reviewed-source set.
+  Membership is not equality: reject cross-source joins even when both
+  revisions are reviewed. A historical pending job is read-only/unverified,
+  never a worker restart. The standalone loader cannot import a policy module
+  before bundle verification; test its fixed set against the server's set.
+  Run test_usb_source_binding.py and all test_usb_*.py after these changes.
 
 - Companion offline plans recheck the built source closure before running
   canonical bootstrap_patches/prepare_install in that job's private SDK. Keep

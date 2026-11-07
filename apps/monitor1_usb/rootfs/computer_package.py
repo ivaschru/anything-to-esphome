@@ -12,7 +12,7 @@ from pathlib import Path
 import tarfile
 
 from preparation import PreparationError, owned_intent, read_private
-from build_worker import SOURCE_COMMIT, build_report, private_hash
+from build_worker import private_hash, verified_candidate_report
 from install_plan import source_closure
 
 MAX_PACKAGE = 64 * 1024**2
@@ -29,7 +29,7 @@ def package_export(builds, owner, job_id):
     if builds.status(owner, job_id)["state"] != "built_not_installed":
         raise PreparationError("usb_plan_build_required")
     source = source_closure(directory)
-    report = build_report(directory / "candidate/result.json")
+    report = verified_candidate_report(directory)
     if not isinstance(report.get("artifacts"), dict) or set(report["artifacts"]) != {"bridge-program", "native-program", "guardian-program"}:
         raise PreparationError("usb_build_unverified")
     contents = {"profile.json": read_private(directory / "profile.json"),
@@ -62,7 +62,9 @@ def package_export(builds, owner, job_id):
     contents["candidate/ports/monitor1/build/pm-helper/pm_qt_bridge.so"] = body
     if len(contents) > 2100 or sum(len(body) for body in contents.values()) > MAX_PACKAGE - 2 * 1024**2:
         raise PreparationError("usb_computer_package_limit")
-    manifest = {"schema_version": 1, "stage": "private_computer_bundle", "source_commit": SOURCE_COMMIT,
+    # Export the job's verified producer, never the current build default.
+    # A download must not relabel old program bytes as a newly reviewed build.
+    manifest = {"schema_version": 1, "stage": "private_computer_bundle", "source_commit": report["source_commit"],
                 "job_id": job_id, "profile_sha256": hashlib.sha256(contents["profile.json"]).hexdigest(),
                 "installed": False, "installation_ready": False, "device_writes": 0,
                 "files": {name: {"size": len(body), "sha256": hashlib.sha256(body).hexdigest()}

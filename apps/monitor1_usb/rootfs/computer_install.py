@@ -19,7 +19,12 @@ import stat
 import sys
 import uuid
 
-SOURCE_COMMIT = "e09440f9fa36da2aaad16212734879bb6304f6d2"
+# Deliberately self-contained: importing a source-policy file from this bundle
+# before checking all its body pins would execute unverified bundled Python.
+# A contract test keeps this fixed set equal to the companion's reviewed set.
+# Membership admits a producer; the manifest/report must still bind ONE source.
+REVIEWED_SOURCE_COMMITS = frozenset(("0de9c99e57192742b82616cf82c0fdad71c562c5",
+                                     "e09440f9fa36da2aaad16212734879bb6304f6d2"))
 MAX_PACKAGE = 64 * 1024**2
 
 
@@ -73,7 +78,8 @@ def load_bundle(directory):
     manifest = unique_json(private_file(root / "bundle.json", 512 * 1024))
     if (set(manifest) != {"schema_version", "stage", "source_commit", "job_id", "profile_sha256", "installed", "installation_ready", "device_writes", "files"} or
             type(manifest["schema_version"]) is not int or manifest["schema_version"] != 1 or
-            manifest["stage"] != "private_computer_bundle" or manifest["source_commit"] != SOURCE_COMMIT or
+            manifest["stage"] != "private_computer_bundle" or
+            not isinstance(manifest["source_commit"], str) or manifest["source_commit"] not in REVIEWED_SOURCE_COMMITS or
             manifest["installed"] is not False or manifest["installation_ready"] is not False or
             type(manifest["device_writes"]) is not int or manifest["device_writes"] != 0 or
             not isinstance(manifest["job_id"], str) or not re.fullmatch(r"[a-f0-9]{32}", manifest["job_id"]) or
@@ -101,7 +107,7 @@ def load_bundle(directory):
     source = root / "candidate/ports/monitor1"
     result = unique_json(private_file(root / "candidate/result.json", 512 * 1024))
     closure = result.get("source_sha256")
-    if (result.get("source_commit") != SOURCE_COMMIT or result.get("profile_sha256") != manifest["profile_sha256"] or
+    if (result.get("source_commit") != manifest["source_commit"] or result.get("profile_sha256") != manifest["profile_sha256"] or
             not isinstance(closure, dict) or not 1 <= len(closure) <= 2048):
         raise ValueError("Candidate lacks its matching public source closure")
     for name, expected in closure.items():

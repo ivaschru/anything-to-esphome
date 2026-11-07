@@ -12,8 +12,8 @@ import re
 import time
 
 from preparation import PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
-from build_worker import (SOURCE_COMMIT, build_report, environment, private_hash,
-                          run_owned, sync_directory)
+from build_worker import (build_report, environment, private_hash, run_owned,
+                          sync_directory, verified_candidate_report)
 
 
 def public_plan(job_id, state, required=None):
@@ -24,9 +24,9 @@ def public_plan(job_id, state, required=None):
 
 def source_closure(directory):
     candidate = private_directory(directory / "candidate")
-    report = build_report(candidate / "result.json")
+    report = verified_candidate_report(directory)
     closure = report.get("source_sha256")
-    if report.get("source_commit") != SOURCE_COMMIT or not isinstance(closure, dict) or not 1 <= len(closure) <= 2048:
+    if not isinstance(closure, dict) or not 1 <= len(closure) <= 2048:
         raise PreparationError("usb_plan_unverified")
     source = candidate / "ports/monitor1"
     for name, expected in closure.items():
@@ -60,6 +60,9 @@ def verify_plan(directory):
     plan = build_report(plan_root / "plan.json")
     profile = unique_json(read_private(directory / "profile.json"))
     capture = unique_json(read_private(directory / "capture/result.json"))
+    # Preserve the exact producer of an old plan after the app's default
+    # advances. Being in the reviewed set does not permit mixing two sources.
+    source_commit = verified_candidate_report(directory)["source_commit"]
     if (plan.get("stage") != "offline_plan_only" or plan.get("installed") is not False or
             not isinstance(plan.get("plan_id"), str) or not re.fullmatch(r"[a-f0-9]{32}", plan["plan_id"]) or
             plan.get("installation_ready") is not False or plan.get("hardware_contacted") is not False or
@@ -69,7 +72,7 @@ def verify_plan(directory):
                                    ("wlan_mac", "co2_type", "stock_version", "usb_serial", "usb_transport", "boot_id")} or
             plan.get("api_identity") != {key: profile[key] for key in ("api_mac", "node_name")} or
             plan.get("basis", {}).get("profile_sha256") != private_hash(directory / "profile.json")["sha256"] or
-            plan["basis"].get("source_commit") != SOURCE_COMMIT or
+            plan["basis"].get("source_commit") != source_commit or
             type(plan.get("requested_data_free_bytes")) is not int or not 0 < plan["requested_data_free_bytes"] <= 256 * 1024**2):
         raise PreparationError("usb_plan_unverified")
     files = plan.get("files")

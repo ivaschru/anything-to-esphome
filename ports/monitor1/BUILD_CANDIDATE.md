@@ -128,7 +128,9 @@ installed or run on a monitor.
 Nine profile/include-boundary tests and two runtime-diagnostics host tests
 passed for this source. Its eight PR CI jobs also passed. These unit/source
 checks remain separate from the full cross-build and from physical testing.
-The companion's fixed build source was not changed by this validation; old
-owner jobs, deployment identities and consumed installation history remain
-bound to their original source. Neither these compile fixtures nor older
-private hardware proof establish a fresh installation through USB/HACS.
+The separate [USB companion app 0.0.9](../../apps/monitor1_usb/README.md)
+uses this reviewed source for new builds. Historical `e09440f9` jobs and plans
+retain their original source binding; updating the app never relabels their
+programs, keys or consumed installation history. Neither these compile
+fixtures nor older private hardware proof establish a fresh installation
+through USB/HACS.
