@@ -126,6 +126,36 @@ not been matched byte-for-byte to their current device trees or qualified
 for either PCB revision. It adds a reproducible factory-image source, but
 still supplies no proven Bluetooth net continuity or attach procedure.
 
+#### Recovery contains an unqualified Bluetooth configuration
+
+Continuing the same archive inspection found a **different** DTB inside
+`recovery.img`: offset `0x53c800`, 92,259 bytes, SHA-256
+`94875f7fc57ab54207dfa5823fa199fdc350cf29ba262db98d45199f3c356383`.
+It is within the Android second section's RSCE resource; independent `dtc`
+reading succeeded with warnings. This tree has an enabled
+`wireless-bluetooth` / `bluetooth-platdata` node and `keep_bt_power_on`.
+Resolving its provider phandle gives gpio3 lines 21, 26 and 22 for the
+power, wake and host-wake IRQ properties respectively, all active-high.
+These are **recovery configuration values, not verified CGS1 board pins**.
+
+The same power/wake/IRQ assignment (GPIO3 C5 / D2 / C6) is present in
+[Rockchip's generic PX3SE reference DTS](https://github.com/rockchip-linux/kernel/blob/6c04d006ae881944d32c19e68b992d0bd5ab4fde/arch/arm/boot/dts/px3se-sdk.dts#L98-L110)
+and its `px3se-android-sdk.dts`. The reference's UART0 RTS configuration is
+commented out; it does not establish the CGS1 UART. Matching these defaults
+does not establish their physical continuity on a Snow PCB.
+
+The recovery tree has 583 nodes versus 594 in the normal resource tree.
+Their differences also cover PM/CO2/SCD40, audio, display, battery and
+regulator configuration. Do not transplant this recovery tree or boot it as
+a Bluetooth experiment on a working monitor. The normal-tree observation
+above remains scoped to `resource.img`; it is not an assertion that every
+DTB in the archive lacks Bluetooth configuration.
+
+This provides concrete reference values for further source/board tracing,
+but no controller has been attached and no GPIO has been changed. The
+revision-specific UART and BT power route still need verification before
+any live attach, driver or power action.
+
 ## A real Linux software candidate
 
 [yuzi-co/btproxy](https://github.com/yuzi-co/btproxy/tree/9d65f68756dbeb03561b6d2914a9c4f30c78356d)
