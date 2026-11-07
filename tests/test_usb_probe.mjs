@@ -115,3 +115,5 @@ await import("./test_usb_capture.mjs");
 await import("./test_usb_preparation.mjs");
 await import("./test_usb_build.mjs");
 await import("./test_usb_plan.mjs");
+await import("./test_usb_install.mjs");
+await import("./test_usb_private_download.mjs");

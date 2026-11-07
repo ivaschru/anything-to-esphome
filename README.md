@@ -13,10 +13,17 @@ Monitor 2 has no verified firmware port yet.
 
 ## Compatibility
 
-Monitor 1 also has an experimental [USB connection companion](apps/monitor1_usb/):
-choose a cable on the computer (WebUSB) or on the HA server. This first step
-only checks the selected stock device; it is not yet the complete flashing
-wizard and does not change the installation status below.
+Monitor 1 also has a separate experimental [USB app](apps/monitor1_usb/):
+choose computer WebUSB or server USB for private capture/profile/builds.
+Server USB additionally offers a reviewed stock-bridge installation and a
+separate post-boot check. A private computer ADB installer can be downloaded
+after building; it runs on macOS/Linux without a local compiler or VM. First
+installation on a physical factory CGS1 is still unverified; browser-only
+WebUSB writing and full native UI installation remain unfinished. This does
+not change ordinary HACS admission in the table below.
+
+See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
+([Russian walkthrough](apps/monitor1_usb/README.ru.md)) for both cable locations.
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
@@ -185,8 +192,8 @@ presses cannot clear this guard.
 
 ### Automatic adoption when moving between HA servers
 
-Starting with candidate integration **0.1.9** and Lite firmware
-**2026.11.07-ui25-profile1**, no installer-profile file needs to be moved.
+Starting with integration **0.2.0** and Lite firmware **1**
+(build identity **2026.11.07-ui25-profile1**), no installer-profile file needs to be moved.
 Add the monitor to the new HA's standard ESPHome integration with its existing
 API encryption key. Once connected, Qingping ESPHome recognizes the supported
 firmware and automatically adds its update entity, normally within one minute.
@@ -204,8 +211,8 @@ Older firmware has no profile action. Upgrade it once while the original HA
 still has its update profile, or prepare the legacy installation as described
 above, before moving it. Updating HACS alone cannot recover secrets from an
 old device. Private quiet builds, external-MCU Lite and other hardware families
-are not silently converted to public Lite firmware. Host/SDK tests and the
-firmware build passed; physical migration QA is still pending.
+are not silently converted to public Lite firmware. One direct-I2C unit passed a battery APP upgrade, live sensor/settings checks
+and automatic HA adoption. A physical move between two HA servers is not claimed.
 
 ### Simple firmware versions
 
@@ -213,8 +220,8 @@ Firmware product versions are independent integers **1, 2, 3…** for each
 compatible hardware profile. The repository/HACS version is separate. Exact
 UI/build identifiers and a monotonic OTA revision remain internal verification
 metadata; an old device is not relabelled or reflashed merely to change a label.
-The first numbered candidates are Lite 1 and independent Monitor 1 S8/SCD40
-full bundles 1. See [the release contract](docs/FIRMWARE_VERSIONING.md) for
+Lite 1 has passed one physical upgrade and automatic HA adoption check.
+Independent Monitor 1 S8/SCD40 version 1 bundles remain in preparation. See [the release contract](docs/FIRMWARE_VERSIONING.md) for
 qualification, unsupported boards and current preparation limits.
 
 The product direction is full ESPHome only for Lite, Monitor 1 and Monitor 2.

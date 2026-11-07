@@ -4,9 +4,11 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
-- `apps/monitor1_usb` is an experimental read-only connection companion,
-  not a complete flashing app. Its page chooses computer WebUSB or server
-  USB/ADB. Generate both fixed contracts from preflight_adb.py and rebuild
+- `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
+  and a separately reviewed experimental native server USB bridge installer.
+  Computer macOS/Linux ADB writes are experimental; browser-only WebUSB
+  writes and full native UI installation are unfinished. Generate
+  both fixed contracts from preflight_adb.py and rebuild
   the offline Tango bundle with tools/monitor1-usb; preserve exact lock/MIT
   notices and the source check in CI. No generic shell/setup/push/activation
   endpoint, LAN ADB, host networking or full-access privilege is permitted.
@@ -27,6 +29,44 @@ separate even though the HACS wizard is shared.
   and the global USB lease covers delivery. Browser RECV stays bounded and
   memory-only; it must not invent native get-devpath or native-plan authority.
 
+- Native GUI installation composes the original stage/commit/bounded-trial
+  engine and separate next-boot armer in a fixed private SDK child. Consume
+  the exact owner/plan intent before spawn; require stopped trial, completed
+  local ADB/forward cleanup and original device AFTER-effects proof before
+  arming. Unknown durable history blocks new writes across restart. Never
+  reboot, auto-rollback, replay a lost request or adopt a serialized PID.
+  The separate read-only observer distinguishes same-boot idle arming from
+  another boot with exact processes and fresh authenticated wire updates.
+  Bind positive reconciliation to its original intent and proof bytes; keep
+  cached history distinct from live health and preserve the original result.
+  Native/guardian remain host-side; no full UI or HACS readiness follows.
+  Explicit owner-only profile/original exports recheck private fixed files;
+  no key in normal status, form state, browser storage, logs or public assets.
+  Keep profile download opaque with fixed attachment name, MIME and bounds.
+  Run all test_usb_*.py plus tests/test_usb_probe.mjs; synthetic browser and
+  engine mocks do not qualify physical initial installation.
+
+- Full UI review is read-only: fresh native USB/boot and bridge bytes, exact
+  Noise identity/pair pins, then only status/inspect_start. Explain the known
+  PM-extension prerequisite separately from unknown/busy state. Keep positive
+  observations distinct from readiness/launch authority; both stay false.
+  API close and acknowledged own-forward cleanup are independent and bounded.
+  Never expose a generic action/host/path or enable a loader from a read.
+  The same review is exported for computer USB. Test the API, USB lifetime,
+  owner/lease/proof DTO and EN/RU/lost-state UI; no hardware QA follows.
+
+- Computer export is an explicit owner-only bounded private bundle, not a
+  public release asset. Include only pinned source/program/helper/profile
+  bodies and the local entry/instructions, never an SDK/cache/old plan/history.
+  Refuse consumed HA installations. The macOS/Linux CLI performs a NEW native
+  capture with actual local get-devpath before planning; never relabel browser
+  metadata. Reuse original engines/receipts, exact review and no-replay; do not
+  reboot or silently configure a VM/compiler/remote ADB. Keep exported 0700/
+  0600 metadata, opaque browser download and a 64MiB cap. Physical QA and a
+  browser-only writer remain independent. Run tests/test_usb_computer.py.
+  Keep the user walkthrough in apps/monitor1_usb/README.ru.md aligned with
+  actual button/CLI names and the English reference. Separate build location,
+  USB transport, bridge-only installation and unfinished Full UI qualification.
 
 - Companion profile preparation creates an owner-bound private job and an
   immutable intent before generating a Noise key. Keep fixed USTAR input
@@ -68,15 +108,17 @@ separate even though the HACS wizard is shared.
   Build the initial guardian separately and bind its actual candidate result;
   do not retrofit old manifests. See ports/monitor1/USB_TRIAL.md. The owner
   requested computer USB and HA-server USB as two transports of one engine;
-  WebUSB/HA companion integration and fresh hardware QA remain unfinished.
+  The native companion composes these engines experimentally; computer
+  WebUSB writing and fresh hardware QA remain unfinished.
   Local ADB reap failures are recorded separately and must not skip exact
   owned-forward cleanup or mask the trial's consumed outcome. Never retry a
   launch because host cleanup is unverified or log raw subprocess errors.
   `stage_commit_trial_adb.py` composes the existing prepared-plan operations,
   checking trial prerequisites before staging. Keep every step's original
   receipt/collector; prior or partial history refuses the whole sequence.
-  No automatic resume/rollback, permanent activation or GUI write route is
-  added. A bounded sequence result never promotes installation_ready.
+  The engine itself adds no automatic resume/rollback or permanent activation.
+  Its separate companion coordinator is explicitly reviewed and unqualified;
+  a bounded sequence result never promotes installation_ready.
   `arm_bridge_next_boot_adb.py` is a separate unqualified bridge-only step
   after a terminal trial. It durably saves an empty recovery flag before
   unlinking only the bridge opt-out; PM stays disabled. No launch/reboot/PID
@@ -90,7 +132,6 @@ separate even though the HACS wizard is shared.
   wire generations. PID files/old trial samples grant no signal/launch or
   readiness authority. Retire pending reads and only the acknowledged exact
   owned host forward; keep ambiguous mappings and sanitize API/ADB errors.
-
 
 - Bootstrap launchers and startup-hook.sh match the existing StockInspection
   fingerprints. `bootstrap_patches.py` reproduces both complete installed
@@ -269,6 +310,8 @@ separate even though the HACS wizard is shared.
   stall-timeout=0 disables that branch, not initial controller setup writes.
   Do not collide with the existing API port/identity or distribute its private
   build as CGS1 firmware. Chip pinout never substitutes for PCB continuity.
+  Do not accept generated pin maps as wiring proof: the reviewed RTL8723DS-CG
+  datasheet assigns pin24 to PCM_CLK/GPIO3, not a presumed UART RTS.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed

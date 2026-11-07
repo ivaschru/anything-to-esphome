@@ -1,6 +1,8 @@
-# Monitor 1 USB companion — experimental preparation
+# Monitor 1 USB — experimental installer
 
-This app implements two experimental **read-only preparation paths** on its page:
+**English** · [Русский: пошаговая инструкция](README.ru.md)
+
+This app offers two USB locations for identification, private capture and builds:
 
 - **Computer USB:** Chrome/Edge WebUSB talks directly to the selected monitor.
 - **Home Assistant server USB:** the app's local ADB reads the selected USB
@@ -18,12 +20,17 @@ mode resolves the exact installed companion from Supervisor metadata and opens
 its native admin ingress page. Missing/stopped apps produce instructions;
 the integration never installs, starts or configures an app automatically.
 
-**This is not yet a complete flashing app.** It prepares a private profile and builds matched private firmware, but does not
-upload a program, run the bounded trial, activate firmware,
-reset Wi-Fi or reboot. A successful probe leaves installation_ready=false.
-The explicit engineering writer/trial remains separate in
-[USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md). Source tests, a container
-startup and a UI preview are not a physical USB installation.
+For **server USB**, an explicitly reviewed experimental action now composes the
+original disabled staging, script commit, bounded bridge trial and next-boot
+bridge arming. A separate button reads the result after you power-cycle the
+monitor yourself. **First installation on an untouched physical CGS1 has not
+been verified.** This path installs the stock-side bridge only; the computer
+browser-only WebUSB writer and full native UI installation are still unfinished.
+A separate downloaded computer ADB installer reuses these engines without a
+compiler or VM on the computer; see its section below. Normal
+HACS CGS1 admission remains source-only and `installation_ready=false`.
+See [USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md) for the underlying engine.
+Source tests, container checks and an imitated UI run are not hardware evidence.
 
 ## Install and open
 
@@ -32,7 +39,7 @@ app/add-on repository, separate from the HACS integration release:
 
 1. In Settings → Apps (Add-ons) → app store → Repositories, add
    https://github.com/ivaschru/qingping-esphome
-2. Install **Qingping USB (experimental preparation)** and start it manually.
+2. Install **Qingping USB (experimental installer)** and start it manually.
    It is built locally by Supervisor; no firmware image is downloaded.
 3. Select Open Web UI as an administrator.
 4. Connect the USB-C **data** cable to the chosen computer/server. Enable
@@ -68,7 +75,7 @@ own fresh USB capture. Neither route needs or changes your Wi-Fi password.
 
 The companion creates a private owner-bound job under its `/data/jobs`, with
 an individual Noise key, a stable separate API MAC and the verified stock Qt
-input. The profile/key and captured vendor files never appear in HTTP status,
+input. The profile/key and captured vendor files never appear in ordinary HTTP status,
 public GitHub assets, normal logs or browser storage. Preserve the app's private
 data/backup securely: deleting it also loses these recovery/build inputs.
 
@@ -83,7 +90,8 @@ preserved rather than treated as safe deletion candidates.
 A prepared profile is **not built or installed firmware**. Archive identity is
 an untrusted historical claim; every future device operation still requires its
 own live USB identity/source checks. A browser capture never invents ADB's
-native USB path. The build action below is available. Writer/trial GUI integration remains pending.
+native USB path. The build action below is available for either capture; the
+experimental writer requires a server USB capture and its own later review.
 
 ## Build on the HA server
 
@@ -112,8 +120,8 @@ restart a build: select the saved job and check its state. An app restart can
 make a still-running old build unverified until its own terminal receipt is
 available; do not start a replacement or delete its history.
 
-**Built is not installed.** The writer/trial GUI and real first-install
-qualification are still unfinished. Neither a complete compile nor a synthetic
+**Built is not installed.** Physical first-install qualification and the
+browser-only WebUSB writer are still unfinished. Neither a complete compile nor a synthetic
 SDK/container test establishes device compatibility, live USB authority,
 Bluetooth proxy support or safe activation. Monitor 2 stays unverified.
 
@@ -137,9 +145,145 @@ installation readiness, starts a trial or grants another consumed operation.
 
 A lost response or reload reads the same private plan status. An interrupted
 or failed preparation preserves its inputs, log and history without replay.
-The computer WebUSB writer adapter is still unfinished; its capture is never
+The browser-only WebUSB writer adapter is still unfinished; its capture is never
 relabelled as native get-devpath evidence to pass the native planner. Browser
 jobs can still prepare profiles/build programs without that adapter.
+
+## Install with the computer's USB
+
+After a completed build, choose **Download private computer installer**. This
+works for either original cable location, before an HA installation attempt.
+It exports the exact private profile/programs, fixed public source closure,
+matched helper and local entry script. No SDK, build cache, old USB plan or
+installation history is copied. The archive is at most 64 MiB, is available
+only to its HA owner, and contains the individual Noise key: keep it private.
+Downloading it does not contact USB or start installation.
+
+This is an experimental **macOS/Linux terminal** route using Android
+platform-tools (`adb`) and Python 3.13+. It is not a completed browser-only
+writer. The computer installs only the small runtime requirements; all firmware
+compilation stays on HA. No Docker/Colima/VM or local compiler is started.
+
+Read the included `README.txt`, also available as
+[computer-instructions.txt](rootfs/computer-instructions.txt). In a private
+directory, run `umask 077`, extract `qingping-cgs1-computer.tar`, enter its
+directory and prepare a runtime:
+
+```sh
+python3 -m venv .runtime
+.runtime/bin/pip install --only-binary=:all: -r runtime-requirements.txt
+adb devices -l
+.runtime/bin/python computer_install.py prepare --serial USB_SERIAL
+```
+
+Replace `USB_SERIAL` with the actual local USB serial. This read-only command
+checks every bundled body and the original candidate ELF/helper pins, captures
+the nine factory files **again through native ADB**, and prepares a new plan.
+It binds the actual local `get-devpath`, boot and profile; a previous browser
+or server report is never relabelled to pass the native writer.
+Wheel-only dependency installation refuses an unsupported platform instead of
+starting a local compiler. Do not install a VM to work around that refusal.
+
+Review the reported name, physical WLAN, S8/SCD40 and exact plan SHA. Only then:
+
+```sh
+.runtime/bin/python computer_install.py install --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+```
+
+Substitute the displayed SHA. The same original stage/commit/trial/arm engines
+and their live checks run once, with a durable local attempt recorded first.
+Keep USB and power connected. Unknown results are not retried or automatically
+rolled back. Preserve the whole private folder and `computer-state`:
+
+```sh
+.runtime/bin/python computer_install.py status --serial USB_SERIAL
+.runtime/bin/python computer_install.py observe --serial USB_SERIAL
+```
+
+Only a fresh `observe` result of `awaiting_reboot` confirms idle-stock arming.
+Then shut down through the monitor's menu, power on and run `observe` again
+with the same USB port/cable path. `bridge_observed` requires a different boot,
+exact running images/listeners and fresh authenticated readings. No command
+reboots, repeats installation, adopts a PID or changes normal HACS readiness.
+The HA page cannot see local receipts: do not start a second server-USB install
+for that monitor. Existing modified installs use their separate upgrade path.
+Physical first-install QA for this route remains outstanding.
+
+## Experimental server USB installation
+
+Keep the same monitor connected to the HA server. With the private plan ready,
+open its review and check the displayed device name, physical WLAN MAC, stock
+version and S8/SCD40 backend. Read the changes and acknowledge the experimental
+status before pressing **Run experimental installation**. The checkbox is cleared for a
+new review; changing interface language does not submit or repeat an operation.
+
+The fixed controller rechecks the original source/USB/boot/process/capacity
+scope, stages the disabled own files and commits the two exact startup scripts
+with preserved originals. It runs the original independent 60-second bridge
+trial. Only a verified stopped trial with completed owned ADB/forward cleanup
+can enter the separate next-boot arming step. That step preserves recovery,
+leaves PM preload disabled and does not start or reboot a program. Native UI
+and guardian programs intentionally remain on the server at this stage.
+
+Full UI has an additional concrete prerequisite: the original
+[stock preflight](../../ports/monitor1/network_preflight.h) requires a verified
+stock PM-extension session, including its per-boot attempted marker and the
+absence of `pm-helper.disabled`. This first-bridge route deliberately retains
+that opt-out. Uploading the native/guardian pair alone cannot satisfy this
+gate. A separate verified extension transition and full lifecycle are needed;
+the wizard does not bypass that check or offer a fake completed Full UI mode.
+
+After verifying the bridge's new boot, **Check Full UI prerequisites** reads
+the actual native USB/current boot, exact bridge file, authenticated API
+identity and the matching native/guardian manifest, then calls only the
+original `full_runtime_status` and read-only `full_runtime_inspect_start`.
+It explains `pm_extension_required` separately from an unknown or busy state.
+The same optional read is available in a newly downloaded computer package:
+
+```sh
+.runtime/bin/python computer_install.py full-review --serial USB_SERIAL
+```
+
+Even `full_ui_preflight_observed` stays `installation_ready=false` and
+`launch_authorized=false`. It is a snapshot requiring a new check before any
+future operation, not Full UI installation. API disconnect and the exact
+acknowledged owned USB forward are retired independently; an unknown cleanup
+cannot become a positive result. No PM flag, program upload, launch, reboot,
+session reset or cache cleanup is exposed by this read.
+
+The attempt is recorded before any controller starts. A lost response, page
+reload, language switch or app restart never grants a second installation.
+Use the saved job's status and **Check the monitor**. An unknown result
+is not proof that the monitor was unchanged; do not delete the job, prepare a
+replacement or repeat the engine manually. Its original receipts and inputs
+are needed to review the result. There is no automatic rollback or reboot.
+
+After the operation reports arming, choose **Check the monitor** for a fresh
+device read. Only when that read confirms waiting on the idle stock boot,
+shut down through the monitor's own menu and power it on again. Reconnect server USB if
+needed and choose **Check the monitor**. The reader distinguishes the
+original boot's completed arming from a different boot with the exact bridge
+process/socket and two fresh authenticated sensor updates. It does not launch
+anything. A saved success is historical evidence; a new read is required for
+current health. An unverified read does not authorize another install or an
+automatic reboot. Read observations are retained privately, up to 64 per job.
+
+## Keep private recovery files
+
+For a prepared job, **Download private ESPHome profile** saves its original verified
+profile, including the individual ESPHome Noise key. Only the owning HA
+administrator can explicitly download it. The browser treats it as an opaque
+attachment: it is not rendered in the page, parsed into form state, or stored
+in browser storage. Keep it outside public repositories and screenshots.
+Automatic ESPHome enrollment from this app is not implemented.
+
+**Download saved original files** rechecks the saved nine files and report and
+creates a private fixed-member archive. This remains available after the
+first-install factory check would refuse an already modified device. It reads
+the saved job only, makes no USB call and is not a new capture or full NAND
+backup. Keep both downloads and a secure backup of the app's private data.
+
+## Connection and access
 
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;
@@ -164,7 +308,7 @@ python tools/monitor1-usb/generate_contract.py --check
 npm ci --prefix tools/monitor1-usb --ignore-scripts --no-audit --no-fund
 node tools/monitor1-usb/build.mjs
 node tests/test_usb_probe.mjs
-python -m unittest discover -s tests -p test_usb_companion.py
+python -m unittest discover -s tests -p 'test_usb_*.py'
 ```
 
 The generator checks both browser and server contracts against canonical

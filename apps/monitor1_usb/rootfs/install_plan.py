@@ -61,6 +61,7 @@ def verify_plan(directory):
     profile = unique_json(read_private(directory / "profile.json"))
     capture = unique_json(read_private(directory / "capture/result.json"))
     if (plan.get("stage") != "offline_plan_only" or plan.get("installed") is not False or
+            not isinstance(plan.get("plan_id"), str) or not re.fullmatch(r"[a-f0-9]{32}", plan["plan_id"]) or
             plan.get("installation_ready") is not False or plan.get("hardware_contacted") is not False or
             type(plan.get("device_writes")) is not int or plan["device_writes"] != 0 or
             plan.get("live_recheck_required") is not True or plan.get("consumed_install_intent") is not False or

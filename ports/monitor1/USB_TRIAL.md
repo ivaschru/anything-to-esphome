@@ -8,9 +8,15 @@ an existing installation or completes permanent activation.
 
 Two USB locations are requested: the computer or the Home Assistant server,
 using one installation engine and the same checks/receipts. This adapter
-currently uses local ADB. Browser WebUSB and an HA OS USB companion still
-need integration; neither is advertised as working. Lite's Bluetooth
-transports stay separate. Subsequent ordinary updates use the network.
+currently uses local ADB. The separate [HA USB app](../../apps/monitor1_usb/README.md)
+now exposes a reviewed experimental server USB stock-bridge sequence using
+these exact engines, with retained intents and a separate post-boot reader.
+Its first installation on a physical stock CGS1 remains unverified. Computer
+WebUSB writing and full-UI installation still need integration. The app's
+separate downloaded macOS/Linux ADB entry performs a fresh real native capture
+on the computer and reuses these same engines; it never rewrites a browser
+report to invent native transport evidence. Lite's
+Bluetooth transports stay separate. Subsequent ordinary updates use the network.
 
 ## Prepared stage, commit and trial in one sequence
 
@@ -41,9 +47,10 @@ A later explicit rollback selects a current disabled-scope observation
 instead of presenting an older trial receipt as the latest device state.
 
 The successful outcome is `disabled_sequence_trial_observed`, with installed,
-activated and installation_ready still false. Permanent activation, the two
-GUI USB transports and fresh-device qualification remain unfinished. This is
-a local ADB engineering entry, not an enabled companion HTTP/GUI write route.
+activated and installation_ready still false. The companion may then invoke
+the separate next-boot armer only after verifying the stopped trial and owned
+transport cleanup. This command itself never arms or reboots. Full native UI,
+computer GUI writing and fresh-device qualification remain unfinished.
 
 ## Exact build and explicit trial
 

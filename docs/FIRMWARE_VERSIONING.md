@@ -2,7 +2,7 @@
 
 Status: agreed direction, 2026-11-07. This contract does not itself publish a
 firmware asset, relabel an installed device or enable an unfinished backend.
-Numbered release candidates are being prepared. `public_version` is the short
+Lite version 1 passed a physical upgrade and HA adoption check on one direct-I2C unit; Monitor 1 numbered bundles remain source/build preparation. `public_version` is the short
 product number; the legacy `version` wire field remains the exact UI/build
 identity and `revision` remains the internal OTA sequence. Existing devices
 are not relabelled just because new source metadata exists.
@@ -24,7 +24,7 @@ A friendly name is not hardware identity.
 
 | Release line | Package family | First numbered release | Current readiness |
 |---|---|---|---|
-| Lite, direct-I2C / original stock 4.5.8 | ESP32 application replacement | 1 planned | Existing Lite backend; new profile API candidate still needs physical migration QA |
+| Lite, direct-I2C / original stock 4.5.8 | ESP32 application replacement | 1 | One battery APP upgrade, live sensors, retained settings/keys and automatic HA adoption verified; a physical two-server move is not claimed |
 | Monitor 1 / S8 | Full ESPHome runtime bundle | 1 planned | Runtime/source builds tested; common initial USB installer and automatic updater remain separate unfinished capabilities |
 | Monitor 1 / SCD40 | Full ESPHome runtime bundle | 1 planned | Separate CO2 backend; same source/runtime qualification boundary |
 | Lite, external MCU / original stock 4.2.1 | Not yet qualified | None | In development; no installation image |
@@ -48,7 +48,7 @@ Monitor 2 remains unavailable until the full port is actually qualified.
 - The user-facing firmware version is the line's integer, starting with 1.
 - The internal update sequence remains monotonically increasing in that exact
   line. Never reset an existing `revision` merely to rename its public version.
-  Current Lite has public-catalog revision 1 and candidate revision 2.
+  Lite version 1 retains the monotonic internal revision 2; the earlier unnumbered catalog used revision 1.
 - Retain source/build identifiers, ESPHome version and artifact hashes for
   diagnostics. They are not the firmware's public version.
 - Mapping an old build to a numbered release needs exact qualified evidence.
@@ -94,12 +94,11 @@ reason by itself to block a release. Unqualified core measurement scales,
 permanent polling, display/input or power lifecycle are different gaps; raw
 finite trial reports do not establish a usable sensor firmware.
 
-The current preparation adds Lite public version 1 to its screen, sealed
+This release adds Lite public version 1 to its screen, sealed
 profile and standard HA firmware entity, while retaining its diagnostic build
 ID and OTA revision 2. Monitor 1's build controller sources separate public
 versions for S8/SCD40 and injects the same per-profile project version into
-native and internal-bridge programs. This is preparation, not evidence of a
-new physical installation or permission to enable unfinished update backends.
+native and internal-bridge programs. The Monitor 1 metadata remains preparation, not evidence of a new ARM bundle installation or permission to enable unfinished update backends.
 
 
 "Full ESPHome" identifies the product/runtime, not a promise that every optional

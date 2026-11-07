@@ -1,0 +1,55 @@
+Qingping CGS1 – experimental computer USB installation
+
+This private archive contains your individual ESPHome key and compiled
+programs. Keep it private. It is not a public firmware image or full backup.
+Do not use it to upgrade an existing ESPHome installation. First installation
+on an untouched stock CGS1 has not been physically qualified.
+
+Supported computer entry: macOS/Linux, Python 3.13+, Android platform-tools
+(adb). No compiler, VM, Docker or Colima is used on this computer. The build
+already ran privately on your HA server. Do not use sudo.
+
+1. Run umask 077, extract with tar -xf qingping-cgs1-computer.tar and enter
+   the qingping-cgs1-computer directory. Preserve the private 0700/0600 modes.
+2. Create a small runtime environment:
+   python3 -m venv .runtime
+   .runtime/bin/pip install --only-binary=:all: -r runtime-requirements.txt
+   If no wheel is available, stop; do not install a compiler or VM to force it.
+3. Connect the exact stock CGS1 by USB-C data cable. Enable #adb=on# on the
+   monitor if needed, then reconnect its real Wi-Fi. Run adb devices -l and
+   note the USB serial. Do not select a TCP/network device.
+4. Substitute that serial in this READ-ONLY preparation:
+   .runtime/bin/python computer_install.py prepare --serial USB_SERIAL
+   It makes a new native USB capture and plan. Check the reported device
+   name, WLAN MAC, CO2 backend and plan SHA. A browser capture is never
+   relabelled as native USB evidence. No installation has started yet.
+5. Only after reviewing that exact result, substitute its displayed SHA:
+   .runtime/bin/python computer_install.py install --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+   Keep USB and power connected. This composes the original disabled staging,
+   script commit, independent 60-second bridge trial and next-boot arming.
+   PM preload remains disabled; full native UI installation is not included.
+6. If a reply was lost, NEVER repeat install. Preserve computer-state and run:
+   .runtime/bin/python computer_install.py status --serial USB_SERIAL
+   .runtime/bin/python computer_install.py observe --serial USB_SERIAL
+   Only observe's awaiting_reboot confirms current idle-stock arming. Then
+   shut down through the monitor's menu, power on and run observe again.
+   Keep the same USB port/cable path; a changed native binding is refused.
+   bridge_observed confirms another boot and fresh authenticated readings.
+   The tool never reboots, retries or automatically rolls back the monitor.
+
+7. Optional read-only Full UI prerequisite check, after the bridge's new boot:
+   .runtime/bin/python computer_install.py full-review --serial USB_SERIAL
+   It verifies native USB/current boot, bridge bytes, encrypted API identity
+   and the compiled native/guardian pair, then reads the original stock
+   preflight. pm_extension_required explains the initial disabled extension.
+   Even full_ui_preflight_observed is not an installation or launch grant.
+   This command never enables PM preload, stages, launches or reboots.
+
+Do not remove computer-state, receipts or any partial files to retry a write.
+An unverified outcome does not mean the monitor was unchanged. Preserve the
+entire private folder for review. The HA job cannot see these local receipts;
+do not start another installation from its server-USB page for this monitor.
+The profile.json key is for later ESPHome enrollment; do not paste it into a
+public issue, command line or screenshot. Automatic HA enrollment is absent.
+
+https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb
