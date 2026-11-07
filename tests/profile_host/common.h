@@ -1,6 +1,7 @@
 #pragma once
 // Host-only synthetic device data. Never included by an ESPHome YAML/build.
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <string>
 namespace esphome {
