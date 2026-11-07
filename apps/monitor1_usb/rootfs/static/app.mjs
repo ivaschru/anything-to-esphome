@@ -1,10 +1,11 @@
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild} from "./usb-probe-bundle.mjs";
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
 let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
+let planState;
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -27,8 +28,13 @@ function renderBuild() {
   $("build-status").disabled=busy || !pendingPreparation;
   $("build-result").textContent=buildState ? text("build_"+buildState.state)+
     (buildState.state==="building" ? " "+text("build_phase_"+buildState.phase) : "") : "";
+  $("plan-controls").hidden=buildState?.state!=="built_not_installed";
+  $("prepare-plan").disabled=busy || !pendingPreparation || (planState && planState.state!=="not_prepared");
+  $("plan-status").disabled=busy || !pendingPreparation;
+  $("plan-result").textContent=planState ? text("plan_"+planState.state)+
+    (planState.state==="plan_prepared" ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;renderBuild();}
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -206,6 +212,7 @@ async function checkBuild(manual=true) {
     const result=await readBuild(rpc,id);
     if(pendingPreparation?.id!==id) return;
     buildState=result;renderBuild();
+    if(result.state==="built_not_installed") await checkPlan(false);
     // Poll only the same explicitly selected active job. A reload does not
     // select or restart work; owner selection performs GET status only.
     if(result.state==="building") buildTimer=setTimeout(()=>void checkBuild(),5000);
@@ -219,7 +226,33 @@ $("build-firmware").onclick=async()=>{
   try {
     buildState=await startBuild(rpc,pendingPreparation.id);renderBuild();
     if(buildState.state==="building") buildTimer=setTimeout(()=>void checkBuild(),5000);
-  } catch(error) {lastError=error.code || "usb_build_unverified";$("error").textContent=text(lastError);}
+  } catch(error) {
+    lastError=error.code || "usb_build_unverified";
+    if(lastError==="usb_build_unverified") buildState={state:"build_unverified"};
+    $("error").textContent=text(lastError);
+  }
+  finally {busy=false;controls();}
+};
+async function checkPlan(manual=true) {
+  if(!pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  try {
+    const result=await readPlan(rpc,id);
+    if(pendingPreparation?.id===id) {planState=result;renderBuild();}
+  } catch {if(pendingPreparation?.id===id) {planState={state:"plan_unverified"};renderBuild();}}
+  finally {if(manual) {busy=false;controls();}}
+}
+$("plan-status").onclick=()=>checkPlan();
+$("prepare-plan").onclick=async()=>{
+  if(busy || buildState?.state!=="built_not_installed" || !pendingPreparation ||
+    (planState && planState.state!=="not_prepared")) return;
+  busy=true;controls();
+  try {planState=await preparePlan(rpc,pendingPreparation.id);renderBuild();}
+  catch(error) {
+    lastError=error.code || "usb_plan_unverified";planState={state:"plan_unverified"};
+    $("error").textContent=text(lastError);
+  }
   finally {busy=false;controls();}
 };
 window.addEventListener("pagehide",()=>{clearTimeout(buildTimer);void probe?.close().catch(()=>{});});

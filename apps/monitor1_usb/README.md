@@ -122,6 +122,25 @@ provides musllinux wheels for both ARM64 and x86-64. CI separately checks the
 actual companion image's pinned SDK imports and compiles a synthetic ARM32
 program; this check uses no monitor, vendor Qt library or private firmware.
 
+## Prepare the installation files
+
+For a completed **server USB** job, choose **Prepare installation files**.
+The companion rechecks the public source closure before running the original
+bootstrap patch preparer and offline planner in that job's SDK. It verifies
+all generated payload bytes and their exact target/profile binding, syncs the
+private output and records completion. No ADB command or device write occurs.
+
+The page reports a requested device free-space budget, **not measured free
+capacity**. The real USB writer must still perform its own live identity,
+source, boot, process and capacity checks. A prepared payload never changes
+installation readiness, starts a trial or grants another consumed operation.
+
+A lost response or reload reads the same private plan status. An interrupted
+or failed preparation preserves its inputs, log and history without replay.
+The computer WebUSB writer adapter is still unfinished; its capture is never
+relabelled as native get-devpath evidence to pass the native planner. Browser
+jobs can still prepare profiles/build programs without that adapter.
+
 Computer mode needs Chromium over HTTPS (localhost is also a secure context).
 If its USB interface is occupied, release it in the other application yourself;
 the app never kills another ADB process or changes drivers.
