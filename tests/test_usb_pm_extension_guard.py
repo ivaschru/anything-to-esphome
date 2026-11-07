@@ -50,6 +50,15 @@ class PmGuardTests(unittest.TestCase):
         for forbidden in ('kill -', 'reboot', 'LD_PRELOAD=', 'rfkill', '/dev/tty', '/sys/class/gpio'):
             self.assertNotIn(forbidden, text)
 
+    def test_fixture_rewrites_only_the_absolute_root_prefix_once(self):
+        import test_monitor1_pm_extension_guard as execution
+        fixture = execution.ExecutedPmGuardTests(methodName='runTest')
+        fixture.root = Path('/dev/shm/synthetic_pm_fixture')
+        original = "/data/etc/os-release /usr/lib/library /proc/sys/kernel/random/boot_id /tmp/inhibit /bin/sh"
+        expected = " ".join(str(fixture.root) + p for p in (
+            "/data/etc/os-release", "/usr/lib/library", "/proc/sys/kernel/random/boot_id", "/tmp/inhibit")) + " /bin/sh"
+        self.assertEqual(fixture.rewrite(original), expected)
+
     def test_unknown_boot_process_identity_or_shell_values_refuse(self):
         for frame in ({**self.frame, 'boot_id': self.baseline.boot_id}, {**self.frame, 'stock': (True, 1000)},
                       {**self.frame, 'child': self.frame['supervisor']}, {**self.frame, 'extra': 'unreviewed'}):

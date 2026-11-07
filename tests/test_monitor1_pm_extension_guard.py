@@ -79,7 +79,7 @@ class ExecutedPmGuardTests(unittest.TestCase):
     def rewrite(self, script):
         # A single regex pass prevents recursively replacing /data segments
         # inside an already substituted private fixture path.
-        pattern = r'/bin/busybox|/(?:data|proc|sys|tmp|etc|lib|usr)(?=/|\b)'
+        pattern = r'(?<![A-Za-z0-9_])(?:/bin/busybox|/(?:data|proc|sys|tmp|etc|lib|usr)(?=/|\b))'
         text = re.sub(pattern, lambda match: str(self.path(match[0])), script)
         # This fixture deliberately uses tmpfs; production admission remains
         # ext4 with no environment/CLI override or runtime test mode.
