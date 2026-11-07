@@ -302,7 +302,10 @@ async def full_review(root, modules, adb):
         raise ValueError("Observation budget exhausted; preserve history")
     output = observations / uuid.uuid4().hex
     output.mkdir(mode=0o700)
-    result = await inspect(adb, plan, profile, canonical)
+    from pm_extension_usb import initial_review
+    async def initial_pm(boot):
+        return await initial_review(adb, state / "install-plan", digest, root / "profile.json", modules[5], boot)
+    result = await inspect(adb, plan, profile, canonical, initial_pm_reader=initial_pm)
     write_new(output / "full-ui-review.json", {**result, "plan_sha256": digest})
     return result
 
@@ -367,13 +370,8 @@ async def full_trial(root, modules, adb, manifest, digest, reviewed):
         raise ValueError("Exact private profile/source required")
     # Observe the actual post-install boot before consuming this distinct
     # intent. This read cannot arm/reset/reboot or promote old receipt flags.
-    observed = await observe(root, modules, adb)
-    if observed["state"] != "bridge_observed":
-        raise ValueError("Observed new bridge boot required")
     from full_ui_trial import checked_proof
     from full_ui_trial_usb import image_bytes, run_usb
-    images = {kind: image_bytes(state / "install-plan" / kind, plan["files"][kind])
-              for kind in ("native-program", "guardian-program")}
     lock = os.open(state / "full-ui-trial.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     try:
         info = os.fstat(lock)
@@ -381,6 +379,9 @@ async def full_trial(root, modules, adb, manifest, digest, reviewed):
                 stat.S_IMODE(info.st_mode) != 0o600):
             raise ValueError("Owned private screen-trial lease required")
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        await trial_admission(root, modules, adb, manifest, canonical, plan)
+        images = {kind: image_bytes(state / "install-plan" / kind, plan["files"][kind])
+                  for kind in ("native-program", "guardian-program")}
         record = {"plan_sha256": digest, "source_commit": manifest["source_commit"],
                   "install_intent_sha256": hashlib.sha256(intent_raw).hexdigest(),
                   "nonce": uuid.uuid4().hex[:16], "experimental_reviewed": True}
@@ -477,16 +478,119 @@ async def full_activate(root, modules, adb, manifest, digest, reviewed, screen_r
     return full_activation_status(root, manifest)
 
 
+def pm_basis(root, manifest):
+    state = private_root(root / "computer-state")
+    prepared = unique_json(private_file(state / "prepared.json", 16384))
+    raw_plan = private_file(state / "install-plan/plan.json", 512 * 1024)
+    plan = unique_json(raw_plan)
+    digest = hashlib.sha256(raw_plan).hexdigest()
+    raw = private_file(state / "install-intent.json", 16384)
+    intent = unique_json(raw)
+    if (prepared != {"plan_sha256": digest, "profile_sha256": manifest["profile_sha256"]} or
+            intent != {"plan_sha256": digest, "experimental_reviewed": True} or intent["experimental_reviewed"] is not True or
+            plan.get("basis", {}).get("source_commit") != manifest["source_commit"] or
+            plan.get("basis", {}).get("profile_sha256") != manifest["profile_sha256"] or manifest["source_commit"] not in TRIAL_SOURCE_COMMITS):
+        raise ValueError("Exact original post-install PM basis required")
+    return state, plan, digest, hashlib.sha256(raw).hexdigest()
+
+
+def pm_status(root, manifest):
+    """Read fixed local receipts only; no USB, engines or resume authority."""
+    state = private_root(root / "computer-state")
+    public = {"state": "not_started", "arming_acknowledged": None, "completion_observed": None,
+              "next_boot_armed": None, "local_receipt_only": True, "read_only": True, "hardware_contacted": False,
+              "installed": False, "installation_ready": False, "replay_allowed": False}
+    if "pm-extension-intent.json" not in os.listdir(state):return public
+    if not {"pm_extension_guard.py", "pm_extension_usb.py"} <= set(manifest["files"]):
+        raise ValueError("Verified PM helpers required")
+    state, plan, digest, initial_sha = pm_basis(root, manifest)
+    raw = private_file(state / "pm-extension-intent.json", 16384)
+    intent = unique_json(raw)
+    if (set(intent) != {"plan_sha256", "source_commit", "install_intent_sha256", "nonce", "experimental_reviewed"} or
+            intent["plan_sha256"] != digest or intent["source_commit"] != manifest["source_commit"] or
+            intent["install_intent_sha256"] != initial_sha or intent["experimental_reviewed"] is not True or
+            not isinstance(intent["nonce"], str) or not re.fullmatch(r"[a-f0-9]{32}", intent["nonce"]) or intent["nonce"] == "0" * 32):
+        raise ValueError("Exact consumed PM intent required")
+    public["state"] = "pm_extension_unverified"
+    if "pm-extension-result.json" in os.listdir(state):
+        from pm_extension_usb import checked_proof
+        result = unique_json(private_file(state / "pm-extension-result.json", 16384))
+        if set(result) != {"intent_sha256", "proof"} or result["intent_sha256"] != hashlib.sha256(raw).hexdigest():
+            raise ValueError("Exact PM result required")
+        proof = checked_proof(result["proof"], intent["nonce"], result["proof"].get("boot_id"))
+        if proof["state"] == "pm_extension_armed_waiting_reboot" and proof["boot_id"] == plan["target"]["boot_id"]:
+            raise ValueError("Distinct post-install boot required")
+        public.update({key: proof[key] for key in ("state", "arming_acknowledged", "completion_observed")})
+        if proof["state"] == "pm_extension_armed_waiting_reboot":public["next_boot_armed"] = True
+    return public
+
+
+async def pm_enable(root, modules, adb, manifest, digest, reviewed):
+    """One explicitly reviewed next-boot transition using the shared engine."""
+    if (reviewed is not True or not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest) or
+            not {"pm_extension_guard.py", "pm_extension_usb.py"} <= set(manifest["files"])):
+        raise ValueError("Exact reviewed PM next-boot step required")
+    state, plan, actual, initial_sha = pm_basis(root, manifest)
+    if actual != digest:raise ValueError("Exact original plan required")
+    canonical = modules[3].trial
+    profile, profile_sha = canonical.candidate.read_profile(root / "profile.json")
+    if profile_sha != manifest["profile_sha256"] or plan["api_identity"] != {key: profile[key] for key in ("node_name", "api_mac")}:
+        raise ValueError("Exact original private profile required")
+    lock = os.open(state / "full-ui-trial.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(lock)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError("Owned private PM lease required")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if any(name in os.listdir(state) for name in ("pm-extension-intent.json", "full-ui-trial-intent.json", "full-ui-activation-intent.json")):
+            raise ValueError("Existing PM or Full UI attempt must be preserved, not repeated")
+        from pm_extension_usb import arm_next_boot, checked_proof
+        intent = {"plan_sha256": digest, "source_commit": manifest["source_commit"], "install_intent_sha256": initial_sha,
+                  "nonce": uuid.uuid4().hex, "experimental_reviewed": True}
+        write_new(state / "pm-extension-intent.json", intent)
+        raw = private_file(state / "pm-extension-intent.json", 16384)
+        proof = await arm_next_boot(adb, state / "install-plan", digest, root / "profile.json", modules[5], intent["nonce"])
+        checked_proof(proof, intent["nonce"], proof.get("boot_id"))
+        write_new(state / "pm-extension-result.json", {"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof})
+    finally:os.close(lock)
+    return pm_status(root, manifest)
+
+
+async def trial_admission(root, modules, adb, manifest, canonical, plan):
+    """The PM opt-out is intentionally absent after its verified next boot.
+
+    The original bridge-only observer requires that opt-out and cannot be
+    reused as if it admitted the extended stock process. Rejoin the consumed
+    PM AFTER-effects proof instead, require another boot, then perform the
+    distinct exact Full UI preflight with the existing runtime inspector.
+    """
+    state = private_root(root / "computer-state")
+    if "pm-extension-intent.json" not in os.listdir(state):
+        if (await observe(root, modules, adb))["state"] != "bridge_observed":
+            raise ValueError("Observed new bridge boot required")
+        return
+    if pm_status(root, manifest)["state"] != "pm_extension_armed_waiting_reboot":
+        raise ValueError("Complete original PM transition required")
+    proof = unique_json(private_file(state / "pm-extension-result.json", 16384))["proof"]
+    target = plan["target"]
+    boot = canonical.review.preflight.identity(adb, target["wlan_mac"], target["co2_type"])
+    if boot == proof["boot_id"]:raise ValueError("Ordinary power cycle required after PM arming")
+    reviewed = await full_review(root, modules, adb)
+    if (reviewed["state"] != "full_ui_preflight_observed" or
+            canonical.review.preflight.identity(adb, target["wlan_mac"], target["co2_type"]) != boot):
+        raise ValueError("Fresh same-boot Full UI preflight required")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "full-trial", "full-trial-status", "full-activate", "full-activation-status", "local-status"))
+    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "full-trial", "full-trial-status", "full-activate", "full-activation-status", "pm-enable", "pm-status", "local-status"))
     parser.add_argument("--serial")
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--plan-sha256")
     parser.add_argument("--experimental-reviewed", action="store_true")
     parser.add_argument("--screen-reviewed", action="store_true")
     args = parser.parse_args()
-    if args.action not in ("local-status", "full-trial-status", "full-activation-status") and not args.serial:
+    if args.action not in ("local-status", "full-trial-status", "full-activation-status", "pm-status") and not args.serial:
         parser.error("--serial is required for USB operations")
     os.umask(0o077)
     root, source, manifest = load_bundle(Path(__file__).resolve().parent)
@@ -498,6 +602,9 @@ def main():
         return
     if args.action == "full-activation-status":
         print(json.dumps(full_activation_status(root, manifest), ensure_ascii=False, indent=2))
+        return
+    if args.action == "pm-status":
+        print(json.dumps(pm_status(root, manifest), ensure_ascii=False, indent=2))
         return
     modules = engines(source)
     executable = shutil.which(args.adb)
@@ -514,6 +621,8 @@ def main():
         result = asyncio.run(observe(root, modules, adb))
     elif args.action == "full-review":
         result = asyncio.run(full_review(root, modules, adb))
+    elif args.action == "pm-enable":
+        result = asyncio.run(pm_enable(root, modules, adb, manifest, args.plan_sha256, args.experimental_reviewed))
     elif args.action == "full-activate":
         result = asyncio.run(full_activate(root, modules, adb, manifest, args.plan_sha256, args.experimental_reviewed, args.screen_reviewed))
     elif args.action == "full-trial":

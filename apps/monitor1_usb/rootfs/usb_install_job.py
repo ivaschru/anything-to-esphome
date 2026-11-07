@@ -115,7 +115,11 @@ def full_review_job(directory, observation_id):
     if profile_sha != plan["basis"]["profile_sha256"]:
         raise PreparationError("usb_full_ui_unverified")
     adb = canonical.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
-    result = asyncio.run(inspect(adb, plan, profile, canonical))
+    from pm_extension_usb import initial_review
+    import verify_bridge_boot_adb as observer
+    async def initial_pm(boot):
+        return await initial_review(adb, directory / "install-plan", digest, directory / "profile.json", observer, boot)
+    result = asyncio.run(inspect(adb, plan, profile, canonical, initial_pm_reader=initial_pm))
     result["plan_sha256"] = digest
     write_new(output / "full-ui-review.json", (json.dumps(result) + "\n").encode())
     sync_directory(output)

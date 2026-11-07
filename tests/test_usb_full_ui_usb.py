@@ -54,6 +54,24 @@ class FullUiUsbTests(unittest.TestCase):
         self.assertEqual(result["state"], "full_ui_close_unverified")
         self.assertEqual(self.canonical.remove_forward.call_count, 2)
 
+    def test_initial_wrapper_candidate_needs_positive_scope_after_forward_cleanup(self):
+        self.reader.return_value["state"] = "pm_extension_scope_required"
+        async def initial(boot):
+            self.assertEqual(boot, self.boot)
+            self.canonical.remove_forward.assert_called_once_with(self.adb, 16053)
+            return "pm_extension_required"
+        result = asyncio.run(usb.inspect(self.adb, self.plan, {}, self.canonical, self.reader, initial_pm_reader=initial))
+        self.assertEqual(result["state"], "pm_extension_required")
+        self.reader.return_value["state"] = "pm_extension_scope_required"
+        result = asyncio.run(usb.inspect(self.adb, self.plan, {}, self.canonical, self.reader))
+        self.assertEqual(result["state"], "full_ui_unverified")
+        self.reader.return_value["state"] = "pm_extension_scope_required"
+        self.canonical.remove_forward.side_effect = TimeoutError()
+        further = AsyncMock(return_value="pm_extension_required")
+        result = asyncio.run(usb.inspect(self.adb, self.plan, {}, self.canonical, self.reader, initial_pm_reader=further))
+        self.assertEqual(result["state"], "full_ui_close_unverified")
+        further.assert_not_awaited()
+
 
 class FullUiManagerTests(unittest.TestCase):
     def setUp(self):

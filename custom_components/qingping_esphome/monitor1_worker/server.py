@@ -30,6 +30,7 @@ from install_plan import Plans
 from installation import Installations
 from full_ui_installation import FullUiTrials
 from full_ui_activation_installation import FullUiActivations
+from pm_extension_installation import PmExtensions
 from backup_export import profile_export, capture_export
 from computer_package import package_export
 
@@ -207,6 +208,7 @@ class Companion:
         self.installations = Installations(self.plans)
         self.full_trials = FullUiTrials(self.installations)
         self.full_activations = FullUiActivations(self.installations)
+        self.pm_extensions = PmExtensions(self.installations)
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -352,16 +354,20 @@ class Companion:
         self.session(user, nonce)
         return self.full_activations.status(user, job_id)
 
-    def install(self, user, nonce, read_input, deliver, full=False, permanent=False):
+    def pm_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.pm_extensions.status(user, job_id)
+
+    def install(self, user, nonce, read_input, deliver, full=False, permanent=False, pm=False):
         self.session(user, nonce)
         if not self.device_lock.acquire(blocking=False):
             raise Refusal("usb_busy")
         try:
             data = read_input()
             keys = {"job_id", "expected_plan_sha256", "experimental_reviewed"} | ({"screen_reviewed"} if permanent else set())
-            if not isinstance(data, dict) or set(data) != keys or (full and permanent):
+            if not isinstance(data, dict) or set(data) != keys or (sum((full, permanent, pm)) > 1):
                 raise Refusal("usb_request_invalid")
-            writer = self.full_activations if permanent else (self.full_trials if full else self.installations)
+            writer = self.pm_extensions if pm else (self.full_activations if permanent else (self.full_trials if full else self.installations))
             args = [user, data["job_id"], data["expected_plan_sha256"], data["experimental_reviewed"]]
             if permanent:
                 args.append(data["screen_reviewed"])
@@ -469,6 +475,9 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})/full-trial", self.path)
             if match:
                 return self.reply(200, self.server.companion.full_trial_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/pm-enable", self.path)
+            if match:
+                return self.reply(200, self.server.companion.pm_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})/full-activate", self.path)
             if match:
                 return self.reply(200, self.server.companion.full_activation_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
@@ -481,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/full-trial", "/full-activate", "/observe", "/full-review", "/export-profile", "/export-originals", "/export-computer"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/full-trial", "/full-activate", "/pm-enable", "/observe", "/full-review", "/export-profile", "/export-originals", "/export-computer"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -492,10 +501,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/prepare":
                 return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
-            if self.path in ("/install", "/full-trial", "/full-activate"):
+            if self.path in ("/install", "/full-trial", "/full-activate", "/pm-enable"):
                 return self.server.companion.install(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result), full=self.path == "/full-trial",
-                    permanent=self.path == "/full-activate")
+                    permanent=self.path == "/full-activate", pm=self.path == "/pm-enable")
             if self.path in ("/observe", "/full-review"):
                 return self.server.companion.observe(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result), full=self.path == "/full-review")

@@ -4,7 +4,7 @@ import time
 from full_ui_review import review, FullUiReviewError
 
 
-async def inspect(adb, plan, profile, canonical, reader=review):
+async def inspect(adb, plan, profile, canonical, reader=review, initial_pm_reader=None):
     """Use only this creator's acknowledged loopback forward, then retire it.
 
 The manifest and profile are supplied by the checked private job. Native USB,
@@ -48,5 +48,17 @@ accepted, and the successful DTO never grants a future write.
                 cleanup = "cleanup_unverified_preserved"
     if cleanup not in ("removed", "absent", "not_created"):
         result["state"] = "full_ui_close_unverified"
+    if result["state"] == "pm_extension_scope_required":
+        result["state"] = "full_ui_unverified"
+        # The API's wrapper mismatch is only a candidate. First retire its
+        # client and exact forward, then require an independent positive
+        # original disabled-stock/PM-opt-out scope on the SAME current boot.
+        if cleanup in ("removed", "absent") and initial_pm_reader is not None:
+            try:
+                state = await initial_pm_reader(boot)
+                if state in ("pm_extension_required", "full_ui_unverified", "full_ui_close_unverified"):
+                    result["state"] = state
+            except Exception:
+                pass
     result["forward_cleanup"] = cleanup
     return result

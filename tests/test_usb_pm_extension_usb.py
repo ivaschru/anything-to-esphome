@@ -63,5 +63,15 @@ class AdapterTests(unittest.TestCase):
                 self.assertFalse(result['device_request_sent'])
                 self.adb.read.assert_not_called()
 
+    def test_initial_read_requires_matching_boot_and_retired_original_connections(self):
+        with patch.object(self.canonical, 'verify', new=AsyncMock(return_value=self.observation)):
+            def read():return asyncio.run(adapter.initial_review(self.adb, Path('/synthetic'), self.fixture.digest,
+                Path('/synthetic/profile.json'), self.canonical, self.fixture.frame['boot_id']))
+            self.assertEqual(read(), 'pm_extension_required')
+            self.observation['scope'] = {**self.fixture.frame, 'boot_id': 'foreign'}
+            self.assertEqual(read(), 'full_ui_unverified')
+            self.observation['api_disconnect'] = 'unverified'
+            self.assertEqual(read(), 'full_ui_close_unverified')
+
 
 if __name__ == '__main__':unittest.main()

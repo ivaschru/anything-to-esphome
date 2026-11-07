@@ -107,6 +107,8 @@ class PmExtensions:
                     raise PreparationError('usb_install_previous_unverified')
                 if trials.INTENT in names and trials.FullUiTrials(self.installations).status(prior_owner, other.name)['state'] != 'full_ui_trial_returned_observed':
                     raise PreparationError('usb_full_ui_trial_previous_unverified')
+            if not self.status(owner, job_id)['pm_available']:
+                raise PreparationError('usb_pm_extension_bridge_required')
             env = adb_environment(directory)
             plan = build_report(directory / 'install-plan/plan.json')
             import secrets

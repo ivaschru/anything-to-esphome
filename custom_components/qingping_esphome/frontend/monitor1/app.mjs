@@ -1,6 +1,6 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
-  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,
+  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
@@ -21,6 +21,8 @@ let fullTrialState,fullTrialRunning=false;
 const attemptedFullTrials=new Set();
 const attemptedFullActivations=new Set();
 let fullActivationState,fullActivationRunning=false;
+let pmState,pmRunning=false;
+const attemptedPm=new Set();
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -71,6 +73,18 @@ function renderBuild() {
   $("observe-boot").hidden=!consumed;
   $("observe-boot").disabled=busy;
   $("boot-result").textContent=bootReading ? text("boot_checking") : (bootState ? text("boot_"+bootState.state) : "");
+  $("pm-controls").hidden=!pmState || (pmState.state==="not_started" && fullReviewState?.state!=="pm_extension_required");
+  const pmConsumed=pmState?.state!=="not_started" || attemptedPm.has(pendingPreparation?.id);
+  $("pm-ack-label").hidden=$("pm-enable").hidden=pmConsumed || !pmState?.pm_available;
+  $("pm-ack").disabled=busy;
+  $("pm-enable").disabled=busy || pmConsumed || !pmState?.pm_available || !installReview || !$("pm-ack").checked ||
+    fullReviewState?.state!=="pm_extension_required";
+  $("pm-status").disabled=busy;
+  $("pm-compatibility").textContent=pmState?.state==="not_started" && pmState.pm_available===false ? text("usb_pm_extension_bridge_required") : "";
+  $("pm-result").textContent=pmRunning ? text("pm_running") : (pmState ? text("pm_"+pmState.state) : "");
+  $("pm-progress").hidden=!pmRunning;
+  $("pm-progress").setAttribute("aria-label",text("pm_running"));
+  $("pm-controls").setAttribute("aria-busy",String(pmRunning));
   $("full-review-controls").hidden=installState?.state!=="bridge_observed";
   $("full-review").disabled=busy;
   $("full-review-result").textContent=fullReviewReading ? text("full_review_reading") : (fullReviewState ? text("full_review_"+fullReviewState.state) : "");
@@ -102,8 +116,8 @@ function renderBuild() {
   $("full-activation-controls").setAttribute("aria-busy",String(fullActivationRunning));
 }
 function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
-  installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=undefined;
-  $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=false;renderBuild();}
+  installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=undefined;
+  $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -151,7 +165,7 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
@@ -391,7 +405,7 @@ async function checkInstall(manual=true) {
     if(pendingPreparation?.id===id) {
       installState=value;
       if(value.state!=="not_started") await loadInstallReview();
-      if(value.state==="bridge_observed") await checkFullTrial(false);
+      if(value.state==="bridge_observed") {await checkPm(false);await checkFullTrial(false);}
       renderBuild();
     }
   } catch {if(pendingPreparation?.id===id) {installState={state:"install_unverified"};renderBuild();}}
@@ -402,9 +416,28 @@ $("install-status").onclick=()=>checkInstall();
 $("full-review").onclick=async()=>{
   if(busy || !pendingPreparation || installState?.state!=="bridge_observed") return;
   busy=true;fullReviewReading=true;controls();
-  try {fullReviewState=await reviewFullUi(rpc,pendingPreparation.id);await checkFullTrial(false);}
+  try {fullReviewState=await reviewFullUi(rpc,pendingPreparation.id);await checkPm(false);await checkFullTrial(false);}
   catch(error) {lastError=error.code || "usb_full_ui_unverified";$("error").textContent=text(lastError);fullReviewState={state:"full_ui_unverified"};}
   finally {busy=false;fullReviewReading=false;controls();}
+};
+async function checkPm(manual=true) {
+  if(!pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  try {const value=await readPmExtension(rpc,id);if(pendingPreparation?.id===id) pmState=value;}
+  catch {if(pendingPreparation?.id===id) pmState={state:"pm_extension_unverified"};}
+  finally {if(manual) busy=false;controls();}
+}
+$("pm-status").onclick=()=>checkPm();
+$("pm-ack").onchange=()=>renderBuild();
+$("pm-enable").onclick=async()=>{
+  const id=pendingPreparation?.id;
+  if(busy || !id || !installReview || pmState?.state!=="not_started" || !pmState.pm_available || attemptedPm.has(id) ||
+     fullReviewState?.state!=="pm_extension_required" || !$("pm-ack").checked) return;
+  attemptedPm.add(id);busy=true;pmRunning=true;controls();lastError=null;$("error").textContent="";
+  try {pmState=await startPmExtension(rpc,installReview,true);}
+  catch(error) {lastError=error.code || "usb_pm_extension_unverified";$("error").textContent=text(lastError);pmState={state:"pm_extension_unverified"};}
+  finally {busy=false;pmRunning=false;$("pm-ack").checked=false;controls();}
 };
 async function checkFullTrial(manual=true) {
   if(!pendingPreparation || (manual && busy)) return;

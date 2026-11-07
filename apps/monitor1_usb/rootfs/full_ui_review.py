@@ -108,7 +108,12 @@ successful TLS/Noise handshake can be promoted into a launch authorization.
         else:
             # A single precise known prerequisite may be explained. Do not
             # surface raw strings from an SDK/device as public error details.
-            state = "pm_extension_required" if capture.get("stock_error") == "pm_helper_not_in_verified_state" else "full_ui_unverified"
+            state = "pm_extension_required" if capture.get("stock_error") == "pm_helper_not_in_verified_state" else (
+                "pm_extension_scope_required" if capture.get("stock_error") == "unexpected_stock_wrapper" else "full_ui_unverified")
+            # Disabled initial stock execs directly from the watchdog, so its
+            # wrapper is different. That error alone proves NO prerequisite:
+            # this private intermediate state needs the original exact USB
+            # observer after API/forward cleanup, or becomes unverified.
         report = {"state": state, "read_only": True, "device_writes": 0, "launch_authorized": False,
                   "installation_ready": False, "installed": False, "live_recheck_required": True}
     except Exception:

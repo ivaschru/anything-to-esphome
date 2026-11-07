@@ -84,3 +84,24 @@ async def arm_next_boot(adb, directory, digest, profile_path, observer, nonce):
     finally:
         adb.deadline = None
     return result
+
+
+async def initial_review(adb, directory, digest, profile_path, observer, boot):
+    """Positively identify the initial disabled PM state; a mismatch is unknown.
+
+    The caller has already checked the exact compiled pair/idle API and closed
+    that connection. This independent original observer checks actual root,
+    original install/arm completion, stock/watchdog, bridge and fresh physical
+    samples with the PM opt-out still present. It never writes device files.
+    """
+    proof = await observer.verify(adb, directory, digest, profile_path)
+    if (proof.get('api_disconnect') == 'unverified' or
+            proof.get('forward_cleanup') not in ('removed', 'absent', 'not_created')):
+        return 'full_ui_close_unverified'
+    if (proof.get('stage') == 'post_boot_bridge_observed' and proof.get('runtime_observed') is True and
+            proof.get('plan_sha256') == digest and proof.get('scope', {}).get('boot_id') == boot and
+            proof.get('api_disconnect') == 'completed' and proof.get('forward_cleanup') in ('removed', 'absent') and
+            type(proof.get('device_writes')) is int and proof['device_writes'] == 0 and
+            all(proof.get(k) is False for k in ('installed', 'activated', 'installation_ready'))):
+        return 'pm_extension_required'
+    return 'full_ui_unverified'
