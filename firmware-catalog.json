@@ -1,0 +1,30 @@
+{
+  "format": "qingping-esphome-firmware-catalog-v1",
+  "releases": {
+    "lite": {
+      "adoption_versions": [
+        {
+          "revision": 2,
+          "version": "2026.11.07-ui25-profile1"
+        }
+      ],
+      "backend": "esp32-noise-app-v1",
+      "image": {
+        "sha256": "ca68ed3c5754eae2957d2e0a45b64959bc45f54f2bfa2a3f52d5d477220880ef",
+        "size": 1546736,
+        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v2/lite-template.bin"
+      },
+      "manifest": {
+        "sha256": "9c656417b6d14c7316c754d67dd88274cd3255e022c4d60251a87318fc927795",
+        "size": 728,
+        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v2/lite-template.json"
+      },
+      "minimum_integration": "0.2.2",
+      "public_version": 2,
+      "release_url": "https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v2",
+      "revision": 3,
+      "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 2. PM OFF uses guarded quiet operation while CO2/temperature/humidity continue.",
+      "version": "2026.11.07-ui25-quiet2"
+    }
+  }
+}
