@@ -27,11 +27,15 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | Existing ESPHome devices only; factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
 | **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
+
+Stock 4.3.4 and 4.5.8 are tracked separately because verified fan behavior differs;
+these firmware branches are not confirmed PCB revision numbers.
 
 Images are not interchangeable. Stock 4.2.1 needs its own MCU backend; the
 4.5.8 image does not support it. Status checked on 6 November 2026. Monitor 1
@@ -301,8 +305,11 @@ ESPHome are not reflashed automatically.
 The direct-I2C profile adds guarded quiet PM operation and the reviewed OLED
 interface: native outline/classic digits, clock/date layouts, shared local/HA
 settings, slide transitions, blackout night mode and two-step slot confirmation.
-Faults fall back to HIGH to preserve measurements, so a failed quiet guard can
-restart the fan. [Port details and exact limits](ports/lite/README.md).
+Fan shutdown is verified on tested stock-4.5.8 units. On the tested unit originally
+running stock 4.3.4, measurements work but the fan remains running with PM OFF,
+even without a quiet-guard fault; fan shutdown for this branch remains unresolved.
+Faults can also fall back to HIGH to preserve measurements and restart the fan.
+[Port details and exact limits](ports/lite/README.md).
 Original stock 4.3.4/4.5.8 provenance and optional existing HA display feed are
 preserved by native updates. Factory Bluetooth admission remains 4.5.8/HW0001;
 external-MCU Lite uses a separate, unqualified profile. Integration 0.2.1 is
