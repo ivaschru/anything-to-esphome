@@ -91,6 +91,41 @@ limited search coverage cannot establish that no schematic exists anywhere.
 The public 4PDA CGS1/CGS2 topic was readable, but its Bluetooth topic search
 required a human verification step; it did not supply a verified wiring map.
 
+### Static inspection of a factory-image copy
+
+A further source was found through the technical links in the 4PDA topic:
+[a CGS1 recovery report dated 4 June 2025](https://4pda.to/forum/index.php?showtopic=1095525&view=findpost&p=137394294)
+links a [public archive mirror](https://cloud.mail.ru/public/HoLh/x8YZY3bXr).
+On 7 November, its `snow-update.zip` was downloaded (82,610,566 bytes,
+SHA-256 `76ab3408175768ea8421f7fe3cbf82e889f634df899f577d0a109b20f74c61e3`).
+The nested `Snow4.1.8_0267.zip` has SHA-256
+`9f9d1319b833d9ddd041e84eb52c8aec924010351f8c51bb8e757765bd7aa76f`.
+This is a forum-published copy, not an independently authenticated vendor
+release or an installation recommendation. No archive executable was run,
+no image was mounted, and no monitor was contacted.
+
+`resource.img` contains a 93,457-byte device tree at offset `0x2400`, SHA-256
+`c967b534def089f996168f735cf2c0bde50cf986a70c05398ef0170d2bdd0942`.
+A bounded FDT parser and an independent `dtc` read both accepted it; `dtc`
+reported warnings, so this is parsing evidence rather than clean validation.
+Its compatible strings are `rockchip,px3se-sdk` / `rockchip,rk3128`. All three
+serial nodes at `0x20060000`, `0x20064000` and `0x20068000` are enabled;
+the enabled FIQ debugger uses serial-id 1. The WLAN node names `rtl8723ds`,
+but there is no Bluetooth node. WLAN power GPIOs are not a verified
+BT_DIS#/BT_REG_ON mapping.
+
+Read-only SquashFS inspection found `rkrtkbt ttyS0 &` commented out in
+`S50_px3se_init`. The `rkrtkbt` ARM executable contains the generic rfkill0
+write, default ttyS0 attachment and bluetoothd command strings; it was not
+executed. The kernel image contains Linux 3.10.104, HCI UART and HCI socket
+diagnostic strings. These do not establish a usable controller or safe UART
+ownership. Vendor images and executables are not distributed here.
+
+The image is labelled 0267, while the inventoried devices run 0287. It has
+not been matched byte-for-byte to their current device trees or qualified
+for either PCB revision. It adds a reproducible factory-image source, but
+still supplies no proven Bluetooth net continuity or attach procedure.
+
 ## A real Linux software candidate
 
 [yuzi-co/btproxy](https://github.com/yuzi-co/btproxy/tree/9d65f68756dbeb03561b6d2914a9c4f30c78356d)
