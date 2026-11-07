@@ -20,9 +20,10 @@ does not establish that the Bluetooth pins are wired to it.
 The inspected device tree has no wireless-bluetooth node. It does contain
 Wi-Fi and serial nodes; neither supplies a verified BT_REG_ON mapping.
 Stock's commented `rkrtkbt ttyS0` line is generic BSP configuration, not a
-Qingping board schematic. Static inspection also found that the wrapper's
-control flow writes rfkill0 even when asked for help. Do not execute it as a
-supposedly read-only probe: it targets the only observed WLAN rfkill entry.
+Qingping board schematic. The archive-0267 wrapper's ARM control flow attempts
+an rfkill0 write before inspecting its first argument, as detailed below.
+Do not execute a vendor wrapper as a supposedly read-only help/version probe:
+the only rfkill entry observed on the running devices identifies as WLAN.
 
 The full UI and both guardians were restored after the SCD40 inventory.
 No UART attachment, GPIO/rfkill write, driver load, device-tree edit or
@@ -120,6 +121,25 @@ write, default ttyS0 attachment and bluetoothd command strings; it was not
 executed. The kernel image contains Linux 3.10.104, HCI UART and HCI socket
 diagnostic strings. These do not establish a usable controller or safe UART
 ownership. Vendor images and executables are not distributed here.
+
+The 4,444-byte archive `rkrtkbt` has SHA-256
+`9725473dbb9a347463bc04f28b04ae917b6e969d57d92fc962928bbc17fb68a6`.
+Offline LLVM ARM disassembly places `main` at `0x107e0`. Its call to `system`
+at `0x1081c` receives the string at `0x10988`, which writes `1` to
+`/sys/class/rfkill/rfkill0/state`. The first `argv[1]` null test is later,
+at `0x10838` / `0x1083c`; no help/version option parser precedes that call.
+A non-null argument is then inserted into the `hciattach_rtk` command;
+the no-argument branch selects `ttyS0`. ELF load segments independently
+resolve these string addresses. This establishes static call order, not
+a successful rfkill write, working HCI or the behavior of a different binary.
+The installed 0287 wrapper has not been compared byte-for-byte with this ELF.
+
+The complete 6,850-path listing of this rootfs contains `usr/bin/hciattach`
+and `usr/sbin/rtk_hciattach`, but no basename `hciattach_rtk`. Keep the names
+distinct: this archive does not establish that the wrapper's attachment
+command can resolve, or that another helper is a safe substitute. The result
+is scoped to this image's listing, not the complete live PATH of every CGS1.
+No helper was executed or renamed to test the recipe.
 
 The image is labelled 0267, while the inventoried devices run 0287. It has
 not been matched byte-for-byte to their current device trees or qualified
