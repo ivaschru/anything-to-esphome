@@ -4,6 +4,14 @@ Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
 
+- `monitor1-core-probe.yml` checks the unmodified official Core 2026.11.0
+  images on disposable native amd64/aarch64 CI runners. Override the image
+  entrypoint: no running HA, host /config, USB/device mapping, credentials,
+  Docker socket or Mac VM. Keep one CPU/2GiB and private scratch; publish
+  only the allowlisted capability JSON, never the synthetic ELF or SDK.
+  Missing tools and SDK results are separate. A synthetic ARM32 compile
+  never enables a HACS backend, installer, full UI or hardware readiness.
+
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
   Computer macOS/Linux ADB writes are experimental; browser-only WebUSB
