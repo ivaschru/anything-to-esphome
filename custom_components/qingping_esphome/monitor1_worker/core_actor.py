@@ -53,10 +53,11 @@ class Actor:
                 self.usb_ready()
             value = {"devices": self.companion.discover(user, nonce)} if operation == "devices" else self.companion.jobs(user, nonce)
             return value, "application/json"
-        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|install-review|install|full-trial))?", operation)
+        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|install-review|install|full-trial|full-activate))?", operation)
         if match and data is None:
             method = {None: "status", "build": "build_status", "plan": "plan_status",
-                      "install-review": "install_review", "install": "install_status", "full-trial": "full_trial_status"}[match[2]]
+                      "install-review": "install_review", "install": "install_status", "full-trial": "full_trial_status",
+                      "full-activate": "full_activation_status"}[match[2]]
             return getattr(self.companion, method)(user, nonce, match[1]), "application/json"
         if not isinstance(data, dict):
             raise Refusal("usb_request_invalid")
@@ -75,13 +76,14 @@ class Actor:
                 self.prepared or (lambda value: value)), "application/json"
         if operation in ("build", "plan") and set(data) == {"job_id"}:
             return getattr(self.companion, operation)(user, nonce, data["job_id"]), "application/json"
-        if operation in ("install", "full-trial"):
-            if set(data) != {"job_id", "expected_plan_sha256", "experimental_reviewed"}:
+        if operation in ("install", "full-trial", "full-activate"):
+            keys = {"job_id", "expected_plan_sha256", "experimental_reviewed"} | ({"screen_reviewed"} if operation == "full-activate" else set())
+            if set(data) != keys:
                 raise Refusal("usb_request_invalid")
             if self.usb_ready is not None:
                 self.usb_ready()
             return self.companion.install(user, nonce, lambda: data, lambda value: value,
-                                          full=operation == "full-trial"), "application/json"
+                                          full=operation == "full-trial", permanent=operation == "full-activate"), "application/json"
         if operation in ("observe", "full-review"):
             if self.usb_ready is not None:
                 self.usb_ready()

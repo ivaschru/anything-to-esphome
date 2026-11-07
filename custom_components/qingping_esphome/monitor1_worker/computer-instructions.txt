@@ -66,6 +66,18 @@ already ran privately on your HA server. Do not use sudo.
    This requires neither serial nor adb and cannot launch/reset any session.
    Older jobs keep their original bytes/history and refuse this new action.
 
+9. Only after you saw a working screen and touch controls, with USB still on
+   the SAME boot, optionally enable the saved full interface once:
+   .runtime/bin/python computer_install.py full-activate --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed --screen-reviewed
+   This checks actual device storage, saves only the trial's matched pair,
+   enables its startup and starts the full interface without a reboot.
+   It observes a new device-generated session, both guardians and physical
+   core readings. Device fallback remains independent. A lost reply NEVER
+   permits another full-activate; read local history instead:
+   .runtime/bin/python computer_install.py full-activation-status
+   No serial, ADB or device contact is needed for that historical status.
+   It is not a live health check, first-install qualification or HA enrollment.
+
 Do not remove computer-state, receipts or any partial files to retry a write.
 An unverified outcome does not mean the monitor was unchanged. Preserve the
 entire private folder for review. The HA job cannot see these local receipts;

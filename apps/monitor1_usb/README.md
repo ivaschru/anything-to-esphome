@@ -25,7 +25,7 @@ original disabled staging, script commit, bounded bridge trial and next-boot
 bridge arming. A separate button reads the result after you power-cycle the
 monitor yourself. **First installation on an untouched physical CGS1 has not
 been verified.** This path installs the stock-side bridge only; the computer
-browser-only WebUSB writer and full native UI installation are still unfinished.
+browser-only WebUSB writer and fresh full native UI qualification are still unfinished.
 A separate downloaded computer ADB installer reuses these engines without a
 compiler or VM on the computer; see its section below. Normal
 HACS CGS1 admission remains source-only and `installation_ready=false`.
@@ -40,8 +40,25 @@ enforce the deadline and restore stock independently of the host. Native
 physical core readiness and stock return are observed, while permanent boot
 stays off. `full-trial-status` reads the computer's local receipt without USB
 or engine execution. Lost replies never reissue uploads/launch; old jobs remain
-unchanged and refuse the new capability. The PM-extension transition, permanent
-Full UI and automatic HA enrollment are still separate unfinished steps.
+unchanged and refuse the new capability. After a successful trial, the separate
+**Save and start the full interface** step requires both a human screen/touch
+check and an independent permanent-start acknowledgement. It measures actual
+storage before copying the matched pair, enables startup, resets only that
+completed trial session and starts the saved pair once without a reboot.
+Fresh physical readings and two guardian generations must match the new device
+session. A lost enable ACK stops; a lost start ACK permits observations only.
+Keep USB on the same Linux boot as the trial. The computer commands are:
+
+```sh
+.runtime/bin/python computer_install.py full-activate --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed --screen-reviewed
+.runtime/bin/python computer_install.py full-activation-status
+```
+
+The second command reads local history without USB/ADB/engine execution. Never
+repeat the first after a lost reply. An uncertain durable attempt blocks other
+writers, even after server restart. The initial PM-extension transition and
+automatic HA enrollment remain unfinished; software tests do not qualify an
+untouched device or enable CGS1 Bluetooth or Monitor 2.
 
 ## Install and open
 

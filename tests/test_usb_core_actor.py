@@ -58,6 +58,20 @@ class CoreActorTests(unittest.TestCase):
         trials.start.assert_called_once()
         self.usb_ready.assert_called_once()
 
+    def test_permanent_route_requires_separate_review_and_status_is_local(self):
+        identity = self.fixture.prepare()["job_id"]
+        operations = self.companion.full_activations = SimpleNamespace(status=Mock(return_value={"synthetic": "status"}),
+            start=Mock(return_value={"synthetic": "active"}))
+        self.assertEqual(self.actor.dispatch(self.request("jobs/" + identity + "/full-activate"))[0], {"synthetic": "status"})
+        self.usb_ready.assert_not_called()
+        body = {"job_id": identity, "expected_plan_sha256": "d" * 64, "experimental_reviewed": True}
+        with self.assertRaises(core_actor.Refusal):
+            self.actor.dispatch(self.request("full-activate", body))
+        self.usb_ready.assert_not_called(); operations.start.assert_not_called()
+        self.assertEqual(self.actor.dispatch(self.request("full-activate", {**body, "screen_reviewed": True}))[0], {"synthetic": "active"})
+        operations.start.assert_called_once_with(self.owner, identity, "d" * 64, True, True)
+        self.usb_ready.assert_called_once()
+
     def test_wrong_owner_nonce_and_unknown_operations_precede_hardware(self):
         for change in ({"user": "b" * 32}, {"nonce": "0" * 64},
                        {"operation": "shell"}, {"operation": "../../devices"}):

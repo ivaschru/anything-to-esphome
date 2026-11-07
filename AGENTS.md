@@ -22,7 +22,7 @@ separate even though the HACS wizard is shared.
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
   Computer macOS/Linux ADB writes are experimental; browser-only WebUSB
-  writes and full native UI installation are unfinished. Generate
+  writes and fresh full native UI qualification are unfinished. Generate
   both fixed contracts from preflight_adb.py and rebuild
   the offline Tango bundle with tools/monitor1-usb; preserve exact lock/MIT
   notices and the source check in CI. No generic shell/setup/push/activation
@@ -90,6 +90,20 @@ separate even though the HACS wizard is shared.
   Retain the trial's exact live Linux boot in its private proof for a later
   independent permanent step; never expose it as current public health.
   Run test_usb_full_ui*.py, test_usb_computer.py and test_usb_install.mjs.
+  The separate permanent step requires a successful original trial AND human
+  confirmation of screen/touch and persistent startup. Bind the consumed intent
+  to exact owner/plan/source/trial bytes and that same private Linux boot before
+  the fixed SDK child. Recheck actual USB, bridge bytes, returned pair and
+  private-ext4 capacity before copying. Install the pair, enable boot, reset
+  only that completed session and start once; no reboot/upload/prune/retry.
+  Anchor the new device-generated boot job before observing the exact native
+  pair, physical core readiness and two guardian generations. Unknown enable
+  ACK stops; lost start ACK permits reads only. Cleanup is independent, and an
+  uncertain permanent child fences every other device writer across restart.
+  Computer full-activation-status is local receipt reading without USB or
+  engines. GUI language changes preserve both separate confirmations; status
+  cannot recreate a writer. Keep first-install qualification, PM-extension
+  transition, browser writer and HA enrollment distinct from this operation.
 
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile

@@ -157,9 +157,41 @@ def full_trial_job(directory):
     sync_directory(directory)
 
 
+def full_activation_job(directory):
+    """Use the prior trial's immutable boot/pair; never restage or reboot."""
+    from full_ui_activation_installation import INTENT, RESULT, checked_intent, checked_proof
+    from full_ui_activation_usb import run_usb
+    directory = private_directory(Path(directory))
+    initial = unique_json(read_private(directory / INTENT))
+    owned_intent(directory.parent, directory.name, initial.get("owner"))
+    intent, raw = checked_intent(directory, initial.get("owner"), directory.name)
+    if RESULT in os.listdir(directory):
+        raise PreparationError("usb_full_ui_activation_consumed")
+    source = source_closure(directory)
+    plan = build_report(directory / "install-plan/plan.json")
+    # Engine receipts legitimately extend this directory after installation.
+    # Rehash all immutable roles from the consumed original plan, without
+    # deleting history or using a stale serialized success as live authority.
+    import re
+    for name, pin in plan["files"].items():
+        if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", name) or name in (".", "..") or private_hash(directory / "install-plan" / name) != pin:
+            raise PreparationError("usb_full_ui_activation_unverified")
+    sys.path.insert(0, str(source))
+    import trial_initial_bridge_adb as canonical
+    profile, profile_sha = canonical.candidate.read_profile(directory / "profile.json")
+    if (profile_sha != plan["basis"]["profile_sha256"] or
+            plan["api_identity"] != {key: profile[key] for key in ("node_name", "api_mac")}):
+        raise PreparationError("usb_full_ui_activation_unverified")
+    adb = canonical.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
+    proof = asyncio.run(run_usb(adb, plan, profile, canonical, intent["trial_job"], intent["boot_id"]))
+    checked_proof(proof, intent["trial_job"], intent["boot_id"])
+    write_new(directory / RESULT, (json.dumps({"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof}) + "\n").encode())
+    sync_directory(directory)
+
+
 if __name__ == "__main__":
     if (len(sys.argv) not in (3, 4, 5) or sys.argv[1] != "--job" or not USER.fullmatch(sys.argv[2]) or
-            (len(sys.argv) == 4 and sys.argv[3] != "--full-trial") or
+            (len(sys.argv) == 4 and sys.argv[3] not in ("--full-trial", "--full-activate")) or
             (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
@@ -168,7 +200,7 @@ if __name__ == "__main__":
     # no caller-controlled host path or search fallback is added to the CLI.
     directory = child_job_directory(sys.argv[2])
     if len(sys.argv) == 4:
-        full_trial_job(directory)
+        (full_trial_job if sys.argv[3] == "--full-trial" else full_activation_job)(directory)
     elif len(sys.argv) == 5:
         action = full_review_job if sys.argv[3] == "--full-review" else observe_job
         action(directory, sys.argv[4])

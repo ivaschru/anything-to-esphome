@@ -14,6 +14,7 @@ COMPONENT = ROOT / "custom_components/qingping_esphome"
 FILES = (
     "backup_export.py", "build_worker.py", "computer_install.py", "computer_package.py",
     "full_ui_review.py", "full_ui_usb.py", "full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_installation.py", "install_plan.py", "installation.py",
+    "full_ui_activation.py", "full_ui_activation_usb.py", "full_ui_activation_installation.py",
     "preparation.py", "server.py", "usb_install_job.py", "core_actor.py", "core_tools.py",
     "contract.json", "core-tools.json", "computer-instructions.txt",
 )

@@ -106,3 +106,41 @@ export async function startFullUiTrial(rpc,review,acknowledged) {
     fail("usb_full_ui_trial_unverified");
   }
 }
+
+/** Separate permanent decision. A lost reply permits one status GET only. */
+export function fullActivationStatus(value,id) {
+  const keys=["job_id","state","activation_available","native_observations","store_installed","boot_enabled",
+    "start_acknowledged","installed","installation_ready","replay_allowed","live_recheck_required"];
+  if(!value || Object.keys(value).sort().join()!==keys.sort().join() || !/^[a-f0-9]{32}$/.test(id) || value.job_id!==id ||
+     !["not_started","full_ui_active_observed","full_ui_activation_unverified","full_ui_activation_close_unverified",
+       "full_ui_activation_space"].includes(value.state) || typeof value.activation_available!=="boolean" ||
+     value.installed!==false || value.installation_ready!==false || value.replay_allowed!==false || value.live_recheck_required!==true ||
+     ![null,true,false].includes(value.store_installed) || ![null,true,false].includes(value.boot_enabled) ||
+     ![null,true,false].includes(value.start_acknowledged) ||
+     !(value.native_observations===null || (Number.isInteger(value.native_observations) && value.native_observations>=0 && value.native_observations<=2)))
+    fail("usb_full_ui_activation_unverified");
+  if(value.state!=="not_started" && value.activation_available) fail("usb_full_ui_activation_unverified");
+  if(value.state==="not_started" && [value.native_observations,value.store_installed,value.boot_enabled,value.start_acknowledged].some(v=>v!==null))
+    fail("usb_full_ui_activation_unverified");
+  if(value.state==="full_ui_active_observed" && (value.native_observations!==2 || value.store_installed!==true || value.boot_enabled!==true ||
+      typeof value.start_acknowledged!=="boolean")) fail("usb_full_ui_activation_unverified");
+  return value;
+}
+export async function readFullUiActivation(rpc,id) {
+  if(!/^[a-f0-9]{32}$/.test(id)) fail("usb_full_ui_activation_unverified");
+  return fullActivationStatus(await rpc("jobs/"+id+"/full-activate"),id);
+}
+export async function startFullUiActivation(rpc,review,acknowledged,screenReviewed) {
+  if(acknowledged!==true || screenReviewed!==true || !review || !/^[a-f0-9]{32}$/.test(review.job_id) || !/^[a-f0-9]{64}$/.test(review.plan_sha256))
+    fail("usb_full_ui_activation_review_required");
+  try {
+    return fullActivationStatus(await rpc("full-activate",{job_id:review.job_id,expected_plan_sha256:review.plan_sha256,
+      experimental_reviewed:true,screen_reviewed:true}),review.job_id);
+  } catch(error) {
+    if(["usb_unauthorized","usb_busy","usb_full_ui_activation_review_required","usb_full_ui_activation_trial_required",
+       "usb_install_host_space","usb_install_previous_unverified","usb_full_ui_trial_previous_unverified",
+       "usb_full_ui_activation_previous_unverified"].includes(error?.code)) throw error;
+    try {const value=await readFullUiActivation(rpc,review.job_id);if(value.state!=="not_started") return value;} catch {}
+    fail("usb_full_ui_activation_unverified");
+  }
+}
