@@ -1,3 +1,11 @@
+## Unreleased – Monitor 1 initial Full UI transition
+
+- Add a distinct fixed 60-second Full UI launch mode using the existing
+  device guardians. Its immutable plan carries the limit independently of
+  the host connection; permanent plans retain their existing encoding.
+  Initial-install hardware qualification and PM-extension admission remain
+  required. This source change does not publish or install a new firmware.
+
 ## Monitor 1 runtime version 1 (independent firmware channel)
 
 - Publish separate immutable S8 and SCD40 full-runtime source kits, with exact

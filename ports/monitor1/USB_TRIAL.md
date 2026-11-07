@@ -18,6 +18,29 @@ on the computer and reuses these same engines; it never rewrites a browser
 report to invent native transport evidence. Lite's
 Bluetooth transports stay separate. Subsequent ordinary updates use the network.
 
+## Fixed Full UI trial mode (source stage)
+
+The ordinary full-runtime API now has a separate `full_runtime_launch_trial`
+action with only the already prepared `job` argument. It selects exactly
+60 seconds in the existing dual-guardian stop/stock-recovery lifecycle. It
+does not accept a duration, enable boot mode, activate the PM extension or
+bypass the normal board, image, display and RAM checks. A host disconnect
+cannot renew the limit. The limit is a ceiling for acquired native operation,
+not a claim that all preparation/stock restoration takes exactly 60 seconds.
+
+The inherited read-only plan uses V2 only for this fixed mode; permanent V1
+bytes are unchanged. An old guardian rejects V2. Both guardian roles inherit
+the effective limit, including any stricter diagnostic compile-time ceiling.
+New matched native/guardian/bridge builds are required; do not retrofit pins
+or send this action to an old build and infer success from a lost response.
+
+This is currently runtime source, not a completed GUI first-install path or
+physical qualification. The host trial coordinator still needs one consumed
+intent, fresh identity/pair admission and separate proof of native acquisition
+and stock return. In particular the existing verified PM-extension prerequisite
+remains; its fresh loader trial must not be performed remotely on a working
+monitor without the separate recovery conditions.
+
 ## Prepared stage, commit and trial in one sequence
 
 `stage_commit_trial_adb.py` joins the existing three operations for a fresh,

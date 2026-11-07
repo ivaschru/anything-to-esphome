@@ -269,18 +269,19 @@ class FullRuntime : public Component {
     ok_=materialized_->release_uploads();
     if(!ok_)error_="upload_duplicate_release_failed_output_preserved";
   }
-  void launch(StringRef job) {
+  void launch(StringRef job,cgs1_supervisor::FullRunMode mode=cgs1_supervisor::FullRunMode::PERMANENT) {
     ok_=false;error_.clear();
     if(!stage_ || !coordinator_ || stage_->job()!=text_(job)) {error_="full_job_mismatch";return;}
     if(!materialized_->uploads_released()){error_="completed_full_preparation_required";return;}
     if(!ram_fits_(STARTUP_RESERVE)){error_="insufficient_ram_headroom_for_native_startup";return;}
     // request() queues only; component.loop() performs fork/pause after the
     // action's response has left its API connection stack.
-    ok_=coordinator_->request(*materialized_,stage_->job());
+    ok_=coordinator_->request(*materialized_,stage_->job(),{},mode);
     if(!ok_)error_=coordinator_->error();
   }
   void report(JsonObject root) const {
     root["core_release_autostart_supported"]=core_release_autostart_;
+    root["hard_runtime_ms"]=coordinator_?coordinator_->hard_runtime_ms():0;
     root["core_boot_state"]=boot_flow_?unsigned(boot_flow_->state()):0;
     root["core_boot_error"]=boot_error_;
     root["core_boot_enabled"]=core_parent_ && core_parent_->current() && core_store_ && core_store_->enabled();

@@ -215,3 +215,15 @@ api:
             success: !lambda return id(full_runtime).ok();
             error_message: !lambda return id(full_runtime).error();
             data: !lambda id(full_runtime).report(root);
+    # Separate fixed first-UI proof. No network timeout/duration field and no
+    # automatic boot-mode change: the same device guardians return to stock.
+    - action: full_runtime_launch_trial
+      supports_response: only
+      variables:
+        job: string
+      then:
+        - lambda: id(full_runtime).launch(job, cgs1_supervisor::FullRunMode::INITIAL_UI_TRIAL);
+        - api.respond:
+            success: !lambda return id(full_runtime).ok();
+            error_message: !lambda return id(full_runtime).error();
+            data: !lambda id(full_runtime).report(root);

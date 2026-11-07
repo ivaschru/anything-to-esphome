@@ -69,6 +69,13 @@ separate even though the HACS wizard is shared.
   Never expose a generic action/host/path or enable a loader from a read.
   The same review is exported for computer USB. Test the API, USB lifetime,
   owner/lease/proof DTO and EN/RU/lost-state UI; no hardware QA follows.
+  The separate full_runtime_launch_trial action selects a fixed 60s mode,
+  never a network-selected duration. Its immutable FD plan V2 carries the
+  bound to both existing device guardians; stricter compiled limits win.
+  Permanent V1 bytes remain unchanged, old readers refuse V2, and no boot
+  mode is enabled by a trial. Keep actual stock/PM/DRM/image/RAM admission.
+  Run test_full_runtime_limit_plan.cpp on Linux; no host fixture qualifies
+  the initial UI transition or lifts its PM-extension prerequisite.
 
 - Computer export is an explicit owner-only bounded private bundle, not a
   public release asset. Include only pinned source/program/helper/profile
