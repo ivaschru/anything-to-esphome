@@ -440,8 +440,19 @@ separate even though the HACS wizard is shared.
   an old policy or mismatched source even when the binary checksum is valid.
 
 - Installer-only releases use `python tools/prepare_release_template.py` to
-  reuse the exact public v0.1.3 Lite pair only with matching committed Lite
-  tree/compiler/personalizer pins. Dirty or missing source and a failed asset
+  retain v0.1.3 legacy pins and reuse newer immutable pairs only with matching
+  committed release_source_sha256 from firmware_source.py. Dirty or missing source and a failed asset
   read refuse; clean changed source uses the ordinary pinned compiler. Never
   overwrite existing output, substitute a private build or separate a binary
   from its matching manifest. Build/package from a clean committed snapshot.
+
+- AutoAdoption inventories only HA-owned connected ESPHome runtimes. Reuse
+  their Noise key and fixed requesting-client-only profile action; no scanner,
+  rekey, reset, OTA or HA-client disconnect on discovery. AES-GCM envelopes
+  bind fresh challenges and exact MAC; no plain Wi-Fi/AP/OTA values in entities,
+  action responses or logs. Preserve pending/consumed history, refuse private
+  firmware and refresh the current profile before OTA. Future versions need
+  validated compatible public catalog identity. Legacy firmware needs a one-time
+  upgrade, never guessed secrets. Unload retires only owned reads/timers.
+  Run test_device_profile.py and test_firmware_update_ha.py with the HA SDK;
+  check_profile_wire.py uses actual build SDK mbedTLS. Host proof is not QA.

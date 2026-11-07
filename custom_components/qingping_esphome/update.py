@@ -42,7 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def add_verified():
         entities = []
         for mac, record in manager.records.items():
-            if mac not in added and record.get("outcome") == "native_verified":
+            if mac not in added and record.get("outcome") in {"native_verified", "auto_adopted"}:
                 # Historical Store v1 was produced only by the Lite installer.
                 # Missing private/profile fields never gain INSTALL support.
                 if record.get("profile", "lite") != "lite": continue

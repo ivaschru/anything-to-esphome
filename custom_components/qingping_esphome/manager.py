@@ -43,6 +43,7 @@ class Manager:
         self.record_listeners = set()
         self.records_lock = asyncio.Lock()
         self.updates = None
+        self.adoption = None
         self.checks = {}
         self.relay = Relay(self.firmware_url, self.consume_intent)
         self.cleanup_task = None
@@ -73,6 +74,7 @@ class Manager:
         self.cleanup_task = asyncio.create_task(self.cleanup(), name="qingping-session-expiry")
 
     async def stop(self):
+        if self.adoption: await self.adoption.stop()
         if self.updates: await self.updates.stop()
         if self.cleanup_task: self.cleanup_task.cancel()
         for task in self.checks.values(): task.cancel()

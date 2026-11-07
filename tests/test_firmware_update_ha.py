@@ -109,6 +109,42 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(OSError): await self.engine.install(self.mac, self.release, Mock(), Mock())
             send.assert_not_awaited()
 
+    async def test_auto_adoption_requires_live_profile_and_uses_current_wifi_before_ota(self):
+        from custom_components.qingping_esphome.firmware_catalog import FirmwareError
+        self.record.update(outcome="auto_adopted",origin="device_profile_v1")
+        self.manager.adoption=SimpleNamespace(refresh=AsyncMock(return_value=False),stop=AsyncMock())
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock()) as send:
+            with self.assertRaisesRegex(FirmwareError,"update_device_unavailable"):
+                await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_not_awaited();self.assertNotIn("update_attempt",self.record)
+        async def refresh(mac):
+            self.assertEqual(mac,self.mac)
+            self.assertTrue(self.engine.lock.locked())
+            # Replace the old Store row just as the profile importer does.
+            fresh={**self.record,"personalization":{**self.record["personalization"],"ssid":"current-device-network"}}
+            self.manager.records[mac]=fresh
+            return True
+        self.manager.adoption.refresh=AsyncMock(side_effect=refresh)
+        async def upload(host,image,*args):
+            self.assertIn(b"current-device-network",image)
+            self.assertNotIn(b"fixture-network",image)
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock(side_effect=upload)) as send, patch.object(self.engine,"verify",AsyncMock()):
+            await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_awaited_once()
+
+    async def test_profile_refresh_detects_update_already_installed_elsewhere(self):
+        from custom_components.qingping_esphome.firmware_catalog import FirmwareError
+        self.record.update(outcome="auto_adopted",origin="device_profile_v1")
+        async def refresh(mac):
+            self.manager.records[mac]={**self.record,"firmware_version":self.release.version,
+                                       "firmware_revision":self.release.revision}
+            return True
+        self.manager.adoption=SimpleNamespace(refresh=AsyncMock(side_effect=refresh),stop=AsyncMock())
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock()) as send:
+            with self.assertRaisesRegex(FirmwareError,"update_not_applicable"):
+                await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_not_awaited()
+
     async def test_ambiguous_send_restart_and_second_action_only_reconcile(self):
         from custom_components.qingping_esphome.firmware_catalog import FirmwareError
         from custom_components.qingping_esphome.firmware_update import FirmwareUpdates
@@ -187,6 +223,9 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.record["firmware_revision"], 1)
 
     async def test_native_ha_entity_state_and_real_install_service_context(self):
+        # A device imported from another HA receives the same native entity
+        # and administrator-only service boundary as an installer-owned one.
+        self.record["outcome"] = "auto_adopted"
         """Exercise HA's own entity/service pipeline, not a direct method call."""
         import logging
         from datetime import timedelta
@@ -314,7 +353,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(entity.supported_features & 1)  # INSTALL
         await self.manager.save_records()
         self.assertEqual(add.call_count, 1)
-        self.manager.records["001122334466"] = dict(self.record)
+        self.manager.records["001122334466"] = {**self.record,"outcome":"auto_adopted"}
         await self.manager.save_records()
         self.assertEqual(add.call_count, 2)
         self.assertEqual(len(add.call_args.args[0]), 1)

@@ -183,6 +183,30 @@ the image. Keep the device powered. If the old firmware remains, inspect the
 attempt before any separate, explicitly authorized recovery. Repeated button
 presses cannot clear this guard.
 
+### Automatic adoption when moving between HA servers
+
+Starting with candidate integration **0.1.9** and Lite firmware
+**2026.11.07-ui25-profile1**, no installer-profile file needs to be moved.
+Add the monitor to the new HA's standard ESPHome integration with its existing
+API encryption key. Once connected, Qingping ESPHome recognizes the supported
+firmware and automatically adds its update entity, normally within one minute.
+It reuses HA's connection and key, with no pairing reset or automatic flash.
+
+The firmware provides current Wi-Fi, fallback AP and OTA credentials in a
+requesting-client-only encrypted profile. They stay in HA's private journal,
+never in sensor states, plain action responses, browser storage or GitHub.
+Before an update the profile is read again to preserve local Wi-Fi changes.
+The administrator still presses **Update**; USB/identity/settings checks remain
+in force. A new HA cannot discover an encryption key it does not already have:
+standard ESPHome onboarding/authentication is separate.
+
+Older firmware has no profile action. Upgrade it once while the original HA
+still has its update profile, or prepare the legacy installation as described
+above, before moving it. Updating HACS alone cannot recover secrets from an
+old device. Private quiet builds, external-MCU Lite and other hardware families
+are not silently converted to public Lite firmware. Host/SDK tests and the
+firmware build passed; physical migration QA is still pending.
+
 ### Publishing firmware
 
 Use a clean committed snapshot. Prepare the public template with
@@ -191,6 +215,12 @@ Use a clean committed snapshot. Prepare the public template with
 revision and the native UI version together. The builder verifies that version
 is actually present in the matching binary. Keep the currently qualified
 production PM policy; private fan experiments are not public release assets.
+The profile action's revision comes from the same release metadata. A matching
+published version reuses the exact immutable BIN/manifest only when its
+`release_source_sha256` matches the current firmware input closure. A source
+change under the same version refuses instead of rebuilding another image.
+Run `tools/check_profile_wire.py` after the initial compile to check real SDK
+firmware crypto against the Python decoder.
 
 `python tools/build_firmware_catalog.py --tag vX.Y.Z --check-previous` creates
 the catalog, public BIN and original manifest in a new

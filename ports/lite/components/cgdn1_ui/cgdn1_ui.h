@@ -41,7 +41,7 @@ static constexpr const char *UI_VERSION = "2026.11.04-ui27-weak17";
 #elif defined(CGDN1_GPIO23_PROBE)
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
 #else
-static constexpr const char *UI_VERSION = "2026.11.06-ui25-polling1";
+static constexpr const char *UI_VERSION = "2026.11.07-ui25-profile1";
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};

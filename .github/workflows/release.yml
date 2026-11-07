@@ -18,6 +18,13 @@ jobs:
       # known source change still uses the pinned public-placeholder compiler;
       # dirty/missing source or failed download never selects another image.
       - run: python tools/prepare_release_template.py
+      - name: Verify sealed profile across the actual C++ and Python implementations
+        # The initial capability build supplies the exact SDK source tree.
+        # Installer-only releases reuse the already-verified immutable pair.
+        run: |
+          if [ -f .build/lite-app/build/compile_commands.json ]; then
+            python tools/check_profile_wire.py
+          fi
       - run: python -m unittest discover -s tests -v
       - run: python tools/package_release.py
       - name: Build the stable model-specific firmware update catalog
