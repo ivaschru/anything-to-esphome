@@ -63,6 +63,14 @@ separate even though the HACS wizard is shared.
   normal acknowledged closure permits read reconnect only. Test its actual
   loopback byte pumps with test_usb_browser_relay.py. Parent/browser framing,
   typed plan authority and writer admission are still separate missing work.
+  BrowserChannel/BrowserChannelPeer provide finite API-only frames: server-made
+  consumed request IDs, two pending read/write frames, 64KiB canonical chunks,
+  no generic command or retry. A cancelled pure read survives only until the
+  positively acknowledged API-close; its one late answer never satisfies a
+  later request. Cancellation/unknown delivery of a byte write fences the
+  channel. Preserve actual loopback/framing and concurrent read/close EOF
+  tests. This framing is still unwired to the admin HTTP adapter or a writer;
+  no browser lease/plan identity can be inferred from arbitrary JSON alone.
 
 - Native GUI installation composes the original stage/commit/bounded-trial
   engine and separate next-boot armer in a fixed private SDK child. Consume
