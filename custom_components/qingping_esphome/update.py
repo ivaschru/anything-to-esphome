@@ -8,7 +8,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .firmware_catalog import FirmwareError
+from .firmware_catalog import FirmwareError, device_release_profile
 from .firmware_update import fetch_catalog, pending, private_values
 from .native_ota import encryption_available
 
@@ -45,7 +45,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
             if mac not in added and record.get("outcome") in {"native_verified", "auto_adopted"}:
                 # Historical Store v1 was produced only by the Lite installer.
                 # Missing private/profile fields never gain INSTALL support.
-                if record.get("profile", "lite") != "lite": continue
+                if device_release_profile(record) not in {"lite", "lite-434"}: continue
                 added.add(mac)
                 entities.append(QingpingFirmwareUpdate(manager, coordinator, mac))
         if entities: async_add_entities(entities)
@@ -76,7 +76,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
 
     @property
     def release(self):
-        return (self.coordinator.data or {}).get(self.record.get("profile", "lite"))
+        return (self.coordinator.data or {}).get(device_release_profile(self.record))
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
@@ -111,7 +111,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
         if ready:
             self._attr_supported_features |= UpdateEntityFeature.INSTALL | UpdateEntityFeature.PROGRESS
         self._attr_extra_state_attributes = {
-            "hardware_profile": record.get("profile", "lite"),
+            "hardware_profile": device_release_profile(record),
             "firmware_build_id": record.get("firmware_version"),
             "update_readiness": "needs_review" if pending(record) else "ready" if ready else "profile_or_backend_required",
             "update_phase": self._phase,

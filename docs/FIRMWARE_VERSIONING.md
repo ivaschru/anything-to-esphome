@@ -25,6 +25,7 @@ A friendly name is not hardware identity.
 | Release line | Package family | First numbered release | Current readiness |
 |---|---|---|---|
 | Lite, direct-I2C / original stock 4.5.8 | ESP32 application replacement | 1 | One battery APP upgrade, live sensors, retained settings/keys and automatic HA adoption verified; a physical two-server move is not claimed |
+| Lite, direct-I²C / original stock 4.3.4 | ESP32 application replacement, `lite-434` | 1 | Separate polling-only image; PM OFF does not stop the fan. Existing native updates require integration 0.2.9+; factory BLE unqualified |
 | Monitor 1 / S8 | Full ESPHome runtime bundle | 1 (source-built runtime) | Runtime/source builds tested; common initial USB installer and automatic updater remain separate unfinished capabilities |
 | Monitor 1 / SCD40 | Full ESPHome runtime bundle | 1 (source-built runtime) | Separate CO2 backend; same source/runtime qualification boundary |
 | Lite, external MCU / original stock 4.2.1 | Not yet qualified | None | In development; no installation image |

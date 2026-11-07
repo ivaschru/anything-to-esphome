@@ -21,7 +21,7 @@ from aioesphomeapi import APIClient, BinarySensorState, NumberState, SelectState
 from aiohttp import ClientError, ClientTimeout
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .firmware_catalog import CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog, asset_url
+from .firmware_catalog import CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog, asset_url, device_release_profile
 from .image import SLOTS, layout, mac_normalize, personalize, private_ipv4
 from .native_ota import encryption_available, upload_app
 
@@ -49,10 +49,12 @@ def setting_state(value):
 def private_values(record):
     """Legacy v1 records lack Wi-Fi/AP values: refuse rather than rotate them."""
     data = record.get("personalization")
-    if (record.get("profile") != "lite" or record.get("hardware") != "0001"
+    if (record.get("profile") not in {"lite", "lite-434"} or record.get("hardware") != "0001"
             or record.get("source_stock_version") not in {"4.3.4", "4.5.8"} or not isinstance(data, dict)
             or not PRIVATE_FIELDS.issubset(data) or data["name"] != record.get("name")
             or data["ota_password"] != record.get("ota_password")):
+        raise FirmwareError("update_profile_required")
+    if record.get("profile") == "lite-434" and record.get("source_stock_version") != "4.3.4":
         raise FirmwareError("update_profile_required")
     try:
         values = {key: data[key] for key in PRIVATE_FIELDS}
@@ -122,12 +124,16 @@ def validate_template(data, manifest_bytes, release):
     """Both the index and original template manifest bind the same public app."""
     try:
         manifest = json.loads(manifest_bytes)
-        if (release.profile != "lite" or manifest["model"] != "CGDN1"
+        if (release.profile not in {"lite", "lite-434"} or manifest["model"] != "CGDN1"
                 or manifest["format"] != "esp32-app-fixed-slots-v1"
                 or manifest["ui"] != release.version or manifest.get("public_version") != release.public_version or manifest["size"] != len(data)
                 or release.version.encode() not in data
                 or manifest["sha256"] != release.image.sha256
                 or hashlib.sha256(data).hexdigest() != release.image.sha256):
+            raise ValueError
+        if release.profile == "lite-434" and (manifest.get("profile") != "lite-434"
+                or manifest.get("source_stock_version") != "4.3.4" or manifest.get("hardware") != "0001"
+                or manifest.get("fan_shutdown") is not False or manifest.get("pm_policy") != "lite-434-polling-only-v1"):
             raise ValueError
         layout(data)
         if any(data.count(marker) != manifest["slots"][key] or data.count(marker) < 1
@@ -303,6 +309,8 @@ class FirmwareUpdates:
                           template_sha256=attempt["template_sha256"], image_sha256=attempt["image_sha256"],
                           build=info.compilation_time, peer=private_ipv4(client.connected_address),
                           outcome="native_verified")
+            if attempt.get("profile") == "lite-434":
+                record["profile"] = "lite-434"
             if attempt.get("public_version") is not None:
                 record["public_version"] = attempt["public_version"]
             attempt["state"] = "verified"
@@ -331,7 +339,7 @@ class FirmwareUpdates:
                    for s in self.manager.relay.sessions.values()):
                 raise FirmwareError("firmware_update_busy")
             if (record.get("outcome") not in {"native_verified", "auto_adopted"} or not release
-                    or record.get("profile") != release.profile
+                    or device_release_profile(record) != release.profile
                     or not release.supports_install(self.integration_version)
                     or release.revision <= record.get("firmware_revision", 0)
                     or release.version == record.get("firmware_version")):
@@ -344,7 +352,7 @@ class FirmwareUpdates:
                 record = self.manager.records[mac]
                 # A fresh device profile can reveal an already-installed
                 # release. Never transfer merely because the UI was stale.
-                if (release.revision <= record.get("firmware_revision", 0)
+                if (device_release_profile(record) != release.profile or release.revision <= record.get("firmware_revision", 0)
                         or release.version == record.get("firmware_version")):
                     raise FirmwareError("update_not_applicable")
             values = private_values(record)
@@ -372,7 +380,7 @@ class FirmwareUpdates:
             finally:
                 if client: await client.disconnect()
             attempt = {"id": secrets.token_hex(16), "at": datetime.now(timezone.utc).isoformat(),
-                       "version": release.version, "revision": release.revision, "state": "consumed",
+                       "version": release.version, "revision": release.revision, "profile": release.profile, "state": "consumed",
                        "public_version": release.public_version,
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
                        "settings_before": {name: snapshot[name] for name in SETTINGS if name in snapshot}}

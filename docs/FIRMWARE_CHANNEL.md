@@ -93,3 +93,25 @@ No plugin upgrade silently reflashes a device or creates a new device version.
 Run `python -m unittest discover -s tests -p 'test_firmware*.py' -v` before
 changing the channel. This includes actual bare-Git atomic/CAS races and real
 HA SDK state contracts, not physical OTA qualification.
+
+## Original-stock 4.3.4 line
+
+`lite-434` has its own integer counter, immutable `firmware-lite-434-vN` tags,
+`lite-434-template.bin/json` assets and `firmware/lite434-release.json` metadata.
+The first public version is 1; internal revision 4 advances beyond the old
+shared public 2/revision 3. Installed labels change only after verified OTA.
+Use `tools/build_lite434.py` and `tools/publish_firmware.py --profile lite-434`.
+
+The root `hardware_releases` extension contains this new installable line.
+Pre-0.2.9 readers ignore it and keep parsing their original `releases` map.
+New readers combine both maps with duplicate/unknown extension keys refused.
+Publishing either Lite line must preserve the other map and `runtime_releases`.
+Do not put a new unknown profile in old readers' map or change existing Lite 2
+assets/counters to hide the addition. The integration's first support is 0.2.9;
+this minimum is independent from subsequent firmware-only versions.
+
+Version 1 deliberately uses a continuous HIGH sensor rail: PM OFF affects
+polling only. It does not promise fan shutdown. Initial factory BLE admission
+is unchanged; the enabled route is native updates of existing managed devices
+with authenticated 4.3.4/HW0001 provenance. Other original-stock generations
+must never receive this image through model-name or public-number inference.

@@ -1,3 +1,18 @@
+## 0.2.9
+
+- Support the separate Lite original-stock 4.3.4 / HW0001 firmware line
+  `lite-434`, starting at public version 1. Standard HA updates and sealed
+  automatic adoption preserve exact stock provenance, private credentials,
+  forward internal OTA order and all existing install guards.
+- Version 1 stops PM polling only; fan shutdown is explicitly unsupported.
+  The sensor rail remains HIGH. The existing 4.5.8 Lite 2 release is unchanged.
+- Publish independent immutable firmware assets through the backward-compatible
+  `hardware_releases` catalog extension. Firmware-only updates remain separate
+  from HACS releases. Factory Bluetooth admission for 4.3.4 stays disabled.
+- Pinned SDK build, actual PM lifecycle, sealed C++/Python interoperability,
+  HA routing and atomic Git publication tests are software evidence; this
+  release is not a newly performed hardware installation.
+
 ## 0.2.7 – initial PM transition for Full UI
 
 ## 0.2.8

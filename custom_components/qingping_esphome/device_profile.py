@@ -22,6 +22,7 @@ ENVELOPE = "qingping-update-profile-envelope-v1"
 PROFILE = "qingping-device-update-profile-v1"
 KEY_DOMAIN = b"qingping-esphome/update-profile/v1"
 PROFILE_VERSIONS = {"2026.11.07-ui25-profile1": 2, "2026.11.07-ui25-quiet2": 3}
+PROFILE_434_VERSIONS = {"2026.11.08-ui25-434v1": 4}
 MAX_RESPONSE = 8192
 
 
@@ -59,9 +60,10 @@ class DeviceProfile:
     values: dict[str, str] = field(repr=False)
     public_version: int | None = None
     source_stock_version: str = "4.5.8"
+    profile: str = "lite"
 
 
-def decode_profile(response, key, mac, name, challenge, *, public_versions=None):
+def decode_profile(response, key, mac, name, challenge, *, public_versions=None, hardware_versions=None):
     """Validate one authenticated read, with no partial/default profile values."""
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -77,15 +79,22 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None)
         plain = AESGCM(aes_key).decrypt(bytes.fromhex(envelope["nonce"]), bytes.fromhex(envelope["ciphertext"]), aad)
         if len(plain) > 2048: raise ValueError
         data = json.loads(plain)
-        versions = {**PROFILE_VERSIONS, **(public_versions or {})}
+        wire_profile = data.get("profile")
+        if wire_profile == "lite-434":
+            versions = {**PROFILE_434_VERSIONS, **(hardware_versions or {})}
+            stock_ok = data.get("source_stock_version") == "4.3.4"
+        elif wire_profile == "lite":
+            versions = {**PROFILE_VERSIONS, **(public_versions or {})}
+            stock_ok = (data.get("source_stock_version") == "4.5.8" or
+                        data.get("source_stock_version") == "4.3.4" and data.get("version") == "2026.11.07-ui25-quiet2")
+        else:
+            raise ValueError
         # An authenticated API endpoint is not proof of an arbitrary board.
         # Admit only published capability/profile generations (built-in or validated catalog), never a
         # marketing model match or an unrecognised private experimental UI.
         if (data.get("format") != PROFILE or data.get("challenge") != challenge
                 or data.get("mac") != mac_normalize(mac) or data.get("name") != name
-                or data.get("profile") != "lite" or data.get("hardware") != "0001"
-                or not (data.get("source_stock_version") == "4.5.8" or
-                    data.get("source_stock_version") == "4.3.4" and data.get("version") == "2026.11.07-ui25-quiet2")
+                or data.get("hardware") != "0001" or not stock_ok
                 or data.get("version") not in versions
                 or type(data.get("revision")) is not int
                 or data["revision"] < 2 or data["revision"] != versions[data["version"]]): raise ValueError
@@ -100,7 +109,7 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None)
         _text(name, len(SLOTS["name"]), minimum=len(SLOTS["name"]))
         for k in keys:
             _text(values[k], len(SLOTS[k]), minimum=8 if k == "ap_password" else 1 if k in {"ssid", "ap_ssid", "ota_password"} else 0)
-        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public, data["source_stock_version"])
+        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public, data["source_stock_version"], wire_profile)
     except Exception:
         # InvalidTag, SDK/JSON errors and malformed untrusted data must never
         # turn private plaintext/response bytes into diagnostics or HA state.

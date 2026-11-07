@@ -691,3 +691,24 @@ separate even though the HACS wizard is shared.
   readiness. Never publish private candidate outputs, QtCore or profiles.
   Run tests/test_monitor1_publication.py for reproducibility, tag immutability
   and the actual atomic two-tag/catalog CAS, plus existing firmware tests.
+
+- Lite original stock 4.3.4 / HW0001 has the independent `lite-434` release
+  line. Public 1 / internal revision 4 is polling-only: GPIO13 remains HIGH,
+  PM OFF invalidates/stops PM readings and does not promise fan shutdown.
+  `ports/lite-434/cgdn1_pm.h` is an explicit build overlay; do not modify the
+  immutable shared Lite 2 inputs merely to introduce another hardware line.
+  Build with `python tools/build_lite434.py` in the pinned SDK and run
+  `python tools/check_lite434_wire.py`, test_firmware434.py and the HA updater
+  tests. Publisher: `tools/publish_firmware.py --profile lite-434` (preview;
+  `--publish` consumes the independent atomic publication intent).
+  Metadata/source pins belong to firmware/lite434-release.json and
+  tools/lite434_source.py. Integration 0.2.9+ supports native updates/adoption,
+  not a new factory BLE route. Keep factory admission at its qualified scope.
+  The catalog extension `hardware_releases` keeps old readers' `releases.lite`
+  intact. Every publisher must preserve both maps and `runtime_releases`.
+  Route old public Lite records using authenticated original stock/HW values;
+  do not rename their installed version/counter before successful OTA. Source
+  4.5.8, MCU and unknown profiles must never receive the 4.3.4 image. Snapshot,
+  USB, exact identity, private settings, one-use intent and encrypted app-only
+  transfer guards remain identical. This is a stock-generation discriminator,
+  not a newly established PCB revision number.
