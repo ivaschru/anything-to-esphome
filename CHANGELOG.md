@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Monitor 1 USB app 0.0.10 adds computer `local-status`: recover the recorded
+  plan SHA and inspect historical receipts without USB, ADB or engine imports.
+  Partial history stays unverified, preserved and without retry authority;
+  live status/boot observation still needs the separate USB commands.
 - Monitor 1 USB app 0.0.9 uses the cross-built `0de9c99e` source for new
   private builds while retaining historical `e09440f9` jobs and plans.
   Status, planning and computer export bind each payload to its original
