@@ -1,0 +1,24 @@
+{
+  "pm_policy": "quiet-scd4x-window-v1",
+  "pm_source_sha256": "50a54dc2d5ea4185f125937efb51b36c1583e53581a45e7bd199842d862d8085",
+  "model": "CGDN1",
+  "ui": "2026.11.07-ui25-quiet2",
+  "public_version": 2,
+  "font": "Inter + Roboto Condensed (OFL)",
+  "esphome": "2026.9.1",
+  "size": 1546736,
+  "sha256": "ca68ed3c5754eae2957d2e0a45b64959bc45f54f2bfa2a3f52d5d477220880ef",
+  "release_source_sha256": "84fe3cb19e4f359d20c1d65ebbe3f49604ba59b7a1bc4b3f7944ddb012f3df89",
+  "slots": {
+    "display_feed_entity": 1,
+    "source_stock_version": 1,
+    "ssid": 1,
+    "wifi_password": 1,
+    "name": 2,
+    "ap_ssid": 1,
+    "ap_password": 1,
+    "ota_password": 1,
+    "noise_psk": 1
+  },
+  "format": "esp32-app-fixed-slots-v1"
+}
