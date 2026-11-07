@@ -1,7 +1,7 @@
 name: Qingping USB (experimental installer)
-version: "0.0.11"
+version: "0.0.12"
 slug: qingping_monitor1_usb
-description: Private CGS1 builds, experimental USB bridge installation and bounded full-screen trial
+description: Private CGS1 builds, experimental USB bridge installation and separate full-screen trial and permanent startup
 url: https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb
 arch:
   - aarch64

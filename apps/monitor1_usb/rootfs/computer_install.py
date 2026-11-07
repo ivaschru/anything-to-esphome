@@ -394,15 +394,99 @@ async def full_trial(root, modules, adb, manifest, digest, reviewed):
     return full_trial_status(root, manifest)
 
 
+def activation_basis(root, manifest):
+    """Read the successful local trial and preserve its exact original proof."""
+    if full_trial_status(root, manifest)["state"] != "full_ui_trial_returned_observed":
+        raise ValueError("Successful original screen trial required")
+    state = private_root(root / "computer-state")
+    trial_raw = private_file(state / "full-ui-trial-intent.json", 16384)
+    result_raw = private_file(state / "full-ui-trial-result.json", 16384)
+    trial, result = unique_json(trial_raw), unique_json(result_raw)
+    return {"plan_sha256": trial["plan_sha256"], "source_commit": manifest["source_commit"],
+            "trial_intent_sha256": hashlib.sha256(trial_raw).hexdigest(),
+            "trial_result_sha256": hashlib.sha256(result_raw).hexdigest(),
+            "trial_job": trial["nonce"], "boot_id": result["proof"]["boot_id"],
+            "screen_reviewed": True, "experimental_reviewed": True}
+
+
+def full_activation_status(root, manifest):
+    """Historical local receipt; no USB, engines, discovery or writer resume."""
+    state = private_root(root / "computer-state")
+    public = {"state": "not_started", "local_receipt_only": True, "read_only": True,
+              "hardware_contacted": False, "installed": False, "installation_ready": False,
+              "boot_enabled": None, "store_installed": None, "native_observations": None,
+              "start_acknowledged": None, "replay_allowed": False}
+    if "full-ui-activation-intent.json" not in os.listdir(state):
+        return public
+    if not {"full_ui_activation.py", "full_ui_trial.py", "full_ui_review.py"} <= set(manifest["files"]):
+        raise ValueError("Verified permanent-transition helpers required")
+    basis = activation_basis(root, manifest)
+    raw = private_file(state / "full-ui-activation-intent.json", 16384)
+    intent = unique_json(raw)
+    if (intent != basis or set(intent) != set(basis) or intent["screen_reviewed"] is not True or
+            intent["experimental_reviewed"] is not True):
+        raise ValueError("Exact consumed permanent-transition basis required")
+    public["state"] = "full_ui_activation_unverified"
+    if "full-ui-activation-result.json" in os.listdir(state):
+        from full_ui_activation import checked_proof
+        result = unique_json(private_file(state / "full-ui-activation-result.json", 16384))
+        if set(result) != {"intent_sha256", "proof"} or result["intent_sha256"] != hashlib.sha256(raw).hexdigest():
+            raise ValueError("Exact permanent-transition receipt required")
+        proof = checked_proof(result["proof"], basis["trial_job"], basis["boot_id"])
+        public.update({key: proof[key] for key in ("state", "boot_enabled", "store_installed", "native_observations", "start_acknowledged")})
+    return public
+
+
+async def full_activate(root, modules, adb, manifest, digest, reviewed, screen_reviewed):
+    """Same permanent API/USB coordinator as HA, after independent review."""
+    if (reviewed is not True or screen_reviewed is not True or not isinstance(digest, str) or
+            not re.fullmatch(r"[a-f0-9]{64}", digest) or
+            not {"full_ui_activation.py", "full_ui_activation_usb.py", "full_ui_trial.py", "full_ui_review.py"} <= set(manifest["files"])):
+        raise ValueError("Review the visible screen and permanent startup separately")
+    state = private_root(root / "computer-state")
+    if "full-ui-activation-intent.json" in os.listdir(state):
+        raise ValueError("Permanent request already consumed; read full-activation-status")
+    basis = activation_basis(root, manifest)
+    if basis["plan_sha256"] != digest:
+        raise ValueError("Exact original plan required")
+    canonical = modules[3].trial
+    _, plan = canonical.review.staging.load_plan(state / "install-plan", digest)
+    profile, profile_sha = canonical.candidate.read_profile(root / "profile.json")
+    if (profile_sha != manifest["profile_sha256"] or profile_sha != plan["basis"]["profile_sha256"] or
+            plan["basis"]["source_commit"] != manifest["source_commit"] or
+            plan["api_identity"] != {key: profile[key] for key in ("node_name", "api_mac")}):
+        raise ValueError("Exact private profile/source required")
+    from full_ui_activation import checked_proof
+    from full_ui_activation_usb import run_usb
+    # Share the trial lease. The successful immutable receipt must exist
+    # before this step; a timeout or an empty/partial result cannot admit it.
+    lock = os.open(state / "full-ui-trial.lock", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(lock)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or
+                stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError("Owned private Full UI lease required")
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        write_new(state / "full-ui-activation-intent.json", basis)
+        raw = private_file(state / "full-ui-activation-intent.json", 16384)
+        proof = await run_usb(adb, plan, profile, canonical, basis["trial_job"], basis["boot_id"])
+        checked_proof(proof, basis["trial_job"], basis["boot_id"])
+        write_new(state / "full-ui-activation-result.json", {"intent_sha256": hashlib.sha256(raw).hexdigest(), "proof": proof})
+    finally:
+        os.close(lock)
+    return full_activation_status(root, manifest)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "full-trial", "full-trial-status", "local-status"))
+    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "full-trial", "full-trial-status", "full-activate", "full-activation-status", "local-status"))
     parser.add_argument("--serial")
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--plan-sha256")
     parser.add_argument("--experimental-reviewed", action="store_true")
+    parser.add_argument("--screen-reviewed", action="store_true")
     args = parser.parse_args()
-    if args.action not in ("local-status", "full-trial-status") and not args.serial:
+    if args.action not in ("local-status", "full-trial-status", "full-activation-status") and not args.serial:
         parser.error("--serial is required for USB operations")
     os.umask(0o077)
     root, source, manifest = load_bundle(Path(__file__).resolve().parent)
@@ -411,6 +495,9 @@ def main():
         return
     if args.action == "full-trial-status":
         print(json.dumps(full_trial_status(root, manifest), ensure_ascii=False, indent=2))
+        return
+    if args.action == "full-activation-status":
+        print(json.dumps(full_activation_status(root, manifest), ensure_ascii=False, indent=2))
         return
     modules = engines(source)
     executable = shutil.which(args.adb)
@@ -427,6 +514,8 @@ def main():
         result = asyncio.run(observe(root, modules, adb))
     elif args.action == "full-review":
         result = asyncio.run(full_review(root, modules, adb))
+    elif args.action == "full-activate":
+        result = asyncio.run(full_activate(root, modules, adb, manifest, args.plan_sha256, args.experimental_reviewed, args.screen_reviewed))
     elif args.action == "full-trial":
         result = asyncio.run(full_trial(root, modules, adb, manifest, args.plan_sha256, args.experimental_reviewed))
     else:

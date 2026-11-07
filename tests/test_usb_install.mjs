@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {installStatus,readInstall,startInstall,readInstallReview,observeBoot,reviewFullUi,
-  fullTrialStatus,readFullUiTrial,startFullUiTrial} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
+  fullTrialStatus,readFullUiTrial,startFullUiTrial,fullActivationStatus,readFullUiActivation,startFullUiActivation} from "../custom_components/qingping_esphome/frontend/usb-install.mjs";
 import {strings} from "../custom_components/qingping_esphome/frontend/usb-labels.mjs";
 const id="c".repeat(32), review={job_id:id,plan_sha256:"d".repeat(64),model:"CGS1",co2_type:3,
   friendly_name:"Fixture",wlan_mac:"02:00:00:00:00:01",stock_version:"4.1.8_0287",
@@ -53,3 +53,19 @@ await assert.rejects(startFullUiTrial(async(op,body)=>{calls.push(op);if(body)th
   e=>e.code==="usb_full_ui_trial_unverified");
 assert.deepEqual(calls,["full-trial","jobs/"+id+"/full-trial"],"Even not-started readback cannot automatically replay the POST");
 console.log("Experimental USB install: exact review, one POST, status-only reconciliation and no invented readiness passed");
+
+const permanent={job_id:id,state:"full_ui_active_observed",activation_available:false,native_observations:2,
+  store_installed:true,boot_enabled:true,start_acknowledged:false,installed:false,installation_ready:false,
+  replay_allowed:false,live_recheck_required:true};
+calls=[];
+await assert.rejects(startFullUiActivation(async()=>{calls.push("unexpected");},review,true,false));
+assert.deepEqual(calls,[]);
+assert.deepEqual(await startFullUiActivation(async(op,body)=>{calls.push([op,body]);return permanent;},review,true,true),permanent);
+assert.deepEqual(calls,[["full-activate",{job_id:id,expected_plan_sha256:review.plan_sha256,experimental_reviewed:true,screen_reviewed:true}]]);
+calls=[];
+assert.deepEqual(await startFullUiActivation(async(op,body)=>{calls.push(op);if(body)throw Error("lost reply");return permanent;},review,true,true),permanent);
+assert.deepEqual(calls,["full-activate","jobs/"+id+"/full-activate"]);
+assert.deepEqual(await readFullUiActivation(async()=>permanent,id),permanent);
+for(const change of [{installed:true},{activation_available:true},{boot_enabled:false},{native_observations:true},{native_observations:1},
+    {trial_job:"private"},{state:"not_started"}]) assert.throws(()=>fullActivationStatus({...permanent,...change},id));
+console.log("Permanent USB UI: separate screen review, one POST, private status and no replay passed");

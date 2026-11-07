@@ -118,6 +118,9 @@ class Installations:
             # no PID/timeout/absent result is accepted as permission to repeat.
             for other in private_directory(Path(self.parent)).iterdir():
                 private_directory(other)
+                from full_ui_activation_installation import FullUiActivations
+                activation_owner = unique_json(read_private(other / "intent.json"))["owner"]
+                FullUiActivations(self).fence(other, activation_owner)
                 if "full-ui-trial-intent.json" in os.listdir(other):
                     # A crash-released kernel lock does not retire a previous
                     # Full UI writer. Preserve its independent durable fence.

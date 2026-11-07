@@ -1,3 +1,16 @@
+## 0.2.6 – separate permanent Full UI startup
+
+- After a successful fixed screen trial, offer a separately reviewed permanent
+  step on server USB and the private computer CLI. Save only the exact pair,
+  enable startup and observe a new native session without a reboot.
+- Bind the consumed intent to original plan/source/trial/boot, measure storage
+  before copying and preserve all ambiguous history. A lost response cannot
+  repeat the writer; status omits private session identities and keys.
+- Add EN/RU screen/touch and permanent-start confirmations, progress feedback
+  and local-only computer result reading. Fresh-device qualification, the
+  initial PM-extension transition, browser-only writing, automatic enrollment,
+  CGS1 Bluetooth and Monitor 2 remain unverified or unfinished.
+
 ## 0.2.5 – Monitor 1 first Full UI trial
 
 - Add a distinct fixed 60-second Full UI launch mode using the existing

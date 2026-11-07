@@ -21,6 +21,7 @@ with patch.object(sys, "path", [str(HERE), *sys.path]):
     import computer_install as desktop
     import full_ui_usb
     import full_ui_trial_usb
+    import full_ui_activation_usb
 
 
 class ComputerExportTests(unittest.TestCase):
@@ -232,6 +233,60 @@ class ComputerEngineTests(unittest.TestCase):
                 asyncio.run(desktop.full_trial(self.root, self.modules, None, manifest, digest, True))
             writer.assert_awaited_once(); read.assert_awaited_once()
             self.assertEqual(desktop.full_trial_status(self.root, manifest), result)
+
+    def recorded_full_trial(self):
+        source = next(iter(desktop.TRIAL_SOURCE_COMMITS))
+        profile = {"node_name": "fixture", "api_mac": "02:00:00:00:00:01"}
+        plan = {"basis": {"profile_sha256": self.profile_sha, "source_commit": source},
+                "api_identity": profile, "target": {"boot_id": "11111111-1111-1111-1111-111111111111"}}
+        plan_root = self.state / "install-plan"; plan_root.mkdir(mode=0o700)
+        desktop.write_new(plan_root / "plan.json", plan)
+        digest = hashlib.sha256((plan_root / "plan.json").read_bytes()).hexdigest()
+        (self.state / "prepared.json").write_text(json.dumps({"plan_sha256": digest, "profile_sha256": self.profile_sha}))
+        desktop.write_new(self.state / "install-intent.json", {"plan_sha256": digest, "experimental_reviewed": True})
+        intent = {"plan_sha256": digest, "source_commit": source, "nonce": "a" * 16, "experimental_reviewed": True,
+                  "install_intent_sha256": hashlib.sha256((self.state / "install-intent.json").read_bytes()).hexdigest()}
+        desktop.write_new(self.state / "full-ui-trial-intent.json", intent)
+        proof = {"state": "full_ui_trial_returned_observed", "native_observations": 2, "stock_return_observed": True,
+                 "launch_acknowledged": True, "job": intent["nonce"], "hard_runtime_ms": 60000, "installed": False,
+                 "installation_ready": False, "boot_enabled": False, "replay_allowed": False, "forward_cleanup": "removed",
+                 "boot_id": "22222222-2222-2222-2222-222222222222"}
+        desktop.write_new(self.state / "full-ui-trial-result.json", {"intent_sha256": hashlib.sha256(
+            (self.state / "full-ui-trial-intent.json").read_bytes()).hexdigest(), "proof": proof})
+        canonical = SimpleNamespace(review=SimpleNamespace(staging=SimpleNamespace(load_plan=Mock(return_value=(None, plan)))),
+            candidate=SimpleNamespace(read_profile=Mock(return_value=(profile, self.profile_sha))))
+        self.sequence.trial = canonical
+        manifest = {"source_commit": source, "profile_sha256": self.profile_sha, "files": {k: {} for k in (
+            "full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_review.py", "full_ui_activation.py", "full_ui_activation_usb.py")}}
+        return digest, manifest, canonical
+
+    def test_permanent_computer_uses_same_engine_once_and_local_history_without_usb(self):
+        digest, manifest, canonical = self.recorded_full_trial()
+        async def operate(adb, plan, profile, actual, trial_job, boot):
+            self.assertIs(actual, canonical)
+            self.assertTrue((self.state / "full-ui-activation-intent.json").exists())
+            return {"state": "full_ui_active_observed", "trial_job": trial_job, "boot_id": boot, "native_job": "e" * 16,
+                    "native_observations": 2, "store_installed": True, "boot_enabled": True, "start_requested": True,
+                    "start_acknowledged": False, "installed": False, "installation_ready": False,
+                    "replay_allowed": False, "forward_cleanup": "removed"}
+        with patch.object(full_ui_activation_usb, "run_usb", new=AsyncMock(side_effect=operate)) as writer:
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_activate(self.root, self.modules, None, manifest, digest, True, False))
+            writer.assert_not_awaited()
+            result = asyncio.run(desktop.full_activate(self.root, self.modules, None, manifest, digest, True, True))
+            self.assertEqual(result["state"], "full_ui_active_observed")
+            self.assertTrue(result["boot_enabled"] and result["store_installed"] and result["local_receipt_only"])
+            self.assertNotIn("trial_job", result); self.assertNotIn("boot_id", result)
+            self.assertEqual(desktop.full_activation_status(self.root, manifest), result)
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_activate(self.root, self.modules, None, manifest, digest, True, True))
+            writer.assert_awaited_once()
+        with patch.object(sys, "argv", ["computer_install.py", "full-activation-status"]), \
+                patch.object(desktop, "load_bundle", return_value=(self.root, None, manifest)), \
+                patch.object(desktop, "engines") as engine, patch.object(desktop.shutil, "which") as adb, \
+                patch("builtins.print"):
+            desktop.main()
+            engine.assert_not_called(); adb.assert_not_called()
 
     def test_full_trial_waits_for_actual_bridge_boot_before_consuming_intent(self):
         source = next(iter(desktop.TRIAL_SOURCE_COMMITS))

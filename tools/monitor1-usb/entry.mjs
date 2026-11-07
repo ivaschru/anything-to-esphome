@@ -8,7 +8,7 @@ export {prepareProfile, readPrepared, savedPreparations} from "../../custom_comp
 export {startBuild, readBuild} from "../../custom_components/qingping_esphome/frontend/usb-build.mjs";
 export {preparePlan, readPlan} from "../../custom_components/qingping_esphome/frontend/usb-plan.mjs";
 export {startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi,
-  startFullUiTrial,readFullUiTrial} from "../../custom_components/qingping_esphome/frontend/usb-install.mjs";
+  startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation} from "../../custom_components/qingping_esphome/frontend/usb-install.mjs";
 export {downloadPrivateProfile,downloadComputerPackage} from "../../custom_components/qingping_esphome/frontend/usb-private-download.mjs";
 
 /** A fresh store for one selection only, with no browser persistence. */
