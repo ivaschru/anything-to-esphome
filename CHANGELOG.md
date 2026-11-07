@@ -10,6 +10,9 @@
 - Recheck the selected browser monitor against its private plan through a
   fresh original-click USB handle and fixed source/identity reads. Retire the
   channel on changed scope or uncertain cleanup; no cached writer permission.
+- Add an unwired fixed nine-file SYNC-v1 sink with hash-before-send,
+  private modes and no-retry cleanup. Verify its actual pinned Tango encoder
+  against an in-memory old-daemon responder. It is not a device writer route.
 - Browser device writing and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 

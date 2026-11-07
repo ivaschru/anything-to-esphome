@@ -79,6 +79,21 @@ separate even though the HACS wizard is shared.
   browser staging and writer admission remain unwired. Run all USB tests
   on the actual HA SDK and Node peer/control/parent tests before changing this
   exception. Preserve ordinary native operation serialization.
+  BrowserStageFileSink is still an unwired fixed file-transport primitive:
+  no channel method, HTTP/frame route or GUI writer exposes it yet. A future
+  private caller must consume its write intent, recheck live scope/ext4 and
+  create the exact root with both opt-outs BEFORE constructing it. Descriptor
+  hashes are byte context, not proof of those prerequisites. Only the nine
+  canonical staging roles under the fixed disabled root, ordered private 0600
+  writes, <=64KiB chunks, <=16MiB file and <=32MiB total are admitted. Hash the
+  full bounded file before opening SYNC. Use the pinned adbSyncPushV1 with an
+  owned AdbSyncSocket; never AdbSync.write's Android mkdir workaround, SND2,
+  compression, caller paths, chmod or execution. A wire OKAY is not a remote
+  SHA/metadata check. Lost ACK or close retires the transport without retry.
+  Run test_usb_stage_files.mjs and, after exact npm ci, the actual Tango
+  test_usb_stage_sync_v1.mjs in usb-companion CI. Synthetic wire/ACKs do not
+  qualify the monitor filesystem, create an install route or authorize a
+  vendor commit, trial, launch or boot change.
   The GUI may now use a fresh original-click channel for browser-review:
   the private actor rehashes its owned detached plan, then Core requests only
   the peer's fixed scope-check and compares exact original channel/target/boot
