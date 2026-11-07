@@ -1,4 +1,14 @@
-## 0.2.7 – initial PM transition for Full UI
+## Unreleased – browser USB installation work
+
+- Keep the live WebUSB handle and authorization key in memory; add a bounded
+  API-only relay between the selected browser and authenticated Core. Its
+  reported identity grants no native USB path or device writer.
+- Prepare a separate computer USB payload from verified originals and the
+  exact completed private build. Preserve source/profile/producer hashes and
+  one-use preparation history; the wizard restores status without replaying
+  work or enabling the server USB installer for a browser job.
+- Browser device writing and untouched-device qualification remain unfinished.
+  Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 
 ## 0.2.8
 
@@ -12,6 +22,8 @@
   path; software tests do not qualify an untouched physical monitor.
 
 
+## 0.2.7 – initial PM transition for Full UI
+
 - Prepare a separate owner/plan-bound PM transition through the fixed SDK
   child. Before removing the persistent opt-out, inhibit stock restarts for
   the remainder of the current boot. Preserve backups, consumed history and
@@ -23,7 +35,7 @@
   Full UI preflight before the screen trial.
 - Production-path commands and hardware have not been executed. Rewritten
   Linux/root interruption fixtures pass independently of device qualification.
-  Browser-only writing, HA enrollment, CGS1 BLE and Monitor 2 remain unfinished
+  Browser-only writing, CGS1 BLE and Monitor 2 remain unfinished
   or unverified.
 
 ## 0.2.6 – separate permanent Full UI startup

@@ -54,9 +54,9 @@ class Actor:
                 self.usb_ready()
             value = {"devices": self.companion.discover(user, nonce)} if operation == "devices" else self.companion.jobs(user, nonce)
             return value, "application/json"
-        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|install-review|install|full-trial|full-activate|pm-enable))?", operation)
+        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|browser-plan|install-review|install|full-trial|full-activate|pm-enable))?", operation)
         if match and data is None:
-            method = {None: "status", "build": "build_status", "plan": "plan_status",
+            method = {None: "status", "build": "build_status", "plan": "plan_status", "browser-plan": "browser_plan_status",
                       "install-review": "install_review", "install": "install_status", "full-trial": "full_trial_status",
                       "full-activate": "full_activation_status", "pm-enable": "pm_status"}[match[2]]
             return getattr(self.companion, method)(user, nonce, match[1]), "application/json"
@@ -95,8 +95,8 @@ class Actor:
                 self.usb_ready()
             return self.companion.prepare(user, nonce, lambda: data,
                 self.prepared or (lambda value: value)), "application/json"
-        if operation in ("build", "plan") and set(data) == {"job_id"}:
-            return getattr(self.companion, operation)(user, nonce, data["job_id"]), "application/json"
+        if operation in ("build", "plan", "browser-plan") and set(data) == {"job_id"}:
+            return getattr(self.companion, operation.replace("-", "_"))(user, nonce, data["job_id"]), "application/json"
         if operation in ("install", "full-trial", "full-activate", "pm-enable"):
             keys = {"job_id", "expected_plan_sha256", "experimental_reviewed"} | ({"screen_reviewed"} if operation == "full-activate" else set())
             if set(data) != keys:

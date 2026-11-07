@@ -76,7 +76,7 @@ separate even though the HACS wizard is shared.
   poll/answer/close requests alongside a pending ordinary operation, never a
   second writer or transport registration. Reports remain context_only and
   writer_enabled=false; no plan authority follows from JSON. GUI installation,
-  browser plan/staging and writer admission remain unwired. Run all USB tests
+  browser staging and writer admission remain unwired. Run all USB tests
   on the actual HA SDK and Node peer/control/parent tests before changing this
   exception. Preserve ordinary native operation serialization.
 
@@ -226,8 +226,22 @@ separate even though the HACS wizard is shared.
 
 - Companion offline plans recheck the built source closure before running
   canonical bootstrap_patches/prepare_install in that job's private SDK. Keep
-  this native-capture-only until a separate browser writer adapter exists;
-  never fabricate get-devpath evidence for a browser archive. Bind profile,
+  this native-capture-only; never fabricate get-devpath evidence for a browser
+  archive. BrowserPlans has a separate detached schema2 with typed WebUSB
+  target, exact profile/source/capture/bootstrap/payload and packaged-producer
+  hashes. Its offline SDK child reuses only the frozen canonical read-only
+  candidate/ELF/bootstrap auditors. Require a new owner-bound intent before
+  this child, retain partial history, and never restart it after upgrade.
+  A historical producer hash is readable, not permission to execute new code.
+  Check original inputs and source both before preparation and on status.
+  The Core-only browser-plan route needs no ADB service or live USB while
+  building. Its distinct browser_plan_prepared state never reveals the native
+  install control. A lost POST gets only status reconciliation; keep EN/RU
+  forms/results and preserve native serialization. This is not browser writer
+  admission: a future fresh live handle and separate consumed write intent
+  must join this detached plan immediately before device IO. Run
+  test_usb_browser_plan.py and test_usb_browser_plan.mjs, including the actual
+  shared app DOM flow. Synthetic producer stubs never qualify ELF/hardware. Bind profile,
   target and payload hashes, fsync private files before completion, and retain
   partial/consumed plan history. Status/readback grants no USB write or replay.
   The displayed free-space request is not measured device capacity. Check

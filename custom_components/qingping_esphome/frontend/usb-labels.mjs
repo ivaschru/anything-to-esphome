@@ -1,6 +1,15 @@
 /** Shared English/Russian labels; language changes never reset USB. */
 export const strings = {
   en: {
+    browser_plan_not_started:"The private build is ready for a computer USB payload. This step keeps the browser capture separate and does not write to the monitor.",
+    plan_browser_plan_prepared:"Computer USB files verified. Browser writing is still being integrated. Requested device free-space budget (not measured capacity):",
+    plan_browser_plan_unverified:"Computer USB file preparation is unverified. Check the same job; do not repeat preparation.",
+    plan_browser_plan_failed:"Computer USB file preparation failed. The inputs and log are preserved; no USB write occurred.",
+    usb_browser_plan_unverified:"The computer USB file set is unverified. Preserve the job and check its status; no request is repeated.",
+    usb_browser_plan_consumed:"Computer USB file preparation was already requested. Check the same job.",
+    usb_browser_plan_build_required:"Build and verify this private firmware first.",
+    usb_browser_plan_transport_required:"This file preparation belongs only to a computer USB job.",
+    usb_browser_plan_source_required:"This older build cannot be joined to the browser installer. Its files and history are preserved.",
     usb_channel_unverified:"The selected USB channel is unverified. Preserve this operation’s history and do not repeat an installation.",
     enrollment_title:"Add to Home Assistant",
     enrollment_help:"Connect USB and keep the monitor on the same local network as HA. Checks its current address and encrypted identity, then adds the verified device through the standard ESPHome integration. Existing conflicts need manual review. This step does not flash or restart the monitor.",
@@ -183,6 +192,15 @@ export const strings = {
     failed:"The USB check was incomplete. Nothing was installed. Check the cable, ADB and selected connection."
   },
   ru: {
+    browser_plan_not_started:"Приватная сборка готова для подготовки файлов USB компьютера. Этот шаг сохраняет данные браузерного подключения отдельно и не записывает их на прибор.",
+    plan_browser_plan_prepared:"Файлы для USB компьютера проверены. Запись из браузера ещё подключается. Запрашиваемый запас места на приборе (не измеренная свободная память):",
+    plan_browser_plan_unverified:"Подготовка файлов USB компьютера не подтверждена. Проверьте то же задание; не повторяйте подготовку.",
+    plan_browser_plan_failed:"Подготовка файлов USB компьютера завершилась ошибкой. Исходные данные и журнал сохранены; записи через USB не было.",
+    usb_browser_plan_unverified:"Набор файлов USB компьютера не подтверждён. Сохраните задание и проверьте его состояние; запрос не повторяется.",
+    usb_browser_plan_consumed:"Подготовка файлов USB компьютера уже запрошена. Проверьте то же задание.",
+    usb_browser_plan_build_required:"Сначала соберите и проверьте эту приватную прошивку.",
+    usb_browser_plan_transport_required:"Эта подготовка файлов доступна только для задания USB компьютера.",
+    usb_browser_plan_source_required:"Эту старую сборку нельзя объединить с браузерным установщиком. Её файлы и история сохранены.",
     usb_channel_unverified:"Канал выбранного USB-прибора не подтверждён. Сохраните историю операции и не повторяйте установку.",
     enrollment_title:"Добавить в Home Assistant",
     enrollment_help:"Подключите USB и оставьте монитор в одной локальной сети с HA. Мастер проверит текущий адрес и зашифрованное подключение, затем добавит прибор через штатную интеграцию ESPHome. Конфликтующие записи требуют отдельного решения. Прибор не прошивается и не перезагружается.",

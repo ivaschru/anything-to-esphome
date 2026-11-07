@@ -1,5 +1,5 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,
   startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
@@ -42,6 +42,11 @@ function translate() {
   renderJobs();
   renderBuild();
 }
+// Browser payloads remain a distinct typed route. In particular, their
+// prepared state must never reveal or enable the native USB install control.
+const browserPlanning=()=>embedded && pendingPreparation?.transport==="browser_usb";
+const emptyPlanState=()=>browserPlanning() ? "not_started" : "not_prepared";
+const unknownPlanState=()=>browserPlanning() ? "browser_plan_unverified" : "plan_unverified";
 function renderBuild() {
   $("build-controls").hidden=!preparationReady;
   $("backup-controls").hidden=!preparationReady;
@@ -51,10 +56,10 @@ function renderBuild() {
   $("build-result").textContent=buildState ? text("build_"+buildState.state)+
     (buildState.state==="building" ? " "+text("build_phase_"+buildState.phase) : "") : "";
   $("plan-controls").hidden=buildState?.state!=="built_not_installed";
-  $("prepare-plan").disabled=busy || !pendingPreparation || (planState && planState.state!=="not_prepared");
+  $("prepare-plan").disabled=busy || !pendingPreparation || (planState && planState.state!==emptyPlanState());
   $("plan-status").disabled=busy || !pendingPreparation;
-  $("plan-result").textContent=planState ? text("plan_"+planState.state)+
-    (planState.state==="plan_prepared" ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
+  $("plan-result").textContent=planState ? text(browserPlanning() && planState.state==="not_started" ? "browser_plan_not_started" : "plan_"+planState.state)+
+    (["plan_prepared","browser_plan_prepared"].includes(planState.state) ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
   const consumed=installState && installState.state!=="not_started";
   $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
   $("export-computer").disabled=busy || !pendingPreparation || !!consumed;
@@ -177,7 +182,7 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="browser-plan" || operation==="plan" || operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
@@ -342,8 +347,15 @@ async function checkBuild(manual=true) {
     if(pendingPreparation?.id!==id) return;
     buildState=result;renderBuild();
     if(result.state==="built_not_installed") {
-      await checkInstall(false);
-      if(!installState || installState.state==="not_started") await checkPlan(false);
+      if(browserPlanning()) {
+        // Reading a browser job never enters the native installation history
+        // path, whose distinct transport authority it intentionally lacks.
+        installState=undefined;
+        await checkPlan(false);
+      } else {
+        await checkInstall(false);
+        if(!installState || installState.state==="not_started") await checkPlan(false);
+      }
     }
     // Poll only the same explicitly selected active job. A reload does not
     // select or restart work; owner selection performs GET status only.
@@ -370,13 +382,13 @@ async function checkPlan(manual=true) {
   const id=pendingPreparation.id;
   if(manual) {busy=true;controls();}
   try {
-    const result=await readPlan(rpc,id);
+    const result=await (browserPlanning() ? readBrowserPlan : readPlan)(rpc,id);
     if(pendingPreparation?.id===id) {
       planState=result;
       if(result.state==="plan_prepared") await loadInstallReview();
       renderBuild();
     }
-  } catch {if(pendingPreparation?.id===id) {planState={state:"plan_unverified"};renderBuild();}}
+  } catch {if(pendingPreparation?.id===id) {planState={state:unknownPlanState()};renderBuild();}}
   finally {if(manual) {busy=false;controls();}}
 }
 $("plan-status").onclick=()=>checkPlan();
@@ -392,11 +404,11 @@ $("export-computer").onclick=async()=>{
 };
 $("prepare-plan").onclick=async()=>{
   if(busy || buildState?.state!=="built_not_installed" || !pendingPreparation ||
-    (planState && planState.state!=="not_prepared")) return;
+    (planState && planState.state!==emptyPlanState())) return;
   busy=true;controls();
-  try {planState=await preparePlan(rpc,pendingPreparation.id);if(planState.state==="plan_prepared") await loadInstallReview();renderBuild();}
+  try {planState=await (browserPlanning() ? prepareBrowserPlan : preparePlan)(rpc,pendingPreparation.id);if(planState.state==="plan_prepared") await loadInstallReview();renderBuild();}
   catch(error) {
-    lastError=error.code || "usb_plan_unverified";planState={state:"plan_unverified"};
+    lastError=error.code || (browserPlanning() ? "usb_browser_plan_unverified" : "usb_plan_unverified");planState={state:unknownPlanState()};
     $("error").textContent=text(lastError);
   }
   finally {busy=false;controls();}

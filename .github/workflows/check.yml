@@ -27,6 +27,7 @@ jobs:
       - run: node tests/test_usb_probe.mjs
       - run: node tests/test_usb_native_channel.mjs
       - run: node tests/test_usb_channel_peer.mjs
+      - run: node tests/test_usb_browser_plan.mjs
       - run: node tests/test_usb_browser_control.mjs
       - run: node tests/test_usb_companion.mjs
       - run: node tests/test_monitor1_core_frontend.mjs

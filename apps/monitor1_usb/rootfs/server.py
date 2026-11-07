@@ -27,6 +27,7 @@ import uuid
 from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, available_jobs
 from build_worker import Builds
 from install_plan import Plans
+from browser_plan import BrowserPlans
 from installation import Installations
 from full_ui_installation import FullUiTrials
 from full_ui_activation_installation import FullUiActivations
@@ -205,6 +206,7 @@ class Companion:
         self.job_root = job_root
         self.builds = Builds(job_root, CONTRACT)
         self.plans = Plans(self.builds)
+        self.browser_plans = BrowserPlans(self.builds)
         self.installations = Installations(self.plans)
         self.full_trials = FullUiTrials(self.installations)
         self.full_activations = FullUiActivations(self.installations)
@@ -337,6 +339,14 @@ class Companion:
     def plan_status(self, user, nonce, job_id):
         self.session(user, nonce)
         return self.plans.status(user, job_id)
+
+    def browser_plan(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.browser_plans.prepare(user, job_id)
+
+    def browser_plan_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.browser_plans.status(user, job_id)
 
     def install_review(self, user, nonce, job_id):
         self.session(user, nonce)
