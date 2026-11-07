@@ -3,7 +3,8 @@
 The HTTP process consumes a durable build intent before spawning this worker.
 The worker owns the global flock and each subprocess group it creates. A lost
 response, page reload or app restart can read status, never restart the build.
-No profile, vendor library, compiler log or generated firmware leaves /data.
+This worker never exports its private inputs/logs/programs. Separate explicit
+owner downloads can export recovery files or a bounded computer installer.
 """
 import fcntl
 import hashlib

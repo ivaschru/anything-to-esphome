@@ -1,5 +1,5 @@
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
-  startInstall, readInstall, readInstallReview, observeBoot, downloadPrivateProfile} from "./usb-probe-bundle.mjs";
+  startInstall, readInstall, readInstallReview, observeBoot, downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let language = "en", busy = false, probe, lastError, lastStatus, devices = [], captureProgress;
@@ -9,6 +9,7 @@ let buildState, buildTimer;
 let planState;
 let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
+let computerDownloaded=false;
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -39,6 +40,9 @@ function renderBuild() {
   $("plan-result").textContent=planState ? text("plan_"+planState.state)+
     (planState.state==="plan_prepared" ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
   const consumed=installState && installState.state!=="not_started";
+  $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
+  $("export-computer").disabled=busy || !pendingPreparation || !!consumed;
+  $("computer-result").textContent=computerDownloaded ? text("computer_downloaded") : "";
   $("prepare-plan").hidden=$("plan-status").hidden=!!consumed;
   if(consumed) $("plan-result").textContent=text("plan_used");
   $("prepare-plan").disabled=!!$("prepare-plan").disabled || !!consumed;
@@ -56,7 +60,7 @@ function renderBuild() {
   $("observe-boot").disabled=busy;
   $("boot-result").textContent=bootReading ? text("boot_checking") : (bootState ? text("boot_"+bootState.state) : "");
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
   installState=installReview=bootState=undefined;$("install-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
@@ -102,10 +106,11 @@ async function rpc(operation, data, binary=false) {
       operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000))});
   if (binary && response.ok) {
     const length=Number(response.headers.get("Content-Length"));
-    const mime=binary==="profile" ? "application/vnd.qingping.private-profile+json" : "application/x-tar";
+    const mime=binary==="computer" ? "application/vnd.qingping.private-computer-bundle+tar" : (
+      binary==="profile" ? "application/vnd.qingping.private-profile+json" : "application/x-tar");
     const binaryError=binary==="profile" || operation.startsWith("export-") ? "usb_private_export_unverified" : "usb_capture_unverified";
     if (response.headers.get("Content-Type") !== mime || !Number.isInteger(length) ||
-        length <= 0 || length > (binary==="profile" ? 16384 : 33*1024*1024)) throw {code:binaryError};
+        length <= 0 || length > (binary==="profile" ? 16384 : (binary==="computer" ? 64*1024*1024 : 33*1024*1024))) throw {code:binaryError};
     const reader=response.body.getReader(), chunks=[];let size=0;
     try {
       while (true) {
@@ -297,6 +302,16 @@ async function checkPlan(manual=true) {
   finally {if(manual) {busy=false;controls();}}
 }
 $("plan-status").onclick=()=>checkPlan();
+$("export-computer").onclick=async()=>{
+  if(busy || !pendingPreparation || buildState?.state!=="built_not_installed" ||
+     (installState && installState.state!=="not_started")) return;
+  busy=true;controls();
+  try {
+    downloadComputerPackage(await rpc("export-computer",{job_id:pendingPreparation.id},"computer"));
+    computerDownloaded=true;
+  } catch(error) {lastError=error.code || "usb_private_export_unverified";$("error").textContent=text(lastError);}
+  finally {busy=false;controls();}
+};
 $("prepare-plan").onclick=async()=>{
   if(busy || buildState?.state!=="built_not_installed" || !pendingPreparation ||
     (planState && planState.state!=="not_prepared")) return;

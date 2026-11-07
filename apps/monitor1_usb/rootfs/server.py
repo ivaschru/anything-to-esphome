@@ -29,6 +29,7 @@ from build_worker import Builds
 from install_plan import Plans
 from installation import Installations
 from backup_export import profile_export, capture_export
+from computer_package import package_export
 
 HERE = Path(__file__).resolve().parent
 SERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
@@ -365,7 +366,7 @@ class Companion:
         finally:
             self.device_lock.release()
 
-    def export(self, user, nonce, read_input, deliver, profile=False):
+    def export(self, user, nonce, read_input, deliver, profile=False, computer=False):
         self.session(user, nonce)
         if not self.device_lock.acquire(blocking=False):
             raise Refusal("usb_busy")
@@ -373,8 +374,9 @@ class Companion:
             data = read_input()
             if not isinstance(data, dict) or set(data) != {"job_id"}:
                 raise Refusal("usb_request_invalid")
-            payload = profile_export(self.job_root, user, data["job_id"]) if profile else capture_export(
-                self.job_root, user, data["job_id"], CONTRACT)
+            payload = package_export(self.builds, user, data["job_id"]) if computer else (
+                profile_export(self.job_root, user, data["job_id"]) if profile else capture_export(
+                    self.job_root, user, data["job_id"], CONTRACT))
             return deliver(payload)
         finally:
             self.device_lock.release()
@@ -406,6 +408,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-capture.tar"')
         elif content_type == "application/vnd.qingping.private-profile+json":
             self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-private-profile.json"')
+        elif content_type == "application/vnd.qingping.private-computer-bundle+tar":
+            self.send_header("Content-Disposition", 'attachment; filename="qingping-cgs1-computer.tar"')
         self.send_header("Content-Security-Policy",
                          "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'")
         self.end_headers()
@@ -452,7 +456,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/export-profile", "/export-originals"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/export-profile", "/export-originals", "/export-computer"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -469,11 +473,13 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/observe":
                 return self.server.companion.observe(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
-            if self.path in ("/export-profile", "/export-originals"):
+            if self.path in ("/export-profile", "/export-originals", "/export-computer"):
                 profile = self.path == "/export-profile"
-                mime = "application/vnd.qingping.private-profile+json" if profile else "application/x-tar"
+                computer = self.path == "/export-computer"
+                mime = "application/vnd.qingping.private-computer-bundle+tar" if computer else (
+                    "application/vnd.qingping.private-profile+json" if profile else "application/x-tar")
                 return self.server.companion.export(user, self.headers.get("X-Qingping-Nonce"),
-                    lambda: self.json_body(int(size)), lambda payload: self.reply(200, payload, mime), profile=profile)
+                    lambda: self.json_body(int(size)), lambda payload: self.reply(200, payload, mime), profile=profile, computer=computer)
             if self.path in ("/build", "/plan"):
                 self.server.companion.session(user, self.headers.get("X-Qingping-Nonce"))
                 data = self.json_body(int(size))

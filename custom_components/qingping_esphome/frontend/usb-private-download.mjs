@@ -7,3 +7,13 @@ export function downloadPrivateProfile(blob) {
   link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+/** Private compiled programs contain the key too. Never inspect their bytes. */
+export function downloadComputerPackage(blob) {
+  if(!(blob instanceof Blob) || blob.type!=="application/vnd.qingping.private-computer-bundle+tar" || !blob.size || blob.size>64*1024*1024)
+    throw {code:"usb_private_export_unverified"};
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download="qingping-cgs1-computer.tar";link.rel="noreferrer";
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}

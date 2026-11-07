@@ -30,7 +30,10 @@ The separate [HA USB app](../../apps/monitor1_usb/README.md) now offers an
 explicitly reviewed experimental **server USB / stock bridge** sequence using
 these same engines, followed by a manual power cycle and separate read-only
 observation. It preserves consumed receipts and does not retry lost replies.
-Computer WebUSB writing and a complete full-UI installer are still unfinished.
+For computer USB, the app also exports a private ready-build package with a
+macOS/Linux ADB entry; it captures actual native USB again before planning,
+without compiling on that computer. Browser-only WebUSB writing and a complete
+full-UI installer are still unfinished.
 The app has not been physically qualified for a first factory-device install;
 its synthetic tests do not change ordinary HACS admission or hardware status.
 

@@ -23,7 +23,9 @@ original disabled staging, script commit, bounded bridge trial and next-boot
 bridge arming. A separate button reads the result after you power-cycle the
 monitor yourself. **First installation on an untouched physical CGS1 has not
 been verified.** This path installs the stock-side bridge only; the computer
-WebUSB writer and full native UI installation are still unfinished. Normal
+browser-only WebUSB writer and full native UI installation are still unfinished.
+A separate downloaded computer ADB installer reuses these engines without a
+compiler or VM on the computer; see its section below. Normal
 HACS CGS1 admission remains source-only and `installation_ready=false`.
 See [USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md) for the underlying engine.
 Source tests, container checks and an imitated UI run are not hardware evidence.
@@ -141,16 +143,76 @@ installation readiness, starts a trial or grants another consumed operation.
 
 A lost response or reload reads the same private plan status. An interrupted
 or failed preparation preserves its inputs, log and history without replay.
-The computer WebUSB writer adapter is still unfinished; its capture is never
+The browser-only WebUSB writer adapter is still unfinished; its capture is never
 relabelled as native get-devpath evidence to pass the native planner. Browser
 jobs can still prepare profiles/build programs without that adapter.
+
+## Install with the computer's USB
+
+After a completed build, choose **Download private computer installer**. This
+works for either original cable location, before an HA installation attempt.
+It exports the exact private profile/programs, fixed public source closure,
+matched helper and local entry script. No SDK, build cache, old USB plan or
+installation history is copied. The archive is at most 64 MiB, is available
+only to its HA owner, and contains the individual Noise key: keep it private.
+Downloading it does not contact USB or start installation.
+
+This is an experimental **macOS/Linux terminal** route using Android
+platform-tools (`adb`) and Python 3.13+. It is not a completed browser-only
+writer. The computer installs only the small runtime requirements; all firmware
+compilation stays on HA. No Docker/Colima/VM or local compiler is started.
+
+Read the included `README.txt`, also available as
+[computer-instructions.txt](rootfs/computer-instructions.txt). In a private
+directory, run `umask 077`, extract `qingping-cgs1-computer.tar`, enter its
+directory and prepare a runtime:
+
+```sh
+python3 -m venv .runtime
+.runtime/bin/pip install --only-binary=:all: -r runtime-requirements.txt
+adb devices -l
+.runtime/bin/python computer_install.py prepare --serial USB_SERIAL
+```
+
+Replace `USB_SERIAL` with the actual local USB serial. This read-only command
+checks every bundled body and the original candidate ELF/helper pins, captures
+the nine factory files **again through native ADB**, and prepares a new plan.
+It binds the actual local `get-devpath`, boot and profile; a previous browser
+or server report is never relabelled to pass the native writer.
+Wheel-only dependency installation refuses an unsupported platform instead of
+starting a local compiler. Do not install a VM to work around that refusal.
+
+Review the reported name, physical WLAN, S8/SCD40 and exact plan SHA. Only then:
+
+```sh
+.runtime/bin/python computer_install.py install --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+```
+
+Substitute the displayed SHA. The same original stage/commit/trial/arm engines
+and their live checks run once, with a durable local attempt recorded first.
+Keep USB and power connected. Unknown results are not retried or automatically
+rolled back. Preserve the whole private folder and `computer-state`:
+
+```sh
+.runtime/bin/python computer_install.py status --serial USB_SERIAL
+.runtime/bin/python computer_install.py observe --serial USB_SERIAL
+```
+
+Only a fresh `observe` result of `awaiting_reboot` confirms idle-stock arming.
+Then shut down through the monitor's menu, power on and run `observe` again
+with the same USB port/cable path. `bridge_observed` requires a different boot,
+exact running images/listeners and fresh authenticated readings. No command
+reboots, repeats installation, adopts a PID or changes normal HACS readiness.
+The HA page cannot see local receipts: do not start a second server-USB install
+for that monitor. Existing modified installs use their separate upgrade path.
+Physical first-install QA for this route remains outstanding.
 
 ## Experimental server USB installation
 
 Keep the same monitor connected to the HA server. With the private plan ready,
 open its review and check the displayed device name, physical WLAN MAC, stock
 version and S8/SCD40 backend. Read the changes and acknowledge the experimental
-status before pressing **Install stock bridge**. The checkbox is cleared for a
+status before pressing **Run experimental installation**. The checkbox is cleared for a
 new review; changing interface language does not submit or repeat an operation.
 
 The fixed controller rechecks the original source/USB/boot/process/capacity
@@ -163,7 +225,7 @@ and guardian programs intentionally remain on the server at this stage.
 
 The attempt is recorded before any controller starts. A lost response, page
 reload, language switch or app restart never grants a second installation.
-Use the saved job's status and **Check connected monitor**. An unknown result
+Use the saved job's status and **Check the monitor**. An unknown result
 is not proof that the monitor was unchanged; do not delete the job, prepare a
 replacement or repeat the engine manually. Its original receipts and inputs
 are needed to review the result. There is no automatic rollback or reboot.
@@ -171,7 +233,7 @@ are needed to review the result. There is no automatic rollback or reboot.
 After the operation reports arming, choose **Check the monitor** for a fresh
 device read. Only when that read confirms waiting on the idle stock boot,
 shut down through the monitor's own menu and power it on again. Reconnect server USB if
-needed and choose **Check connected monitor**. The reader distinguishes the
+needed and choose **Check the monitor**. The reader distinguishes the
 original boot's completed arming from a different boot with the exact bridge
 process/socket and two fresh authenticated sensor updates. It does not launch
 anything. A saved success is historical evidence; a new read is required for

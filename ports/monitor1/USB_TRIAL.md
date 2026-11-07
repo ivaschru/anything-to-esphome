@@ -12,7 +12,10 @@ currently uses local ADB. The separate [HA USB app](../../apps/monitor1_usb/READ
 now exposes a reviewed experimental server USB stock-bridge sequence using
 these exact engines, with retained intents and a separate post-boot reader.
 Its first installation on a physical stock CGS1 remains unverified. Computer
-WebUSB writing and full-UI installation still need integration. Lite's
+WebUSB writing and full-UI installation still need integration. The app's
+separate downloaded macOS/Linux ADB entry performs a fresh real native capture
+on the computer and reuses these same engines; it never rewrites a browser
+report to invent native transport evidence. Lite's
 Bluetooth transports stay separate. Subsequent ordinary updates use the network.
 
 ## Prepared stage, commit and trial in one sequence
