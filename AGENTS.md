@@ -297,6 +297,8 @@ separate even though the HACS wizard is shared.
   stall-timeout=0 disables that branch, not initial controller setup writes.
   Do not collide with the existing API port/identity or distribute its private
   build as CGS1 firmware. Chip pinout never substitutes for PCB continuity.
+  Do not accept generated pin maps as wiring proof: the reviewed RTL8723DS-CG
+  datasheet assigns pin24 to PCM_CLK/GPIO3, not a presumed UART RTS.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed

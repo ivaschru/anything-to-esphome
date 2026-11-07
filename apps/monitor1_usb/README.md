@@ -223,6 +223,14 @@ can enter the separate next-boot arming step. That step preserves recovery,
 leaves PM preload disabled and does not start or reboot a program. Native UI
 and guardian programs intentionally remain on the server at this stage.
 
+Full UI has an additional concrete prerequisite: the original
+[stock preflight](../../ports/monitor1/network_preflight.h) requires a verified
+stock PM-extension session, including its per-boot attempted marker and the
+absence of `pm-helper.disabled`. This first-bridge route deliberately retains
+that opt-out. Uploading the native/guardian pair alone cannot satisfy this
+gate. A separate verified extension transition and full lifecycle are needed;
+the wizard does not bypass that check or offer a fake completed Full UI mode.
+
 The attempt is recorded before any controller starts. A lost response, page
 reload, language switch or app restart never grants a second installation.
 Use the saved job's status and **Check the monitor**. An unknown result
