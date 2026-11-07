@@ -52,6 +52,11 @@ def next_catalog(profile,metadata,binary,manifest_bytes,previous=None):
     # express a catalog-transport floor: that would force a fake firmware build.
     entry['minimum_integration']='.'.join(map(str,max(tuple(map(int,entry['minimum_integration'].split('.'))),tuple(map(int,CHANNEL_MINIMUM.split('.'))))))
     entry['release_url']=f'https://github.com/{catalog.REPOSITORY}/tree/{tag}'
+    # Source-built Linux runtime releases share the index but have no ESP32
+    # image/backend. A later Lite release must preserve that separate section,
+    # rather than silently withdrawing already published runtime kits.
+    if previous and 'runtime_releases' in previous:
+        value['runtime_releases']=previous['runtime_releases']
     value['releases'][profile]=entry;catalog.parse_catalog(value)
     if len(encoded(value))>catalog.MAX_INDEX_BYTES:raise ValueError('Oversized next catalog')
     return value
