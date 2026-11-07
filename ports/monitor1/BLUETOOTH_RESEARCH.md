@@ -47,6 +47,38 @@ The inspected ESPHome 2026.10.1 source also lacks a host-platform Bluetooth
 tracker/GATT implementation for the standard proxy. Making Linux expose HCI
 would therefore be a prerequisite, not a complete proxy implementation.
 
+### Published driver transport and coexistence mailbox
+
+A further source review on 7 November inspected
+[the published wsyco driver at `14cedf3a`](https://github.com/wsyco/RTL8723DS_BT_Linux/tree/14cedf3a9fec1aa8c500fa52f3e3acc433cbcf08).
+Its README's H5 example names `ttyUSB0`, but
+[`hci_ldisc.c`](https://github.com/wsyco/RTL8723DS_BT_Linux/blob/14cedf3a9fec1aa8c500fa52f3e3acc433cbcf08/bluetooth_uart_driver/hci_ldisc.c#L527-L554)
+registers `HCI_UART` with a tty parent. The example's device name is not
+evidence of USB HCI on CGS1 or a Bluetooth route through its charging port.
+
+The driver's
+[`rtk_vendor_cmd_to_fw`](https://github.com/wsyco/RTL8723DS_BT_Linux/blob/14cedf3a9fec1aa8c500fa52f3e3acc433cbcf08/bluetooth_uart_driver/rtk_coex.c#L414-L476)
+queues commands through an existing `btrtl_coex.hdev` and its HCI command
+queue. That path uses an already established HCI device; it does not create
+a Bluetooth transport through WLAN by itself.
+
+There is a separate
+[`H2C_BT_MP_OPER` WLAN firmware mailbox](https://github.com/wsyco/RTL8723DS_BT_Linux/blob/14cedf3a9fec1aa8c500fa52f3e3acc433cbcf08/hal/hal_btcoex.c#L558-L588).
+Its reviewed operations include version/register/coexistence/AFH queries and
+BLE scan type/parameter metadata (`0x2e` / `0x2d`). The
+[scan metadata getters](https://github.com/wsyco/RTL8723DS_BT_Linux/blob/14cedf3a9fec1aa8c500fa52f3e3acc433cbcf08/hal/hal_btcoex.c#L2005-L2066)
+also return their initialized zero value on failure or unsupported operation;
+zero alone cannot prove successful communication, absent Bluetooth or an
+actual scan state. `IsHwMailboxExist` is only a chip-type condition, not a
+hardware liveness measurement.
+
+The reviewed paths do not provide an advertisement/GATT transport. This is
+an inference limited to this published implementation, not proof that every
+other firmware route is impossible. These sources have not been matched to
+the installed CGS1 driver bytes or ABI. No mailbox/IOCTL, attach, module,
+GPIO or rfkill operation was executed; the revision-specific hardware route
+remains unverified.
+
 ### Chip pinout and additional board sources
 
 The [Realtek RTL8723DS-CG Rev. 0.92 datasheet hosted by Radxa](https://dl.radxa.com/rockpis/docs/hw/datasheets/RTL8723DS-CG_DataSheet_0.92_20170804.pdf),

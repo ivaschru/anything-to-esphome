@@ -1,6 +1,6 @@
 # Matched CGS1 build candidate
 
-**Experimental build-only controller; installation remains unavailable.**
+**Experimental build-only controller; device installation is a separate workflow.**
 Separate end-to-end SCD40 and S8 source compiles have passed. No result from this tool is
 hardware QA or permission to install it. Its report always keeps
 `installation_ready=false`, and the HACS CGS1 profiles remain `source_only`.
@@ -101,17 +101,34 @@ installation route until that separate work has passed.
 
 ## Current validation
 
-On 6 November 2026 the committed controller completed isolated SCD40 and S8
-compile fixtures from revision `a2121b8d`: fresh SDK, ARM crypto, PM helper,
-guardian, native and production bridge. Output ELF/ABI checks passed; the
-native embeds its actual guardian digest, and the bridge embeds both actual
-program digests. The SCD40 source selects the kernel reader without a SenseAir
-instance; S8 selects its actual SenseAir component, UART and CO2 output. Both
-bridges omit the legacy maintenance API. The fixtures are deliberately
-non-operational and were never installed or run on a monitor.
+On 7 November 2026 the committed controller completed two separate full
+SCD40 and S8 compile fixtures from
+[revision `0de9c99e`](https://github.com/ivaschru/qingping-esphome/commit/0de9c99e57192742b82616cf82c0fdad71c562c5).
+Each candidate used a fresh pinned SDK and built ARM crypto, the production
+PM helper, guardian, full native UI, internal stock bridge and the separate
+initial-trial guardian. This supersedes the earlier `a2121b8d` compile result;
+it does not retrofit that historical candidate's manifest.
 
-Seven profile/include-boundary tests pass. CI for that source revision passed
-all five jobs, including Linux Store/IPC and both HA contract versions. Local
-pure checks remain separate from this cross-build and from physical testing.
-Neither these compile fixtures nor older private hardware proof establish a
-fresh installation through a new USB/HACS pipeline.
+Independent static checks rehashed all 273 reported source files for each
+candidate and all four output programs. Every program was ARM32,
+little-endian, EABI5 hard-float, with no RPATH, RUNPATH or TEXTREL and a maximum
+required glibc version of 2.17. Actual generated manifests and C++ pins
+matched the measured programs; the actual native ELF also contained its
+guardian digest, and each bridge ELF contained its own native and guardian
+digests. No ELF was executed as part of this audit.
+
+The SCD40 generated source selects the kernel reader without a SenseAir
+instance; S8 selects its SenseAir component. Both native and internal bridge
+outputs include the new `Runtime mode` and `Core sensors ready` bindings.
+This confirms compilation and binding, not live sensor readiness. Both
+bridges omit the legacy maintenance API. All programs, profiles and build
+logs remain private; these deliberately non-operational fixtures were never
+installed or run on a monitor.
+
+Nine profile/include-boundary tests and two runtime-diagnostics host tests
+passed for this source. Its eight PR CI jobs also passed. These unit/source
+checks remain separate from the full cross-build and from physical testing.
+The companion's fixed build source was not changed by this validation; old
+owner jobs, deployment identities and consumed installation history remain
+bound to their original source. Neither these compile fixtures nor older
+private hardware proof establish a fresh installation through USB/HACS.
