@@ -1,4 +1,4 @@
-## Unreleased – Monitor 1 initial Full UI transition
+## 0.2.5 – Monitor 1 first Full UI trial
 
 - Add a distinct fixed 60-second Full UI launch mode using the existing
   device guardians. Its immutable plan carries the limit independently of

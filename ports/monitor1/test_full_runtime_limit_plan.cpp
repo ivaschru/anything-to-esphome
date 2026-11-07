@@ -23,6 +23,13 @@ FullPlan fixture() {
 int main() {
   auto permanent=fixture();FullPlan decoded;
   const auto old=encode_full_plan(permanent);
+  // Literal pre-trial wire layout, independent of the current decoder. A
+  // round trip alone would miss an encoder+decoder change that broke V1.
+  const auto legacy=std::string("CGS1_FULL_PLAN_V1\n0123456789abcdef\n")+
+    "11111111-2222-4333-8444-555555555555\n1234\n"+
+    std::string(64,'a')+"\n"+std::string(64,'b')+"\n"+std::string(64,'c')+"\n"+
+    "0 0 20\n20 21 100\n21 1 101\n22 1 102\n23 1 103\n";
+  assert(old==legacy);
   assert(old.rfind("CGS1_FULL_PLAN_V1\n",0)==0);
   assert(decode_full_plan(old,decoded) && decoded.hard_runtime_ms==0);
   assert(encode_full_plan(decoded)==old);

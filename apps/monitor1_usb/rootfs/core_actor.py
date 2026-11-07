@@ -76,6 +76,8 @@ class Actor:
         if operation in ("build", "plan") and set(data) == {"job_id"}:
             return getattr(self.companion, operation)(user, nonce, data["job_id"]), "application/json"
         if operation in ("install", "full-trial"):
+            if set(data) != {"job_id", "expected_plan_sha256", "experimental_reviewed"}:
+                raise Refusal("usb_request_invalid")
             if self.usb_ready is not None:
                 self.usb_ready()
             return self.companion.install(user, nonce, lambda: data, lambda value: value,
