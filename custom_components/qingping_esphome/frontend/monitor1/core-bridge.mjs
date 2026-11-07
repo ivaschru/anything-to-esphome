@@ -3,10 +3,14 @@
  * and an unrepeated random request ID. Timeout is uncertain, never a resend.
  */
 const channel=document.querySelector('meta[name="qingping-core-channel"]')?.content;
+// about:srcdoc reports location.origin as "null" even though its inherited
+// security origin is HA's. The parent supplied a same-origin base URL; use
+// that real document origin instead of weakening postMessage to "*".
+const origin=new URL(document.baseURI).origin;
 const pending=new Map();
 if (channel) window.addEventListener("message",event=>{
   const data=event.data;
-  if(event.source!==window.parent || event.origin!==location.origin || data?.channel!==channel
+  if(event.source!==window.parent || event.origin!==origin || data?.channel!==channel
       || data.kind!=="qingping-core-response" || !pending.has(data.id)) return;
   const callback=pending.get(data.id);pending.delete(data.id);
   callback(data);
@@ -23,8 +27,10 @@ export function coreFetch(operation,data,timeout) {
       resolve(new Response(response.body,{status:response.status,
         headers:{"Content-Type":response.mime,"Content-Length":String(response.body.byteLength)}}));
     });
-    window.parent.postMessage({kind:"qingping-core-request",channel,id,operation,data},location.origin);
+    window.parent.postMessage({kind:"qingping-core-request",channel,id,operation,data},origin);
   });
 }
+// Measure intrinsic content, not the root viewport height. Measuring the
+// viewport and adding parent padding would grow the iframe on every resize.
 if(channel) new ResizeObserver(()=>window.parent.postMessage({kind:"qingping-core-height",channel,
-  height:document.documentElement.scrollHeight},location.origin)).observe(document.documentElement);
+  height:Math.ceil(document.body.getBoundingClientRect().height)},origin)).observe(document.body);
