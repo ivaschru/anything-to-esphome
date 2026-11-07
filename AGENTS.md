@@ -606,3 +606,13 @@ separate even though the HACS wizard is shared.
   the real HA SDK, test_monitor1_core_frontend.mjs, and package_core.py --check.
   Core software tests do not qualify untouched-device installation, full UI,
   unsupported platforms, BLE hardware or Monitor2. Owner updates HA manually.
+
+- Monitor 1 runtime releases use `tools/publish_monitor1.py --profile both
+  --source-commit <exact SHA>` (dry-run; `--publish` is explicit). Immutable
+  per-profile data tags contain only a public source archive, release.json and
+  build instructions. Preserve `runtime_releases` separately from installable
+  catalog `releases`; no fictitious BIN/backend or HACS release. Source-built
+  v1 is not generic ELF distribution, fresh hardware QA or initial-install
+  readiness. Never publish private candidate outputs, QtCore or profiles.
+  Run tests/test_monitor1_publication.py for reproducibility, tag immutability
+  and the actual atomic two-tag/catalog CAS, plus existing firmware tests.
