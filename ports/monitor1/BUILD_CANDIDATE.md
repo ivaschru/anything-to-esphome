@@ -151,3 +151,11 @@ The synthetic ELF is not executed or published. `backend_ready` remains false:
 this does not qualify a full firmware build, Core job/auth/lifecycle adapters,
 ADB access, initial installation or a real monitor. SDK failure records only
 its fixed stage; read the report before drawing a compatibility conclusion.
+
+The same disposable probe fetches and verifies signed native tool packages,
+then uses `apk extract` in a private prefix. It never runs `apk add`, package
+scripts or a system database update. Separate child environments check ADB's
+version command, Perl modules and a fixed Make recipe. Programs/APKs remain
+ephemeral and are not uploaded. This is relocation verification only; a
+production bundle still needs immutable pins, complete license/source notices
+and extraction/lifecycle integration. No USB or ADB server is started.

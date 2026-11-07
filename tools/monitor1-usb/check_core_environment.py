@@ -36,6 +36,56 @@ def run(command, environment, *, capture=False, timeout=120):
     return result.stdout
 
 
+def prefix_tools(root, environment, report):
+    """CI experiment: fetch/verify/extract signed packages, never apk add.
+
+    The official image stays read-only and the process is unprivileged. APK's
+    extract command does not install package scripts or modify its database.
+    This verifies relocation, not a distributable tool archive: licenses,
+    immutable package pins and a production extractor still need their own
+    packaging before these programs can ship inside the HACS runtime.
+    """
+    apk = "/sbin/apk"
+    downloaded, prefix = root / "packages", root / "tools"
+    downloaded.mkdir(mode=0o700)
+    prefix.mkdir(mode=0o700)
+    report["tool_prefix_stage"] = "fetch"
+    run([apk, "--no-cache", "fetch", "--recursive", "--output", str(downloaded),
+         "android-tools", "perl", "make"], environment, timeout=300)
+    packages = sorted(downloaded.glob("*.apk"))
+    if not 3 <= len(packages) <= 64 or sum(p.stat().st_size for p in packages) > 256 * 1024**2:
+        raise ValueError("unexpected fixed tool dependency set")
+    report["tool_prefix_packages"] = [
+        {"name": p.name, "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+        for p in packages]
+    report["tool_prefix_stage"] = "verify"
+    for package in packages:
+        run([apk, "--no-network", "verify", str(package)], environment)
+    report["tool_prefix_stage"] = "extract"
+    for package in packages:
+        run([apk, "--no-network", "extract", "--no-chown", "--destination", str(prefix),
+             str(package)], environment)
+    # These paths belong only to child tool invocations. The HA/Python
+    # process never inherits a replacement library path or Perl environment.
+    tool_environment = {**environment,
+        "LD_LIBRARY_PATH": os.pathsep.join(str(prefix / p) for p in ("lib", "usr/lib")),
+        "PERL5LIB": os.pathsep.join(str(prefix / p) for p in (
+            "usr/lib/perl5/core_perl", "usr/share/perl5/core_perl",
+            "usr/lib/perl5/vendor_perl", "usr/share/perl5/vendor_perl"))}
+    report["tool_prefix_stage"] = "check"
+    run([str(prefix / "usr/bin/adb"), "version"], tool_environment, capture=True)
+    report["tool_prefix_checks"]["adb_version"] = True
+    assert run([str(prefix / "usr/bin/perl"), "-MCwd", "-MFile::Spec", "-MDigest::SHA",
+                "-e", 'print "ok"'], tool_environment, capture=True) == b"ok"
+    report["tool_prefix_checks"]["perl_modules"] = True
+    makefile = root / "not-firmware.mk"
+    makefile.write_text("all:\n\t@printf ok\n", encoding="utf-8")
+    assert run([str(prefix / "usr/bin/make"), "--no-print-directory", "-f", str(makefile)],
+               tool_environment, capture=True) == b"ok"
+    report["tool_prefix_checks"]["make_recipe"] = True
+    report["tool_prefix_stage"] = "complete"
+
+
 def main():
     # Refuse accidental use as a host diagnostic. The fixed mounts and exact
     # image version make this an explicit disposable CI experiment, not a
@@ -55,11 +105,13 @@ def main():
         "homeassistant": EXPECTED_HA,
         "python": platform.python_version(),
         "machine": platform.machine(),
+        "os_release": {k: platform.freedesktop_os_release().get(k) for k in ("ID", "VERSION_ID")},
         "requirements_sha256": hashlib.sha256(raw).hexdigest(),
         "native_tools": {name: shutil.which(name) is not None for name in TOOLS},
         "libusb_discoverable": ctypes.util.find_library("usb-1.0") is not None,
         "sdk_imported": False,
         "synthetic_arm32_compiled": False,
+        "tool_prefix_checks": {k: False for k in ("adb_version", "perl_modules", "make_recipe")},
         "hardware_contacted": False,
         "backend_ready": False,
         "failure_stage": None,
@@ -113,6 +165,8 @@ def main():
                 raise ValueError("not an ARM32 little-endian ELF")
             # This file is never executed, uploaded or mistaken for firmware.
             report["synthetic_arm32_compiled"] = True
+            stage = "tool_prefix"
+            prefix_tools(root, environment, report)
     except Exception as error:
         # Only the stage is public. No environment, raw subprocess output,
         # traceback, arbitrary filesystem metadata or device data is emitted.
@@ -132,7 +186,7 @@ def main():
         json.dump(report, stream, indent=2)
         stream.write("\n")
     print(json.dumps(report, sort_keys=True))
-    return 0 if report["synthetic_arm32_compiled"] else 1
+    return 0 if report["synthetic_arm32_compiled"] and all(report["tool_prefix_checks"].values()) else 1
 
 
 if __name__ == "__main__":
