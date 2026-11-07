@@ -109,7 +109,7 @@ def validate_template(data, manifest_bytes, release):
         manifest = json.loads(manifest_bytes)
         if (release.profile != "lite" or manifest["model"] != "CGDN1"
                 or manifest["format"] != "esp32-app-fixed-slots-v1"
-                or manifest["ui"] != release.version or manifest["size"] != len(data)
+                or manifest["ui"] != release.version or manifest.get("public_version") != release.public_version or manifest["size"] != len(data)
                 or release.version.encode() not in data
                 or manifest["sha256"] != release.image.sha256
                 or hashlib.sha256(data).hexdigest() != release.image.sha256):
@@ -192,8 +192,14 @@ class FirmwareUpdates:
         for entry in self.hass.config_entries.async_entries("esphome"):
             try:
                 if mac_normalize(entry.unique_id) == mac:
+                    runtime = getattr(entry, "runtime_data", None)
+                    if runtime and runtime.available:
+                        # HA already resolved its .local address on a live
+                        # authenticated connection. Still require RFC1918;
+                        # connect() independently rechecks the physical MAC.
+                        return private_ipv4(runtime.client.connected_address)
                     return private_ipv4(entry.data["host"])
-            except (ValueError, KeyError):
+            except (ValueError, KeyError, AttributeError):
                 continue
         return private_ipv4(record["peer"])
 
@@ -279,6 +285,8 @@ class FirmwareUpdates:
                           template_sha256=attempt["template_sha256"], image_sha256=attempt["image_sha256"],
                           build=info.compilation_time, peer=private_ipv4(client.connected_address),
                           outcome="native_verified")
+            if attempt.get("public_version") is not None:
+                record["public_version"] = attempt["public_version"]
             attempt["state"] = "verified"
             await self.manager.save_records()
         finally:
@@ -304,13 +312,23 @@ class FirmwareUpdates:
             if any(s.sent and s.state in ("sending", "waiting_for_esphome")
                    for s in self.manager.relay.sessions.values()):
                 raise FirmwareError("firmware_update_busy")
-            if (record.get("outcome") != "native_verified" or not release
+            if (record.get("outcome") not in {"native_verified", "auto_adopted"} or not release
                     or record.get("profile") != release.profile
                     or not release.supports_install(self.integration_version)
                     or release.revision <= record.get("firmware_revision", 0)
                     or release.version == record.get("firmware_version")):
                 raise FirmwareError("update_not_applicable")
             if not encryption_available(): raise FirmwareError("ota_encryption_unavailable")
+            if record.get("origin") == "device_profile_v1":
+                adoption = getattr(self.manager, "adoption", None)
+                if not adoption or not await adoption.refresh(mac):
+                    raise FirmwareError("update_device_unavailable")
+                record = self.manager.records[mac]
+                # A fresh device profile can reveal an already-installed
+                # release. Never transfer merely because the UI was stale.
+                if (release.revision <= record.get("firmware_revision", 0)
+                        or release.version == record.get("firmware_version")):
+                    raise FirmwareError("update_not_applicable")
             values = private_values(record)
             phase("downloading")
             current = (await fetch_catalog(self.hass)).get(release.profile)
@@ -337,6 +355,7 @@ class FirmwareUpdates:
                 if client: await client.disconnect()
             attempt = {"id": secrets.token_hex(16), "at": datetime.now(timezone.utc).isoformat(),
                        "version": release.version, "revision": release.revision, "state": "consumed",
+                       "public_version": release.public_version,
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
                        "settings_before": {name: snapshot[name] for name in SETTINGS}}
             record["update_attempt"] = attempt

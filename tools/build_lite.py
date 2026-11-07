@@ -15,6 +15,11 @@ import shutil
 import subprocess
 import sys
 
+_source_spec = importlib.util.spec_from_file_location("qf_firmware_source", Path(__file__).with_name("firmware_source.py"))
+_source_module = importlib.util.module_from_spec(_source_spec)
+_source_spec.loader.exec_module(_source_module)
+source_digest = _source_module.source_digest
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("template_image", ROOT / "custom_components/qingping_esphome/image.py")
 image = importlib.util.module_from_spec(spec)
@@ -26,6 +31,7 @@ def main():
     shutil.copytree(ROOT / "ports/lite", work, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__", ".esphome", "secrets.yaml"))
     values = {key: value.decode() for key, value in image.SLOTS.items() if key != "noise_psk"}
+    release = json.loads((ROOT / "firmware/releases.json").read_text())["lite"]
     values["api_key"] = base64.b64encode(image.SLOTS["noise_psk"]).decode()
     values["wifi_ssid"] = values.pop("ssid")
     # A C++ optimizer can fold strlen("literal") into its ORIGINAL length.
@@ -48,6 +54,7 @@ def main():
 }
 }  // namespace qf_template
 '''
+    header += '#include "esphome/components/cgdn1_ui/update_profile.h"\n'
     (work / "public_template_slots.h").write_text(header)
     secrets_values = dict(values)
     for key in ("wifi_ssid", "wifi_password", "ap_password", "ota_password"):
@@ -65,6 +72,9 @@ substitutions:
 packages:
   lite: !include cgdn1.yaml
 esphome:
+  project:
+    name: ivaschru.qingping_lite_direct_i2c
+    version: {json.dumps(str(release["public_version"]))}
   build_path: {json.dumps(str(ROOT / '.build/lite-app'))}
   compile_process_limit: 2
   includes:
@@ -87,11 +97,29 @@ wifi:
   ap:
     ssid: public-template-unused
 captive_portal: !remove
+api:
+  actions:
+    - action: qingping_update_profile_v1
+      supports_response: only
+      variables:
+        challenge: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]});
+              static_assert(cgdn1_ui::PUBLIC_VERSION == {release["public_version"]});
+esp32:
+  framework:
+    sdkconfig_options:
+      CONFIG_MBEDTLS_GCM_C: "y"
+      CONFIG_MBEDTLS_AES_C: "y"
 '''
     (work / "template.yaml").write_text(config)
     subprocess.run([sys.executable, "-m", "esphome", "compile", str(work / "template.yaml")], check=True)
     binary = (ROOT / ".build/lite-app/build/firmware.ota.bin").read_bytes()
     image.layout(binary)
+    if release["version"].encode() not in binary:
+        raise ValueError("Compiled UI version does not match release metadata")
     counts = {key: binary.count(marker) for key, marker in image.SLOTS.items()}
     if not all(counts.values()):
         raise ValueError("Compiler changed the placeholder contract: " + str(counts))
@@ -105,8 +133,9 @@ captive_portal: !remove
     (output / "lite-template.json").write_text(json.dumps({
         "pm_policy": "polling-only-gpio13-high-v1",
         "pm_source_sha256": hashlib.sha256((ROOT / "ports/lite/components/cgdn1_pm/cgdn1_pm.h").read_bytes()).hexdigest(),
-        "model": "CGDN1", "ui": "2026.11.06-ui25-polling1", "font": "Inter (OFL)",
+        "model": "CGDN1", "ui": release["version"], "public_version": release["public_version"], "font": "Inter (OFL)",
         "esphome": "2026.9.1", "size": len(binary), "sha256": digest,
+        "release_source_sha256": source_digest(ROOT),
         "slots": counts, "format": "esp32-app-fixed-slots-v1",
     }, indent=2) + "\n")
     print("Public template validated:", len(binary), "bytes, sha256", digest)

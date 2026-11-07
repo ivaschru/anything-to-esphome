@@ -36,7 +36,8 @@ def build(tag, metadata, binary, manifest_bytes, previous=None):
     digest = hashlib.sha256(binary).hexdigest()
     images.layout(binary)
     if (manifest.get("model") != "CGDN1" or manifest.get("format") != "esp32-app-fixed-slots-v1"
-            or manifest.get("ui") != info["version"] or manifest.get("size") != len(binary)
+            or manifest.get("ui") != info["version"] or manifest.get("public_version") != info.get("public_version")
+            or manifest.get("size") != len(binary)
             or manifest.get("sha256") != digest or info["version"].encode() not in binary
             or any(binary.count(marker) != manifest["slots"][key] or binary.count(marker) < 1
                    for key, marker in images.SLOTS.items())):
@@ -57,8 +58,17 @@ def build(tag, metadata, binary, manifest_bytes, previous=None):
         same_version = old["revision"] == info["revision"] and old["version"] == info["version"]
         if identical and same_version:
             entry = old  # Installer-only release: no fabricated firmware update.
-        elif (identical or info["revision"] <= old["revision"] or info["version"] == old["version"]):
+        elif (identical or info["revision"] <= old["revision"] or info["version"] == old["version"]
+              or old.get("public_version") is not None and info.get("public_version",0) <= old["public_version"]):
             raise ValueError("Changed firmware needs a new UI version and larger profile revision")
+        if entry is not old and old.get("backend") == info["backend"]:
+            # Carry public profile generations forward. Otherwise a monitor
+            # one release behind would stop being recognised after moving to
+            # a fresh HA whose integration never saw that older catalog.
+            history = list(old.get("adoption_versions", []))
+            if old["revision"] >= 2:
+                history.append({"version": old["version"], "revision": old["revision"]})
+            if history: entry["adoption_versions"] = history
     releases["lite"] = entry
     result = {"format": catalog.CATALOG_FORMAT, "releases": releases}
     catalog.parse_catalog(result)

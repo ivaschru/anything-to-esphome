@@ -27,6 +27,28 @@ def profile():
 
 
 class CandidateTests(unittest.TestCase):
+    def test_numbered_full_bundle_identity_is_hardware_specific_and_shared_by_modes(self):
+        for co2_type, expected in ((2,"monitor1-s8"),(3,"monitor1-scd40")):
+            values=profile();values["co2_type"]=co2_type
+            self.assertEqual(candidate.release_line(PORT,values),(expected,1))
+            with tempfile.TemporaryDirectory() as temp:
+                root=Path(temp)
+                (root/"release-versions.json").write_bytes((PORT/"release-versions.json").read_bytes())
+                for base in ("native-ui-full-durable.yaml","stock-bridge-release.yaml"):
+                    with patch.object(candidate,"header_closure",return_value=[]):
+                        path=candidate.configuration(root,values,base,"fixture",())
+                    text=path.read_text()
+                    self.assertIn('version: "1"',text)
+                    self.assertIn(expected.replace("-","_"),text)
+
+    def test_unknown_or_boolean_version_cannot_become_a_numbered_release(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);data=json.loads((PORT/"release-versions.json").read_text())
+            for bad in (True,0,"1"):
+                data["profiles"]["monitor1-scd40"]["public_version"]=bad
+                (root/"release-versions.json").write_text(json.dumps(data))
+                with self.assertRaises(ValueError):candidate.release_line(root,profile())
+
     def write_profile(self, root, values, mode=0o600):
         path = root / "profile.json"
         path.write_text(json.dumps(values))

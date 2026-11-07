@@ -1,9 +1,10 @@
 {
   "lite": {
-    "version": "2026.11.06-ui25-polling1",
-    "revision": 1,
+    "version": "2026.11.07-ui25-profile1",
+    "revision": 2,
     "backend": "esp32-noise-app-v1",
-    "minimum_integration": "0.1.5",
-    "summary": "Air Monitor Lite CGDN1, direct-I2C hardware 0001 originally running stock 4.5.8. Stable UI25 firmware; PM OFF disables polling and retains GPIO13 HIGH."
+    "minimum_integration": "0.2.0",
+    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 1. Automatic HA adoption. Fan shutdown is unavailable; PM OFF stops polling only.",
+    "public_version": 1
   }
 }

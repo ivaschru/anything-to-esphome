@@ -79,6 +79,9 @@ async def _async_setup_loaded_entry(hass, entry, manager):
         lambda: json.loads((Path(__file__).parent / "manifest.json").read_text())["version"])
     manager.updates = FirmwareUpdates(manager, version)
     await hass.config_entries.async_forward_entry_setups(entry, [Platform.UPDATE])
+    from .auto_adoption import AutoAdoption
+    manager.adoption = AutoAdoption(manager)
+    manager.adoption.start()
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 

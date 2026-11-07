@@ -7,6 +7,7 @@ reviewed source. Known source changes use the normal pinned build. Missing
 Git/source evidence or download/validation failure is an error, never fallback.
 """
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -16,6 +17,11 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
+
+_source_spec = importlib.util.spec_from_file_location("qf_firmware_source", Path(__file__).with_name("firmware_source.py"))
+_source_module = importlib.util.module_from_spec(_source_spec)
+_source_spec.loader.exec_module(_source_module)
+source_digest, RECIPE_PATHS = _source_module.source_digest, _source_module.RECIPE_PATHS
 
 ROOT = Path(__file__).resolve().parents[1]
 LITE_TREE = "c67313617e800dc1ba3f92d0ee68b5eef57d2f70"
@@ -89,9 +95,96 @@ def reuse(root, opener=urllib.request.urlopen):
             os.fsync(stream.fileno())
 
 
+def reuse_current(root, opener=urllib.request.urlopen):
+    """Reuse a newer published firmware only with its complete source pin.
+
+    A fresh compiler embeds a different build timestamp. Rebuilding unchanged
+    firmware for a HACS-only release would therefore create different bytes
+    under the same version. The immutable manifest's source identity allows
+    reusing the actual published pair without falsely increasing its revision.
+    Transport/invalid-index errors never fall back to another image/compiler.
+    """
+    output = root / "custom_components/qingping_esphome/firmware"
+    if output.parent.resolve() != output.parent or output.is_symlink():
+        raise RuntimeError("Release output must remain in the clean source")
+    if any((output/name).exists() or (output/name).is_symlink() for name in ("lite-template.bin","lite-template.json")):
+        raise RuntimeError("Existing firmware outputs are preserved")
+    # Import only our pure catalog validator, without HA's package __init__.
+    import importlib
+    import types
+    package = types.ModuleType("qf_source_catalog")
+    package.__path__ = [str(root / "custom_components/qingping_esphome")]
+    sys.modules[package.__name__] = package
+    catalog = importlib.import_module(package.__name__ + ".firmware_catalog")
+    from urllib.parse import urlsplit, urljoin
+    def download(url, maximum):
+        # urllib follows redirects by default; use a bounded explicit opener
+        # so neither signed CDN query strings nor unexpected hosts are logged.
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args): return None
+        transport = urllib.request.build_opener(NoRedirect)
+        for _ in range(4):
+            parsed = urlsplit(url)
+            if parsed.scheme != "https" or parsed.netloc not in {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"}:
+                raise RuntimeError("Unverified public firmware source URL")
+            try:
+                response = transport.open(url, timeout=45)
+            except urllib.error.HTTPError as error:
+                if error.code in (301,302,303,307,308): url=urljoin(url,error.headers.get("Location", "")); continue
+                if error.code == 404 and url == catalog.CATALOG_URL: return None
+                raise RuntimeError("Could not verify published firmware source") from None
+            except Exception:
+                raise RuntimeError("Could not verify published firmware source") from None
+            with response:
+                raw=response.read(maximum+1)
+            if len(raw)>maximum: raise RuntimeError("Published firmware source is oversized")
+            return raw
+        raise RuntimeError("Could not verify published firmware source")
+    # `opener` remains the explicit fixture boundary; production always uses
+    # the bounded downloader above, not a caller-selected URL or output path.
+    reader = download if opener is urllib.request.urlopen else lambda url,maximum: opener(url,maximum)
+    raw = reader(catalog.CATALOG_URL, catalog.MAX_INDEX_BYTES)
+    if raw is None: return False
+    releases = catalog.parse_catalog(json.loads(raw))
+    current = json.loads((root / "firmware/releases.json").read_text())["lite"]
+    release = releases.get("lite")
+    if not release or release.version != current["version"] or release.revision != current["revision"]: return False
+    dirty = git_read(root,"status","--porcelain","--untracked-files=all","--","ports/lite",*RECIPE_PATHS)
+    if dirty: raise RuntimeError("Use a clean source snapshot for published firmware reuse")
+    manifest_raw = reader(release.manifest.url, release.manifest.size)
+    if not manifest_raw or len(manifest_raw)!=release.manifest.size or hashlib.sha256(manifest_raw).hexdigest()!=release.manifest.sha256:
+        raise RuntimeError("Published firmware manifest differs")
+    manifest=json.loads(manifest_raw)
+    if manifest.get("release_source_sha256")!=source_digest(root):
+        raise RuntimeError("Same firmware version has different source; publish a new UI version/revision")
+    binary = reader(release.image.url, release.image.size)
+    if (not binary or len(binary)!=release.image.size or hashlib.sha256(binary).hexdigest()!=release.image.sha256
+            or manifest.get("sha256")!=release.image.sha256 or manifest.get("ui")!=release.version
+            or manifest.get("public_version")!=release.public_version):
+        raise RuntimeError("Published firmware image differs")
+    image = importlib.import_module(package.__name__ + ".image")
+    image.layout(binary)
+    if (manifest.get("format") != "esp32-app-fixed-slots-v1" or manifest.get("model") != "CGDN1"
+            or release.version.encode() not in binary
+            or any(binary.count(marker) < 1 or manifest.get("slots", {}).get(key) != binary.count(marker)
+                   for key,marker in image.SLOTS.items())):
+        raise RuntimeError("Published firmware slot contract differs")
+    output.mkdir(parents=True, exist_ok=True)
+    for name,data in (("lite-template.bin",binary),("lite-template.json",manifest_raw)):
+        fd=os.open(output/name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
+        with os.fdopen(fd,"wb") as target:
+            target.write(data);target.flush();os.fsync(target.fileno())
+    return True
+
+
 def main():
     os.umask(0o077)
-    if compatible(ROOT):
+    dirty = git_read(ROOT,"status","--porcelain","--untracked-files=all","--","ports/lite",*RECIPE_PATHS)
+    if dirty: raise RuntimeError("Use a clean committed public firmware source")
+    current=json.loads((ROOT/"firmware/releases.json").read_text())["lite"]
+    if current["version"] != "2026.11.06-ui25-polling1" and reuse_current(ROOT):
+        print("Reused exact source-matched public firmware and manifest")
+    elif compatible(ROOT):
         reuse(ROOT)
         print("Reused exact public Lite v0.1.3 image and matching manifest")
     else:

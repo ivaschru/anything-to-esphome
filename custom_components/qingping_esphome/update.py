@@ -42,7 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def add_verified():
         entities = []
         for mac, record in manager.records.items():
-            if mac not in added and record.get("outcome") == "native_verified":
+            if mac not in added and record.get("outcome") in {"native_verified", "auto_adopted"}:
                 # Historical Store v1 was produced only by the Lite installer.
                 # Missing private/profile fields never gain INSTALL support.
                 if record.get("profile", "lite") != "lite": continue
@@ -95,8 +95,9 @@ class QingpingFirmwareUpdate(UpdateEntity):
 
     def _refresh(self):
         record, release = self.record, self.release
-        self._attr_installed_version = record.get("firmware_version") or record.get("build")
-        self._attr_latest_version = release.version if release else None
+        self._attr_installed_version = (str(record["public_version"]) if record.get("public_version") is not None
+                                        else record.get("firmware_version") or record.get("build"))
+        self._attr_latest_version = release.display_version if release else None
         self._attr_release_url = release.release_url if release else None
         self._attr_release_summary = release.summary if release else None
         self._attr_supported_features = UpdateEntityFeature.RELEASE_NOTES
@@ -111,6 +112,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
             self._attr_supported_features |= UpdateEntityFeature.INSTALL | UpdateEntityFeature.PROGRESS
         self._attr_extra_state_attributes = {
             "hardware_profile": record.get("profile", "lite"),
+            "firmware_build_id": record.get("firmware_version"),
             "update_readiness": "needs_review" if pending(record) else "ready" if ready else "profile_or_backend_required",
             "update_phase": self._phase,
         }
@@ -119,7 +121,8 @@ class QingpingFirmwareUpdate(UpdateEntity):
         # Revisions are profile-local. UI version equality prevents the first
         # catalog from advertising the same firmware bundled with an installer.
         release = self.release
-        return bool(release and latest_version != installed_version
+        return bool(release and release.version != self.record.get("firmware_version")
+                    and latest_version != installed_version
                     and release.revision > self.record.get("firmware_revision", 0))
 
     async def async_release_notes(self):
@@ -134,7 +137,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
         if not user or not user.is_admin:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="firmware_admin_required")
         release = self.release
-        if backup or not release or version not in (None, release.version):
+        if backup or not release or version not in (None, release.display_version):
             raise HomeAssistantError("This firmware update or backup request is not supported")
         self._attr_in_progress = True
         self._attr_update_percentage = None

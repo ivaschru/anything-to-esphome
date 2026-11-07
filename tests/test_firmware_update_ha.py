@@ -109,6 +109,42 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(OSError): await self.engine.install(self.mac, self.release, Mock(), Mock())
             send.assert_not_awaited()
 
+    async def test_auto_adoption_requires_live_profile_and_uses_current_wifi_before_ota(self):
+        from custom_components.qingping_esphome.firmware_catalog import FirmwareError
+        self.record.update(outcome="auto_adopted",origin="device_profile_v1")
+        self.manager.adoption=SimpleNamespace(refresh=AsyncMock(return_value=False),stop=AsyncMock())
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock()) as send:
+            with self.assertRaisesRegex(FirmwareError,"update_device_unavailable"):
+                await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_not_awaited();self.assertNotIn("update_attempt",self.record)
+        async def refresh(mac):
+            self.assertEqual(mac,self.mac)
+            self.assertTrue(self.engine.lock.locked())
+            # Replace the old Store row just as the profile importer does.
+            fresh={**self.record,"personalization":{**self.record["personalization"],"ssid":"current-device-network"}}
+            self.manager.records[mac]=fresh
+            return True
+        self.manager.adoption.refresh=AsyncMock(side_effect=refresh)
+        async def upload(host,image,*args):
+            self.assertIn(b"current-device-network",image)
+            self.assertNotIn(b"fixture-network",image)
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock(side_effect=upload)) as send, patch.object(self.engine,"verify",AsyncMock()):
+            await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_awaited_once()
+
+    async def test_profile_refresh_detects_update_already_installed_elsewhere(self):
+        from custom_components.qingping_esphome.firmware_catalog import FirmwareError
+        self.record.update(outcome="auto_adopted",origin="device_profile_v1")
+        async def refresh(mac):
+            self.manager.records[mac]={**self.record,"firmware_version":self.release.version,
+                                       "firmware_revision":self.release.revision}
+            return True
+        self.manager.adoption=SimpleNamespace(refresh=AsyncMock(side_effect=refresh),stop=AsyncMock())
+        with self.downloads(), patch("custom_components.qingping_esphome.firmware_update.upload_app",AsyncMock()) as send:
+            with self.assertRaisesRegex(FirmwareError,"update_not_applicable"):
+                await self.engine.install(self.mac,self.release,Mock(),Mock())
+            send.assert_not_awaited()
+
     async def test_ambiguous_send_restart_and_second_action_only_reconcile(self):
         from custom_components.qingping_esphome.firmware_catalog import FirmwareError
         from custom_components.qingping_esphome.firmware_update import FirmwareUpdates
@@ -160,6 +196,21 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(entity.supported_features & UpdateEntityFeature.INSTALL)
         self.assertEqual(entity.extra_state_attributes["update_readiness"], "profile_or_backend_required")
 
+    async def test_short_versions_preserve_build_identity_and_ota_sequence(self):
+        from dataclasses import replace
+        from custom_components.qingping_esphome.update import QingpingFirmwareUpdate
+        release=replace(self.release,public_version=2)
+        self.record["public_version"]=1
+        entity=QingpingFirmwareUpdate(self.manager,SimpleNamespace(data={"lite":release}),self.mac)
+        self.assertEqual(entity.installed_version,"1")
+        self.assertEqual(entity.latest_version,"2")
+        self.assertTrue(entity.version_is_newer("2","1"))
+        self.record["firmware_version"]=release.version
+        self.assertFalse(entity.version_is_newer("2","1"),"A label must not manufacture an OTA")
+        self.record["firmware_version"]="older-build"
+        self.record["firmware_revision"]=release.revision+1
+        self.assertFalse(entity.version_is_newer("2","1"),"Public numbering cannot reset revision ordering")
+
     async def test_readback_rejects_changed_settings_and_requires_repeated_physical_sources(self):
         from aioesphomeapi import SensorState
         from custom_components.qingping_esphome.firmware_catalog import FirmwareError
@@ -187,6 +238,11 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.record["firmware_revision"], 1)
 
     async def test_native_ha_entity_state_and_real_install_service_context(self):
+        # A device imported from another HA receives the same native entity
+        # and administrator-only service boundary as an installer-owned one.
+        self.record["outcome"] = "auto_adopted"
+        from dataclasses import replace
+        self.release = replace(self.release,public_version=1)
         """Exercise HA's own entity/service pipeline, not a direct method call."""
         import logging
         from datetime import timedelta
@@ -236,7 +292,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         state = self.hass.states.get(entity.entity_id)
         self.assertEqual(state.state, "on")
         self.assertEqual(state.attributes["device_class"], "firmware")
-        self.assertEqual(state.attributes["latest_version"], self.release.version)
+        self.assertEqual(state.attributes["latest_version"], self.release.display_version)
         self.engine.install = AsyncMock()
         for context in (Context(user_id=regular.id), Context()):
             with self.assertRaises(HomeAssistantError):
@@ -314,7 +370,7 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(entity.supported_features & 1)  # INSTALL
         await self.manager.save_records()
         self.assertEqual(add.call_count, 1)
-        self.manager.records["001122334466"] = dict(self.record)
+        self.manager.records["001122334466"] = {**self.record,"outcome":"auto_adopted"}
         await self.manager.save_records()
         self.assertEqual(add.call_count, 2)
         self.assertEqual(len(add.call_args.args[0]), 1)

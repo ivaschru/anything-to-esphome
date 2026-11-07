@@ -483,8 +483,37 @@ separate even though the HACS wizard is shared.
   an old policy or mismatched source even when the binary checksum is valid.
 
 - Installer-only releases use `python tools/prepare_release_template.py` to
-  reuse the exact public v0.1.3 Lite pair only with matching committed Lite
-  tree/compiler/personalizer pins. Dirty or missing source and a failed asset
+  retain v0.1.3 legacy pins and reuse newer immutable pairs only with matching
+  committed release_source_sha256 from firmware_source.py. Dirty or missing source and a failed asset
   read refuse; clean changed source uses the ordinary pinned compiler. Never
   overwrite existing output, substitute a private build or separate a binary
   from its matching manifest. Build/package from a clean committed snapshot.
+
+- AutoAdoption inventories only HA-owned connected ESPHome runtimes. Reuse
+  their Noise key and fixed requesting-client-only profile action; no scanner,
+  rekey, reset, OTA or HA-client disconnect on discovery. AES-GCM envelopes
+  bind fresh challenges and exact MAC; no plain Wi-Fi/AP/OTA values in entities,
+  action responses or logs. Preserve pending/consumed history, refuse private
+  firmware and refresh the current profile before OTA. Future versions need
+  validated compatible public catalog identity. Legacy firmware needs a one-time
+  upgrade, never guessed secrets. Unload retires only owned reads/timers.
+  Run test_device_profile.py and test_firmware_update_ha.py with the HA SDK;
+  check_profile_wire.py uses actual build SDK mbedTLS. Host proof is not QA.
+
+- Firmware numbering follows docs/FIRMWARE_VERSIONING.md: full ESPHome only
+  for Lite/Monitor 1/Monitor 2, independent integer versions per exact hardware
+  profile, with a
+  separate monotonically increasing OTA revision and independent HACS version.
+  No reduced stock-interface product is offered. Monitor 1's bridge remains
+  internal to its SHA-bound full runtime/recovery bundle. Lite's
+  other OTA slot is not a stock add-on or permanent factory retention. Do not
+  turn this agreed release contract into an unsupported version/backend claim.
+
+- `public_version` is the per-profile integer shown on the device and HA;
+  catalog `version` remains the exact legacy UI/build identity and `revision`
+  remains monotonic OTA order. Never compare a public label with a wire build
+  ID or manufacture OTA from a rename. Lite template/API/HA numbers must match;
+  Monitor 1 release-versions.json independently pins S8/SCD40 full bundles and
+  the builder injects the same project version into native/internal bridge.
+  Missing fan shutdown may be a documented v1 limitation; missing core sensor
+  freshness/scales or lifecycle is not equivalent to that optional feature.

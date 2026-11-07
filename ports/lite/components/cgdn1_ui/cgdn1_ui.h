@@ -38,10 +38,14 @@ namespace esphome::cgdn1_ui {
 // same child/input/unowned/CS-HIGH guards as the planned weak-pull operation.
 RTC_NOINIT_ATTR inline volatile Weak17RecoveryRecord weak17_recovery_record;
 static constexpr const char *UI_VERSION = "2026.11.04-ui27-weak17";
+static constexpr unsigned PUBLIC_VERSION = 0;
 #elif defined(CGDN1_GPIO23_PROBE)
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
+static constexpr unsigned PUBLIC_VERSION = 0;
 #else
-static constexpr const char *UI_VERSION = "2026.11.06-ui25-polling1";
+static constexpr const char *UI_VERSION = "2026.11.07-ui25-profile1";
+// Product version is independent from the exact diagnostic UI/build identity.
+static constexpr unsigned PUBLIC_VERSION = 1;
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};
@@ -593,8 +597,8 @@ class Cgdn1Ui : public Component {
       t(10, 89, wf->is_connected() ? std::to_string(wf->wifi_rssi()) + " dBm" : "AP: ожидание");
       t(10, 111, "Центр: прошивка");
     } else {
-      t(10, 51, "ESPHome " ESPHOME_VERSION);
-      t(10, 70, UI_VERSION);
+      t(10, 51, PUBLIC_VERSION ? "Версия " + std::to_string(PUBLIC_VERSION) : UI_VERSION);
+      t(10, 70, "ESPHome " ESPHOME_VERSION);
       char mac[MAC_ADDRESS_PRETTY_BUFFER_SIZE]; t(10, 89, get_mac_address_pretty_into_buffer(mac));
       t(10, 111, std::string(switches_[1]->state ? "BLE вкл. · " : "BLE выкл. · ") + std::to_string(millis_64() / 60000) + " мин.");
     }

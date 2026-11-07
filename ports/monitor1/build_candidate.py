@@ -162,6 +162,26 @@ def program_spec(path):
     return {"size": path.stat().st_size, "sha256": pm.digest(path)}
 
 
+def release_line(source, profile):
+    """Read the source-pinned version for this exact hardware's full bundle.
+
+    Native UI and internal bridge must report the same package identity. This
+    metadata neither enables a first installer nor qualifies an OTA backend.
+    User profile/HTTP input cannot choose the release number or product line.
+    """
+    data = json.loads((source / "release-versions.json").read_text())
+    if (data.get("format") != "qingping-monitor1-release-lines-v1"
+            or set(data.get("profiles", {})) != {"monitor1-s8", "monitor1-scd40"}
+            or type(profile["co2_type"]) is not int or profile["co2_type"] not in (2, 3)):
+        raise ValueError("Unverified Monitor 1 release metadata")
+    target = "monitor1-s8" if profile["co2_type"] == 2 else "monitor1-scd40"
+    value = data["profiles"][target]
+    version = value.get("public_version")
+    if set(value) != {"public_version"} or type(version) is not int or not 1 <= version <= 2**53-1:
+        raise ValueError("Unverified Monitor 1 release version")
+    return target, version
+
+
 def configuration(source, profile, base, build_name, components):
     """Write private YAML: only secrets.yaml carries the Noise key.
 
@@ -170,6 +190,7 @@ def configuration(source, profile, base, build_name, components):
     Neither manifest is replaced with a default or a synthetic release.
     """
     quote = json.dumps
+    target, public_version = release_line(source, profile)
     packages = "  firmware: !include " + base + "\n"
     if base == "native-ui-full-durable.yaml" and profile["co2_type"] == 3:
         packages += "  hardware: !include profiles/co2-scd40.yaml\n"
@@ -179,7 +200,9 @@ def configuration(source, profile, base, build_name, components):
             "".join(f"  {key}: {quote(profile[field])}\n" for key, field in (
                 ("cgs1_node_name", "node_name"), ("cgs1_friendly_name", "friendly_name"),
                 ("cgs1_api_mac", "api_mac"))) +
-            "esphome:\n  compile_process_limit: 1\n  build_path: " + quote(str(source / "build" / build_name)) +
+            "esphome:\n  project:\n    name: " + quote("ivaschru.qingping_" + target.replace("-", "_")) +
+            "\n    version: " + quote(str(public_version)) +
+            "\n  compile_process_limit: 1\n  build_path: " + quote(str(source / "build" / build_name)) +
             "\n  build_flags:\n    - " + quote("-include" + str(header)) +
             "\n    - " + quote("-ffile-prefix-map=" + str(source) + "=cgs1-source") + "\n")
     if closure:

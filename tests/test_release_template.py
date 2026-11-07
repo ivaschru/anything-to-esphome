@@ -9,6 +9,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 import zipfile
+from test_protocol import fixture, image
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("release_template", ROOT / "tools/prepare_release_template.py")
@@ -17,6 +18,56 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTemplateTests(unittest.TestCase):
+    def current_fixture(self):
+        root=Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        version="2026.11.07-ui25-profile1"
+        for name in ("custom_components/qingping_esphome/image.py","custom_components/qingping_esphome/firmware_catalog.py","tools/firmware_source.py"):
+            path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes((ROOT/name).read_bytes())
+        path=root/"ports/lite/source.h";path.parent.mkdir(parents=True);path.write_text("// public synthetic source\n")
+        (root/"tools/build_lite.py").write_text("# synthetic compiler recipe\n")
+        info={"version":version,"revision":2,"backend":"esp32-noise-app-v1","minimum_integration":"0.1.9","summary":"Public test release"}
+        path=root/"firmware/releases.json";path.parent.mkdir();path.write_text(json.dumps({"lite":info}))
+        binary=fixture(version.encode())
+        manifest=json.dumps({"model":"CGDN1","format":"esp32-app-fixed-slots-v1","ui":version,"size":len(binary),"sha256":hashlib.sha256(binary).hexdigest(),"slots":{k:binary.count(v) for k,v in image.SLOTS.items()},"release_source_sha256":release.source_digest(root)}).encode()
+        prefix="https://github.com/ivaschru/qingping-esphome/releases/download/v0.1.9/"
+        def asset(n,data):return {"url":prefix+n,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
+        index={"format":"qingping-esphome-firmware-catalog-v1","releases":{"lite":{**info,"image":asset("lite-template.bin",binary),"manifest":asset("lite-template.json",manifest),"release_url":"https://github.com/ivaschru/qingping-esphome/releases/tag/v0.1.9"}}}
+        mapping={"https://github.com/ivaschru/qingping-esphome/releases/latest/download/firmware-catalog.json":json.dumps(index).encode(),prefix+"lite-template.bin":binary,prefix+"lite-template.json":manifest}
+        calls=[]
+        def opener(url,maximum):calls.append(url);return mapping[url]
+        return root,binary,manifest,opener,calls,mapping
+
+    def test_current_firmware_reuses_exact_published_pair_without_rebuild(self):
+        root,binary,manifest,opener,calls,_=self.current_fixture()
+        with patch.object(release,"git_read",return_value=""):
+            self.assertTrue(release.reuse_current(root,opener))
+        output=root/"custom_components/qingping_esphome/firmware"
+        self.assertEqual((output/"lite-template.bin").read_bytes(),binary)
+        self.assertEqual((output/"lite-template.json").read_bytes(),manifest)
+        self.assertEqual(len(calls),3)
+
+    def test_same_version_with_changed_source_refuses_before_any_image_write(self):
+        root,_,_,opener,_,_=self.current_fixture()
+        (root/"ports/lite/source.h").write_text("// different committed source\n")
+        with patch.object(release,"git_read",return_value=""),self.assertRaises(RuntimeError):
+            release.reuse_current(root,opener)
+        self.assertFalse((root/"custom_components/qingping_esphome/firmware").exists())
+
+    def test_existing_current_output_never_downloads_or_overwrites(self):
+        root,_,_,opener,calls,_=self.current_fixture()
+        out=root/"custom_components/qingping_esphome/firmware";out.mkdir()
+        (out/"lite-template.bin").write_bytes(b"preserve")
+        with self.assertRaises(RuntimeError):release.reuse_current(root,opener)
+        self.assertEqual(calls,[])
+        self.assertEqual((out/"lite-template.bin").read_bytes(),b"preserve")
+
+    def test_current_asset_digest_failure_is_not_permission_to_compile(self):
+        root,_,_,opener,_,mapping=self.current_fixture()
+        url=next(k for k in mapping if k.endswith("lite-template.bin"));mapping[url]+=b"tamper"
+        with patch.object(release,"git_read",return_value=""),self.assertRaises(RuntimeError):
+            release.reuse_current(root,opener)
+        self.assertFalse((root/"custom_components/qingping_esphome/firmware").exists())
+
     def fixture(self):
         binary = b"explicit synthetic test image, never firmware"
         digest = hashlib.sha256(binary).hexdigest()
