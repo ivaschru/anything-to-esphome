@@ -65,19 +65,29 @@ PCM_CLK, shared with GPIO3. No source inspected in that search established
 CGS1 BT test-point locations or a safe SoC UART/power mapping. This limited
 search does not prove that a schematic is globally absent.
 
-The FCCID.io attachment remained inaccessible through the document reader.
-The FCC.report record also stopped at a browser safety check; its exhibits
-were not read. These are access/coverage gaps, not negative PCB evidence.
+A follow-up Yandex web search on 7 November made the FCCID.io rendered
+photo viewer accessible. The earlier document-reader failure therefore no
+longer describes all available photo coverage. The FCC.report mirror was not
+revisited; its earlier safety-check failure remains a separate access limit.
 
 Liutyi's board and wireless close-ups confirm the chip marking on that S8
 board. They do not show enough continuous routing to establish the destination
 of the Bluetooth UART or BT_DIS#. An unreadable route is not proof of an
 unconnected pin, and the pictured revision is not evidence for every CGS1.
 
-The 2018 [FCC internal-photo filing](https://fccid.io/2AQ3FCGS1/Internal-Photos/Internal-photos-4025935)
-lists nine pages, while the schematic entry is metadata only. The official
-FCC attachment returned Access Denied and the photo pages were not inspected.
-This is an access/coverage limit, not evidence that no schematic exists.
+The [FCC internal-photo filing](https://fccid.io/2AQ3FCGS1/Internal-Photos/Internal-photos-4025935),
+exhibit 4025935 for FCC ID 2AQ3F-CGS1, was published on 1 October 2018 and has
+nine pages. Its rendered viewer was inspected, including both sides of the
+main board on the last page. The related SCH and Block Diagram entries are
+still labelled **Metadata only**. These photographs do not establish readable
+Bluetooth UART/power net continuity to the SoC, and do not qualify the wiring
+of another board revision.
+
+Direct retrieval of the PDF resource returned HTTP 403, so no original PDF
+bytes were retained or independently hashed locally. This review used the
+browser's rendered pages; it is not a preserved-original audit. Search AI
+summaries and a generic chip datasheet are not a CGS1 board schematic, and
+limited search coverage cannot establish that no schematic exists anywhere.
 The public 4PDA CGS1/CGS2 topic was readable, but its Bluetooth topic search
 required a human verification step; it did not supply a verified wiring map.
 
