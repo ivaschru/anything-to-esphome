@@ -45,13 +45,16 @@ def prefix_tools(root, environment, report):
     immutable package pins and a production extractor still need their own
     packaging before these programs can ship inside the HACS runtime.
     """
-    apk = "/sbin/apk"
+    apk = shutil.which("apk", path="/sbin:/usr/sbin:/usr/bin:/usr/local/bin")
+    report["apk_discoverable"] = apk is not None
+    if apk is None:
+        raise FileNotFoundError("fixed package tool unavailable")
     downloaded, prefix = root / "packages", root / "tools"
     downloaded.mkdir(mode=0o700)
     prefix.mkdir(mode=0o700)
     report["tool_prefix_stage"] = "fetch"
     run([apk, "--no-cache", "fetch", "--recursive", "--output", str(downloaded),
-         "android-tools", "perl", "make"], environment, timeout=300)
+         "android-tools", "perl", "make"], environment, capture=True, timeout=300)
     packages = sorted(downloaded.glob("*.apk"))
     if not 3 <= len(packages) <= 64 or sum(p.stat().st_size for p in packages) > 256 * 1024**2:
         raise ValueError("unexpected fixed tool dependency set")
@@ -60,11 +63,11 @@ def prefix_tools(root, environment, report):
         for p in packages]
     report["tool_prefix_stage"] = "verify"
     for package in packages:
-        run([apk, "--no-network", "verify", str(package)], environment)
+        run([apk, "--no-network", "verify", str(package)], environment, capture=True)
     report["tool_prefix_stage"] = "extract"
     for package in packages:
         run([apk, "--no-network", "extract", "--no-chown", "--destination", str(prefix),
-             str(package)], environment)
+             str(package)], environment, capture=True)
     # These paths belong only to child tool invocations. The HA/Python
     # process never inherits a replacement library path or Perl environment.
     tool_environment = {**environment,
@@ -171,6 +174,17 @@ def main():
         # Only the stage is public. No environment, raw subprocess output,
         # traceback, arbitrary filesystem metadata or device data is emitted.
         report["failure_stage"] = stage
+        if stage == "tool_prefix":
+            report["tool_prefix_failure"] = {"type": type(error).__name__,
+                "errno": getattr(error, "errno", None), "exit": getattr(error, "returncode", None)}
+            if isinstance(error, subprocess.CalledProcessError):
+                output = (error.stdout or b"")[-65536:].decode("utf-8", errors="replace").lower()
+                report["tool_prefix_failure"]["categories"] = [code for marker, code in (
+                    ("permission denied", "permission_denied"), ("read-only file system", "read_only_filesystem"),
+                    ("unrecognized option", "unsupported_option"), ("not a valid apk command", "unsupported_command"),
+                    ("unable to select", "package_selection"), ("no such package", "package_unavailable"),
+                    ("bad signature", "signature_refused"), ("temporary error", "network_error"),
+                    ("certificate verify failed", "tls_refused")) if marker in output]
         if stage == "sdk_install" and isinstance(error, subprocess.CalledProcessError):
             # Extract at most a package requirement, never raw pip output,
             # repository URLs, environment or traceback. All inputs here are
