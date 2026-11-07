@@ -21,6 +21,9 @@ Cgdn1Pm = ns.class_("Cgdn1Pm", cg.Component)
 
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(Cgdn1Pm),
+    cv.Required("co2_source"): cv.use_id(sensor.Sensor),
+    cv.Required("temperature_source"): cv.use_id(sensor.Sensor),
+    cv.Required("humidity_source"): cv.use_id(sensor.Sensor),
     cv.Required(CONF_READER_ID): cv.use_id(PMSA003IComponent),
     cv.Required(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
     cv.Required(CONF_PM_1_0): cv.use_id(sensor.Sensor),
@@ -39,3 +42,5 @@ async def to_code(config):
     cg.add(var.set_sensors(*[await cg.get_variable(config[key]) for key in
                             (CONF_PM_1_0, CONF_PM_2_5, CONF_PM_10_0)]))
     cg.add(var.set_warmup_time(config[CONF_WARMUP_TIME].total_milliseconds))
+
+    cg.add(var.set_source_sensors(*[await cg.get_variable(config[key]) for key in ("co2_source", "temperature_source", "humidity_source")]))

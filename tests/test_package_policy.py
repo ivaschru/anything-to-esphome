@@ -20,15 +20,16 @@ class PackagePolicyTests(unittest.TestCase):
             root = Path(d)
             (root / "tools").mkdir()
             shutil.copyfile(ROOT / "tools/package_release.py", root / "tools/package_release.py")
+            shutil.copyfile(ROOT / "tools/pm_policy.py", root / "tools/pm_policy.py")
             firmware = root / "custom_components/qingping_esphome/firmware"
             firmware.mkdir(parents=True)
-            header = root / "ports/lite/components/cgdn1_pm/cgdn1_pm.h"
-            header.parent.mkdir(parents=True)
-            header.write_text("isolated source fixture")
+            from tools.pm_policy import PATHS, digest
+            for name in PATHS:
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text("isolated source fixture")
             binary = b"isolated binary fixture"
             manifest = {
                 "sha256": hashlib.sha256(binary).hexdigest(),
-                "pm_source_sha256": hashlib.sha256(header.read_bytes()).hexdigest()
+                "pm_source_sha256": digest(root)
                 if source_hash_matches else "0" * 64,
             }
             if policy is not None:
@@ -51,10 +52,10 @@ class PackagePolicyTests(unittest.TestCase):
         self.assertIn("Rebuild the public Lite template", result.stderr)
 
     def test_changed_pm_source_requires_template_rebuild(self):
-        result = self.package("polling-only-gpio13-high-v1", source_hash_matches=False)
+        result = self.package("quiet-scd4x-window-v1", source_hash_matches=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Template PM source does not match", result.stderr)
 
     def test_matching_policy_source_and_binary_produce_hacs_layout(self):
-        result = self.package("polling-only-gpio13-high-v1")
+        result = self.package("quiet-scd4x-window-v1")
         self.assertEqual(result.returncode, 0, result.stderr)

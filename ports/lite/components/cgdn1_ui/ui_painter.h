@@ -65,6 +65,9 @@ inline std::string fit_text(font::Font *font, std::string text, int width) {
 class Painter {
  public:
   explicit Painter(display::Display &display) : display_(display) {}
+  int x_offset() const { return offset_; }
+  void offset(int x) { offset_=x; }
+  display::Display &display() { return display_; }
   // align: -1 left, 0 centre, +1 right. Fitting never shrinks the native font.
   void text(int x, int y, font::Font *font, const std::string &value, int align = -1,
             bool inverted = false, int available = 148) {
@@ -72,14 +75,14 @@ class Painter {
     const Ink box = ink(font, fitted);
     if (align == 0) x -= box.width / 2;
     else if (align == 1) x -= box.width;
-    font->print(x - box.x, y - box.y, &display_, inverted ? display::COLOR_OFF : display::COLOR_ON,
+    font->print(x + offset_ - box.x, y - box.y, &display_, inverted ? display::COLOR_OFF : display::COLOR_ON,
                 fitted.c_str(), inverted ? display::COLOR_ON : display::COLOR_OFF);
   }
-  void rule(int y) { display_.horizontal_line(10, y, 140); }
-  void selected(int y) { display_.filled_rectangle(8, y - 3, 144, 18); }
+  void rule(int y) { display_.horizontal_line(10+offset_, y, 140); }
+  void selected(int y) { display_.filled_rectangle(8+offset_, y - 3, 144, 18); }
   void bar(int y, int percent) {
-    display_.rectangle(10, y, 140, 5);
-    display_.filled_rectangle(10, y, std::clamp(percent, 0, 100) * 140 / 100, 5);
+    display_.rectangle(10+offset_, y, 140, 5);
+    display_.filled_rectangle(10+offset_, y, std::clamp(percent, 0, 100) * 140 / 100, 5);
   }
   void dots(int page) {
     for (int i = 0; i < 5; i++) {
@@ -90,5 +93,6 @@ class Painter {
   }
  private:
   display::Display &display_;
+  int offset_{0};
 };
 }  // namespace esphome::cgdn1_ui

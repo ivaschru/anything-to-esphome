@@ -32,7 +32,7 @@ def fixture(extra=b""):
 class ImageTests(unittest.TestCase):
     def test_personalized_image_integrity_and_secrets_not_in_template(self):
         template = fixture()
-        values = {key: (b"X" * 32 if key == "noise_psk" else "q" * 31 if key == "name" else "private-example") for key in image.SLOTS}
+        values = {key: (b"X" * 32 if key == "noise_psk" else "q" * 31 if key == "name" else "" if key == "display_feed_entity" else "4.5.8" if key == "source_stock_version" else "private-example") for key in image.SLOTS}
         result = image.personalize(template, values, hashlib.sha256(template).hexdigest())
         image.layout(result[:-4])
         # A separately implemented bitwise CRC checks the vendor trailer, not

@@ -1,10 +1,10 @@
 {
   "lite": {
-    "version": "2026.11.07-ui25-profile1",
-    "revision": 2,
+    "version": "2026.11.07-ui25-quiet2",
+    "revision": 3,
     "backend": "esp32-noise-app-v1",
-    "minimum_integration": "0.2.0",
-    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 1. Automatic HA adoption. Fan shutdown is unavailable; PM OFF stops polling only.",
-    "public_version": 1
+    "minimum_integration": "0.2.1",
+    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 2. PM OFF uses guarded quiet operation while CO2/temperature/humidity continue.",
+    "public_version": 2
   }
 }

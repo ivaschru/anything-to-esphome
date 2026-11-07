@@ -21,7 +21,7 @@ ACTION = "qingping_update_profile_v1"
 ENVELOPE = "qingping-update-profile-envelope-v1"
 PROFILE = "qingping-device-update-profile-v1"
 KEY_DOMAIN = b"qingping-esphome/update-profile/v1"
-PROFILE_VERSIONS = {"2026.11.07-ui25-profile1": 2}
+PROFILE_VERSIONS = {"2026.11.07-ui25-profile1": 2, "2026.11.07-ui25-quiet2": 3}
 MAX_RESPONSE = 8192
 
 
@@ -58,6 +58,7 @@ class DeviceProfile:
     revision: int
     values: dict[str, str] = field(repr=False)
     public_version: int | None = None
+    source_stock_version: str = "4.5.8"
 
 
 def decode_profile(response, key, mac, name, challenge, *, public_versions=None):
@@ -83,7 +84,8 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None)
         if (data.get("format") != PROFILE or data.get("challenge") != challenge
                 or data.get("mac") != mac_normalize(mac) or data.get("name") != name
                 or data.get("profile") != "lite" or data.get("hardware") != "0001"
-                or data.get("source_stock_version") != "4.5.8"
+                or not (data.get("source_stock_version") == "4.5.8" or
+                    data.get("source_stock_version") == "4.3.4" and data.get("version") == "2026.11.07-ui25-quiet2")
                 or data.get("version") not in versions
                 or type(data.get("revision")) is not int
                 or data["revision"] < 2 or data["revision"] != versions[data["version"]]): raise ValueError
@@ -91,11 +93,14 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None)
         public = data.get("public_version")
         if public is not None and (type(public) is not int or not 1 <= public <= 2**53-1): raise ValueError
         keys = {"ssid", "wifi_password", "ap_ssid", "ap_password", "ota_password"}
-        if not isinstance(values, dict) or set(values) != keys: raise ValueError
+        if not isinstance(values, dict) or set(values) not in (keys, keys | {"display_feed_entity"}): raise ValueError
+        if "display_feed_entity" in values:
+            feed = _text(values["display_feed_entity"], len(SLOTS["display_feed_entity"]))
+            if feed and not re.fullmatch(r"sensor\.[a-z0-9_]+", feed): raise ValueError
         _text(name, len(SLOTS["name"]), minimum=len(SLOTS["name"]))
         for k in keys:
             _text(values[k], len(SLOTS[k]), minimum=8 if k == "ap_password" else 1 if k in {"ssid", "ap_ssid", "ota_password"} else 0)
-        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public)
+        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public, data["source_stock_version"])
     except Exception:
         # InvalidTag, SDK/JSON errors and malformed untrusted data must never
         # turn private plaintext/response bytes into diagnostics or HA state.

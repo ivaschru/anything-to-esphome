@@ -1,3 +1,12 @@
+## 0.2.1 / Lite firmware 2
+
+- Port guarded quiet PM operation for the qualified direct-I2C profile.
+- Implement the reviewed Lite design, clock layouts, shared local/HA settings,
+  slide transitions and two-step other-slot confirmation.
+- Preserve original stock provenance and optional HA display feed during native
+  updates and sealed profile adoption; no initial-installer expansion to MCU.
+- Disable no-client/no-Wi-Fi reboot timers for standalone operation.
+
 # Изменения
 
 ## 0.2.0 — 2026-11-07

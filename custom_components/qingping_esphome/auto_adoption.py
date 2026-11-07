@@ -148,7 +148,7 @@ class AutoAdoption:
             current = self.manager.records.get(mac)
             if current is not record or current and pending(current): return False
             imported = {**(record or {}), "schema_version": 3, "profile": "lite", "hardware": "0001",
-                        "source_stock_version": "4.5.8", "origin": "device_profile_v1",
+                        "source_stock_version": profile.source_stock_version, "origin": "device_profile_v1",
                         "name": profile.name, "peer": peer, "noise_key": key,
                         "ota_password": profile.values["ota_password"],
                         "personalization": profile.values, "firmware_version": profile.version,

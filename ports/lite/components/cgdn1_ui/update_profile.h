@@ -31,10 +31,12 @@ inline std::string hex(const uint8_t *bytes, size_t length) {
 }
 
 inline void respond(JsonObject root, const std::string &challenge, const std::string &ota_password,
-                    const char *ui_version, unsigned firmware_revision, unsigned public_version) {
+                    const char *ui_version, unsigned firmware_revision, unsigned public_version,
+                    const std::string &source_stock_version, const std::string &display_feed_entity) {
   // A bounded challenge is carried in the GCM AAD and plaintext. Failures
   // return a fixed, value-free object; never log a JSON body or password.
   root["error"] = "device_profile_unavailable";
+  if (source_stock_version != "4.3.4" && source_stock_version != "4.5.8") return;
   if (challenge.size() != 32 || ota_password.empty() || ota_password.size() > 63) return;
   for (const char c : challenge) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return;
   auto *server = api::global_api_server;
@@ -62,7 +64,7 @@ inline void respond(JsonObject root, const std::string &challenge, const std::st
   body["format"] = PROFILE; body["challenge"] = challenge;
   body["mac"] = mac; body["name"] = App.get_name().str();
   body["profile"] = "lite"; body["hardware"] = "0001";
-  body["source_stock_version"] = "4.5.8";
+  body["source_stock_version"] = source_stock_version;
   body["version"] = ui_version; body["revision"] = firmware_revision;
   body["public_version"] = public_version;
   auto values = body["personalization"].to<JsonObject>();
@@ -72,6 +74,7 @@ inline void respond(JsonObject root, const std::string &challenge, const std::st
   values["ssid"] = sta.get_ssid().str(); values["wifi_password"] = sta.get_password().str();
   values["ap_ssid"] = ap.get_ssid().str(); values["ap_password"] = ap.get_password().str();
   values["ota_password"] = ota_password;
+  values["display_feed_entity"] = display_feed_entity;
   std::string plain;
   serializeJson(document, plain);
   document.clear();

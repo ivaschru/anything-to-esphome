@@ -1,6 +1,9 @@
 #pragma once
 #include "esphome/core/defines.h"
 #include "ui_model.h"
+#include "settings_entities.h"
+#include "design_render.h"
+#include "esphome/components/cgdn1_display/stock_icons.h"
 #include "ui_painter.h"
 #include "wifi_settings.h"
 #include "pm_diagnostics.h"
@@ -43,19 +46,43 @@ static constexpr unsigned PUBLIC_VERSION = 0;
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
 static constexpr unsigned PUBLIC_VERSION = 0;
 #else
-static constexpr const char *UI_VERSION = "2026.11.07-ui25-profile1";
+static constexpr const char *UI_VERSION = "2026.11.07-ui25-quiet2";
 // Product version is independent from the exact diagnostic UI/build identity.
-static constexpr unsigned PUBLIC_VERSION = 1;
+static constexpr unsigned PUBLIC_VERSION = 2;
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};
   cgdn1_display::DisplayValues summary;
+  ESPTime clock{};
   bool summary_enabled{true}, usb{false}, powering_off{false};
   uint32_t activity{0}, idle_delay{10000};
 };
 
 class Cgdn1Ui : public Component {
  public:
+  void bind_number(int k,number::Number *v) { settings_.bind_number(k,v); }
+  void bind_switch(int k,switch_::Switch *v) { settings_.bind_switch(k,v); }
+  void bind_select(int k,select::Select *v) { settings_.bind_select(k,v); }
+  void bind_time(int k,datetime::TimeEntity *v) { settings_.bind_time(k,v); }
+  void set_action_buttons(button::Button *restart,button::Button *slot) {
+    settings_.restart=[restart]{restart->press();}; settings_.other_slot=[slot]{slot->press();};
+  }
+  void request_display(bool on) {
+    display_requested_=on;
+    if(on && !night_active_) display_->turn_on(); else display_->turn_off();
+  }
+  void set_night_active(bool active) {
+    if(active==night_active_)return;
+    night_active_=active;
+    if(active) display_->turn_off(); else if(display_requested_)display_->turn_on();
+  }
+  bool consume_dark_gesture(const std::string &gesture) {
+    if(display_->is_on())return false;
+    if(gesture=="tap_centre" && !night_active_) {
+      request_display(true); settings_.close(); model_.close(); display_->update();
+    }
+    return true;
+  }
   void set_display(cgdn1_display::Cgdn1Display *v) { display_ = v; }
   void set_brightness(number::Number *v) { brightness_ = v; }
   void set_pm_switch(switch_::Switch *v) { switches_[0] = v; }
@@ -64,6 +91,7 @@ class Cgdn1Ui : public Component {
   void set_pm_power(cgdn1_pm::Cgdn1Pm *v) { pm_ = v; }
   void set_battery(sensor::Sensor *v) { battery_ = v; }
   void set_pm25(sensor::Sensor *v) { pm25_sensor_ = v; }
+  void set_status_font(font::Font *v) { status_font_=v; }
   void set_fonts(font::Font *small, font::Font *title, font::Font *medium,
                  font::Font *large, font::Font *number, font::Font *summary) {
     small_ = small; title_ = title; medium_ = medium; large_ = large; number_ = number; summary_ = summary;
@@ -89,7 +117,7 @@ class Cgdn1Ui : public Component {
     // remains visible. This never changes the saved night/display settings.
     if (gpio23_.active()) return true;
 #endif
-    return model_.active();
+    return model_.active() || settings_.active();
   }
   void request_pin_inventory() {
     if (inventory_next_ == UINT32_MAX) {
@@ -182,6 +210,7 @@ class Cgdn1Ui : public Component {
   }
   const char *status() const {
     static const char *const screens[] = {"reading", "menu", "setting", "networks", "network_actions", "password", "connecting", "wifi_error", "wifi_ok"};
+    if(settings_.active() && !model_.active()) return settings_.view==SettingsMenu::View::EDIT?"setting":settings_.view==SettingsMenu::View::CONFIRM?"confirmation":"menu";
     return screens[int(model_.screen)];
   }
   void loop() override {
@@ -215,12 +244,14 @@ class Cgdn1Ui : public Component {
       if (!diagnose_gpio_inventory(inventory_next_++)) inventory_next_ = UINT32_MAX;
     }
     capture_tick_(now);
+    if(slide_active_ && display_->is_on() && uint32_t(now-slide_tick_)>=20) { slide_tick_=now;display_->update(); }
     const bool connected = wifi::global_wifi_component->is_connected();
     if (was_connected_ && !connected && !wifi_.trial_active()) { offline_since_ = now; offline_notice_ = true; }
     was_connected_ = connected;
     model_.network_count = wifi_.networks().size();
     if (model_.screen == Screen::NETWORKS)
       model_.network = std::clamp(model_.network, 0, model_.network_count + 1);
+    settings_.expire(now);
     if (model_.expire(now) && display_->is_on()) display_->update();
     const auto outcome = wifi_.tick(now, ota_);
     if (outcome != TrialAction::NONE) {
@@ -242,7 +273,25 @@ class Cgdn1Ui : public Component {
                 gesture == "tap_centre" ? Gesture::CENTRE : gesture == "swipe_left" ? Gesture::SWIPE_LEFT :
                 gesture == "swipe_right" ? Gesture::SWIPE_RIGHT : Gesture::OTHER;
     if (g == Gesture::OTHER) return;
-    if (idle_shown_) { model_.page = model_.info = 0; idle_shown_ = false; }
+    if(settings_.get(Key::PATTERN)!=0) {
+      if(g==Gesture::CENTRE)settings_.values[int(Key::PATTERN)].write(0);
+      display_->update();return;
+    }
+    if (settings_.active() && !model_.active()) {
+      if(settings_.gesture(g,millis())) {
+        model_.screen=Screen::NETWORKS; model_.network=0; model_.activity=millis(); wifi_.scan(millis());
+      }
+      display_->update(); return;
+    }
+    if(!model_.active() && g==Gesture::CENTRE && model_.page!=4) {
+      settings_.open(millis()); display_->update(); return;
+    }
+    if(!model_.active() && navigation_delta(g)) {
+      slide_from_=model_.page; slide_direction_=navigation_delta(g);
+      model_.page=Model::cycle(model_.page,slide_direction_,5); model_.info=0;
+      slide_start_=millis(); slide_active_=settings_.get(Key::MOTION)==0;
+      model_.activity=millis(); idle_shown_=false; display_->update(); return;
+    }
     const Action action = model_.gesture(g, millis());
     if (action == Action::OPEN_SETTING) {
       model_.draft_value = model_.menu == 0 ? int(std::lround(brightness_->state)) : switches_[model_.menu - 1]->state;
@@ -264,6 +313,7 @@ class Cgdn1Ui : public Component {
         else if (action == Action::CONNECT) model_.begin_password(target.secured);
       }
     }
+    if(model_.screen==Screen::MENU && settings_.active()) model_.close();
     display_->update();
   }
   void ota_begin() {
@@ -330,7 +380,9 @@ class Cgdn1Ui : public Component {
       text(112, 65, "%", -1, title_); p.bar(91, ota_percent_); text(10, 109, "Не отключайте питание"); return;
     }
     if (in.powering_off) { text(10, 24, "Выключение", -1, medium_); text(10, 75, "До следующего"); text(10, 95, "включения"); return; }
+    last_clock_=in.clock;
     if (model_.active()) { render_menu_(p); return; }
+    if (settings_.active()) { render_settings_(p,in); return; }
     const bool connected = wifi::global_wifi_component->is_connected();
     if (connected && !net_since_) net_since_ = now ? now : 1;
     if (!connected) net_since_ = 0;
@@ -347,54 +399,27 @@ class Cgdn1Ui : public Component {
       text(10, 48, std::isfinite(in.co2) || std::isfinite(in.temperature) ? "Показания локально" : "Нет свежих данных");
       text(10, 77, "Подключаемся…"); text(10, 111, "Центр: настройки"); return;
     }
-    if (in.summary_enabled && uint32_t(now - in.activity) >= in.idle_delay) {
-      idle_shown_ = true;
-      shown_sensor_ = cgdn1_led::SENSOR_CO2;
-      shown_value_ = in.co2;  // preserve the LED's physical-CO2 basis on HA idle
-      text(10, 9, in.summary.co2_source == cgdn1_display::DisplaySource::LOCAL ? "CO2 · ЛОК" : "CO2");
-      text(150, 10, "ppm", 1);
-      draw_number_(p, 10, 29, number(in.summary.co2, 0), -1, summary_);
-      p.rule(86);
-      draw_number_(p, 10, 95, number(in.summary.temperature, 1), -1, medium_, 99);
-      text(150, 102, "°C", 1, title_);
-      if (in.summary.temperature_source == cgdn1_display::DisplaySource::LOCAL) text(111, 91, "ЛОК");
-      return;
+    render_status_(p,in,model_.page);
+    if (in.summary_enabled && uint32_t(now-in.activity)>=in.idle_delay) {
+      idle_shown_=true; slide_active_=false;
+      shown_sensor_=cgdn1_led::SENSOR_CO2; shown_value_=in.co2;
+      render_saver_(p,in); return;
     }
-    idle_shown_ = false;
-    if (uint32_t(now - in.activity) < 3000) p.dots(model_.page);
-    if (model_.page < 3) {
-      shown_sensor_ = model_.page == 0 ? cgdn1_led::SENSOR_CO2 : model_.page == 1 ? cgdn1_led::SENSOR_TEMP : cgdn1_led::SENSOR_HUMI;
-      static const char *const names[] = {"CO2", "Температура", "Влажность"};
-      static const char *const units[] = {"ppm", "°C", "% RH"};
-      const float value = model_.page == 0 ? in.co2 : model_.page == 1 ? in.temperature : in.humidity;
-      shown_value_ = value;
-      text(80, 23, names[model_.page], 0);
-      draw_number_(p, 80, 46, number(value, model_.page == 1 ? 1 : 0), 0, large_);
-      text(80, 96, units[model_.page], 0);
-      text(80, 112, std::isfinite(value) ? "Локально" : now < 300000 ? "Первые данные" : "Нет свежих данных", 0);
-    } else if (model_.page == 3) {
-      text(10, 24, "Сенсор PM2.5");
-      // The live board keeps its fan/module alive despite GPIO13 LOW. The
-      // switch definitely suspends polling; physical power removal is not
-      // verified. State that fact instead of claiming "sensor powered off".
-      if (!pm_->ready()) {
-        const uint32_t seconds = (pm_->warmup_remaining_ms() + 999) / 1000;
-        text(80, 51, !pm_->enabled() ? "Опрос" : seconds ? "Прогрев" : "Нет данных", 0, medium_);
-        text(80, 94, pm_->enabled() ? seconds ? "Ещё " + std::to_string(seconds) + " с" : "Сенсор недоступен" : "Выключен", 0);
-        text(80, 111, pm_->enabled() && seconds ? "Данных пока нет" : "Центр: настройки", 0);
-      } else {
-        shown_sensor_ = cgdn1_led::SENSOR_PM25;
-        const bool fresh = pm_seen_ && uint32_t(now - pm_ms_) <= cgdn1_display::DisplaySources::MAX_AGE_MS;
-        shown_value_ = fresh ? in.pm25 : NAN;
-        draw_number_(p, 10, 44, number(fresh ? in.pm25 : NAN, 0), -1, large_, 99);
-        text(150, 74, "мкг/м³", 1); p.rule(90);
-        // Separate secondary rows keep the complete dynamic values readable,
-        // including a five-digit hardware reading, without shrinking the font.
-        text(10, 96, "PM1"); text(150, 96, number(fresh ? in.pm1 : NAN, 0), 1);
-        text(10, 112, "PM10"); text(150, 112, number(fresh ? in.pm10 : NAN, 0), 1);
-      }
-    } else render_info_(p, in);
+    idle_shown_=false;
+    if(slide_active_ && uint32_t(now-slide_start_)<240) {
+      // Entire content pages move together, while the status row stays fixed.
+      // A new gesture starts from the preceding target; no asynchronous frame
+      // callback can land on an obsolete target after a rapid second gesture.
+      const float t=float(uint32_t(now-slide_start_))/240.f;
+      const float eased=t*t*(3-2*t);
+      const int shift=int(160*eased)*slide_direction_;
+      display.start_clipping(0,23,160,128);
+      p.offset(-shift); render_reading_(p,in,slide_from_);
+      p.offset(slide_direction_*160-shift); render_reading_(p,in,model_.page);
+      p.offset(0); display.end_clipping();
+    } else { slide_active_=false; render_reading_(p,in,model_.page); }
   }
+
   void mark_touched() { touched_ = true; }
 
  private:
@@ -497,13 +522,158 @@ class Cgdn1Ui : public Component {
   static std::string number(float value, int decimals) {
     if (!std::isfinite(value)) return "—";
     char out[24]; std::snprintf(out, sizeof(out), decimals ? "%.1f" : "%.0f", double(value));
-    for (char *p = out; *p; p++) if (*p == '.') *p = ',';
     return out;
   }
   void draw_number_(Painter &p, int x, int y, const std::string &s, int align, font::Font *preferred, int width = 144) {
     font::Font *f = ink(preferred, s).width <= width ? preferred : ink(number_, s).width <= width ? number_ : medium_;
     p.text(x, y, f, s, align, false, width);
   }
+
+  bool ha_connected_() const {
+    // A Wi-Fi link or an arbitrary diagnostic API client is not HA. This is
+    // the authenticated ESPHome client identity supplied by HA's integration.
+    if(!api::global_api_server)return false;
+    for(const auto &client:api::global_api_server->active_clients())
+      if(std::strncmp(client->get_name(),"Home Assistant",14)==0)return true;
+    return false;
+  }
+  void render_status_(Painter &p,const Readings &in,int page) {
+    auto &d=p.display(); auto *wf=wifi::global_wifi_component;
+    const bool wifi=wf->is_connected(); const int rssi=wifi?wf->wifi_rssi():-127;
+    // Concentric quarter-arcs, rasterised on the native binary grid.
+    for(int radius:{11,7,4}) {
+      const bool lit=wifi && (radius==4 || (radius==7?rssi>=-75:rssi>=-60));
+      if(!lit)continue;
+      for(int x=-radius;x<=radius;++x)for(int y=-radius;y<=-2;++y) {
+        const int rr=x*x+y*y;
+        if(rr>=radius*radius-2*radius && rr<=radius*radius && std::abs(x)<=-y)
+          d.draw_pixel_at(15+x,17+y);
+      }
+    }
+    d.filled_rectangle(14,16,2,2);
+    if(!wifi)d.line(7,5,23,18);
+    d.line(29,10,36,3);d.line(36,3,43,10);d.line(31,9,31,17);d.line(31,17,41,17);d.line(41,17,41,9);
+    d.line(36,15,36,8);d.line(33,11,36,13);d.line(36,13,39,10);
+    if(!ha_connected_())d.line(28,6,43,17);
+    for(int i=0;i<5;++i) {
+      if(i==page)d.rectangle(66+7*i,10,4,4);else d.filled_rectangle(67+7*i,11,2,2);
+    }
+    const bool valid=std::isfinite(battery_->state);
+    const int level=valid?std::clamp(int(battery_->state),0,100):0;
+    p.text(136,8,status_font_,valid?std::to_string(level)+"%":"—",1,false,36);
+    d.rectangle(142,9,12,7);d.filled_rectangle(154,11,2,3);
+    if(in.usb) {d.line(149,10,145,12);d.line(145,12,150,12);d.line(150,12,147,14);}
+    else if(valid)d.filled_rectangle(144,11,std::max(0,level*8/100),3);
+  }
+  void hero_(Painter &p,const std::string &s,int x,int y,int align=0,int width=156) {
+    if(settings_.get(Key::DESIGN)==0 && outline(p,s,x,y,align,width))return;
+    if(!classic_number(p,large_,s,x,y,align,width))draw_number_(p,x,y,s,align,large_,width);
+  }
+  void render_reading_(Painter &p,const Readings &in,int page) {
+    const uint32_t now=millis();
+    if(page<3) {
+      const float value=page==0?in.co2:page==1?in.temperature:in.humidity;
+      shown_sensor_=page==0?cgdn1_led::SENSOR_CO2:page==1?cgdn1_led::SENSOR_TEMP:cgdn1_led::SENSOR_HUMI;
+      shown_value_=value;
+      hero_(p,number(value,page==1?1:0),80,35);
+      p.text(80,105,small_,page==0?"CO₂ / ppm":page==1?"°C":"% RH",0);
+      if(!std::isfinite(value))p.text(80,119,status_font_,now<300000?"Первые данные":"Нет свежих данных",0);
+    } else if(page==3) {
+      if(!pm_->ready()) {
+        p.text(80,33,small_,"PM2.5",0);
+        p.text(80,58,medium_,!pm_->enabled()?"Выключен":"Прогрев",0);
+        p.text(80,99,small_,!pm_->enabled()?"Центр – настройки":"Ещё "+std::to_string((pm_->warmup_remaining_ms()+999)/1000)+" с",0);
+      } else {
+        const bool fresh=pm_seen_ && uint32_t(now-pm_ms_)<=cgdn1_display::DisplaySources::MAX_AGE_MS;
+        shown_sensor_=cgdn1_led::SENSOR_PM25; shown_value_=fresh?in.pm25:NAN;
+        hero_(p,number(shown_value_,0),80,31);
+        p.text(80,92,small_,"PM2.5 / мкг/м³",0);
+        p.text(7,114,status_font_,"PM1 "+number(fresh?in.pm1:NAN,0),-1,false,72);
+        p.text(153,114,status_font_,"PM10 "+number(fresh?in.pm10:NAN,0),1,false,72);
+      }
+    } else render_info_(p,in);
+  }
+  void render_saver_(Painter &p,const Readings &in) {
+    const int layout=int(settings_.get(Key::IDLE));
+    auto clock=in.clock;
+    const bool clock_ok=clock.is_valid();
+    const std::string time=clock_ok?clock.strftime("%H:%M"):"--:--";
+    if(layout>=2 && layout<=4) {
+      hero_(p,time,80,layout==4?36:layout==3?27:31);
+      if(layout==2) {
+        static const char *const days[]={"Вс","Пн","Вт","Ср","Чт","Пт","Сб"};
+        const std::string date=clock_ok?std::string(days[(in.clock.day_of_week+6)%7])+", "+clock.strftime("%d.%m.%y"):"--.--.--";
+        p.text(80,104,small_,date,0);
+      } else if(layout==3) {
+        p.rule(91);p.text(7,97,status_font_,"CO₂ / ppm");p.text(153,97,status_font_,"°C",1);
+        p.text(7,112,small_,number(in.summary.co2,0));p.text(153,112,small_,number(in.summary.temperature,1),1);
+      }
+    } else if(layout==5) {
+      hero_(p,number(in.summary.co2,0),80,31);
+      p.text(80,95,small_,"CO₂ / ppm",0);p.text(80,112,small_,number(in.summary.temperature,1)+" °C",0);
+    } else {
+      p.text(7,27,small_,"CO₂ / ppm");draw_number_(p,7,45,number(in.summary.co2,0),-1,number_);
+      p.rule(87);
+      p.text(7,100,medium_,number(in.summary.temperature,1),-1,false,96);
+      if(layout!=6)p.text(153,105,small_,"°C",1);
+      if(layout==6) {p.text(153,105,small_,number(in.humidity,0)+"% RH",1,false,54);}
+    }
+  }
+  void render_settings_(Painter &p,const Readings &in) {
+    auto &m=settings_; using V=SettingsMenu::View;
+    if(m.view==V::LIST) {
+      const auto &group=menu_groups()[m.group];const int count=group.items.size();
+      p.text(7,7,small_,group.title);p.display().horizontal_line(6,23,148);
+      const int first=std::min(std::max(m.row-2,0),std::max(count-4,0));
+      for(int i=first;i<std::min(first+4,count);++i) {
+        const auto &entry=group.items[i];const int y=32+(i-first)*19;const bool selected=i==m.row;
+        if(selected)p.display().filled_rectangle(5,y-3,150,18);
+        std::string value=entry.kind==MenuKind::GROUP?">":"";
+        if(entry.kind==MenuKind::VALUE) {
+          const auto &b=m.values[entry.target]; value=b.read?m.label(entry.target,b.read()):"—";
+          if(entry.target==int(Key::IDLE))value=">";
+        }
+        const int reserve=value.empty()?0:std::min(66,ink(status_font_,value).width)+8;
+        p.text(10,y,small_,entry.title,-1,selected,140-reserve);
+        if(!value.empty())p.text(150,y+1,status_font_,value,1,selected,66);
+      }
+      p.text(7,113,status_font_,"Центр – выбрать",-1,false,115);
+      p.text(153,113,status_font_,std::to_string(m.row+1)+"/"+std::to_string(count),1,false,30);
+    } else if(m.view==V::EDIT) {
+      const auto &entry=menu_groups()[m.group].items[m.row];const auto &b=m.values[m.key];
+      p.text(7,7,small_,entry.title);p.rule(23);
+      const std::string value=m.label(m.key,m.draft)+(m.key==int(Key::BRIGHTNESS)?" / 6":"");
+      // Value, unit, hint and actions occupy separate physical rows.
+      font::Font *value_font=b.kind==ValueKind::NUMBER||b.kind==ValueKind::TIME?number_:medium_;
+      if(ink(value_font,value).width>148)value_font=small_;
+      p.text(80,38,value_font,value,0,false,148);
+      if(m.key==int(Key::BRIGHTNESS)) {
+        for(int i=0;i<6;++i) {
+          if(i<int(m.draft))p.display().filled_rectangle(20+i*20,80,14,7);
+          else p.display().rectangle(20+i*20,80,14,7);
+        }
+      } else p.text(80,77,small_,b.kind==ValueKind::TIME?(m.part?"Минуты":"Часы"):b.unit,0);
+      p.text(80,96,status_font_,"Края – изменить; свайп – отмена",0);
+      p.text(80,113,status_font_,b.kind==ValueKind::TIME&&!m.part?"Центр – минуты":"Центр – сохранить",0);
+    } else if(m.view==V::CONFIRM) {
+      p.text(7,7,small_,m.slot?"Другой слот":"Перезапуск");p.rule(23);
+      p.text(80,36,small_,m.slot?"Здесь может быть":"Перезапустить прибор?",0);
+      if(m.slot)p.text(80,54,small_,"версия ESPHome",0);
+      if(m.slot)p.text(80,72,status_font_,std::to_string(m.phase)+" / 2",0);
+      for(int i=0;i<2;++i) {
+        const int y=88+19*i;if(m.choice==i)p.display().filled_rectangle(5,y-3,150,18);
+        p.text(10,y,small_,i==0?"Отмена":m.slot?(m.phase==1?"Продолжить":"Загрузить другой слот"):"Перезапустить",-1,m.choice==i);
+      }
+    } else {
+      if(m.info==2) {render_info_(p,in);return;}
+      auto clock=in.clock;
+      p.text(7,7,small_,m.info==0?"Home Assistant":"Время и дата");p.rule(23);
+      p.text(7,39,small_,m.info==0?(ha_connected_()?"Связь установлена":"Нет соединения"):(in.clock.is_valid()?clock.strftime("%H:%M  %d.%m.%y"):"Время не получено"));
+      p.text(7,64,small_,m.info==0?"Показания локально":"Источник: Home Assistant");
+      p.text(7,113,status_font_,"Центр – назад");
+    }
+  }
+
   static const char *setting_name_(int index) {
     static const char *const names[] = {"Яркость", "Сенсор PM2.5", "BLE-сканер", "Ночной режим", "Wi-Fi", "Назад"};
     return names[std::clamp(index, 0, 5)];
@@ -603,6 +773,10 @@ class Cgdn1Ui : public Component {
       t(10, 111, std::string(switches_[1]->state ? "BLE вкл. · " : "BLE выкл. · ") + std::to_string(millis_64() / 60000) + " мин.");
     }
   }
+  SettingsEntities settings_;
+  bool display_requested_{true},night_active_{false},slide_active_{false};
+  int slide_from_{0},slide_direction_{1}; uint32_t slide_start_{0},slide_tick_{0};
+  ESPTime last_clock_{};
   Model model_;
   uint32_t inventory_next_{UINT32_MAX}, inventory_tick_{0};
   WifiSettings wifi_;
@@ -611,7 +785,7 @@ class Cgdn1Ui : public Component {
   number::Number *brightness_{nullptr};
   switch_::Switch *switches_[3]{};
   sensor::Sensor *battery_{nullptr}, *pm25_sensor_{nullptr};
-  font::Font *small_{nullptr}, *title_{nullptr}, *medium_{nullptr}, *large_{nullptr}, *number_{nullptr}, *summary_{nullptr};
+  font::Font *status_font_{nullptr}, *small_{nullptr}, *title_{nullptr}, *medium_{nullptr}, *large_{nullptr}, *number_{nullptr}, *summary_{nullptr};
   bool ota_{false}, ota_was_on_{true}, idle_shown_{false}, touched_{false}, pages_ready_{false};
   cgdn1_led::Sensor shown_sensor_{cgdn1_led::SENSOR_NONE};
   float shown_value_{NAN};

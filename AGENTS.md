@@ -475,12 +475,25 @@ separate even though the HACS wizard is shared.
   without its own release asset. Hyphenated beta/rc tags remain prereleases;
   numeric stable tags must not inherit an unconditional --prerelease flag.
 
-- Production PM OFF is polling-only: always keep GPIO13 HIGH, including restored
-  OFF before asynchronous CO2 setup and rapid ON/OFF. Never claim fan-stop.
-  Preserve reader cancellation, invalidation and warmup; cgdn1_boot owns board
-  shutdown. Run tests/test_pm_polling_policy.py for this boundary. Release
-  templates carry pm_policy and the exact PM source SHA; package_release rejects
-  an old policy or mismatched source even when the binary checksum is valid.
+- Lite firmware 2 is the qualified direct-I2C quiet profile, not a universal
+  Lite image. GPIO13 LOW between bounded SCD4x transactions; 1ms settle/gaps,
+  20kHz bus, 15s CO2 polling. Fresh-source readiness, 90s stale/NaN and IO/CRC/
+  25ms window guards latch HIGH. GPIO18/23/board shutdown are unchanged.
+  Run test_pm_quiet_policy.py and test_pm_polling_policy.py (ASan/UBSan).
+  Public manifest binds the coordinated driver/rail closure via tools/pm_policy.py;
+  never reuse a polling-only template for version2. Version1 remains historical.
+- The agreed Lite design uses grouped typed-entity settings, transactional
+  drafts, two independent Cancel-default slot confirmations, native-size
+  outline/classic digits, fixed status, and finite 240ms page transitions.
+  Outline assets are never reduced. Use the bundled OFL font licenses.
+  Night is fully black; only centre wakes manual-off, consuming the gesture.
+  API/Wi-Fi absence must not reboot standalone sensors. Unknown clocks are
+  explicit. Preserve the optional per-device HA display feed and original
+  stock provenance through fixed slots/sealed metadata; minimum HACS0.2.1.
+  Stock4.3.4 provenance is admitted only for qualified existing native devices,
+  not a wider factory Bluetooth installer. External-MCU images remain separate.
+  Run test_lite_menu.py and render_lite_ui.py after a real SDK build; inspect
+  those actual-method/generated-glyph frames before claiming visual QA.
 
 - Installer-only releases use `python tools/prepare_release_template.py` to
   retain v0.1.3 legacy pins and reuse newer immutable pairs only with matching

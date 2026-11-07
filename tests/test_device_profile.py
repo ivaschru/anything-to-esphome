@@ -53,6 +53,17 @@ class ProfileTests(unittest.TestCase):
             self.assertNotIn(secret.encode(), response)
             self.assertNotIn(secret, repr(value))
 
+    def test_original_generation_and_display_feed_are_not_guessed(self):
+        token=secrets.token_hex(16)
+        wire=sealed(token,changes={"version":"2026.11.07-ui25-quiet2","revision":3,"public_version":2,
+             "source_stock_version":"4.3.4","personalization":{**VALUES,"display_feed_entity":"sensor.room_display_feed"}})
+        decoded=profile.decode_profile(wire,KEY,MAC,NAME,token)
+        self.assertEqual(decoded.source_stock_version,"4.3.4")
+        self.assertEqual(decoded.values["display_feed_entity"],"sensor.room_display_feed")
+        for stock in ("4.2.1","4.2.6","unknown"):
+            with self.assertRaises(profile.ProfileError):
+                profile.decode_profile(sealed(token,changes={"source_stock_version":stock}),KEY,MAC,NAME,token)
+
     def test_wrong_key_mac_name_challenge_and_auth_tag_refuse(self):
         challenge = secrets.token_hex(16); response = sealed(challenge)
         for key,mac,name,token,wire in [

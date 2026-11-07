@@ -21,7 +21,7 @@ class ReleaseTemplateTests(unittest.TestCase):
     def current_fixture(self):
         root=Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
         version="2026.11.07-ui25-profile1"
-        for name in ("custom_components/qingping_esphome/image.py","custom_components/qingping_esphome/firmware_catalog.py","tools/firmware_source.py"):
+        for name in ("custom_components/qingping_esphome/image.py","custom_components/qingping_esphome/firmware_catalog.py","tools/firmware_source.py","tools/pm_policy.py"):
             path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes((ROOT/name).read_bytes())
         path=root/"ports/lite/source.h";path.parent.mkdir(parents=True);path.write_text("// public synthetic source\n")
         (root/"tools/build_lite.py").write_text("# synthetic compiler recipe\n")

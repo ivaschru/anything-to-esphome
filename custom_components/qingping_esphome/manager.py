@@ -173,7 +173,7 @@ class Manager:
         template = await self.hass.async_add_executor_job((root / "lite-template.bin").read_bytes)
         psk = secrets.token_bytes(32)
         name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)[:9]
-        values = {"ssid": ssid, "wifi_password": password, "name": name,
+        values = {"display_feed_entity": "", "source_stock_version": data["stock_version"], "ssid": ssid, "wifi_password": password, "name": name,
                   "ap_ssid": "Qingping-" + mac[-6:], "ap_password": secrets.token_hex(8),
                   "ota_password": secrets.token_hex(16), "noise_psk": psk}
         try:
