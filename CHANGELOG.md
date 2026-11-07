@@ -2,6 +2,8 @@
 
 - Prepare Monitor 1 workers for HA-owned storage: child controllers verify
   their creator-selected private job directory instead of assuming /data.
+  Core child configuration binds the private tool directory and loopback
+  ADB context, without inheriting HA credentials or changing legacy defaults.
   Existing app jobs stay in place; Core UI, tool delivery and lifecycle
   integration remain separate work before a one-package HACS release.
 - Monitor 1 USB app 0.0.10 adds computer `local-status`: recover the recorded

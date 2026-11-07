@@ -9,6 +9,9 @@ separate even though the HACS wizard is shared.
   exist or enable installation from an environment probe. Child workers bind
   to the creator-selected private job cwd, never a guessed /data location.
   Preserve owner/source/profile/consumed receipts and old app jobs in place.
+  Core child environment is root/job-bound and credential-free; use its
+  private tool wrapper and owned loopback ADB context, never silently the
+  shared 5037 server. It is internal process configuration, not HTTP input.
   Run test_usb_core_paths.py and the full USB suite after storage changes.
 
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
