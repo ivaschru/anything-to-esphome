@@ -100,6 +100,9 @@ class Monitor1:
                 raise ValueError
             body = await process.stdout.readexactly(frame["length"])
             return frame["ok"], frame["mime"], body
+        except asyncio.CancelledError:
+            self.failed = True
+            raise
         except Exception:
             # Lost ACK/invalid frame makes this service read-unverified. Never
             # restart a worker or repeat the request to recover its response.
@@ -110,15 +113,29 @@ class Monitor1:
         # Retain the reservation and drain the original result if a browser
         # disconnects. Without shielding, a cancelled read could let the next
         # request consume a previous writer's response as its own.
-        task = asyncio.create_task(self.exchange(user, nonce, operation, data))
+        async def bounded_exchange():
+            try:
+                async with asyncio.timeout(900):
+                    return await self.exchange(user, nonce, operation, data)
+            except TimeoutError:
+                self.failed = True
+                raise CoreRefusal("usb_core_unverified") from None
+        task = asyncio.create_task(bounded_exchange())
         self.pending = task
         try:
             return await asyncio.shield(task)
         except asyncio.CancelledError:
-            try:
-                await asyncio.shield(task)
-            except Exception:
-                pass
+            while not task.done():
+                try:
+                    await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    # A second cancellation must not release the pipe budget
+                    # while the original operation can still send its frame.
+                    continue
+                except Exception:
+                    break
+            if task.done() and not task.cancelled():
+                task.exception()  # Consume a failed detached read, without logs.
             raise
         finally:
             self.pending = None

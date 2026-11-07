@@ -80,6 +80,9 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
         request.cancel()
         await asyncio.sleep(0)
         self.assertTrue(self.service.lock.locked())
+        request.cancel()  # Repeated HTTP cancellation must still drain once.
+        await asyncio.sleep(0)
+        self.assertTrue(self.service.lock.locked())
         with self.assertRaisesRegex(module.CoreRefusal, "usb_busy"):
             async with self.service.reserve():
                 pass
