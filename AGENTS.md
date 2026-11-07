@@ -67,6 +67,11 @@ separate even though the HACS wizard is shared.
   Keep the user walkthrough in apps/monitor1_usb/README.ru.md aligned with
   actual button/CLI names and the English reference. Separate build location,
   USB transport, bridge-only installation and unfinished Full UI qualification.
+  Computer `local-status` reads fixed local receipts before engine imports,
+  ADB discovery or server-environment changes. It recovers only a bound plan
+  digest/historical result, never live health, zero-write proof or retry
+  authority. Preserve partial history; all other commands still need USB serial.
+  Run test_usb_local_status.py and the full USB suite after changing this path.
 
 - Companion profile preparation creates an owner-bound private job and an
   immutable intent before generating a Noise key. Keep fixed USTAR input

@@ -23,12 +23,20 @@ already ran privately on your HA server. Do not use sudo.
    It makes a new native USB capture and plan. Check the reported device
    name, WLAN MAC, CO2 backend and plan SHA. A browser capture is never
    relabelled as native USB evidence. No installation has started yet.
+   If that output was lost, or USB is disconnected, read the local receipt:
+   .runtime/bin/python computer_install.py local-status
+   This needs no serial or adb and can recover the recorded plan SHA. It
+   reads local history only, never current device health or retry permission.
+   A partial preparation remains unverified; do not delete it to start over.
 5. Only after reviewing that exact result, substitute its displayed SHA:
    .runtime/bin/python computer_install.py install --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
    Keep USB and power connected. This composes the original disabled staging,
    script commit, independent 60-second bridge trial and next-boot arming.
    PM preload remains disabled; full native UI installation is not included.
 6. If a reply was lost, NEVER repeat install. Preserve computer-state and run:
+   .runtime/bin/python computer_install.py local-status
+   That offline result is historical, even if it records an arming outcome.
+   Reconnect USB for the separate live read-only checks:
    .runtime/bin/python computer_install.py status --serial USB_SERIAL
    .runtime/bin/python computer_install.py observe --serial USB_SERIAL
    Only observe's awaiting_reboot confirms current idle-stock arming. Then

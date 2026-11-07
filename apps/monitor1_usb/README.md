@@ -107,7 +107,7 @@ initial trial guardian, then checks the actual output hashes. Private inputs,
 programs and logs stay in this app's `/data/jobs`; no public build service or
 GitHub artifact receives them. Internet downloads are public source/tools only.
 
-App 0.0.9 advances this default only for new builds. Existing jobs produced
+Since app 0.0.9, this default applies only to new builds. Existing jobs produced
 from the previous reviewed `e09440f9` source retain their original source,
 programs, keys and plans. Status and explicit computer export verify the same
 source throughout the intent, candidate, plan and downloaded bundle; membership
@@ -191,6 +191,20 @@ It binds the actual local `get-devpath`, boot and profile; a previous browser
 or server report is never relabelled to pass the native writer.
 Wheel-only dependency installation refuses an unsupported platform instead of
 starting a local compiler. Do not install a VM to work around that refusal.
+
+App 0.0.10 also exports an offline receipt reader. If preparation output was
+lost or USB is disconnected, run:
+
+```sh
+.runtime/bin/python computer_install.py local-status
+```
+
+This checks the saved plan SHA/profile/source binding and reads local receipt
+metadata only. It needs no serial, ADB discovery, device engines or connection.
+`plan_recorded` can recover the plan SHA; `install_recorded` describes a
+historical receipt, never current boot/health. Partial/corrupt history stays
+unverified, unchanged and without retry authority. Use the separate USB
+`status`/`observe` commands below for live checks; they still require a serial.
 
 Review the reported name, physical WLAN, S8/SCD40 and exact plan SHA. Only then:
 

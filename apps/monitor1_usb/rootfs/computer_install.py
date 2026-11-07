@@ -126,6 +126,72 @@ def engines(source):
     return preflight_adb, bootstrap_patches, prepare_install, stage_commit_trial_adb, arm_bridge_next_boot_adb, verify_bridge_boot_adb
 
 
+def local_status(root, manifest):
+    """Read fixed local receipts without importing engines or finding ADB.
+
+    This recovers a lost plan digest while disconnected. A historical arming
+    receipt is never live device health or permission to repeat an operation;
+    the existing USB status/observe commands remain separate. Unknown or
+    partial files are preserved and reported unverified, never repaired.
+    """
+    result = {"stage": "local_receipt_status", "state": "not_prepared",
+              "local_receipt_only": True, "read_only": True,
+              "hardware_contacted": False, "runtime_observed": False,
+              "installed": False, "installation_ready": False,
+              "retry_authorized": False, "install_history_present": False}
+    if "computer-state" not in os.listdir(root):
+        return result
+    result.update(state="preparation_unverified", install_history_present=None)
+    try:
+        state = private_root(root / "computer-state")
+        names = os.listdir(state)
+        # Observation folders are created only after an installation intent.
+        # Preserve that evidence even if a local marker is now missing.
+        history = bool({"install-intent.json", "install-result.json", "observations"} & set(names))
+        result.update(state="install_unverified" if history else "preparation_unverified",
+                      install_history_present=history)
+        prepared = unique_json(private_file(state / "prepared.json", 16384))
+        if (not isinstance(prepared, dict) or set(prepared) != {"plan_sha256", "profile_sha256"} or
+                prepared["profile_sha256"] != manifest["profile_sha256"] or
+                not isinstance(prepared["plan_sha256"], str) or
+                not re.fullmatch(r"[a-f0-9]{64}", prepared["plan_sha256"])):
+            return result
+        plan_root = private_root(state / "install-plan")
+        raw = private_file(plan_root / "plan.json", 512 * 1024)
+        plan = unique_json(raw)
+        if not isinstance(plan, dict) or not isinstance(plan.get("basis"), dict):
+            return result
+        if (hashlib.sha256(raw).hexdigest() != prepared["plan_sha256"] or
+                plan.get("stage") != "offline_plan_only" or
+                plan.get("basis", {}).get("profile_sha256") != manifest["profile_sha256"] or
+                plan["basis"].get("source_commit") != manifest["source_commit"] or
+                plan.get("installed") is not False or plan.get("installation_ready") is not False or
+                plan.get("hardware_contacted") is not False or plan.get("live_recheck_required") is not True or
+                plan.get("consumed_install_intent") is not False or
+                type(plan.get("device_writes")) is not int or plan["device_writes"] != 0):
+            return result
+        result["plan_sha256"] = prepared["plan_sha256"]
+        if not history:
+            result["state"] = "plan_recorded"
+            return result
+        intent = unique_json(private_file(state / "install-intent.json", 16384))
+        if (set(intent) != {"plan_sha256", "experimental_reviewed"} or
+                intent["plan_sha256"] != prepared["plan_sha256"] or intent["experimental_reviewed"] is not True):
+            return result
+        receipt = unique_json(private_file(state / "install-result.json", 16384))
+        if (set(receipt) != {"state", "plan_sha256"} or receipt["plan_sha256"] != prepared["plan_sha256"] or
+                receipt["state"] not in ("armed_waiting_reboot", "install_unverified")):
+            return result
+        result["receipt_state"] = receipt["state"]
+        if receipt["state"] == "armed_waiting_reboot":
+            result["state"] = "install_recorded"
+    except (OSError, ValueError, TypeError, KeyError):
+        # Do not infer zero device writes from a missing/corrupt local result,
+        # print filesystem/JSON bodies, or delete history to permit a retry.
+        pass
+    return result
+
+
 def prepare(root, modules, adb):
     preflight, bootstrap, planner, _, _, _ = modules
     state = root / "computer-state"
@@ -240,14 +306,19 @@ async def full_review(root, modules, adb):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review"))
-    parser.add_argument("--serial", required=True)
+    parser.add_argument("action", choices=("prepare", "install", "status", "observe", "full-review", "local-status"))
+    parser.add_argument("--serial")
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--plan-sha256")
     parser.add_argument("--experimental-reviewed", action="store_true")
     args = parser.parse_args()
+    if args.action != "local-status" and not args.serial:
+        parser.error("--serial is required for USB operations")
     os.umask(0o077)
-    root, source, _ = load_bundle(Path(__file__).resolve().parent)
+    root, source, manifest = load_bundle(Path(__file__).resolve().parent)
+    if args.action == "local-status":
+        print(json.dumps(local_status(root, manifest), ensure_ascii=False, indent=2))
+        return
     modules = engines(source)
     executable = shutil.which(args.adb)
     if not executable:
