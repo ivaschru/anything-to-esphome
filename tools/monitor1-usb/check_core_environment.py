@@ -53,9 +53,15 @@ def prefix_tools(root, environment, report):
     downloaded.mkdir(mode=0o700)
     prefix.mkdir(mode=0o700)
     report["tool_prefix_stage"] = "fetch"
-    run([apk, "--no-cache", "fetch", "--recursive", "--output", str(downloaded),
-         "android-tools", "perl", "make"], environment, capture=True, timeout=300)
+    # APK v3 defaults to its configured package filename specification. Pin
+    # the flat filenames consumed below instead of assuming a distro default.
+    run([apk, "--no-cache", "fetch", "--recursive", "--pkgname-spec", "${name}-${version}.apk",
+         "--output", str(downloaded), "android-tools", "perl", "make"],
+        environment, capture=True, timeout=300)
     packages = sorted(downloaded.glob("*.apk"))
+    report["tool_prefix_package_count"] = len(packages)
+    report["tool_prefix_download_bytes"] = sum(p.stat().st_size for p in packages)
+    report["tool_prefix_download_entries"] = [p.name for p in sorted(downloaded.iterdir())][:64]
     if not 3 <= len(packages) <= 64 or sum(p.stat().st_size for p in packages) > 256 * 1024**2:
         raise ValueError("unexpected fixed tool dependency set")
     report["tool_prefix_packages"] = [
