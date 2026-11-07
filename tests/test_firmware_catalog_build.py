@@ -47,6 +47,18 @@ class FirmwarePublisherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             publisher.build("v0.1.6", self.metadata("test-ui-1", 2), binary, manifest, old)
 
+    def test_old_public_profile_generations_survive_several_new_releases(self):
+        index=None
+        for revision in (2,3,4):
+            version=f"public-ui-{revision}"
+            binary,manifest=self.pair(version)
+            index=publisher.build(f"v0.1.{revision+7}",self.metadata(version,revision),binary,manifest,index)
+        item=publisher.catalog.parse_catalog(index)["lite"]
+        self.assertEqual(dict(item.adoption_versions),{"public-ui-2":2,"public-ui-3":3})
+        # HACS-only release retains the full history and immutable image URL.
+        same=publisher.build("v0.1.12",self.metadata("public-ui-4",4),binary,manifest,index)
+        self.assertEqual(same,index)
+
     def test_mismatched_pair_prerelease_or_unqualified_model_refused(self):
         binary, manifest = self.pair("test-ui-1")
         for tag in ("main", "v0.1.5-beta", "v0.1.5/other"):

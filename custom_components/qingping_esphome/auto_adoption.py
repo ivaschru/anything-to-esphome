@@ -122,7 +122,7 @@ class AutoAdoption:
             # a public release from an arbitrary/private UI version string.
             catalog = getattr(self.manager, "firmware_catalog", None)
             release = (getattr(catalog, "data", None) or {}).get("lite")
-            versions = ({release.version: release.revision}
+            versions = ({**dict(release.adoption_versions), release.version: release.revision}
                         if release and release.supports_install(self.manager.updates.integration_version)
                         else {})
             profile = decode_profile(response.response_data, key, mac, fresh.name, challenge,

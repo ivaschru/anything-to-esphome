@@ -77,6 +77,20 @@ class CatalogTests(unittest.TestCase):
         for field, value in (("revision", True), ("revision", 0), ("minimum_integration", "0.1.5-beta")):
             data = release(); data["releases"]["lite"][field] = value
             with self.assertRaises(catalog.FirmwareError): catalog.parse_catalog(data)
+
+    def test_adoption_history_preserves_prior_public_identity_and_refuses_ambiguity(self):
+        data=release();item=data["releases"]["lite"]
+        item.update(version="public-four",revision=4,
+                    adoption_versions=[{"version":"public-two","revision":2},
+                                       {"version":"public-three","revision":3}])
+        parsed=catalog.parse_catalog(data)["lite"]
+        self.assertEqual(dict(parsed.adoption_versions),{"public-two":2,"public-three":3})
+        for history in ([{"version":"public-two","revision":4}],
+                        [{"version":"public-two","revision":1}],
+                        [{"version":"public-four","revision":2}],
+                        [{"version":"public-two","revision":2}]*2):
+            item["adoption_versions"]=history
+            with self.assertRaises(catalog.FirmwareError):catalog.parse_catalog(data)
         for field, value in (("size", catalog.MAX_IMAGE_BYTES + 1), ("sha256", "bad")):
             data = release(); data["releases"]["lite"]["image"][field] = value
             with self.assertRaises(catalog.FirmwareError): catalog.parse_catalog(data)

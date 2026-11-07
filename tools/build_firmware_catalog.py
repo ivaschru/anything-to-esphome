@@ -59,6 +59,14 @@ def build(tag, metadata, binary, manifest_bytes, previous=None):
             entry = old  # Installer-only release: no fabricated firmware update.
         elif (identical or info["revision"] <= old["revision"] or info["version"] == old["version"]):
             raise ValueError("Changed firmware needs a new UI version and larger profile revision")
+        if entry is not old and old.get("backend") == info["backend"]:
+            # Carry public profile generations forward. Otherwise a monitor
+            # one release behind would stop being recognised after moving to
+            # a fresh HA whose integration never saw that older catalog.
+            history = list(old.get("adoption_versions", []))
+            if old["revision"] >= 2:
+                history.append({"version": old["version"], "revision": old["revision"]})
+            if history: entry["adoption_versions"] = history
     releases["lite"] = entry
     result = {"format": catalog.CATALOG_FORMAT, "releases": releases}
     catalog.parse_catalog(result)

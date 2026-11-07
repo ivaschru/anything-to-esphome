@@ -84,6 +84,10 @@ class Release:
     manifest: Asset
     release_url: str
     summary: str
+    # Prior public profile-capable versions must remain recognisable when a
+    # device moves after several newer releases. This bounded public history
+    # comes from the same validated catalog, never from the device itself.
+    adoption_versions: tuple[tuple[str, int], ...] = ()
 
     @classmethod
     def parse(cls, profile, data):
@@ -98,12 +102,26 @@ class Release:
         release_url = _text(data.get("release_url"), maximum=512)
         if not re.fullmatch(r"https://github\.com/ivaschru/qingping-esphome/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+", release_url):
             raise FirmwareError("invalid_catalog")
+        history = data.get("adoption_versions", [])
+        revision = _positive(data.get("revision"), 2**53 - 1)
+        if not isinstance(history, list) or len(history) > 128:
+            raise FirmwareError("invalid_catalog")
+        current_version = _text(data.get("version"))
+        versions, revisions, admitted = {current_version}, {revision}, []
+        for item in history:
+            if not isinstance(item, dict) or set(item) != {"version", "revision"}:
+                raise FirmwareError("invalid_catalog")
+            version = _text(item["version"])
+            prior = _positive(item["revision"], revision)
+            if prior < 2 or version in versions or prior in revisions:
+                raise FirmwareError("invalid_catalog")
+            versions.add(version); revisions.add(prior); admitted.append((version, prior))
         return cls(profile, _text(data.get("version")),
                    _positive(data.get("revision"), 2**53 - 1),
                    _text(data.get("backend")), minimum,
                    Asset.parse(data.get("image"), filename=stem + ".bin", maximum=MAX_IMAGE_BYTES),
                    Asset.parse(data.get("manifest"), filename=stem + ".json", maximum=MAX_INDEX_BYTES),
-                   release_url, _text(data.get("summary"), maximum=255))
+                   release_url, _text(data.get("summary"), maximum=255), tuple(admitted))
 
     def supports_install(self, integration_version):
         """New catalogs cannot silently demand a backend absent from this HA."""
