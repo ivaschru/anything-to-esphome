@@ -148,7 +148,11 @@ api:
       supports_response: only
       then:
         - api.respond:
-            data: !lambda cgs1_full::report(root, *id(panel));
+            data: !lambda |-
+              cgs1_full::report(root, *id(panel));
+              // Same direct-physical freshness predicate as the HA entity;
+              // never infer readiness from optional HA display-feed values.
+              root["core_sensors_ready"] = id(core_sensors_ready).state;
     - action: full_native_return_to_stock
       supports_response: status
       then:

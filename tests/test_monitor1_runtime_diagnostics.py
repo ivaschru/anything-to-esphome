@@ -27,6 +27,13 @@ def readiness_lambda(name):
 
 
 class RuntimeDiagnosticTests(unittest.TestCase):
+    def test_native_status_reuses_physical_readiness_for_first_ui_observation(self):
+        text = (PORT / "native-ui-full.yaml").read_text()
+        status = text.split("    - action: full_native_status\n", 1)[1].split("    - action:", 1)[0]
+        self.assertIn("cgs1_full::report(root, *id(panel));", status)
+        self.assertIn('root["core_sensors_ready"] = id(core_sensors_ready).state;', status)
+        self.assertNotIn("display_feed", status)
+
     def test_actual_lambdas_reject_missing_core_values_but_ignore_optional_pm(self):
         compiler = shutil.which("c++")
         self.assertIsNotNone(compiler, "Monitor 1 tests require a C++17 compiler")
