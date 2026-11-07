@@ -19,6 +19,8 @@ HERE = ROOT / "apps/monitor1_usb/rootfs"
 with patch.object(sys, "path", [str(HERE), *sys.path]):
     import computer_package as package
     import computer_install as desktop
+    import full_ui_usb
+    import full_ui_trial_usb
 
 
 class ComputerExportTests(unittest.TestCase):
@@ -54,6 +56,8 @@ class ComputerExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             names = tar.getnames()
             self.assertIn(package.PREFIX + "/README.txt", names)
+            self.assertIn(package.PREFIX + "/full_ui_trial.py", names)
+            self.assertIn(package.PREFIX + "/full_ui_trial_usb.py", names)
             self.assertFalse(any(".venv" in name or "install-plan" in name or "computer-state" in name for name in names))
             self.assertTrue(all(member.mode == (0o700 if member.isdir() else 0o600) for member in tar))
             previous = os.umask(0o077)
@@ -162,7 +166,6 @@ class ComputerEngineTests(unittest.TestCase):
         # This test exercises the downloaded CLI's authority join, not a
         # monitor: neither the API inspector nor any install engine may run
         # until the original consumed intent and private profile agree.
-        import full_ui_usb
         plan = {"basis": {"profile_sha256": self.profile_sha}}
         staging = SimpleNamespace(load_plan=Mock(return_value=(None, plan)))
         canonical = SimpleNamespace(review=SimpleNamespace(staging=staging),
@@ -191,6 +194,60 @@ class ComputerEngineTests(unittest.TestCase):
             self.assertEqual(json.loads(saved[0].read_text()), {**result, "plan_sha256": self.digest})
         self.sequence.run.assert_not_awaited()
         self.arm.arm.assert_not_called()
+
+    def test_full_trial_uses_shared_usb_engine_once_and_offline_status_never_replays(self):
+        source = next(iter(desktop.TRIAL_SOURCE_COMMITS))
+        plan = {"basis": {"profile_sha256": self.profile_sha, "source_commit": source},
+                "files": {k: {"size": 1, "sha256": "c" * 64} for k in ("native-program", "guardian-program")}}
+        plan_root = self.state / "install-plan"; plan_root.mkdir(mode=0o700)
+        desktop.write_new(plan_root / "plan.json", plan)
+        digest = hashlib.sha256((plan_root / "plan.json").read_bytes()).hexdigest()
+        (self.state / "prepared.json").write_text(json.dumps({"plan_sha256": digest, "profile_sha256": self.profile_sha}))
+        desktop.write_new(self.state / "install-intent.json", {"plan_sha256": digest, "experimental_reviewed": True})
+        canonical = SimpleNamespace(review=SimpleNamespace(staging=SimpleNamespace(load_plan=Mock(return_value=(None, plan)))),
+            candidate=SimpleNamespace(read_profile=Mock(return_value=({}, self.profile_sha))))
+        self.sequence.trial = canonical
+        manifest = {"source_commit": source, "profile_sha256": self.profile_sha,
+                    "files": {k: {} for k in ("full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_review.py")}}
+        async def operate(adb, actual_plan, profile, actual_canonical, nonce, images):
+            self.assertTrue((self.state / "full-ui-trial-intent.json").exists())
+            self.assertIs(actual_plan, plan)
+            self.assertIs(actual_canonical, canonical)
+            self.assertEqual(images, {k: b"x" for k in plan["files"]})
+            return {"state": "full_ui_trial_returned_observed", "native_observations": 2, "stock_return_observed": True,
+                    "launch_acknowledged": False, "job": nonce, "hard_runtime_ms": 60000, "installed": False,
+                    "installation_ready": False, "boot_enabled": False, "replay_allowed": False, "forward_cleanup": "removed",
+                    "boot_id": "22222222-2222-2222-2222-222222222222"}
+        with patch.object(desktop, "observe", new=AsyncMock(return_value={"state": "bridge_observed"})) as read, \
+                patch.object(full_ui_trial_usb, "image_bytes", return_value=b"x"), \
+                patch.object(full_ui_trial_usb, "run_usb", new=AsyncMock(side_effect=operate)) as writer:
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_trial(self.root, self.modules, None, manifest, digest, False))
+            read.assert_not_awaited(); writer.assert_not_awaited()
+            result = asyncio.run(desktop.full_trial(self.root, self.modules, None, manifest, digest, True))
+            self.assertEqual(result["state"], "full_ui_trial_returned_observed")
+            self.assertTrue(result["local_receipt_only"])
+            self.assertFalse(result["installed"] or result["boot_enabled"])
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_trial(self.root, self.modules, None, manifest, digest, True))
+            writer.assert_awaited_once(); read.assert_awaited_once()
+            self.assertEqual(desktop.full_trial_status(self.root, manifest), result)
+
+    def test_full_trial_waits_for_actual_bridge_boot_before_consuming_intent(self):
+        source = next(iter(desktop.TRIAL_SOURCE_COMMITS))
+        plan = {"basis": {"profile_sha256": self.profile_sha, "source_commit": source}}
+        canonical = SimpleNamespace(review=SimpleNamespace(staging=SimpleNamespace(load_plan=Mock(return_value=(None, plan)))),
+            candidate=SimpleNamespace(read_profile=Mock(return_value=({}, self.profile_sha))))
+        self.sequence.trial = canonical
+        manifest = {"source_commit": source, "profile_sha256": self.profile_sha,
+                    "files": {k: {} for k in ("full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_review.py")}}
+        desktop.write_new(self.state / "install-intent.json", {"plan_sha256": self.digest, "experimental_reviewed": True})
+        with patch.object(desktop, "observe", new=AsyncMock(return_value={"state": "awaiting_reboot"})), \
+                patch.object(full_ui_trial_usb, "run_usb", new=AsyncMock()) as writer:
+            with self.assertRaises(ValueError):
+                asyncio.run(desktop.full_trial(self.root, self.modules, None, manifest, self.digest, True))
+            writer.assert_not_awaited()
+        self.assertFalse((self.state / "full-ui-trial-intent.json").exists())
 
     def test_observer_uses_same_boot_after_effects_or_new_boot_proof_without_writer(self):
         plan_root = self.state / "install-plan"

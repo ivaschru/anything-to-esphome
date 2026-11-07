@@ -1,3 +1,17 @@
+## 0.2.5 – Monitor 1 first Full UI trial
+
+- Add a distinct fixed 60-second Full UI launch mode using the existing
+  device guardians. Its immutable plan carries the limit independently of
+  the host connection; permanent plans retain their existing encoding.
+  Initial-install hardware qualification and PM-extension admission remain
+  required. This source change does not publish or install a new firmware.
+- Connect the fixed RAM screen trial to the owner-scoped HA USB wizard and
+  downloaded computer CLI, using one durable plan-bound intent. Observe the
+  native physical-readiness signal and stock return without enabling boot.
+  Add EN/RU progress, status-only recovery and independent transport cleanup.
+  Older source jobs are preserved and refuse the new action; fresh physical
+  first-install, PM-extension transition and permanent UI remain separate.
+
 ## Monitor 1 runtime version 1 (independent firmware channel)
 
 - Publish separate immutable S8 and SCD40 full-runtime source kits, with exact

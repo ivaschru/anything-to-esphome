@@ -18,6 +18,17 @@ PORT = ROOT / "ports/monitor1"
 
 
 class Monitor1Tests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith("linux"),
+                         "Actual production plan includes Linux filesystem/IPC headers; Linux CI executes this codec")
+    def test_full_ui_trial_plan_cannot_remove_or_extend_its_fixed_device_limit(self):
+        self.run_cpp("test_full_runtime_limit_plan.cpp", crypto=True)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Production guardian uses Linux IPC; compile only in Linux CI")
+    def test_production_guardian_compiles_with_the_trial_limit_join(self):
+        # Compile the actual entry point, but never execute a production
+        # guardian on a host or pretend its successful compile is device QA.
+        self.run_cpp("supervisor_guardian_main.cpp", crypto=True, compile_only=True)
+
     def test_ui_locale_preserves_choice_and_printf_argument_contracts(self):
         self.run_cpp("test_ui_language.cpp")
 
@@ -31,7 +42,7 @@ class Monitor1Tests(unittest.TestCase):
     def test_initial_bridge_executable_requires_exact_frame_and_independent_reap(self):
         self.run_cpp("test_initial_bridge_cli.cpp", crypto=True)
 
-    def run_cpp(self, name, *, crypto=False, own_uid=False):
+    def run_cpp(self, name, *, crypto=False, own_uid=False, compile_only=False):
         compiler = shutil.which("c++")
         if compiler is None:
             raise RuntimeError("Monitor 1 tests require a C++17 compiler")
@@ -62,6 +73,8 @@ class Monitor1Tests(unittest.TestCase):
                 "-o", str(binary),
             ], capture_output=True, text=True)
             self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            if compile_only:
+                return
             result = subprocess.run(
                 # C++ fixtures create relative private Store directories here.
                 # A hosted runner need not expose the old container's /work;

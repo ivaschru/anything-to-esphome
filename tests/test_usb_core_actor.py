@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import sys
 import unittest
 from unittest.mock import patch, Mock
@@ -39,6 +40,23 @@ class CoreActorTests(unittest.TestCase):
         self.assertEqual(mime, "application/json")
         self.usb_ready.assert_not_called()
         self.assertEqual(self.fixture.capture.usb.run.__self__.calls, calls_before)
+
+    def test_full_trial_fixed_route_and_status_keep_different_usb_authority(self):
+        job = self.fixture.prepare()
+        identity = job["job_id"]
+        trials = self.companion.full_trials = SimpleNamespace(status=Mock(return_value={"synthetic": "status"}),
+            start=Mock(return_value={"synthetic": "trial"}))
+        self.assertEqual(self.actor.dispatch(self.request("jobs/" + identity + "/full-trial"))[0], {"synthetic": "status"})
+        trials.status.assert_called_once_with(self.owner, identity)
+        self.usb_ready.assert_not_called()
+        body = {"job_id": identity, "expected_plan_sha256": "d" * 64, "experimental_reviewed": True}
+        self.assertEqual(self.actor.dispatch(self.request("full-trial", body))[0], {"synthetic": "trial"})
+        self.usb_ready.assert_called_once()
+        trials.start.assert_called_once_with(self.owner, identity, "d" * 64, True)
+        with self.assertRaises(core_actor.Refusal):
+            self.actor.dispatch(self.request("full-trial", {**body, "duration": 0}))
+        trials.start.assert_called_once()
+        self.usb_ready.assert_called_once()
 
     def test_wrong_owner_nonce_and_unknown_operations_precede_hardware(self):
         for change in ({"user": "b" * 32}, {"nonce": "0" * 64},

@@ -1,6 +1,7 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,
-  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
+  startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,
+  downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
 const nonce = document.querySelector('meta[name="qingping-page-nonce"]').content;
 let coreToolsReady=false,coreToolsState="tools_required";
@@ -13,6 +14,11 @@ let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
 let computerDownloaded=false;
 let fullReviewState,fullReviewReading=false;
+let fullTrialState,fullTrialRunning=false;
+// Only a language preference is stored in the browser. This in-memory fence
+// also prevents another click after an ambiguous POST in this page lifetime;
+// the backend's durable owner intent protects reloads and server restarts.
+const attemptedFullTrials=new Set();
 try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
 const text = key => strings[language][key] || strings[language].failed;
 function translate() {
@@ -66,9 +72,23 @@ function renderBuild() {
   $("full-review-controls").hidden=installState?.state!=="bridge_observed";
   $("full-review").disabled=busy;
   $("full-review-result").textContent=fullReviewReading ? text("full_review_reading") : (fullReviewState ? text("full_review_"+fullReviewState.state) : "");
+  $("full-trial-controls").hidden=!fullTrialState;
+  const trialConsumed=fullTrialState?.state!=="not_started" || attemptedFullTrials.has(pendingPreparation?.id);
+  $("full-trial-ack-label").hidden=$("full-trial").hidden=trialConsumed || !fullTrialState?.trial_available;
+  $("full-trial-ack").disabled=busy || fullReviewState?.state!=="full_ui_preflight_observed";
+  $("full-trial").disabled=busy || trialConsumed || !installReview || !$("full-trial-ack").checked ||
+    fullReviewState?.state!=="full_ui_preflight_observed";
+  $("full-trial-status").disabled=busy;
+  $("full-trial-compatibility").textContent=fullTrialState?.trial_available===false ? text("usb_full_ui_trial_rebuild_required") : "";
+  $("full-trial-result").textContent=fullTrialRunning ? text("full_trial_running") :
+    (fullTrialState ? text("full_trial_"+fullTrialState.state) : "");
+  $("full-trial-progress").hidden=!fullTrialRunning;
+  $("full-trial-progress").setAttribute("aria-label",text("full_trial_running"));
+  $("full-trial-controls").setAttribute("aria-busy",String(fullTrialRunning));
 }
 function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;computerDownloaded=false;
-  installState=installReview=bootState=fullReviewState=undefined;$("install-ack").checked=false;renderBuild();}
+  installState=installReview=bootState=fullReviewState=fullTrialState=undefined;
+  $("install-ack").checked=$("full-trial-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
   $("capture").disabled = $("inspect").disabled = busy || ($("transport").value === "ha" && !$("device").value);
@@ -116,12 +136,11 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation==="full-trial" ? 700000 : operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
-    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(operation==="install" ? 650000 :
-      operation==="full-review" ? 210000 : (operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000)))});
+    ...(data ? {body:JSON.stringify(data)} : {}), signal:AbortSignal.timeout(duration)});
   if (binary && response.ok) {
     const length=Number(response.headers.get("Content-Length"));
     const mime=binary==="computer" ? "application/vnd.qingping.private-computer-bundle+tar" : (
@@ -357,6 +376,7 @@ async function checkInstall(manual=true) {
     if(pendingPreparation?.id===id) {
       installState=value;
       if(value.state!=="not_started") await loadInstallReview();
+      if(value.state==="bridge_observed") await checkFullTrial(false);
       renderBuild();
     }
   } catch {if(pendingPreparation?.id===id) {installState={state:"install_unverified"};renderBuild();}}
@@ -367,9 +387,33 @@ $("install-status").onclick=()=>checkInstall();
 $("full-review").onclick=async()=>{
   if(busy || !pendingPreparation || installState?.state!=="bridge_observed") return;
   busy=true;fullReviewReading=true;controls();
-  try {fullReviewState=await reviewFullUi(rpc,pendingPreparation.id);}
+  try {fullReviewState=await reviewFullUi(rpc,pendingPreparation.id);await checkFullTrial(false);}
   catch(error) {lastError=error.code || "usb_full_ui_unverified";$("error").textContent=text(lastError);fullReviewState={state:"full_ui_unverified"};}
   finally {busy=false;fullReviewReading=false;controls();}
+};
+async function checkFullTrial(manual=true) {
+  if(!pendingPreparation || (manual && busy)) return;
+  const id=pendingPreparation.id;
+  if(manual) {busy=true;controls();}
+  try {
+    const value=await readFullUiTrial(rpc,id);
+    if(pendingPreparation?.id===id) fullTrialState=value;
+  } catch {if(pendingPreparation?.id===id) fullTrialState={state:"full_ui_trial_unverified"};}
+  finally {if(manual) busy=false;controls();}
+}
+$("full-trial-status").onclick=()=>checkFullTrial();
+$("full-trial-ack").onchange=()=>renderBuild();
+$("full-trial").onclick=async()=>{
+  const id=pendingPreparation?.id;
+  if(busy || !id || !installReview || fullTrialState?.state!=="not_started" || !fullTrialState.trial_available ||
+     attemptedFullTrials.has(id) || fullReviewState?.state!=="full_ui_preflight_observed" || !$("full-trial-ack").checked) return;
+  attemptedFullTrials.add(id); // Consume locally before sending a request.
+  busy=true;fullTrialRunning=true;controls();lastError=null;$("error").textContent="";
+  try {fullTrialState=await startFullUiTrial(rpc,installReview,true);}
+  catch(error) {
+    lastError=error.code || "usb_full_ui_trial_unverified";$("error").textContent=text(lastError);
+    fullTrialState={state:"full_ui_trial_unverified"};
+  } finally {busy=false;fullTrialRunning=false;$("full-trial-ack").checked=false;controls();}
 };
 $("install-firmware").onclick=async()=>{
   if(busy || !installReview || !$("install-ack").checked || installState?.state!=="not_started") return;

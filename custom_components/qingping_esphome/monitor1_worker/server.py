@@ -28,6 +28,7 @@ from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, 
 from build_worker import Builds
 from install_plan import Plans
 from installation import Installations
+from full_ui_installation import FullUiTrials
 from backup_export import profile_export, capture_export
 from computer_package import package_export
 
@@ -203,6 +204,7 @@ class Companion:
         self.builds = Builds(job_root, CONTRACT)
         self.plans = Plans(self.builds)
         self.installations = Installations(self.plans)
+        self.full_trials = FullUiTrials(self.installations)
         self.sessions, self.lock, self.device_lock = {}, threading.Lock(), threading.Lock()
 
     def page(self, user):
@@ -340,7 +342,11 @@ class Companion:
         self.session(user, nonce)
         return self.installations.status(user, job_id)
 
-    def install(self, user, nonce, read_input, deliver):
+    def full_trial_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.full_trials.status(user, job_id)
+
+    def install(self, user, nonce, read_input, deliver, full=False):
         self.session(user, nonce)
         if not self.device_lock.acquire(blocking=False):
             raise Refusal("usb_busy")
@@ -348,7 +354,8 @@ class Companion:
             data = read_input()
             if not isinstance(data, dict) or set(data) != {"job_id", "expected_plan_sha256", "experimental_reviewed"}:
                 raise Refusal("usb_request_invalid")
-            result = self.installations.start(user, data["job_id"], data["expected_plan_sha256"], data["experimental_reviewed"])
+            writer = self.full_trials if full else self.installations
+            result = writer.start(user, data["job_id"], data["expected_plan_sha256"], data["experimental_reviewed"])
             # Keep the global USB lease until the owner receives the result.
             # A closed page does not start another operation or a rollback.
             return deliver(result)
@@ -449,6 +456,9 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/jobs/([a-f0-9]{32})/install", self.path)
             if match:
                 return self.reply(200, self.server.companion.install_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
+            match = re.fullmatch(r"/jobs/([a-f0-9]{32})/full-trial", self.path)
+            if match:
+                return self.reply(200, self.server.companion.full_trial_status(user, self.headers.get("X-Qingping-Nonce"), match[1]))
             self.reply(404, {"error_code": "usb_not_found"})
         except (Refusal, PreparationError) as error:
             self.reply(403, {"error_code": str(error)})
@@ -458,7 +468,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             user = self.owner()
-            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/observe", "/full-review", "/export-profile", "/export-originals", "/export-computer"):
+            if self.path not in ("/inspect", "/capture", "/prepare", "/build", "/plan", "/install", "/full-trial", "/observe", "/full-review", "/export-profile", "/export-originals", "/export-computer"):
                 return self.reply(404, {"error_code": "usb_not_found"})
             if self.headers.get("Content-Type") != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise Refusal("usb_request_invalid")
@@ -469,9 +479,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/prepare":
                 return self.server.companion.prepare(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
-            if self.path == "/install":
+            if self.path in ("/install", "/full-trial"):
                 return self.server.companion.install(user, self.headers.get("X-Qingping-Nonce"),
-                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result))
+                    lambda: self.json_body(int(size)), lambda result: self.reply(200, result), full=self.path == "/full-trial")
             if self.path in ("/observe", "/full-review"):
                 return self.server.companion.observe(user, self.headers.get("X-Qingping-Nonce"),
                     lambda: self.json_body(int(size)), lambda result: self.reply(200, result), full=self.path == "/full-review")

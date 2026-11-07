@@ -18,6 +18,42 @@ on the computer and reuses these same engines; it never rewrites a browser
 report to invent native transport evidence. Lite's
 Bluetooth transports stay separate. Subsequent ordinary updates use the network.
 
+## Fixed Full UI trial mode (experimental)
+
+The ordinary full-runtime API now has a separate `full_runtime_launch_trial`
+action with only the already prepared `job` argument. It selects exactly
+60 seconds in the existing dual-guardian stop/stock-recovery lifecycle. It
+does not accept a duration, enable boot mode, activate the PM extension or
+bypass the normal board, image, display and RAM checks. A host disconnect
+cannot renew the limit. The limit is a ceiling for acquired native operation,
+not a claim that all preparation/stock restoration takes exactly 60 seconds.
+
+The inherited read-only plan uses V2 only for this fixed mode; permanent V1
+bytes are unchanged. An old guardian rejects V2. Both guardian roles inherit
+the effective limit, including any stricter diagnostic compile-time ceiling.
+New matched native/guardian/bridge builds are required; do not retrofit pins
+or send this action to an old build and infer success from a lost response.
+
+The shared host coordinator now uploads the exact pair through an owned native
+USB forward, consumes a separate owner/plan/source-bound intent and observes
+native acquisition/readiness plus the same session's stock return. The HA
+wizard offers **Run a 60-second screen trial** after a positive prerequisite
+read and separate acknowledgement. The downloaded computer entry offers
+`full-trial --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed`;
+`full-trial-status` reads only its local historical receipt, without USB/ADB.
+Lost replies never reissue a write; native startup can be observed even if
+the launch ACK was lost. Two increasing guardian generations are two live
+observations, not two fresh CO2 polls. Core readiness uses physical sources,
+never Home Assistant display feeds. API/USB cleanup must complete separately.
+
+This is not a completed GUI first-install path or physical qualification.
+The existing verified PM-extension prerequisite remains; its fresh loader
+transition is not part of this trial and must not be improvised remotely on
+a working monitor. Permanent install/boot and automatic HA enrollment remain
+separate. Older source jobs refuse this capability without relabelling their
+programs, keys, plans or consumed history. A compile or fixture cannot justify
+resetting an existing device to make this first-install path accept it.
+
 ## Prepared stage, commit and trial in one sequence
 
 `stage_commit_trial_adb.py` joins the existing three operations for a fresh,

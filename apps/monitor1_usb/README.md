@@ -32,6 +32,17 @@ HACS CGS1 admission remains source-only and `installation_ready=false`.
 See [USB_TRIAL.md](../../ports/monitor1/USB_TRIAL.md) for the underlying engine.
 Source tests, container checks and an imitated UI run are not hardware evidence.
 
+New matching builds also offer a separate **Run a 60-second screen trial**
+after positive Full UI prerequisites and an explicit acknowledgement. The
+same coordinator is used by the computer CLI's `full-trial` command. It uploads
+only the pinned native/guardian pair to RAM; both existing device guardians
+enforce the deadline and restore stock independently of the host. Native
+physical core readiness and stock return are observed, while permanent boot
+stays off. `full-trial-status` reads the computer's local receipt without USB
+or engine execution. Lost replies never reissue uploads/launch; old jobs remain
+unchanged and refuse the new capability. The PM-extension transition, permanent
+Full UI and automatic HA enrollment are still separate unfinished steps.
+
 ## Install and open
 
 For server tools, use Home Assistant 2026.11 on Alpine3.24, x86-64 or ARM64
@@ -108,15 +119,15 @@ HA companion builds for either cable location; the monitor need not stay
 connected during compilation. No compiler/VM runs on the browser computer.
 
 The worker fetches the fixed reviewed public commit
-`0de9c99e57192742b82616cf82c0fdad71c562c5`, creates its isolated pinned SDK and
+`53d97b9609e8e0fcdfc5d003101f620098dbc734`, creates its isolated pinned SDK and
 calls the canonical `build_candidate.py`. It links your verified private Qt
 input and individual profile, builds the matched guardian/native/bridge and
 initial trial guardian, then checks the actual output hashes. Private inputs,
 programs and logs stay in this app's `/data/jobs`; no public build service or
 GitHub artifact receives them. Internet downloads are public source/tools only.
 
-Since app 0.0.9, this default applies only to new builds. Existing jobs produced
-from the previous reviewed `e09440f9` source retain their original source,
+This fixed screen-trial source applies only to new builds. Existing jobs from
+the previous reviewed `0de9c99e` (app0.0.9) and `e09440f9` sources retain their original source,
 programs, keys and plans. Status and explicit computer export verify the same
 source throughout the intent, candidate, plan and downloaded bundle; membership
 in the reviewed set never permits mixing two revisions. Updating the app does

@@ -40,12 +40,18 @@ template<class BridgePolicy> class FullCoordinator {
       new ReturnedFullSession::Anchor(materialized_->runtime_fd(),plan_,returned_at_));
     return ReturnedFullSession(returned_anchor_);
   }
-  bool request(FullMaterialize &materialized,const std::string &nonce,const ExecutableSpec &architecture={}) {
+  uint64_t hard_runtime_ms()const{return plan_.hard_runtime_ms;}
+  bool request(FullMaterialize &materialized,const std::string &nonce,const ExecutableSpec &architecture={},
+               FullRunMode mode=FullRunMode::PERMANENT) {
+    if(mode!=FullRunMode::PERMANENT && mode!=FullRunMode::INITIAL_UI_TRIAL) {
+      error_="fixed_full_run_mode_required";return false;
+    }
     if(phase_!=CoordinatorPhase::IDLE || !materialized.ready() || !control_nonce(nonce,nonce_)) {
       error_="ready_unlaunched_full_release_required";return false;
     }
     if(materialized.root()!="/tmp/qingping-full-"+nonce) {error_="fixed_full_release_layout_required";return false;}
     materialized_=&materialized;architecture_=architecture;plan_.nonce=nonce;
+    plan_.hard_runtime_ms=mode==FullRunMode::INITIAL_UI_TRIAL?INITIAL_UI_TRIAL_MS:0;
     queued_=clock_ms();if(!queued_)return refuse_("monotonic_clock_required");
     phase_=CoordinatorPhase::QUEUED;return true;
   }

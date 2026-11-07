@@ -11,13 +11,25 @@
 #include <algorithm>
 
 namespace cgs1_supervisor {
+// The first Full UI proof is a fixed local mode, not a caller-selected timeout.
+// Its limit travels in the same immutable inherited plan as the image/board
+// binding, so losing the host, API response or coordinator cannot extend it.
+enum class FullRunMode {PERMANENT, INITIAL_UI_TRIAL};
+inline constexpr uint64_t INITIAL_UI_TRIAL_MS=60000;
 struct FullPlan {
   cgs1_net_trial::StockInspection stock;
   OriginalEffects effects;
   Digest native_digest{},guardian_digest{};
   std::string nonce;
   uint64_t created_ms{0};
+  uint64_t hard_runtime_ms{0};
 };
+inline uint64_t effective_full_runtime_limit(uint64_t plan_limit,uint64_t compiled_limit) {
+  // A diagnostic guardian may already have a stricter compile-time ceiling.
+  // Zero means no ceiling from that source; never let a trial remove one.
+  return plan_limit && compiled_limit?std::min(plan_limit,compiled_limit):
+    (plan_limit?plan_limit:compiled_limit);
+}
 inline bool plan_hex(const std::string &text,size_t size) {
   return text.size()==size && text.find_first_not_of("0123456789abcdef")==std::string::npos;
 }
@@ -33,6 +45,7 @@ inline bool plan_shape(const FullPlan &p) {
   Digest bridge{};
   if(!p.stock.verified || !plan_boot(p.stock.boot_id) || p.effects.boot_id!=p.stock.boot_id ||
      !plan_hex(p.nonce,16) || p.nonce==std::string(16,'0') || !p.created_ms ||
+     (p.hard_runtime_ms!=0 && p.hard_runtime_ms!=INITIAL_UI_TRIAL_MS) ||
      !parse_digest(p.stock.bridge_sha,bridge) || p.effects.brightness>1000 ||
      p.effects.pm_mux!=(p.effects.pm_enabled?cgs1_pm::pinmux::UART:cgs1_pm::pinmux::GPIO))return false;
   for(const auto &digest:{bridge,p.native_digest,p.guardian_digest})
@@ -48,7 +61,11 @@ inline bool plan_shape(const FullPlan &p) {
 }
 inline std::string encode_full_plan(const FullPlan &p) {
   if(!plan_shape(p))return {};
-  std::string text="CGS1_FULL_PLAN_V1\n"+p.nonce+"\n"+p.stock.boot_id+"\n"+std::to_string(p.created_ms)+"\n";
+  // Preserve existing permanent V1 bytes. V2 is exclusively the fixed trial;
+  // an old guardian refuses it rather than silently running without a limit.
+  std::string text=std::string(p.hard_runtime_ms?"CGS1_FULL_PLAN_V2\n":"CGS1_FULL_PLAN_V1\n")+
+    p.nonce+"\n"+p.stock.boot_id+"\n"+std::to_string(p.created_ms)+"\n";
+  if(p.hard_runtime_ms)text+=std::to_string(p.hard_runtime_ms)+"\n";
   text+=p.stock.bridge_sha+"\n"+digest_text(p.native_digest)+"\n"+digest_text(p.guardian_digest)+"\n";
   text+=std::to_string(p.effects.pm_enabled?1:0)+" "+std::to_string(p.effects.pm_mux)+" "+std::to_string(p.effects.brightness)+"\n";
   for(const auto &process:p.stock.processes)
@@ -59,8 +76,14 @@ inline bool decode_full_plan(const std::string &text,FullPlan &out) {
   if(text.empty() || text.size()>2048 || text.back()!='\n')return false;
   std::istringstream input(text);std::string magic,created,native,guardian,pm,mux,brightness;
   FullPlan candidate;
-  if(!(input>>magic>>candidate.nonce>>candidate.stock.boot_id>>created>>candidate.stock.bridge_sha>>native>>guardian>>pm>>mux>>brightness) ||
-     magic!="CGS1_FULL_PLAN_V1")return false;
+  if(!(input>>magic>>candidate.nonce>>candidate.stock.boot_id>>created) ||
+     (magic!="CGS1_FULL_PLAN_V1" && magic!="CGS1_FULL_PLAN_V2"))return false;
+  if(magic=="CGS1_FULL_PLAN_V2") {
+    std::string limit;
+    if(!(input>>limit) || !bootstrap_number(limit,INITIAL_UI_TRIAL_MS,candidate.hard_runtime_ms) ||
+       candidate.hard_runtime_ms!=INITIAL_UI_TRIAL_MS)return false;
+  }
+  if(!(input>>candidate.stock.bridge_sha>>native>>guardian>>pm>>mux>>brightness))return false;
   uint64_t pm_value=0,mux_value=0,brightness_value=0;
   if(!bootstrap_number(created,UINT64_MAX,candidate.created_ms) ||
      !bootstrap_number(pm,1,pm_value) || !bootstrap_number(mux,160,mux_value) ||

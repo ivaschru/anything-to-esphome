@@ -53,6 +53,19 @@ already ran privately on your HA server. Do not use sudo.
    Even full_ui_preflight_observed is not an installation or launch grant.
    This command never enables PM preload, stages, launches or reboots.
 
+8. Only a new matched build with the fixed Full UI trial supports this next
+   experimental step. After a positive prerequisite check and a verified PM
+   extension transition (not performed by this command), review the exact plan
+   and run ONCE while watching the screen:
+   .runtime/bin/python computer_install.py full-trial --serial USB_SERIAL --plan-sha256 SHOWN_SHA --experimental-reviewed
+   It uploads only the pinned native/guardian pair to RAM. Existing device
+   guardians enforce a 60-second ceiling and return to stock independently
+   of this computer. Permanent startup remains off. Keep USB/power connected.
+   If the reply is lost, do not repeat full-trial. Read its local history:
+   .runtime/bin/python computer_install.py full-trial-status
+   This requires neither serial nor adb and cannot launch/reset any session.
+   Older jobs keep their original bytes/history and refuse this new action.
+
 Do not remove computer-state, receipts or any partial files to retry a write.
 An unverified outcome does not mean the monitor was unchanged. Preserve the
 entire private folder for review. The HA job cannot see these local receipts;

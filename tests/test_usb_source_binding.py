@@ -20,7 +20,8 @@ worker = computer.plans.worker
 plans = computer.plans.plans
 package = computer.package
 desktop = computer.desktop
-CURRENT = "0de9c99e57192742b82616cf82c0fdad71c562c5"
+CURRENT = "53d97b9609e8e0fcdfc5d003101f620098dbc734"
+PREVIOUS = "0de9c99e57192742b82616cf82c0fdad71c562c5"
 HISTORICAL = "e09440f9fa36da2aaad16212734879bb6304f6d2"
 
 
@@ -48,12 +49,21 @@ class SourceBindingTests(unittest.TestCase):
         root = Path(temporary.name).resolve() / package.PREFIX
         return root, desktop.load_bundle(root)[2]
 
-    def test_only_two_reviewed_sources_and_new_build_default(self):
+    def test_only_three_reviewed_sources_and_new_build_default(self):
         self.assertEqual(worker.SOURCE_COMMIT, CURRENT)
-        self.assertEqual(worker.REVIEWED_SOURCE_COMMITS, frozenset((CURRENT, HISTORICAL)))
+        self.assertEqual(worker.REVIEWED_SOURCE_COMMITS, frozenset((CURRENT, PREVIOUS, HISTORICAL)))
         # The standalone entry cannot import another bundle file before body
         # verification. Its deliberately duplicated fixed list must agree.
         self.assertEqual(desktop.REVIEWED_SOURCE_COMMITS, worker.REVIEWED_SOURCE_COMMITS)
+
+    def test_previous_default_export_keeps_its_source_and_lacks_new_trial_capability(self):
+        from full_ui_installation import TRIAL_SOURCE_COMMITS
+        fixture = self.fixture(PREVIOUS)
+        _, manifest = self.load_export(fixture)
+        self.assertEqual(manifest["source_commit"], PREVIOUS)
+        self.assertNotIn(PREVIOUS, TRIAL_SOURCE_COMMITS)
+        self.assertEqual(desktop.TRIAL_SOURCE_COMMITS, TRIAL_SOURCE_COMMITS)
+        self.assertEqual(TRIAL_SOURCE_COMMITS, frozenset((CURRENT,)))
 
     def test_historical_completed_job_status_and_export_preserve_original_bytes(self):
         fixture = self.fixture(HISTORICAL)
