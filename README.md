@@ -29,8 +29,8 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 | --- | --- | --- | --- |
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
-| **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | Sources only; separate USB/ADB process |
-| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | Sources only; separate USB/ADB process |
+| **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
+| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
 | **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
 
@@ -232,7 +232,7 @@ compatible hardware profile. The repository/HACS version is separate. Exact
 UI/build identifiers and a monotonic OTA revision remain internal verification
 metadata; an old device is not relabelled or reflashed merely to change a label.
 Lite 1 has passed one physical upgrade and automatic HA adoption check.
-Independent Monitor 1 S8/SCD40 version 1 bundles remain in preparation. See [the release contract](docs/FIRMWARE_VERSIONING.md) for
+Monitor 1 S8/SCD40 each have an independent [version 1 source-built runtime kit](docs/MONITOR1_RELEASES.md), requiring local private compilation; generic ELF downloads and automatic HA updates are not available. See [the release contract](docs/FIRMWARE_VERSIONING.md) for
 qualification, unsupported boards and current preparation limits.
 
 The product direction is full ESPHome only for Lite, Monitor 1 and Monitor 2.

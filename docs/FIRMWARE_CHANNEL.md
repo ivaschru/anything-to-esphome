@@ -50,8 +50,11 @@ a HACS version. No additional repository, token or user account is required.
    reviewed SHA for an isolated source archive; every input is compared with
    that committed source before publication.
 
-Only direct-I2C Lite currently has a qualified publisher and updater. Other
-profiles keep independent counters but are not enabled by adding metadata.
+Only direct-I2C Lite currently has a qualified binary publisher and automatic updater.
+Monitor 1 S8/SCD40 have separate source-built runtime publishers and version 1
+kits: see [Monitor 1 releases](MONITOR1_RELEASES.md). Their `runtime_releases`
+entries explicitly require a private local build and stay out of the installable
+`releases` map. No Linux or MCU backend is enabled by adding metadata.
 The publisher retains earlier public adoption identities and every unrelated
 catalog entry. A new firmware may require a newer integration explicitly;
 otherwise the current plugin continues to offer the new device version.
