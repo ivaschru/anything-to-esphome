@@ -31,6 +31,22 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def checked_arm_pcs(elf):
+    """Require the EABI5 hard-float calling convention used by stock Qt.
+
+    ARM32 and ET_DYN alone also admit soft-float libraries. AAELF32 applies
+    these e_flags to ET_EXEC *and* ET_DYN: no float flag implies base PCS,
+    while 0x400 selects hardware floating-point parameter passing. Refuse
+    unknown/other EABI versions and conflicting soft/hard declarations.
+    Other ARM flags remain independent; this is not an exact-header match.
+    See https://github.com/ARM-software/abi-aa/blob/main/aaelf32/aaelf32.rst
+    This static compatibility check does not qualify a loader or target run.
+    """
+    flags = elf.header.e_flags
+    if (flags & 0xFF000000) != 0x05000000 or (flags & 0x600) != 0x400:
+        raise ValueError("CGS1 Qt and helper objects require EABI5 hard-float PCS")
+
+
 def checked_library(path, expected):
     """Bind the link input before any download, extraction or output creation.
 
@@ -57,6 +73,7 @@ def checked_library(path, expected):
                 elf.header.e_machine != "EM_ARM" or elf.header.e_type != "ET_DYN" or
                 sonames != ["libQt5Core.so.5"]):
             raise ValueError("Stock Qt library must be the matching ARM32 Qt5 shared object")
+        checked_arm_pcs(elf)
     return (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns)
 
 
@@ -119,6 +136,7 @@ def validate_artifact(path, shared):
                 elf.header.e_machine != "EM_ARM" or
                 elf.header.e_type not in (("ET_DYN",) if shared else ("ET_EXEC", "ET_DYN"))):
             raise ValueError("Helper build produced an unexpected ELF architecture/type")
+        checked_arm_pcs(elf)
         dynamic = elf.get_section_by_name(".dynamic")
         needed = []
         for item in dynamic.iter_tags() if dynamic is not None else ():

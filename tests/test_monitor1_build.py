@@ -6,7 +6,9 @@ existing results or follow a symlink out of the ignored build directory.
 """
 import importlib.util
 from pathlib import Path
+import sys
 import tempfile
+from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -19,6 +21,61 @@ spec.loader.exec_module(builder)
 
 
 class Monitor1BuildTests(unittest.TestCase):
+    def check_abi_paths(self, flags, accepted):
+        """Exercise each admission path without needing pyelftools or Qt bytes.
+
+        Only the ELF parser boundary is substituted. The real input hash,
+        file metadata, SONAME/dependency and entry-point checks still run.
+        These synthetic headers test build admission, never loader safety.
+        """
+        soname = SimpleNamespace(entry=SimpleNamespace(d_tag="DT_SONAME"),
+                                 soname="libQt5Core.so.5")
+        needed = SimpleNamespace(entry=SimpleNamespace(d_tag="DT_NEEDED"),
+                                 needed="libQt5Core.so.5")
+        dynamic = SimpleNamespace(iter_tags=lambda: iter((soname, needed)))
+        parser = ModuleType("elftools.elf.elffile")
+        modules = {"elftools": ModuleType("elftools"),
+                   "elftools.elf": ModuleType("elftools.elf"),
+                   "elftools.elf.elffile": parser}
+        with tempfile.TemporaryDirectory() as temp, patch.dict(sys.modules, modules):
+            path = Path(temp) / "synthetic-header"
+            path.write_bytes(b"synthetic parser fixture, not an executable")
+            pin = builder.digest(path)
+            for entry, kind in (("qt", "ET_DYN"), ("shared", "ET_DYN"),
+                                ("mock", "ET_EXEC"), ("mock-pie", "ET_DYN")):
+                elf = SimpleNamespace(
+                    elfclass=32, little_endian=True,
+                    header=SimpleNamespace(e_machine="EM_ARM", e_type=kind, e_flags=flags),
+                    get_section_by_name=lambda name: dynamic if name == ".dynamic" else None,
+                )
+                parser.ELFFile = lambda stream: elf
+                with self.subTest(entry=entry, flags=hex(flags)):
+                    if accepted:
+                        result = (builder.checked_library(path, pin) if entry == "qt" else
+                                  builder.validate_artifact(path, entry == "shared"))
+                        if entry == "qt":
+                            self.assertEqual(result[2], path.stat().st_size)
+                        else:
+                            self.assertEqual(result["sha256"], pin)
+                    else:
+                        with self.assertRaisesRegex(ValueError, "EABI5 hard-float"):
+                            if entry == "qt":
+                                builder.checked_library(path, pin)
+                            else:
+                                builder.validate_artifact(path, entry == "shared")
+
+    def test_hard_float_abi_is_required_for_qt_shared_helper_and_mock(self):
+        # Base PCS (including an unspecified float flag) cannot exchange the
+        # same floating-point arguments with a gnueabihf QtCore build. Reject
+        # conflicting float flags and unknown/other EABI versions as well.
+        for flags in (0x05000000, 0x05000200, 0x05000600,
+                      0x00000400, 0x04000400, 0x06000400):
+            self.check_abi_paths(flags, accepted=False)
+
+    def test_eabi5_hard_float_allows_unrelated_arm_flags(self):
+        for flags in (0x05000400, 0x05000402):
+            self.check_abi_paths(flags, accepted=True)
+
     def test_wrong_library_pin_fails_before_elf_sdk_load(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "private-library"

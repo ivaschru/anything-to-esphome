@@ -26,8 +26,9 @@ Supply a private regular-file copy of the **matching stock
 `libQt5Core.so.5.9.4`**, obtained from the owner's verified backup, and its
 independently recorded SHA-256. A filename or a newly calculated hash of an
 unknown library does not establish that provenance. The builder checks the
-digest, ARM32/little-endian shared-object type and QtCore SONAME before
-starting a build. It never downloads or distributes that vendor library.
+digest, ARM32/little-endian shared-object type, EABI5 hard-float calling
+convention and QtCore SONAME before starting a build. It never downloads or
+distributes that vendor library.
 
 Qt's public `v5.9.4` headers come from one fixed official source archive,
 checked against the pinned tested checksum. `--qt-archive` may supply that
@@ -54,7 +55,8 @@ Builds use Zig 0.14.1 for ARMv7 hard-float/glibc 2.23, run sequentially at
 
 The private output contains the production helper, a separately marked test
 helper, a QtCore mock executable, `compile.log` and `result.json`. ELF checks
-reject the wrong CPU/type, host RPATH/RUNPATH, text relocations and glibc
+reject the wrong CPU/type, incompatible EABI/float calling convention,
+host RPATH/RUNPATH, text relocations and glibc
 requirements above 2.23. Input source/library/archive hashes are rechecked
 before `complete=true`. Logs and artifacts remain local; the report contains
 digests and relative source names, without credentials or deployment identity.
@@ -70,8 +72,14 @@ a fresh isolated environment against a privately verified stock QtCore. All thre
 passed ARM32/dependency/glibc checks; the production helper was 267,620 bytes.
 Two fresh output directories produced identical hashes for all three outputs;
 source paths are normalized for Qt assertion strings.
-Five dependency-free admission tests cover incorrect input pins/archives,
-symlink inputs/cache and exclusive private output. Run them with:
+Seven dependency-free admission tests cover incorrect input pins/archives,
+symlink inputs/cache, exclusive private output and EABI/float rejection
+through both library and artifact admission paths. Synthetic parser fixtures
+exercise shared helpers, executable mocks and PIE mocks without vendor bytes.
+The ARM [ELF specification](https://github.com/ARM-software/abi-aa/blob/main/aaelf32/aaelf32.rst)
+defines these float flags for both ET_EXEC and ET_DYN; a missing float flag
+implies base PCS and is refused for this hard-float target. Other ARM flags
+do not have to equal an entire known header. Run the checks with:
 
 ```sh
 python3 -m unittest discover -s tests -p test_monitor1_build.py -v
