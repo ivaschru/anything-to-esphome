@@ -107,6 +107,10 @@ class Builds:
 
     def start(self, owner, job_id):
         directory, job = checked_inputs(self.parent, job_id, owner, self.contract)
+        bootstrap_env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/build-home",
+                         "PYTHONUNBUFFERED": "1"}
+        if os.environ.get("QINGPING_MONITOR1_CORE_ROOT") is not None:
+            bootstrap_env = {**environment(directory / "build-home"), "PYTHONUNBUFFERED": "1"}
         if "build-intent.json" in os.listdir(directory):
             raise PreparationError("usb_build_consumed")
         # A worker/controller crash can outlive its HTTP process and release
@@ -146,8 +150,8 @@ class Builds:
             command = [sys.executable, str(Path(__file__).resolve()), "--job", job_id, "--lock-fd", str(fd)]
             child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL, start_new_session=True, pass_fds=(fd,),
-                env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/data/build-home",
-                     "PYTHONUNBUFFERED": "1"})
+                cwd=str(directory),
+                env=bootstrap_env)
             self.children[job_id] = child
             return frame(job_id, "building", "source")
         finally:
@@ -195,11 +199,114 @@ class Builds:
 def environment(home):
     # Neither Supervisor credentials nor HTTP/ADB session data reach Git/pip
     # or compiler children. No user URL, executable or shell text is accepted.
-    return {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": str(home),
+    result = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": str(home),
             "XDG_CACHE_HOME": str(home / ".cache"),
             "PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
             "CMAKE_BUILD_PARALLEL_LEVEL": "1", "ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT": "1",
             "GIT_TERMINAL_PROMPT": "0"}
+    root = core_root(Path(home).parent)
+    if root is not None:
+        # Only the embedded Core actor sets this context for its own children;
+        # no HTTP data chooses a path, executable, environment or remote host.
+        # Native tools are already admitted separately by that actor. Never
+        # pass the Core/Supervisor environment through to pip/build tools.
+        tools = core_toolset(Path(home).parent, root)
+        result.update(PATH=str(tools / "bin") + ":" + result["PATH"],
+                      QINGPING_MONITOR1_CORE_ROOT=str(root),
+                      ANDROID_USER_HOME=str(root / "adb"))
+        port = os.environ.get("QINGPING_MONITOR1_ADB_PORT")
+        if port is not None:
+            if not port.isascii() or not port.isdecimal() or not 1024 <= int(port) <= 65535:
+                raise PreparationError("usb_operation_failed")
+            result.update(QINGPING_MONITOR1_ADB_PORT=port,
+                          ADB_SERVER_SOCKET="tcp:127.0.0.1:" + port)
+    return result
+
+
+def core_root(directory):
+    """Resolve only the actor's private root and exact job relationship.
+
+    This is child-process configuration, never a public request parameter.
+    A malformed inherited context refuses instead of falling back to /data
+    or the default ADB server. Historical app/desktop processes have no Core
+    context and retain their original behavior.
+    """
+    value = os.environ.get("QINGPING_MONITOR1_CORE_ROOT")
+    if value is None:
+        return None
+    root = private_directory(Path(value))
+    directory = Path(directory)
+    if directory.parent != root / "jobs" or not USER.fullmatch(directory.name):
+        raise PreparationError("usb_job_unavailable")
+    private_directory(directory.parent)
+    private_directory(directory)
+    return root
+
+
+def core_toolset(directory, root):
+    """Use this profile's immutable prefix, never a moving default tool path.
+
+    A prepared profile without its completed Core binding remains readable,
+    but cannot start a build/install after a lost response or partial setup.
+    This file is created only by the private actor, not uploaded via HTTP.
+    """
+    binding = unique_json(read_private(directory / "core-context.json"))
+    toolset = binding.get("toolset_sha256")
+    if (not isinstance(toolset, str) or len(toolset) != 64 or
+            any(c not in "0123456789abcdef" for c in toolset) or
+            binding != {"schema_version": 1, "job_id": directory.name,
+                        "profile_sha256": private_hash(directory / "profile.json")["sha256"],
+                        "toolset_sha256": toolset}):
+        raise PreparationError("usb_job_unavailable")
+    private_directory(root / "toolsets")
+    tools = private_directory(root / "toolsets" / toolset)
+    private_directory(tools / "bin")
+    marker = unique_json(read_private(tools / "complete.json"))
+    if marker.get("schema_version") != 1 or marker.get("manifest_sha256") != toolset:
+        raise PreparationError("usb_operation_failed")
+    return tools
+
+
+def adb_executable(directory):
+    root = core_root(directory)
+    if root is None:
+        return Path("/usr/bin/adb")
+    path = core_toolset(directory, root) / "bin/adb"
+    info = path.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or
+            stat.S_IMODE(info.st_mode) != 0o700 or path.resolve() != path):
+        raise PreparationError("usb_operation_failed")
+    return path
+
+
+def adb_environment(directory):
+    result = environment(Path(directory) / "build-home")
+    if core_root(directory) is None:
+        result.update(HOME="/data/adb", ADB_SERVER_SOCKET="tcp:localhost:5037")
+    elif "QINGPING_MONITOR1_ADB_PORT" not in result:
+        # Core starts its own foreground server before admitting a USB action.
+        # A missing server context must never autostart/adopt the shared 5037.
+        raise PreparationError("usb_operation_failed")
+    return result
+
+
+def child_job_directory(job_id):
+    """Bind the child to the creator-selected private job, not a /data alias.
+
+    The parent already authenticates the owner, validates the job and consumes
+    its intent before Popen. It chooses cwd itself; an HTTP field never chooses
+    a host path. The child still verifies its original profile/source/intent
+    before any work. This supports HA-owned storage without mounting it over
+    /data or moving historical app jobs. A wrong, public or symlinked cwd is a
+    refusal, never permission to search another directory or retry a job.
+    """
+    if not isinstance(job_id, str) or not USER.fullmatch(job_id):
+        raise PreparationError("usb_job_unavailable")
+    directory = Path.cwd()
+    if directory.name != job_id:
+        raise PreparationError("usb_job_unavailable")
+    private_directory(directory.parent)
+    return private_directory(directory)
 
 
 def run_owned(command, cwd, env, log, deadline):
@@ -332,7 +439,7 @@ def main():
     with (Path(__file__).parent / "contract.json").open() as stream:
         contract = json.load(stream)
     try:
-        build(Path("/data/jobs") / sys.argv[2], contract)
+        build(child_job_directory(sys.argv[2]), contract)
     finally:
         os.close(lock_fd)
 

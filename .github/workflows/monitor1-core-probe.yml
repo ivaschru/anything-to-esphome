@@ -5,6 +5,8 @@ on:
       - '.github/workflows/monitor1-core-probe.yml'
       - 'tools/monitor1-usb/check_core_environment.py'
       - 'ports/monitor1/requirements.txt'
+      - 'custom_components/qingping_esphome/monitor1_worker/**'
+      - 'apps/monitor1_usb/rootfs/core*'
   workflow_dispatch:
 permissions:
   contents: read
@@ -38,6 +40,7 @@ jobs:
             -v "$PWD/core-probe-work:/probe-work" \
             -v "$PWD/core-probe-result:/probe-result" \
             -v "$PWD/ports/monitor1/requirements.txt:/public-requirements.txt:ro" \
+            -v "$PWD/custom_components/qingping_esphome/monitor1_worker:/public-worker:ro" \
             -v "$PWD/tools/monitor1-usb/check_core_environment.py:/probe.py:ro" \
             ghcr.io/home-assistant/${{ matrix.architecture }}-homeassistant:2026.11.0 /probe.py
       - name: Retain only the public capability report

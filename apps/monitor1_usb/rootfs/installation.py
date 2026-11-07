@@ -11,7 +11,7 @@ import stat
 import time
 
 from preparation import PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
-from build_worker import STOP_FREE, build_report, environment, private_hash, run_owned, sync_directory
+from build_worker import STOP_FREE, adb_environment, build_report, environment, private_hash, run_owned, sync_directory
 from install_plan import source_closure, verify_plan
 
 
@@ -123,12 +123,11 @@ class Installations:
                 prior = unique_json(read_private(other / "intent.json"))
                 if self.status(prior["owner"], other.name)["state"] not in ("armed_waiting_reboot", "bridge_observed"):
                     raise PreparationError("usb_install_previous_unverified")
+            env = adb_environment(directory)
             record = {"job_id": job_id, "owner": owner, "plan_sha256": expected_plan_sha256,
                       "experimental_reviewed": True}
             write_new(directory / "install-intent.json", (json.dumps(record) + "\n").encode())
             sync_directory(directory)  # Consume before creating any controller.
-            env = environment(directory / "build-home")
-            env.update(HOME="/data/adb", ADB_SERVER_SOCKET="tcp:localhost:5037")
             command = [str(source / ".venv/bin/python"), str(Path(__file__).with_name("usb_install_job.py")), "--job", job_id]
             try:
                 with (directory / "install-run.log").open("xb") as log:
@@ -179,8 +178,7 @@ class Installations:
         output = observations / observation_id
         output.mkdir(mode=0o700)
         sync_directory(observations)
-        env = environment(directory / "build-home")
-        env.update(HOME="/data/adb", ADB_SERVER_SOCKET="tcp:localhost:5037")
+        env = adb_environment(directory)
         command = [str(source / ".venv/bin/python"), str(Path(__file__).with_name("usb_install_job.py")),
                    "--job", job_id, "--observe", observation_id]
         observed, armed = False, False
@@ -216,8 +214,7 @@ class Installations:
         output = observations / observation_id
         output.mkdir(mode=0o700)
         sync_directory(observations)
-        env = environment(directory / "build-home")
-        env.update(HOME="/data/adb", ADB_SERVER_SOCKET="tcp:localhost:5037")
+        env = adb_environment(directory)
         command = [str(source / ".venv/bin/python"), str(Path(__file__).with_name("usb_install_job.py")),
                    "--job", job_id, "--full-review", observation_id]
         state = "full_ui_unverified"

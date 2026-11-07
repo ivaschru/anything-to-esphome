@@ -13,17 +13,16 @@ Monitor 2 has no verified firmware port yet.
 
 ## Compatibility
 
-Monitor 1 also has a separate experimental [USB app](apps/monitor1_usb/):
-choose computer WebUSB or server USB for private capture/profile/builds.
-Server USB additionally offers a reviewed stock-bridge installation and a
-separate post-boot check. A private computer ADB installer can be downloaded
-after building; it runs on macOS/Linux without a local compiler or VM. First
-installation on a physical factory CGS1 is still unverified; browser-only
-WebUSB writing and full native UI installation remain unfinished. This does
-not change ordinary HACS admission in the table below.
+Monitor 1's experimental USB wizard is included in this HACS integration.
+Choose computer WebUSB or the HA server's USB; a separate Supervisor app is
+not required. Server tools currently support official Alpine3.24 HA Core
+on x86-64/ARM64. Initial tool preparation downloads verified dependencies
+privately and needs internet and 6 GiB free. Existing standalone app data stays
+in place. First installation on an untouched CGS1 and full native UI installation
+remain unverified/unfinished; this packaging change does not qualify them.
 
 See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
-([Russian walkthrough](apps/monitor1_usb/README.ru.md)) for both cable locations.
+([Russian walkthrough](apps/monitor1_usb/README.ru.md)).
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |

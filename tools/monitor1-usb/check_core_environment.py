@@ -192,6 +192,20 @@ def main():
             report["synthetic_arm32_compiled"] = True
             stage = "tool_prefix"
             prefix_tools(root, environment, report)
+            stage = "production_tool_delivery"
+            sys.path.insert(0, "/public-worker")
+            from core_tools import CoreTools, TOOLSET
+            production = root / "production"
+            production.mkdir(mode=0o700)
+            for name in ("toolsets", "jobs", "adb"):
+                (production / name).mkdir(mode=0o700)
+            tools = CoreTools(production)
+            assert tools.prepare() == {"state": "tools_ready", "hardware_contacted": False}
+            assert tools.prepare() == {"state": "tools_ready", "hardware_contacted": False}
+            assert tools.child is None
+            assert list((production / "adb").iterdir()) == []
+            report["production_toolset_sha256"] = TOOLSET
+            report["production_tools_prepared"] = True
     except Exception as error:
         # Only the stage is public. No environment, raw subprocess output,
         # traceback, arbitrary filesystem metadata or device data is emitted.
@@ -222,7 +236,7 @@ def main():
         json.dump(report, stream, indent=2)
         stream.write("\n")
     print(json.dumps(report, sort_keys=True))
-    return 0 if report["synthetic_arm32_compiled"] and all(report["tool_prefix_checks"].values()) else 1
+    return 0 if report["synthetic_arm32_compiled"] and all(report["tool_prefix_checks"].values()) and report.get("production_tools_prepared") else 1
 
 
 if __name__ == "__main__":

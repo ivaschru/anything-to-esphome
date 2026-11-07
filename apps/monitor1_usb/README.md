@@ -2,10 +2,12 @@
 
 **English** · [Русский: пошаговая инструкция](README.ru.md)
 
-This app offers two USB locations for identification, private capture and builds:
+The HACS integration includes this shared wizard. The legacy standalone app
+remains available with its old private data; it is not required for new jobs.
+The wizard offers two USB locations for identification, private capture and builds:
 
 - **Computer USB:** Chrome/Edge WebUSB talks directly to the selected monitor.
-- **Home Assistant server USB:** the app's local ADB reads the selected USB
+- **Home Assistant server USB:** the integrated worker's local ADB reads the selected USB
   device on the server. The browser needs neither WebUSB nor a local cable.
 
 Both derive the fixed identity/file checks from
@@ -14,11 +16,9 @@ ARMv7 and CO2 type 2/S8 or 3/SCD40, with the exact factory fingerprints.
 An existing modified installation is refused by this first-install check.
 It must use its own upgrade/recovery flow.
 
-The HACS Monitor 1 card exposes the same first-step choice. Computer mode
-opens its native WebUSB picker directly, without installing this app. Server
-mode resolves the exact installed companion from Supervisor metadata and opens
-its native admin ingress page. Missing/stopped apps produce instructions;
-the integration never installs, starts or configures an app automatically.
+The HACS Monitor 1 card opens the integrated wizard using actual HA admin
+identity. It uses no Supervisor ingress, separate app install or extra HTTP
+listener. Heavy builds run in a child/venv; the HA interpreter is unchanged.
 
 For **server USB**, an explicitly reviewed experimental action now composes the
 original disabled staging, script commit, bounded bridge trial and next-boot
@@ -34,20 +34,28 @@ Source tests, container checks and an imitated UI run are not hardware evidence.
 
 ## Install and open
 
-Requires HA OS/Supervisor with Home Assistant 2026.11.0 or later. This is an
-app/add-on repository, separate from the HACS integration release:
+For server tools, use Home Assistant 2026.11 on Alpine3.24, x86-64 or ARM64
+(official HA OS/Core images). Other Linux/container hosts are not yet qualified;
+manual USB mapping remains the container owner's responsibility.
 
-1. In Settings → Apps (Add-ons) → app store → Repositories, add
-   https://github.com/ivaschru/qingping-esphome
-2. Install **Qingping USB (experimental installer)** and start it manually.
-   It is built locally by Supervisor; no firmware image is downloaded.
-3. Select Open Web UI as an administrator.
-4. Connect the USB-C **data** cable to the chosen computer/server. Enable
-   ADB on the stock monitor if needed, then restore its real Wi-Fi connection.
-5. Choose the USB location and perform the read-only check.
-6. Use **Save original files** to download nine fixed recovery/build files
-   and a verified identity/hash report. Capture performs its own fresh check;
-   computer mode opens a fresh native USB picker. Nothing is installed.
+1. Install/update this integration through HACS as usual. Open **Qingping ESPHome**
+   as a Home Assistant administrator and choose **Air Monitor 1**.
+2. Open preparation. In **Prepare server tools**, choose **Prepare tools**.
+   The first setup needs internet and 6 GiB free; downloads stay in private
+   storage. Exact signed APK filenames/SHA are verified and extracted without
+   installing system packages. This does not start ADB or touch USB.
+3. Connect the USB-C **data** cable to the chosen computer/server. Enable
+   ADB on the stock monitor, then restore its real Wi-Fi connection.
+4. Choose the USB location. For server USB, find and select the monitor;
+   for computer USB, use Chrome/Edge with HTTPS and the native USB picker.
+5. Perform the read-only connection check and **Save original files**.
+   Neither operation installs firmware.
+
+The integrated worker uses `.storage/qingping_esphome_monitor1` under HA's
+config directory. It does not copy, remove or resume old standalone-app jobs
+under `/data/jobs`. Keep both histories/backups. Native tool prefixes are
+immutable and each new job binds its exact prefix and profile. Unsupported
+server platforms refuse clearly, without changing HA system packages.
 
 The private `qingping-cgs1-capture.tar` uses regular files with mode 0600
 and directories with mode 0700. It contains original vendor binaries and
@@ -70,13 +78,13 @@ Neither archive creates or reopens an install/launch/OTA intent.
 
 Enter the device name and choose **Prepare device profile**. Computer mode
 opens a fresh USB picker, captures and verifies the original files, then sends
-that archive to this companion on your own HA server. Server mode performs its
+that archive to the integrated worker on your own HA server. Server mode performs its
 own fresh USB capture. Neither route needs or changes your Wi-Fi password.
 
-The companion creates a private owner-bound job under its `/data/jobs`, with
+The integrated worker creates a private owner-bound job under its HA storage, with
 an individual Noise key, a stable separate API MAC and the verified stock Qt
 input. The profile/key and captured vendor files never appear in ordinary HTTP status,
-public GitHub assets, normal logs or browser storage. Preserve the app's private
+public GitHub assets, normal logs or browser storage. Preserve this private
 data/backup securely: deleting it also loses these recovery/build inputs.
 
 A request ID is consumed before key generation. If its reply is lost, the page
@@ -343,3 +351,13 @@ Official implementation references:
 [ephemeral ADB credentials](https://tangoadb.dev/tango/daemon/credential-store/),
 [HA ingress](https://contributors.home-assistant.io/apps/guides/ingress/),
 [USB mapping](https://contributors.home-assistant.io/apps/reference/configuration/).
+
+## Legacy standalone app
+
+Existing app users can retain its native Supervisor admin ingress and old
+`/data/jobs` history. This path is separate from new integrated jobs. Installing
+or updating HACS never uninstalls the app, copies private keys/history or
+replays a consumed operation. New users do not need to add the app repository.
+
+Regenerate the shared HACS engine/UI with `python tools/monitor1-usb/package_core.py`
+after rebuilding the offline bundle; CI runs its `--check` mode.

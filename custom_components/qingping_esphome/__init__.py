@@ -12,6 +12,7 @@ from homeassistant.const import Platform
 from .catalog import CATALOG
 from .manager import DOMAIN, Manager
 from .network_setup import NetworkDetectionError
+from .monitor1 import Monitor1, Monitor1View
 from .errors import InstallerError, MESSAGES
 
 NETWORK_KEYS = ("automatic_network", "lan_host", "http_port", "mqtt_port")
@@ -40,6 +41,7 @@ async def async_setup(hass, config):
 
 async def async_setup_entry(hass, entry):
     manager = Manager(hass, entry)
+    manager.monitor1 = Monitor1(hass)
     try: await manager.start()
     except NetworkDetectionError as error:
         raise ConfigEntryNotReady("Could not detect the LAN address; integration network options are available") from error
@@ -52,6 +54,7 @@ async def async_setup_entry(hass, entry):
         # A platform/translation/setup failure must not leave stock listeners
         # or an owned update task alive when HA retries this config entry.
         hass.data.pop(DOMAIN, None)
+        await manager.monitor1.stop()
         await manager.stop()
         if DOMAIN in hass.data.get(frontend.DATA_PANELS, {}):
             frontend.async_remove_panel(hass, DOMAIN)
@@ -65,6 +68,7 @@ async def _async_setup_loaded_entry(hass, entry, manager):
             StaticPathConfig(f"/api/{DOMAIN}/static", str(Path(__file__).parent / "frontend"), cache_headers=False)
         ])
         register_ws(hass)
+        hass.http.register_view(Monitor1View())
         hass.data[marker] = True
     await panel_custom.async_register_panel(hass, frontend_url_path=DOMAIN,
         webcomponent_name="qingping-installer-panel", sidebar_title="Qingping ESPHome",
@@ -100,6 +104,7 @@ async def async_unload_entry(hass, entry):
     if not await hass.config_entries.async_unload_platforms(entry, [Platform.UPDATE]):
         return False
     manager = hass.data.pop(DOMAIN)
+    await manager.monitor1.stop()
     await manager.stop()
     frontend.async_remove_panel(hass, DOMAIN)
     return True

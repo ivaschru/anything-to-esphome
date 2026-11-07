@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 
 from preparation import USER, PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
-from build_worker import private_hash, sync_directory
+from build_worker import adb_executable, child_job_directory, private_hash, sync_directory
 from install_plan import source_closure, verify_plan
 
 
@@ -52,7 +52,7 @@ def run_job(directory):
     import arm_bridge_next_boot_adb as arm
     result = {"intent_sha256": hashlib.sha256(intent_raw).hexdigest(), "state": "install_unverified"}
     try:
-        adb = sequence.trial.TrialAdb(Path("/usr/bin/adb"), plan["target"]["usb_serial"])
+        adb = sequence.trial.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
         result["state"] = asyncio.run(install_and_arm(sequence, arm, adb, directory / "install-plan",
             intent["plan_sha256"], directory / "candidate", directory / "profile.json"))
     except Exception:
@@ -80,7 +80,7 @@ def observe_job(directory, observation_id):
     # current kernel parents/births and two authenticated fresh wire samples.
     # It cannot start a monitor process, arm, reboot or adopt a saved PID.
     plan = observer.staging.offline.read_json(directory / "install-plan/plan.json")[0]
-    adb = observer.trial.TrialAdb(Path("/usr/bin/adb"), plan["target"]["usb_serial"])
+    adb = observer.trial.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
     try:
         current = sequence.status(adb, directory / "install-plan", digest)
         if (current.get("stage") == "read_only_armed" and current.get("autostart_armed") is True and
@@ -93,7 +93,7 @@ def observe_job(directory, observation_id):
             return
     except Exception:
         pass  # An unverified same-boot read cannot authorize a reboot/writer.
-    result = asyncio.run(observer.verify(observer.trial.TrialAdb(Path("/usr/bin/adb"), plan["target"]["usb_serial"]),
+    result = asyncio.run(observer.verify(observer.trial.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"]),
         directory / "install-plan", digest, directory / "profile.json"))
     observer.staging.store_receipt(output / "bridge-boot-observation.json", result, initial=True)
 
@@ -114,7 +114,7 @@ def full_review_job(directory, observation_id):
     profile, profile_sha = canonical.candidate.read_profile(directory / "profile.json")
     if profile_sha != plan["basis"]["profile_sha256"]:
         raise PreparationError("usb_full_ui_unverified")
-    adb = canonical.TrialAdb(Path("/usr/bin/adb"), plan["target"]["usb_serial"])
+    adb = canonical.TrialAdb(adb_executable(directory), plan["target"]["usb_serial"])
     result = asyncio.run(inspect(adb, plan, profile, canonical))
     result["plan_sha256"] = digest
     write_new(output / "full-ui-review.json", (json.dumps(result) + "\n").encode())
@@ -126,8 +126,12 @@ if __name__ == "__main__":
             (len(sys.argv) == 5 and (sys.argv[3] not in ("--observe", "--full-review") or not USER.fullmatch(sys.argv[4])))):
         raise SystemExit(2)
     os.umask(0o077)
+    # run_owned already supplies the exact private job as cwd. Preserve every
+    # engine/receipt check below while allowing the Core backend's storage;
+    # no caller-controlled host path or search fallback is added to the CLI.
+    directory = child_job_directory(sys.argv[2])
     if len(sys.argv) == 5:
         action = full_review_job if sys.argv[3] == "--full-review" else observe_job
-        action(Path("/data/jobs") / sys.argv[2], sys.argv[4])
+        action(directory, sys.argv[4])
     else:
-        run_job(Path("/data/jobs") / sys.argv[2])
+        run_job(directory)

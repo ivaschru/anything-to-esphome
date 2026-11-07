@@ -1,5 +1,5 @@
 import {createProbe, strings, downloadCapture} from "./usb-probe-bundle.mjs";
-import {companionPath} from "./usb-companion.mjs";
+import {openCoreWizard} from "./monitor1-core.mjs";
 
 /** The main HACS panel's real first USB step. Computer mode needs no app;
  * server mode opens the exact installed companion through native HA ingress.
@@ -32,7 +32,7 @@ class UsbChoice extends HTMLElement {
     this.$("prepare").onclick=()=>this.openPreparation();
     this.translate();
   }
-  disconnectedCallback() {void this.probe?.close().catch(()=>{});}
+  disconnectedCallback() {this.closeWizard?.();void this.probe?.close().catch(()=>{});}
   attributeChangedCallback() {if (this.root) this.translate();}
   text(key) {return (strings[this.lang === "ru" ? "ru" : "en"])[key] || strings.en.failed;}
   clear() {this.$("identity").replaceChildren();this.$("status").textContent=this.$("error").textContent="";this.status=this.error=null;
@@ -75,11 +75,12 @@ class UsbChoice extends HTMLElement {
       this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=false;}
   }
   async openCompanion() {
-    const {path,session}=await companionPath(this._hass);
-    // Same session-cookie contract as HA's own ingress frontend. Session
-    // only, exact first-party path, no application storage or logging.
-    document.cookie=`ingress_session=${session};path=/api/hassio_ingress/;SameSite=Strict${location.protocol === "https:" ? ";Secure" : ""}`;
-    window.location.assign(path);
+    if(this.closeWizard) return;
+    const container=document.createElement("section");
+    container.setAttribute("aria-label",this.lang === "ru" ? "Мастер Monitor 1" : "Monitor 1 wizard");
+    this.root.append(container);
+    try {this.closeWizard=await openCoreWizard(container,this._hass,this.lang);}
+    catch(error) {container.remove();throw error;}
   }
   async openPreparation() {
     if (this.busy) return;
