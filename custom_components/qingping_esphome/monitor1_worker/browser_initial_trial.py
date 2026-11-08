@@ -57,14 +57,16 @@ def checked(stages, owner, job_id, expected_sha):
         invalid()
     # Bind the exact terminal record bytes, not just a successful state label.
     # Reopening this read never adopts a lease or creates a new trial record.
-    proof_sha = hashlib.sha256(read_private(directory / COMPLETE)).hexdigest()
+    proof_bytes = read_private(directory / COMPLETE)
+    proof_sha = hashlib.sha256(proof_bytes).hexdigest()
+    committed_scope = unique_json(proof_bytes)['proof']['observations'][-1]
     value = {'schema_version': 1, 'job_id': job_id, 'plan_sha256': expected_sha,
              'source_commit': contract['source_commit'], 'commit_intent_sha256': intent_sha,
              'commit_proof_sha256': proof_sha, 'candidate_sha256': candidate_sha, 'guardian': guardian}
     raw = encoded(value)
     if len(raw) > MAX_INPUT:
         invalid()
-    result = {**value, 'meta': {**context['meta'], 'commit_nonce': intent['nonce']},
+    result = {**value, 'meta': {**context['meta'], 'commit_nonce': intent['nonce']}, 'committed_scope': committed_scope,
               'context_only': True, 'guardian_artifact_checked': False, 'image_fd_admitted': False,
               'hardware_contacted': False, 'device_writes': 0, 'writer_enabled': False,
               'installation_ready': False, 'live_recheck_required': True}

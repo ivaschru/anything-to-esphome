@@ -9,6 +9,7 @@ import {disabledScopeCommands} from '../../custom_components/qingping_esphome/fr
 import {disabledStreamService} from '../../custom_components/qingping_esphome/frontend/usb-disabled-stream.mjs';
 import {disabledCommand} from '../../custom_components/qingping_esphome/frontend/usb-disabled-commands.mjs';
 import {disabledContract} from '../../custom_components/qingping_esphome/frontend/usb-disabled-contract.mjs';
+import {initialTrialContract} from '../../custom_components/qingping_esphome/frontend/usb-initial-trial-contract.mjs';
 import {contract} from '../../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs';
 import {STAGE_ROLES} from '../../custom_components/qingping_esphome/frontend/usb-stage-files.mjs';
 const loaded=spawnSync('python3',['tests/fixtures/monitor1_browser_commands.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
@@ -21,7 +22,7 @@ function processStat(pid,parent,start) {
 }
 export function disabledTransport(options={},NativeChannel=BrowserNativeChannel) {
  const meta=structuredClone(vector.meta),initial=structuredClone(vector.scope),nonce=vector.nonce;
- let effects=0,picked=0,closed=0,currentPacket,rootReads=0;
+ let effects=options.initialEffects??(options.committed?3:0),picked=0,closed=0,currentPacket,rootReads=0;
  const rawBodies=[],readCommands=[],rawSockets=[];
  const plain=disabledScopeCommands(meta),locked=disabledScopeCommands({...meta,commit_nonce:nonce});
  function observed() {
@@ -32,6 +33,11 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
  }
  function read(command) {
   readCommands.push(command);
+  if(Object.values(initialTrialContract.reads).includes(command)) {
+   if(options.initialRead)return options.initialRead(command);
+   return command===initialTrialContract.reads.memory?'MemTotal: 131072 kB\nMemFree: 65536 kB':
+    command===initialTrialContract.reads.process_scan?'50':'';
+  }
   for(const [index,c] of [plain,locked].entries()) {
    if(index && !effects && command.startsWith(c.guard))throw Error('synthetic lock absent');
    if(command===c.root){rootReads++;return '1 '+(options.changedRootAfter && effects>=options.changedRootAfter?'3':'2')+' 700 0';}

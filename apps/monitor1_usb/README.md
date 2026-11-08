@@ -453,3 +453,8 @@ own candidate artifact after a terminal browser commit. This private SDK read
 does not create a trial intent, allocate RAM, upload or execute anything. The
 actual on-device image-FD admission and bounded trial lifecycle remain separate
 unfinished work; a successful artifact check does not qualify installation.
+The private preparation reader now checks the selected monitor's committed
+scope, absent persistent stores/RAM processes, free API/OTA ports and genuine
+free RAM twice, preserving the original root/process identities. It rechecks
+the guardian/proof afterward and closes the owned channel. It creates no RAM
+job or trial intent and exposes no public browser launch control.

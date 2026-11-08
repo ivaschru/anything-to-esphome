@@ -994,3 +994,20 @@ separate even though the HACS wizard is shared.
   Run test_usb_browser_initial_trial.py, the source generator/package checks
   and both HA USB suites. Synthetic programs/ELF headers test byte/ABI gates
   only and must never be described as a physical guardian or monitor trial.
+
+- The private first-trial preparation review now joins that exact artifact
+  context with the original selected channel/owner/page/deadline. Its finite
+  initial-trial-preparation frame performs two complete committed-disabled
+  reads plus canonical positive store/process/TCP4/TCP6 checks and conservative
+  MemFree. Preserve original terminal root/inode and stock/watchdog births;
+  only measured free capacity may change. Rehash the same guardian/proof after
+  IO and require independent channel-close ACK before a redacted result. Never
+  treat a failed read as absence, use cached/buffer/swap RAM, renew a deadline
+  or accept a partial script state. Required scripts are generated from the
+  unchanged canonical source. No public initiator, RAM path/allocation, upload,
+  trial intent, image FD or execution grant exists; ram_scope_checked and
+  image_fd_admitted stay false. Keep this prerequisite separate from the
+  future creator-owned bounded guardian lifecycle. Run the real selected peer
+  and delivered-bundle test_usb_initial_trial_scope.mjs and actual async registry
+  test_usb_browser_initial_review.py, all USB/Node tests and source/package
+  checks. An emulated collector is not a monitor trial or hardware admission.

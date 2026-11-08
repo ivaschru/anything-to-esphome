@@ -44,6 +44,10 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='initial-trial-preparation') {
+        if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
+        this.#checking=true;
+        try {data=await this.#link.checkInitialTrialPreparation(request.data.meta);}finally {this.#checking=false;}
       } else if(request.operation==='commit-stream-check') {
         if(request.data!==null || this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;

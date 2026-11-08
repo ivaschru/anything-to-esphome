@@ -13,7 +13,7 @@ import secrets
 from .monitor1_browser_relay import RelayRefusal
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete"}
 MAX_BYTES = 65536
 
 
@@ -51,7 +51,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "commit-prepare", "commit-step", "commit-complete") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -162,6 +162,12 @@ class BrowserChannel:
         if self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("disabled-scope", {"meta": meta})
+
+    async def check_initial_trial_preparation(self, meta):
+        """Fixed read only; no RAM job, trial intent or image-FD authority."""
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        return await self._request("initial-trial-preparation", {"meta": meta})
 
     async def begin_stage(self, packet, stock_files):
         """Private Core entry after its retained lease/consumed plan intent.

@@ -1,4 +1,5 @@
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
+import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
 import {BrowserDisabledCommitSession} from "./usb-disabled-session.mjs";
 import {BrowserStageSession} from "./usb-stage-session.mjs";
@@ -195,6 +196,21 @@ export class BrowserNativeChannel {
       return await collectDisabledScope({read:command=>this.#read(command),identity:async()=>{
         this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
       }},meta);
+  }
+
+  /** Preparation-only read through this original selected handle. No RAM job
+   * or device image FD exists yet; a later consumed trial must own those.
+   */
+  async checkInitialTrialPreparation(meta) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitProbeUsed) error('usb_busy');
+    this.#busy=true;
+    try {
+      return await collectInitialTrialPreparation({read:command=>this.#read(command),
+        scope:input=>this.#disabledScope(input),identity:async()=>{
+          this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
+        }},meta);
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
   }
 
   /** Read-only raw-stdin capability probe before any commit intent. No PTY,

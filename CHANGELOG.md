@@ -69,6 +69,11 @@
   private read-only SDK check, bound to the original completed commit, plan,
   candidate and frozen sources. Preserve image-FD admission as unverified;
   this prerequisite neither allocates RAM nor uploads/launches a program.
+- Read the selected browser monitor's first-trial prerequisites through fixed
+  private frames: two complete committed scopes, positive store/process/socket
+  checks and conservative free RAM. Preserve the original committed root and
+  process births, recheck the guardian/proof after IO and require owned close.
+  This observation creates no RAM job, trial intent or execution permission.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.
