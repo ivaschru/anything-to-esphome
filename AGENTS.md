@@ -833,8 +833,8 @@ separate even though the HACS wizard is shared.
   canonical source53 (tested for drift). Root/inode/flags/source/vendor/session/
   space checks, separate rollback and one-outstanding issue/readback semantics
   stay identical. A pure snapshot is not a live handle, consumed commit intent
-  or permission to run remote commands. The browser collector/command adapter
-  and private SDK producer join are not connected yet. Run the browser pure
+  or permission to run remote commands. The fixed browser collector and private SDK assessment are connected;
+  the command adapter and consumed commit writer remain separate work. Run the browser pure
   policy tests, including the original interruption cases under this binding.
 
 - Later browser phases may use NativeChannel.selectForReview in the original
@@ -859,7 +859,8 @@ separate even though the HACS wizard is shared.
   it never creates/adopts one. Only known factory/patched scripts are readable
   variants. No arbitrary paths/commands, lock/write/launch/signal or public
   initiator is exposed. Returned JSON is context, not a commit/rollback intent;
-  the private actor/SDK policy join and replacement adapter remain separate.
+  the private SDK policy join is read-only and the replacement adapter
+  remains separate.
   Run test_usb_disabled_scope.mjs, including actual peer/NativeChannel joins,
   malformed/drift/failure cases, plus USB suites and rebuilt bundle checks.
 
@@ -870,9 +871,26 @@ separate even though the HACS wizard is shared.
   Private Core disabled review joins this metadata to the original current
   owner/page/channel/deadline, validates the fixed collector's exact DTO and
   requires close ACK before a redacted scope-observed result. A failed maps/
-  process read is not absence; SDK qualification and writer/readiness remain
-  false. The separate openBrowserReviewControl uses selectForReview in its
-  original picker click; default opening stays factory-only. No public
-  initiating route/GUI, SDK policy child or commit writer is connected yet.
+  process read is not absence. The separate openBrowserReviewControl uses
+  selectForReview in its original picker click; default opening stays
+  factory-only. No public initiating route/GUI or commit writer is connected.
+  The fixed private internal-browser-disabled-assess child uses the existing
+  admitted job SDK and rehashes source53 plus all four reader fingerprints
+  before importing canonical policy. Public archive files keep their ordinary
+  source metadata contract (usually 0644), distinct from private 0600 payloads.
+  Canonical input bytes carry only the exact current registry channel/nonce,
+  plan and strict scope on stdin. No arbitrary path/executable, native toolset
+  lookup, inherited credential/ADB environment, log, output file or intent.
+  Only construct BrowserVendorTransaction: never issue/ack or execute a remote
+  command. Rehash the same original stage/profile/source after its bounded
+  result; Core compares the exact input SHA and original live capability/
+  deadline before close ACK. sdk_policy_checked is pure admission only:
+  commit_admissible_for_review grants no cached writer permission, physical
+  installation qualification or readiness. Known partial variants get a
+  negative forward assessment, never automatic rollback or completion.
   Run terminal-context actor, async disabled-review/expiry/close tests and
   review-control/shared UI tests, both HA USB SDK suites and package checks.
+  Add test_usb_browser_policy_assessment.py for source drift/symlinks, public
+  source modes, clean argv/environment, exact input/result binding, stale
+  analysis, constructor-only semantics and no child retry. Synthetic source/
+  runner fixtures never count as an actual admitted candidate or device.

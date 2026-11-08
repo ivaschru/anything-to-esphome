@@ -203,6 +203,15 @@ class StageTests(unittest.TestCase):
         self.assertFalse(context['sdk_policy_checked'] or context['writer_enabled'])
         self.assertNotIn(key, json.dumps(context))
         self.assertNotIn('payloads', context)
+        # The isolated assessment is private and still must not initialize ADB.
+        # Its subprocess/source admission has separate non-hardware tests.
+        arguments = {'job_id': self.id, 'expected_plan_sha256': self.plan['plan_sha256'],
+                     'channel_id': self.scope['channel_id'], 'channel_nonce': self.scope['channel_nonce'], 'scope': {'synthetic': True}}
+        with patch.object(self.manager, 'assess_disabled', return_value={'writer_enabled': False}) as assess:
+            value, mime = actor.dispatch(request('internal-browser-disabled-assess', arguments))
+            self.assertEqual((value, mime), ({'writer_enabled': False}, 'application/json'))
+            assess.assert_called_once_with(self.owner, self.id, self.plan['plan_sha256'],
+                self.scope['channel_id'], self.scope['channel_nonce'], arguments['scope'])
         usb.assert_not_called()
 
     def test_disabled_context_requires_exact_terminal_owned_stage_and_is_read_only(self):

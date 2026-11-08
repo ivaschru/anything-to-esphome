@@ -77,6 +77,11 @@ class Actor:
             return self.companion.browser_plans.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation == "internal-browser-disabled-context" and set(data) == {"job_id", "expected_plan_sha256"}:
             return self.companion.browser_stages.disabled_context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation == "internal-browser-disabled-assess" and set(data) == {"job_id", "expected_plan_sha256", "channel_id", "channel_nonce", "scope"}:
+            # Pure SDK analysis is pipe-only and never starts native ADB. The
+            # private Core caller supplies its actual still-current capability.
+            return self.companion.browser_stages.assess_disabled(user, data["job_id"], data["expected_plan_sha256"],
+                data["channel_id"], data["channel_nonce"], data["scope"]), "application/json"
         if operation.startswith("internal-browser-stage-"):
             stages = self.companion.browser_stages
             if operation == "internal-browser-stage-context" and set(data) == {"job_id", "expected_plan_sha256"}:

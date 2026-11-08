@@ -13,6 +13,7 @@ SOURCE = ROOT / "apps/monitor1_usb/rootfs"
 COMPONENT = ROOT / "custom_components/qingping_esphome"
 FILES = (
     "browser_payload.py", "browser_plan.py", "browser_plan_job.py", "browser_stage.py", "browser_disabled_commit_policy.py",
+    "browser_disabled_observation.py", "browser_disabled_policy.py", "browser_disabled_policy_job.py",
     "ha_enrollment.py", "ha_enrollment_usb.py",
     "backup_export.py", "build_worker.py", "computer_install.py", "computer_package.py",
     "full_ui_review.py", "full_ui_usb.py", "full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_installation.py", "install_plan.py", "installation.py",

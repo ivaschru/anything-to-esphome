@@ -159,6 +159,16 @@ class BrowserStages:
                     'commit_nonce': None},
                 'reader_source_sha256': reader['source_sha256'], 'sdk_policy_checked': False, 'writer_enabled': False}
 
+    def assess_disabled(self, owner, job_id, expected_sha, channel_id, channel_nonce, scope):
+        """Run only pure admission in the existing SDK; no writer or new intent.
+
+        A result is tied to the exact scope bytes and rehashed stage/source.
+        The parent registry still owns/rechecks the live WebUSB capability;
+        this method cannot reopen one or turn the result into commit authority.
+        """
+        from browser_disabled_policy import assess
+        return assess(self, owner, job_id, expected_sha, channel_id, channel_nonce, scope)
+
     def _intent(self, owner, job_id):
         directory, original, _ = owned_intent(self.parent, job_id, owner)
         raw = read_private(directory / INTENT)

@@ -44,6 +44,12 @@
   private Core registry, with strict observation validation and close ACK.
   The redacted result remains unqualified by the SDK policy and enables no
   writer. Add a distinct original-click control helper for later staged reads.
+- Assess that private observation in the job's existing isolated SDK with
+  source fingerprints and exact stdin/result hashes. Run only pure constructor
+  checks, rehash the original inputs afterward and retain the live registry's
+  original deadline and close ACK. A positive assessment enables no writer;
+  known partial scripts require a separate decision. No ADB/tool download,
+  device write, new intent, credential inheritance or retry is added.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

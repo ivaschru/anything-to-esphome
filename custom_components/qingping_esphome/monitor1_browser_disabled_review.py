@@ -2,16 +2,17 @@
 
 The actor rehashes the owned plan and terminal stage. The registry retains the
 actual current channel through its fixed collector and close ACK. A returned
-observation is not SDK-policy qualification, a commit intent or native USB.
+analysis is not a commit intent, cached writer authority or native USB.
 No HTTP initiator is registered by this module.
 """
-import hashlib
 from pathlib import Path
 import json
 import re
 
 from .monitor1_browser_stage import document, ROLES, SOURCE
 from .monitor1_browser_relay import RelayRefusal
+
+from .monitor1_worker.browser_disabled_observation import policy_input, validate_assessment
 
 ROOT = Path(__file__).parent / 'monitor1_worker'
 
@@ -51,50 +52,13 @@ def context(result, data):
 
 
 def validate_scope(value, meta, reader):
-    """Strict observation DTO, not a replacement for the frozen SDK policy."""
-    keys = {'kind', 'target', 'plan_id', 'plan_sha256', 'stage_intent_sha256', 'root_identity', 'install_marker',
-            'root_mode', 'root_uid', 'disabled_flags', 'source_hashes', 'vendor_hashes', 'stock_process', 'watchdog_process',
-            'own_code_running', 'pm_helper_loaded', 'data_available_bytes', 'same_filesystem', 'staged_files', 'commit_nonce'}
-    desc = meta['descriptor']
-    if (not isinstance(value, dict) or set(value) != keys or value['kind'] != 'browser_disabled_scope' or
-            value['target'] != meta['target'] or not isinstance(value['target'], dict) or type(value['target'].get('co2_type')) is not int or
-            value['plan_id'] != desc['plan_id'] or value['plan_sha256'] != desc['plan_sha256'] or
-            value['stage_intent_sha256'] != desc['intent_sha256'] or value['commit_nonce'] is not None or
-            value['install_marker'] != desc['plan_id'] + ' ' + desc['plan_sha256'] or value['staged_files'] != desc['files'] or
-            any(type(pin['size']) is not int for pin in value['staged_files'].values()) or
-            type(value['root_mode']) is not int or value['root_mode'] != 0o700 or type(value['root_uid']) is not int or value['root_uid'] != 0 or
-            any(value[key] is not False for key in ('own_code_running', 'pm_helper_loaded')) or value['same_filesystem'] is not True or
-            type(value['data_available_bytes']) is not int or not 8 * 1024**2 <= value['data_available_bytes'] < 2**53):
-        raise RelayRefusal
-    ids = value['root_identity']
-    if not isinstance(ids, list) or len(ids) != 2 or any(type(v) is not int or not 0 < v < 2**53 for v in ids):
-        raise RelayRefusal
-    flag = [hashlib.sha256(b'').hexdigest(), 0, 0o600, 0, 1, False]
-    if (value['disabled_flags'] != [flag, flag] or
-            any(type(item) is not int for f in value['disabled_flags'] for item in f[1:5]) or
-            any(f[-1] is not False for f in value['disabled_flags'])):
-        raise RelayRefusal
-    if value['source_hashes'] != [[key, item] for key, item in sorted(reader['sources'].items())]:
-        raise RelayRefusal
-    pins = json.loads((ROOT / 'contract.json').read_bytes())['files']
-    vendors = value['vendor_hashes']
-    if (not isinstance(vendors, list) or len(vendors) != len(pins) or
-            any(not isinstance(v, list) or len(v) != 2 or not all(isinstance(s, str) for s in v) for v in vendors) or
-            len(dict(vendors)) != len(vendors) or set(dict(vendors)) != {v['path'] for v in pins}):
-        raise RelayRefusal
-    for pin in pins:
-        allowed = {pin['sha256']}
-        if pin['path'] in reader['patched']:
-            allowed.add(reader['patched'][pin['path']]['sha256'])
-        if dict(vendors)[pin['path']] not in allowed:
-            raise RelayRefusal
-    stock, watchdog = value['stock_process'], value['watchdog_process']
-    if (not isinstance(stock, list) or len(stock) != 4 or not isinstance(watchdog, list) or len(watchdog) != 3 or
-            any(type(v) is not int or not 1 < v <= 2147483647 for v in (stock[0], watchdog[0])) or stock[0] == watchdog[0] or
-            any(type(v) is not int or not 0 < v < 2**53 for v in (stock[1], watchdog[1])) or
-            stock[2] != next(v['sha256'] for v in pins if v['path'] == '/data/bin/SnowApp') or
-            type(stock[3]) is not int or stock[3] != 0 or type(watchdog[2]) is not int or watchdog[2] != 0):
-        raise RelayRefusal
+    # Share the same strict DTO with the isolated SDK policy child. This
+    # wrapper keeps this parent module's finite public exception category.
+    from .monitor1_worker.browser_disabled_observation import validate_scope as check, ObservationRefusal
+    try:
+        check(value, meta, reader)
+    except ObservationRefusal:
+        raise RelayRefusal from None
 
 
 async def review(service, owner, nonce, data):
@@ -113,6 +77,16 @@ async def review(service, owner, nonce, data):
         validate_scope(observed, checked['meta'], reader)
         if registry.current is not original or registry.capability(owner, nonce, data['channel_id']) is not cap or cap.closed or cap.failed:
             raise RelayRefusal
+        # Bind the fixed read to the original registry channel, never a caller
+        # nonce. The trusted SDK only constructs the pure transaction; no
+        # issue/ack, command, write intent or device operation runs in it.
+        channel_nonce = original['reported_evidence']['channel']
+        raw = policy_input(data['job_id'], data['expected_plan_sha256'], data['channel_id'], channel_nonce, observed)
+        assessment = document(await service.exchange(owner, nonce, 'internal-browser-disabled-assess',
+            {**data, 'channel_nonce': channel_nonce, 'scope': observed}))
+        validate_assessment(assessment, data['job_id'], data['expected_plan_sha256'], checked['source_commit'], raw)
+        if registry.current is not original or registry.capability(owner, nonce, data['channel_id']) is not cap or cap.closed or cap.failed:
+            raise RelayRefusal
         await cap.close()
         if (registry.current is not original or registry.capability(owner, nonce, data['channel_id']) is not cap or not cap.closed or cap.failed):
             raise RelayRefusal
@@ -122,6 +96,6 @@ async def review(service, owner, nonce, data):
         except BaseException:
             pass
         raise RelayRefusal from None
-    return {'job_id': data['job_id'], 'plan_sha256': data['expected_plan_sha256'], 'state': 'browser_disabled_scope_observed',
-            'hardware_contacted': True, 'device_writes': 0, 'sdk_policy_checked': False,
-            'installed': False, 'installation_ready': False, 'writer_enabled': False, 'native_get_devpath': False}
+    return {'job_id': data['job_id'], 'plan_sha256': data['expected_plan_sha256'], 'state': 'browser_disabled_policy_assessed',
+            'hardware_contacted': True, 'device_writes': 0, 'sdk_policy_checked': True, 'commit_admissible_for_review': assessment['commit_admissible_for_review'],
+            'live_recheck_required': True, 'installed': False, 'installation_ready': False, 'writer_enabled': False, 'native_get_devpath': False}
