@@ -1,0 +1,69 @@
+{
+  "pm_policy": "quiet-scd4x-window-v1",
+  "pm_source_sha256": "50a54dc2d5ea4185f125937efb51b36c1583e53581a45e7bd199842d862d8085",
+  "model": "CGDN1",
+  "ui": "2026.11.08-ui25-native5",
+  "public_version": 5,
+  "font": "Inter + Roboto Condensed (OFL)",
+  "esphome": "2026.9.1",
+  "size": 1693536,
+  "sha256": "f7a3e4f173b31e6495bfe83a4c466f7df371f916bbf2e42da4426248a1f23d37",
+  "release_source_sha256": "effb210e14e72c02836b9ace34973de3acf374b5332f0907e096fdf8224d22ad",
+  "slots": {
+    "display_feed_entity": 1,
+    "source_stock_version": 1,
+    "ssid": 1,
+    "wifi_password": 1,
+    "name": 2,
+    "ap_ssid": 1,
+    "ap_password": 1,
+    "ota_password": 1,
+    "noise_psk": 1
+  },
+  "format": "esp32-app-fixed-slots-v1",
+  "native_update": {
+    "format": "qingping-native-update-v1",
+    "patches": [
+      [
+        80,
+        4
+      ],
+      [
+        19254,
+        4
+      ],
+      [
+        270586,
+        8
+      ],
+      [
+        271974,
+        7
+      ],
+      [
+        272038,
+        6
+      ],
+      [
+        272102,
+        5
+      ],
+      [
+        272135,
+        3
+      ],
+      [
+        272199,
+        2
+      ],
+      [
+        272232,
+        1
+      ],
+      [
+        272267,
+        0
+      ]
+    ]
+  }
+}

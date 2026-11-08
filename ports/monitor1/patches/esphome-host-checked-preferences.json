@@ -1,9 +1,0 @@
-{
-  "sdk_version": "2026.10.1",
-  "macro": "USE_CGS1_CHECKED_RAM_PREFERENCES",
-  "source": "components/host/preferences.cpp",
-  "original_sha256": "13982552ed40fe1aaea0f3628a1e9c5ffd46257255071e2258612d7250620ad5",
-  "patched_sha256": "437f995531dbcd6cb7f2c09d9b8e853ea24b0ec66e94f163a49e604e6c9a38c8",
-  "patch_sha256": "c020c7a40896152f8db79281f6cd88b290d073444c21acb0bc6345d631a130c7",
-  "scope": "Checked RAM writes only; concrete SDK manager/keys/filename unchanged"
-}
