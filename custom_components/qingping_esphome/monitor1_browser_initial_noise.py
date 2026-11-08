@@ -118,7 +118,12 @@ async def _disconnect(client):
         # independently await the browser's actual API-close ACK. Avoid the
         # SDK's graceful-disconnect logger, which can emit raw exception text
         # after a peer/identity failure even with connect(log_errors=False).
-        client.force_disconnect()
+        # The compiler's pinned46.3 client has no APIClient.force_disconnect
+        # convenience method. The public async force parameter exists there
+        # and in both supported HA SDKs; it closes only this owned transport
+        # without a graceful protocol request or raw-error logger. Independent
+        # browser API-close/USB/channel proof remains mandatory afterwards.
+        await client.disconnect(force=True)
         await asyncio.sleep(0)
     except BaseException:
         raise RelayRefusal from None

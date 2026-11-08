@@ -107,6 +107,16 @@ class GenerationTests(unittest.TestCase):
 HAS_API = importlib.util.find_spec('aioesphomeapi') is not None
 
 
+@unittest.skipUnless(HAS_API, 'Actual aioesphomeapi SDK required')
+class SdkDisconnectContractTests(unittest.IsolatedAsyncioTestCase):
+    async def test_actual_sdk_public_force_disconnect_without_socket_or_graceful_request(self):
+        from aioesphomeapi import APIClient
+        # Even an unconnected real client reproduces the old46.3 AttributeError.
+        # No network edge or invented APIClient double can hide that mismatch.
+        client = APIClient('127.0.0.1', 16053, None)
+        await module._disconnect(client)
+
+
 @unittest.skipUnless(HAS_API, 'Actual HA aioesphomeapi/Noise SDK required')
 class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

@@ -936,6 +936,14 @@ separate even though the HACS wizard is shared.
   eight-step DOM test, selected raw/delivered network reader, admin HTTP task/
   reservation/internal-MIME tests and package checks after changes.
 
+- Force-close observer clients through the public async
+  `APIClient.disconnect(force=True)`, available in pinned aioesphomeapi46.3.0
+  and both HA SDKs. The newer convenience `force_disconnect()` is absent from
+  the Lite compiler environment; do not skip its Noise tests to hide this.
+  This only retires the owned client; independent browser API-close and
+  USB/channel ACK gates remain unchanged. Run the real unconnected-client
+  contract and actual Noise observer/PM tests in46.3 and supported HA SDKs.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

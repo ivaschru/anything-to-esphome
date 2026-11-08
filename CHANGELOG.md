@@ -14,6 +14,8 @@
   independently verifies LAN before HA's native user/encryption_key flow.
 - Preserve consumed attempts and recovery files. Lost replies only reconcile
   history/entries; no automatic reboot, repeat, rollback, LAN scan or overwrite.
+- Use the public forced-disconnect API shared by the pinned compiler client
+  and supported HA SDKs; preserve independent transport-close proof.
 - Fix actual SDK byte-response parsing, the browser Noise pre-OPEN timing
   budget and the parent frame-ID ceiling for separately selected Full UI.
 - This is an available experimental software path. First installation on an
