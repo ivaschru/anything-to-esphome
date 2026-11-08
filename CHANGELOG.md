@@ -31,8 +31,12 @@
   outcomes never replay or release the retained writer lease.
 - Retire stage buffers and timers after the original transport close, without
   recursive cleanup or treating another close caller as a fresh success.
+- Reuse the disabled vendor-CAS policy with a distinct typed WebUSB binding,
+  preserving native transport admission and all nontransport scope checks.
+  This pure policy does not expose a collector, command adapter or writer.
 - The public browser installation route and untouched-device qualification remain unfinished.
-  Stable HACS remains 0.2.8; no hardware support or firmware version changes.
+  These changes remain on the development branch; no hardware support or
+  firmware version changes.
 
 ## 0.2.8
 

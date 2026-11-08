@@ -824,3 +824,15 @@ separate even though the HACS wizard is shared.
   test_usb_native_stage.mjs (real peer + selected-channel composition) and
   test_usb_browser_stage_transfer.py (real async registry/channel + synthetic
   actor) plus all USB/Node regressions. Host fixtures do not qualify hardware.
+
+- browser_disabled_commit_policy reuses only the admitted frozen SDK's pure
+  disabled-CAS state machine with an explicit immutable WebUsbBinding in the
+  fifth target position. Never manufacture a usb: string or pass this binding
+  through a native loader. Its separate transport validator retains original
+  channel/nonce/target/boot; the nontransport scope validator remains verbatim
+  canonical source53 (tested for drift). Root/inode/flags/source/vendor/session/
+  space checks, separate rollback and one-outstanding issue/readback semantics
+  stay identical. A pure snapshot is not a live handle, consumed commit intent
+  or permission to run remote commands. The browser collector/command adapter
+  and private SDK producer join are not connected yet. Run the browser pure
+  policy tests, including the original interruption cases under this binding.
