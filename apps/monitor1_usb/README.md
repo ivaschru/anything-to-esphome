@@ -523,3 +523,11 @@ synthetic. Raw and delivered browser bundles also test actual transport close
 separately from channel ACK. These tests establish source composition and
 refusal behavior, not physical sensor values, device timer/FD admission or a
 first installation. The frozen firmware/native source is not rebuilt here.
+
+The next-boot adapter now also has pure generated before/arm/armed/completion
+text. Sixteen vectors match the unchanged native builder byte-for-byte, including
+recovery flag before bridge-opt-out removal and the correlated completion SHA
+and byte count. Nineteen refusal cases and syntax-only parsing pass. This
+module is not connected to a selected transport, stopped journal or consumed
+arming intent. Its generated text/metadata alone enables no button or writer;
+independent fresh reads and actual close proofs are still required.

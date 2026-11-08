@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Derive pure browser next-boot before/arm/after/completion text from the
+  unchanged native builder, preserving recovery-before-unlink and correlated
+  AFTER-effects bytes. Add exact canonical parity/refusal and syntax-only
+  checks. No browser writer, live scope/journal/lease join, reboot or hardware
+  qualification is enabled by this generated contract.
+
+
 - Complete the private original-task bounded guardian composition through
   authenticated Noise, END/reap, double-pass return, actual USB close,
   independent channel-close ACK and immutable actor terminal record. Require

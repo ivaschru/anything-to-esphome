@@ -726,6 +726,20 @@ separate even though the HACS wizard is shared.
   next-boot/observer/PM, Full UI/permanent/enrollment and public UI are still
   separate unfinished adapters. Do not rebuild frozen firmware for this join.
 
+- usb-bridge-boot-commands is pure, unwired next-boot text only. Generate
+  before/arm/armed/completion from canonical arm_bridge_next_boot_adb builders;
+  preserve all guards, recovery-before-unlink and AFTER-effects record bytes.
+  Derive the completion SHA/size from the actual typed plan/nonce, never from
+  symbolic placeholders. Admit only a complete patched-disabled scope and a
+  distinct typed arm nonce. No disarm/start/reboot/generic selector exists.
+  Text/metadata grants no stopped-trial receipt, fresh live channel, consumed
+  intent or lease. Do not manufacture a native trial receipt/get-devpath; those
+  browser joins and actual readback/close remain to be implemented. Packaged
+  metadata alone must not upgrade the existing ten trial producers or an old
+  consumed grant. Run generate_bridge_boot_contract.py --check and the sixteen
+  canonical parity vectors plus refusals in test_usb_bridge_boot_commands.mjs.
+  sh -n is syntax-only; never execute production paths on a host/device fixture.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach
