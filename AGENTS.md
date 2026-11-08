@@ -894,3 +894,29 @@ separate even though the HACS wizard is shared.
   source modes, clean argv/environment, exact input/result binding, stale
   analysis, constructor-only semantics and no child retry. Synthetic source/
   runner fixtures never count as an actual admitted candidate or device.
+
+
+- Fixed browser disabled-commit command assembly is pure and unwired.
+  generate_disabled_commands.py imports the unchanged source53 canonical
+  inline_guard/replacement_command and splits only typed hex/numeric/MAC/UUID
+  leaves into generated templates. Preserve all command bytes/ordering rather
+  than manually reimplementing the process/source/flag/CAS guards. The separate
+  disabled-write-contract.json records six required producer fingerprints;
+  a future private SDK/journal join must verify them before write admission.
+  usb-disabled-commands.mjs accepts only claim/watchdog/start and the exact
+  expected predecessor's vendor hashes, both opt-outs and complete fixed
+  observation. No caller command/path, rollback, launch or generic shell
+  operation exists. Its returned text is NOT a live capability, consumed
+  intent, write/ACK/retry or hardware qualification. Journal/retained lease,
+  finite selected-channel execution and independent readback remain unfinished.
+  Keep set -eu/umask 077 in each eventual owned shell session. Guarded bodies
+  exceed a 4KiB OPEN packet. Tango2.6.2 rejects any packet larger than the
+  actual negotiated maxPayloadSize; never infer the monitor's current limit
+  from a template. The future adapter must bound and stream the complete
+  prevalidated body to one fixed owned sh stdin, rather than put an arbitrary
+  long command into the OPEN service. Do not split the guards or
+  persist another script in the frozen guardian's private tree.
+  Run generate_disabled_commands.py --check and test_usb_disabled_commands.mjs:
+  actual public canonical builder vectors, exact byte equality, sh -n only,
+  typed injection/refusal/phase cases. Never execute those production paths
+  locally or treat syntax/rewritten root fixtures as monitor QA.

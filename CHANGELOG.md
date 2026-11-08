@@ -50,6 +50,11 @@
   original deadline and close ACK. A positive assessment enables no writer;
   known partial scripts require a separate decision. No ADB/tool download,
   device write, new intent, credential inheritance or retry is added.
+- Generate the three fixed disabled-commit script bodies from the unchanged
+  canonical guard/replacement builder, with only typed value leaves and exact
+  byte-parity tests. Keep this pure assembler disconnected from transport:
+  a consumed journal/lease, bounded shell-stdin execution and independent
+  readback are still required. No command endpoint or device write is enabled.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.
