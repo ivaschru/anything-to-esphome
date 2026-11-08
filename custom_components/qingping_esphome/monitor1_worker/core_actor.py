@@ -84,6 +84,35 @@ class Actor:
             # allocate/upload/launch, adopt native receipts or initialize ADB.
             from browser_initial_trial import context
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation.startswith("internal-browser-enrollment-"):
+            from browser_ha_enrollment import BrowserHaEnrollments, context, MIME
+            enrollments = BrowserHaEnrollments(self.companion.browser_stages)
+            if operation == "internal-browser-enrollment-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+                return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+            if operation == "internal-browser-enrollment-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "reviewed"}:
+                return enrollments.prepare(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["reviewed"]), "application/json"
+            if operation == "internal-browser-enrollment-observe" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return enrollments.observe(user, data["job_id"], data["intent_sha256"], data["proof"]), MIME
+            if operation == "internal-browser-enrollment-package" and set(data) == {"job_id"}:
+                return enrollments.package(user, data["job_id"]), MIME
+            if operation == "internal-browser-enrollment-record" and set(data) == {"job_id", "intent_sha256", "state", "entry_id"}:
+                return enrollments.record(user, data["job_id"], data["intent_sha256"], data["state"], data["entry_id"]), "application/json"
+            if operation == "internal-browser-enrollment-status" and set(data) == {"job_id"}:
+                return enrollments.status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
+        if operation.startswith("internal-browser-full-ui-activation-"):
+            from browser_full_ui_activation import BrowserFullUiActivations, context
+            activations = BrowserFullUiActivations(self.companion.browser_stages)
+            if operation == "internal-browser-full-ui-activation-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+                return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+            if operation == "internal-browser-full-ui-activation-prepare" and set(data) == {"job_id", "expected_plan_sha256", "expected_trial_proof_sha256", "scope", "screen_reviewed", "experimental_reviewed"}:
+                return activations.prepare(user, data["job_id"], data["expected_plan_sha256"], data["expected_trial_proof_sha256"],
+                    data["scope"], data["screen_reviewed"], data["experimental_reviewed"]), "application/json"
+            if operation == "internal-browser-full-ui-activation-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return activations.record(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
+            if operation == "internal-browser-full-ui-activation-status" and set(data) == {"job_id"}:
+                return activations.status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation.startswith("internal-browser-full-ui-trial-"):
             from browser_full_ui_trial import BrowserFullUiTrials, MIME
             trials = BrowserFullUiTrials(self.companion.browser_stages)

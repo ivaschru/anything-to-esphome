@@ -1,5 +1,5 @@
 import {embedded, coreFetch} from "./core-bridge.mjs";
-import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,reviewBrowserPlan,createNativeChannel,openBrowserControl,
+import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,reviewBrowserPlan,createNativeChannel,openBrowserControl,openBrowserReviewControl,openBrowserFullUiControl,readBrowserWizard,startBrowserWizard,
   startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
 const $ = id => document.getElementById(id);
@@ -10,6 +10,7 @@ let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
 let planState,browserScopeState,browserControl,browserLink,unloading=false;
+let browserWizard,browserWizardMessage;const attemptedBrowserPhases=new Set();
 let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
 let computerDownloaded=false;
@@ -63,6 +64,24 @@ function renderBuild() {
   $("browser-review-controls").hidden=!browserPlanning() || planState?.state!=="browser_plan_prepared";
   $("browser-review").disabled=busy;
   $("browser-review-result").textContent=browserScopeState ? text("browser_review_"+browserScopeState) : "";
+  $("browser-wizard-controls").hidden=!browserPlanning() || planState?.state!=="browser_plan_prepared";
+  const phase=browserWizard?.phase;
+  $("browser-wizard-title").textContent=phase ? text("browser_step_"+phase) : text("browser_wizard_title");
+  $("browser-wizard-help").textContent=phase ? text("browser_help_"+phase) : text("browser_wizard_help");
+  const browserConsumed=!browserWizard?.can_start || attemptedBrowserPhases.has(pendingPreparation?.id+":"+phase);
+  $("browser-wizard-ack-label").hidden=$("browser-wizard-start").hidden=!phase || phase==="complete" || browserConsumed;
+  $("browser-wizard-screen-label").hidden=phase!=="full-activate" || browserConsumed;
+  $("browser-wizard-ack").disabled=$("browser-wizard-screen").disabled=busy;
+  $("browser-wizard-start").disabled=busy || browserConsumed || !$("browser-wizard-ack").checked ||
+    phase==="full-activate" && !$("browser-wizard-screen").checked;
+  $("browser-wizard-status").disabled=busy;
+  $("browser-wizard-observe").hidden=phase!=="pm";
+  $("browser-wizard-observe").disabled=busy;
+  $("browser-wizard-full-review").hidden=phase!=="full-trial";
+  $("browser-wizard-full-review").disabled=busy;
+  $("browser-wizard-result").textContent=browserWizardMessage ? text("browser_state_"+browserWizardMessage) : "";
+  $("browser-wizard-progress").hidden=!busy || !browserWizardMessage || browserWizardMessage!=="running";
+  $("browser-wizard-controls").setAttribute("aria-busy",String(busy && browserWizardMessage==="running"));
   const consumed=installState && installState.state!=="not_started";
   $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
   $("export-computer").disabled=busy || !pendingPreparation || !!consumed;
@@ -135,8 +154,9 @@ function renderBuild() {
   $("enrollment-progress").setAttribute("aria-label",text("enrollment_running"));
   $("enrollment-controls").setAttribute("aria-busy",String(enrollmentRunning));
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;browserScopeState=undefined;computerDownloaded=false;
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;browserScopeState=undefined;browserWizard=browserWizardMessage=undefined;computerDownloaded=false;
   installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=enrollmentState=undefined;
+  $("browser-wizard-ack").checked=$("browser-wizard-screen").checked=false;
   $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=$("enrollment-ack").checked=false;renderBuild();}
 function controls() {
   $("transport").disabled = $("scan").disabled = $("device").disabled = busy;
@@ -185,7 +205,7 @@ function renderDevices() {
   if (devices.includes(selected)) $("device").value = selected;
 }
 async function rpc(operation, data, binary=false) {
-  const duration=operation==="browser-review" ? 200000 : operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="browser-plan" || operation==="plan" || operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
+  const duration=operation.startsWith("browser-wizard-") ? 900000 : operation==="browser-review" ? 200000 : operation==="enroll" ? 300000 : operation==="pm-enable" ? 400000 : operation==="full-activate" ? 800000 : operation==="full-trial" ? 700000 : operation==="browser-plan" || operation==="plan" || operation==="install" || operation==="tools" ? 650000 : operation==="full-review" ? 210000 :
     operation==="observe" ? 180000 : (binary || operation==="prepare" ? 250000 : 70000);
   const response = embedded ? await coreFetch(operation,data,duration) : await fetch(operation, {method:data ? "POST" : "GET", credentials:"same-origin",
     headers:{"X-Qingping-Nonce":nonce, ...(data ? {"Content-Type":"application/json"} : {})},
@@ -389,6 +409,7 @@ async function checkPlan(manual=true) {
     if(pendingPreparation?.id===id) {
       planState=result;
       if(result.state==="plan_prepared") await loadInstallReview();
+      if(result.state==="browser_plan_prepared") await checkBrowserWizard(false);
       renderBuild();
     }
   } catch {if(pendingPreparation?.id===id) {planState={state:unknownPlanState()};renderBuild();}}
@@ -409,7 +430,7 @@ $("prepare-plan").onclick=async()=>{
   if(busy || buildState?.state!=="built_not_installed" || !pendingPreparation ||
     (planState && planState.state!==emptyPlanState())) return;
   busy=true;controls();
-  try {planState=await (browserPlanning() ? prepareBrowserPlan : preparePlan)(rpc,pendingPreparation.id);if(planState.state==="plan_prepared") await loadInstallReview();renderBuild();}
+  try {planState=await (browserPlanning() ? prepareBrowserPlan : preparePlan)(rpc,pendingPreparation.id);if(planState.state==="plan_prepared") await loadInstallReview();if(planState.state==="browser_plan_prepared") await checkBrowserWizard(false);renderBuild();}
   catch(error) {
     lastError=error.code || (browserPlanning() ? "usb_browser_plan_unverified" : "usb_plan_unverified");planState={state:unknownPlanState()};
     $("error").textContent=text(lastError);
@@ -439,6 +460,61 @@ $("browser-review").onclick=async()=>{
     busy=false;controls();
   }
 };
+async function checkBrowserWizard(manual=true) {
+  if(!browserPlanning() || !pendingPreparation || planState?.state!=="browser_plan_prepared" || manual && busy)return;
+  const id=pendingPreparation.id;
+  if(manual){busy=true;controls();}
+  try {
+    browserWizard=await readBrowserWizard(rpc,id,planState.plan_sha256);
+    browserWizardMessage=browserWizard.phase==="complete" ? "complete" : browserWizard.can_start ? "ready" : "unverified";
+  }catch{browserWizard=undefined;browserWizardMessage="unverified";}
+  finally{if(manual)busy=false;controls();}
+}
+$("browser-wizard-status").onclick=()=>checkBrowserWizard();
+$("browser-wizard-ack").onchange=$("browser-wizard-screen").onchange=()=>renderBuild();
+async function browserStep(readPhase) {
+  if(busy || !browserPlanning() || !browserWizard || !pendingPreparation || planState?.state!=="browser_plan_prepared")return;
+  const phase=readPhase || browserWizard.phase,id=pendingPreparation.id,sha=planState.plan_sha256;
+  const key=id+":"+phase;
+  if(!readPhase && (!browserWizard.can_start || attemptedBrowserPhases.has(key) || !$("browser-wizard-ack").checked ||
+     phase==="full-activate" && !$("browser-wizard-screen").checked))return;
+  // Original click -> picker, before any status/network wait. Each completed
+  // engine owns and closes its selected handle; no continuation is restored.
+  const link=createNativeChannel();browserLink=link;
+  const picker=["full-review","full-trial","full-activate","enroll"].includes(phase) ? openBrowserFullUiControl :
+    phase==="stage" ? openBrowserControl : openBrowserReviewControl;
+  const selection=picker(link,rpc);
+  busy=true;browserWizardMessage="running";controls();
+  let issued=false;
+  try {
+    browserControl=await selection;
+    if(unloading)throw {code:"usb_channel_unverified"};
+    if(!readPhase)attemptedBrowserPhases.add(key);
+    issued=true;
+    const result=await startBrowserWizard(rpc,id,sha,browserControl.channel_id,phase,
+      {reviewed:$("browser-wizard-ack").checked,screenReviewed:$("browser-wizard-screen").checked,trialProof:browserWizard.trial_proof_sha256});
+    browserWizardMessage=result.state;
+    // Read only AFTER the original operation has its terminal response. This
+    // updates the next button, never starts it or replays a previous intent.
+    if(!readPhase) {
+      browserWizard=await readBrowserWizard(rpc,id,sha);
+      if(browserWizard.phase==="complete")browserWizardMessage="complete";
+    }
+  }catch(error) {
+    if(issued && !readPhase)browserWizard={...browserWizard,can_start:false};
+    browserWizardMessage="unverified";lastError=error.code || "usb_browser_scope_unverified";$("error").textContent=text(lastError);
+  }finally {
+    if(browserControl){try{if((await browserControl.close())?.state!=="closed")browserWizardMessage="unverified";}catch{browserWizardMessage="unverified";}browserControl=undefined;}
+    try{await link.close();}catch{browserWizardMessage="unverified";}
+    if(browserLink===link)browserLink=undefined;
+    $("browser-wizard-ack").checked=$("browser-wizard-screen").checked=false;
+    busy=false;controls();
+  }
+}
+$("browser-wizard-start").onclick=()=>browserStep();
+$("browser-wizard-observe").onclick=()=>browserStep("observe");
+$("browser-wizard-full-review").onclick=()=>browserStep("full-review");
+
 async function loadInstallReview() {
   const id=pendingPreparation?.id;if(!id) return;
   try {

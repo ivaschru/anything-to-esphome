@@ -1,5 +1,20 @@
 ## Unreleased – browser USB installation work
 
+- Connect the experimental eight-step computer WebUSB wizard inside the HACS
+  package through finite authenticated Core actions. Preserve original-click
+  selection, independent consumed steps, same-task guardian continuation,
+  separate screen/startup confirmations, EN/RU form retention and explicit
+  power-off/on instructions. Status never starts or repeats work.
+- Add separate permanent-start and HA-enrollment browser journals. Reuse the
+  unchanged Full UI activation engine and HA's native ESPHome flow after
+  independent USB/Noise/LAN checks and positive transport closure. Keys stay
+  on the private actor/Core pipe; lost replies reconcile history/entries only.
+- Match the parent frame-ID ceiling to an actually accepted Full UI resource
+  class, keeping ordinary IDs and two-frame concurrency bounded. Add the fixed
+  wlan0 address reader; no caller host, arbitrary command or LAN scanning.
+- This enables experimental software testing, not pristine-device hardware
+  qualification, Monitor 2 or a Monitor 1 Bluetooth proxy.
+
 - Correct the initial browser Noise connection's per-attempt budget to include
   its complete pre-OPEN device scope. Preserve original 30s connection/50s
   observation/device 60s ceilings and no-replay behavior. A real Noise fixture
@@ -12,8 +27,8 @@
   60s Full UI engine, two native observations, stock return and independent
   API/USB/channel closure. Preserve no-replay/global fences and private keys.
   Fix shared Full UI and independent LAN enrollment service-response parsing
-  for actual aioesphomeapi bytes with strict bounded UTF-8. Host/Noise fixtures do not qualify fresh devices or enable the
-  still-unfinished public browser installer/permanent/enrollment workflow.
+  for actual aioesphomeapi bytes with strict bounded UTF-8. Host/Noise fixtures do not qualify fresh devices. The finite public
+  browser workflow is composed separately below these guarded primitives.
 
 
 - Join the private browser PM next-boot transition to original actor/selected

@@ -18,7 +18,7 @@ export async function openCoreWizard(container,hass,language="en") {
   frame.setAttribute("allow","usb");
   frame.style.cssText="width:100%;height:1100px;border:0;display:block;background:var(--card-background-color,#fff)";
   let closed=false,busy=false,frameRequests=0;
-  const seen=new Set();
+  const seen=new Set(),frameSeen=new Set();let frameLimit=4096;
   const listener=async event=>{
     const data=event.data;
     if(closed || event.source!==frame.contentWindow || event.origin!==location.origin || data?.channel!==channel) return;
@@ -33,10 +33,10 @@ export async function openCoreWizard(container,hass,language="en") {
     // operation owns the ordinary request. Otherwise that operation could
     // deadlock waiting for its own browser. This grants no second writer.
     const frameIO=/^browser\/(poll|answer|close)$/.test(data.operation);
-    if((busy && !frameIO) || (frameIO && frameRequests>=2) || seen.has(data.id) || seen.size>=4096) {reply({error:"usb_busy"});return;}
+    if((busy && !frameIO) || (frameIO && frameRequests>=2) || seen.has(data.id) || frameSeen.has(data.id) || (frameIO ? frameSeen.size>=frameLimit : seen.size>=4096)) {reply({error:"usb_busy"});return;}
     // Consume before authenticated IO, including a lost response. Status
     // refresh uses a new read ID; a writer is never repeated automatically.
-    seen.add(data.id);if(frameIO) frameRequests++;else busy=true;
+    (frameIO?frameSeen:seen).add(data.id);if(frameIO) frameRequests++;else busy=true;
     try {
       const body=JSON.stringify(data.data===undefined ? null : data.data);
       if(new TextEncoder().encode(body).byteLength>24*1024*1024) throw Error();
@@ -46,6 +46,16 @@ export async function openCoreWizard(container,hass,language="en") {
       if(!Number.isInteger(length) || length<=0 || length>64*1024*1024) throw Error();
       const result=await response.arrayBuffer();
       if(result.byteLength!==length) throw Error();
+      // Enlarge only the initial frame-ID budget for an ACTUALLY accepted
+      // fresh Full UI registration. Ordinary operations remain capped4096,
+      // two frame requests in flight stay unchanged, and no counter resets.
+      // The Core capability still owns its independent900s/byte/frame limits.
+      if(data.operation==="browser/open" && data.data?.purpose==="full-ui" && response.ok &&
+         response.headers.get("Content-Type")?.split(";")[0]==="application/json") {
+        const registration=JSON.parse(new TextDecoder().decode(result));
+        if(registration.state==="registered" && registration.writer_enabled===false &&
+           /^[a-f0-9]{32}$/.test(registration.channel_id))frameLimit=300000;
+      }
       reply({status:response.status,mime:response.headers.get("Content-Type"),body:result});
     } catch {reply({error:"usb_core_unverified"});}
     finally {if(frameIO) frameRequests--;else busy=false;}

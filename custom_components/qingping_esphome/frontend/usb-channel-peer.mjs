@@ -44,7 +44,7 @@ export class BrowserChannelPeer {
     this.#seen.add(request.id);
     let data=null;
     try {
-      if(this.#fullUi && !['full-ui-scope','api-open','api-read','api-write','api-close','channel-close'].includes(request.operation)) fail();
+      if(this.#fullUi && !['full-ui-scope','full-ui-network','api-open','api-read','api-write','api-close','channel-close'].includes(request.operation)) fail();
       const guardianApi=this.#guardianUsed && this.#guardianReady && !this.#guardianFinished;
       const apiOperation=['api-open','api-read','api-write','api-close'].includes(request.operation);
       // One pending opaque read may continue beside the fixed scope reader.
@@ -62,6 +62,9 @@ export class BrowserChannelPeer {
       if(request.operation==='full-ui-scope') {
         if(!this.#fullUi || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='context') fail();
         this.#checking=true;try{data=await this.#link.observeFullUiScope(request.data.context);}finally{this.#checking=false;}
+      } else if(request.operation==='full-ui-network') {
+        if(!this.#fullUi || request.data!==null || this.#opening || this.#socket || this.#closing)fail();
+        this.#checking=true;try{data=await this.#link.observeFullUiNetwork();}finally{this.#checking=false;}
       } else if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;

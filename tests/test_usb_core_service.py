@@ -10,9 +10,9 @@ import json
 from pathlib import Path
 import tempfile
 import sys
-from types import SimpleNamespace
+from types import SimpleNamespace, ModuleType
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 HAS_HA = importlib.util.find_spec("homeassistant") is not None
@@ -22,6 +22,9 @@ if HAS_HA:
     from aiohttp.test_utils import TestClient, TestServer
     from homeassistant.components.http.const import KEY_HASS, KEY_HASS_USER
 
+    namespace = ModuleType("qingping_core_contract")
+    namespace.__path__ = [str(ROOT / "custom_components/qingping_esphome")]
+    sys.modules.setdefault(namespace.__name__, namespace)
     spec = importlib.util.spec_from_file_location("qingping_core_contract.monitor1", ROOT / "custom_components/qingping_esphome/monitor1.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -251,6 +254,38 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
         response = await client.post("/api/qingping_esphome/monitor1/browser-review", json={**data, "target": context["target"]}, headers=headers)
         self.assertEqual(response.status, 403)
         self.assertEqual(self.service.exchange.await_count, before)
+        self.assertEqual(list((self.service.root / "adb").iterdir()), [])
+        self.assertEqual(list((self.service.root / "toolsets").iterdir()), [])
+
+    async def test_browser_wizard_public_route_keeps_original_task_and_one_reserved_writer(self):
+        client = await self.http_client()
+        response = await client.post("/api/qingping_esphome/monitor1/page", data=b"null", headers={"Content-Type": "application/json"})
+        nonce = (await response.json())["nonce"]
+        headers = {"X-Qingping-Nonce": nonce}
+        from qingping_core_contract import monitor1_browser_workflow as wizard
+        from qingping_core_contract import monitor1_browser_stage as stage
+        data = {"job_id": "c" * 32, "expected_plan_sha256": "d" * 64, "channel_id": "e" * 32, "experimental_reviewed": True}
+        seen = []
+        async def engine(service, owner, current_nonce, supplied):
+            seen.append((owner, current_nonce, supplied))
+            self.assertIs(asyncio.current_task(), service.pending)
+            self.assertTrue(service.lock.locked())
+            self.assertEqual(service.process.returncode, None)
+            return {"job_id": data["job_id"], "state": "staged_disabled_verified", "installed": False, "installation_ready": False}
+        with patch.object(stage, "stage", engine):
+            response = await client.post("/api/qingping_esphome/monitor1/browser-wizard-stage", json=data, headers=headers)
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertEqual((await response.json())["state"], "staged_disabled_verified")
+        self.assertEqual(seen, [("a" * 32, nonce, data)])
+        self.assertFalse(self.service.lock.locked()); self.assertIsNone(self.service.pending)
+        # An unknown phase never dispatches a generic actor operation. A public
+        # internal name still fails before invalid JSON is read or a key leaves.
+        before = len(seen)
+        response = await client.post("/api/qingping_esphome/monitor1/browser-wizard-shell", json=data, headers=headers)
+        self.assertEqual(response.status, 403); self.assertEqual(len(seen), before)
+        for name in ("internal-browser-full-ui-activation-prepare", "internal-browser-enrollment-observe", "internal-browser-enrollment-package"):
+            response = await client.post("/api/qingping_esphome/monitor1/" + name, data=b"not json", headers={**headers, "Content-Type": "application/json"})
+            self.assertEqual(response.status, 403)
         self.assertEqual(list((self.service.root / "adb").iterdir()), [])
         self.assertEqual(list((self.service.root / "toolsets").iterdir()), [])
 

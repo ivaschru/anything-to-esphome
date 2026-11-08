@@ -59,6 +59,23 @@ assert.equal(calls.length,beforeFrames+2,'Parallel exception cannot register a n
 for(const resolve of held.values())resolve(new Response('{}',{headers:{'Content-Type':'application/json','Content-Length':'2'}}));
 await Promise.all([writerRequest,pollRequest,answerRequest]);
 hass.fetchWithAuth=oldFetch;
+// Parent framing used to cap ALL consumed IDs at4096, below the separately
+// selected Full UI transfer. Standard frames still stop there. Only a new,
+// positively accepted Full UI registration raises the initial finite ceiling;
+// no history is removed and ordinary writer/concurrency limits stay fixed.
+for(let i=0;i<4100;i++)await send('browser/poll');
+assert.equal(messages.at(-1).error,'usb_busy');
+const stopped=calls.length;
+hass.fetchWithAuth=async(path,init)=>{
+ if(path.endsWith('/browser/open')){
+  calls.push({path,init});const body=JSON.stringify({channel_id:'e'.repeat(32),state:'registered',writer_enabled:false});
+  return new Response(body,{headers:{'Content-Type':'application/json','Content-Length':String(body.length)}});
+ }
+ return oldFetch(path,init);
+};
+await listener({...event,data:{...event.data,id:crypto.randomUUID(),operation:'browser/open',data:{purpose:'full-ui',evidence:{}}}});
+await send('browser/poll');assert.equal(calls.length,stopped+2);assert.equal(messages.at(-1).status,200);
+hass.fetchWithAuth=oldFetch;
 const beforeClose=calls.length;
 close();
 assert.equal(listeners.size,0);

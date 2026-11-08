@@ -65,6 +65,19 @@
 <button id="browser-review" class="secondary" data-text="browser_review"></button>
 <p id="browser-review-result" role="status" aria-live="polite"></p>
 </div>
+<div id="browser-wizard-controls" hidden>
+<h3 id="browser-wizard-title" data-text="browser_wizard_title"></h3>
+<p class="note" data-text="browser_wizard_experimental"></p>
+<p id="browser-wizard-help" class="muted"></p>
+<label id="browser-wizard-ack-label"><input id="browser-wizard-ack" type="checkbox"><span data-text="browser_wizard_ack"></span></label>
+<label id="browser-wizard-screen-label" hidden><input id="browser-wizard-screen" type="checkbox"><span data-text="full_activation_screen_ack"></span></label>
+<button id="browser-wizard-start" data-text="browser_wizard_start" disabled></button>
+<button id="browser-wizard-observe" class="secondary" data-text="observe_boot" hidden></button>
+<button id="browser-wizard-full-review" class="secondary" data-text="full_review" hidden></button>
+<button id="browser-wizard-status" class="secondary" data-text="browser_wizard_status"></button>
+<p id="browser-wizard-result" role="status" aria-live="polite"></p>
+<progress id="browser-wizard-progress" aria-label="USB" hidden></progress>
+</div>
 <div id="install-controls" hidden>
 <h3 data-text="install_title"></h3>
 <p class="note" data-text="install_experimental"></p>

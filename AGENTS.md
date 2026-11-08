@@ -1,5 +1,14 @@
 # Qingping ESPHome
 
+Current browser wizard: the finite `browser-wizard-*` Core routes now compose
+stage, disabled commit, original-task guarded trial, bridge next-boot, PM,
+Full UI trial/permanent and native HA enrollment. These are experimental,
+explicit one-use steps. Earlier primitive-specific notes about an unwired
+public initiator describe that primitive alone; the wizard composes its
+separately consumed coordinator and does not expose private actor operations.
+Pristine CGS1 hardware qualification remains outstanding; no readiness flag,
+Monitor 2 support, BLE support or physical result follows from host tests.
+
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
@@ -21,8 +30,8 @@ separate even though the HACS wizard is shared.
 
 - `apps/monitor1_usb` provides read-only computer WebUSB/server USB preparation
   and a separately reviewed experimental native server USB bridge installer.
-  Computer macOS/Linux ADB writes are experimental; browser-only WebUSB
-  writes and fresh full native UI qualification are unfinished. Generate
+  Computer macOS/Linux ADB and browser WebUSB writes are experimental;
+  fresh first-install/full native UI hardware qualification remains unfinished. Generate
   both fixed contracts from preflight_adb.py and rebuild
   the offline Tango bundle with tools/monitor1-usb; preserve exact lock/MIT
   notices and the source check in CI. No generic shell/setup/push/activation
@@ -868,6 +877,41 @@ separate even though the HACS wizard is shared.
   scope tests plus both HA USB suites. Synthetic peer lifecycle is not hardware
   timing/panel/FD qualification; public initiating UI/permanent/enrollment
   browser joins remain separate work. Do not rebuild frozen firmware.
+
+- The browser permanent step binds the exact terminal screen-trial proof and
+  same current Linux boot, with two distinct literal-true human decisions.
+  Read current returned pair/ext4 capacity BEFORE consuming the permanent
+  attempt; reuse unchanged full_ui_activation.run for its four one-shot
+  mutations and two new native generations. Both API/USB/channel closure and
+  original still-held actor lease precede terminal history. Lost packets,
+  enable/start/close/record replies never authorize replay or lease adoption.
+
+- Browser HA enrollment has its own consumed journal, shared kernel lease and
+  global writer/export fence. The only new USB reader is fixed wlan0 ifconfig,
+  with one private IPv4 and identity before/after. No host/command/path input.
+  Require same permanent boot/native job, two fresh exact native generations,
+  unchanged final scope/address and actual API/USB/channel closure before the
+  private key-bearing package. Independently repeat encrypted LAN verification
+  through existing monitor1_enrollment.enroll and use only HA's native
+  user/encryption_key flow. No scanner, direct entry writer, overwrite or
+  migration. Lost replies may inspect exact entries/history only; no USB/flow/
+  record replay. HTTP rejects internal names before body reads and never
+  forwards the existing private enrollment MIME. Source/profile rehashes stay
+  before/after package delivery. Test real Noise/actor/fsync/flock and real HA
+  flow contract on both supported SDKs; synthetic device history is explicit.
+
+- Public browser wizard actions remain in call()'s SAME shielded task and
+  reservation. Initial RAM -> guardian continuation is inline, never JSON or
+  a new task. Use a fresh original-click factory/review/Full UI picker per
+  phase. Status restores only the next phase; language keeps DOM/confirmations.
+  Never automatically repeat a POST, reboot the monitor or replay a lost
+  launch. Expose the experimental path with its actual qualification limit,
+  not a disabled button that nobody can test. The parent keeps4096 ordinary
+  IDs and two concurrent finite frame requests; only a positively accepted
+  fresh Full UI registration admits its bounded300000 aggregate frame IDs.
+  Never renew channel deadlines or reset consumed-ID history. Run the actual
+  eight-step DOM test, selected raw/delivered network reader, admin HTTP task/
+  reservation/internal-MIME tests and package checks after changes.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

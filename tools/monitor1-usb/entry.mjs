@@ -52,3 +52,5 @@ export function createNativeChannel() {
     createSyncSocket:socket=>new AdbSyncSocket(socket,65536),pushV1:adbSyncPushV1,
   },contract);
 }
+
+export {readBrowserWizard,startBrowserWizard} from "../../custom_components/qingping_esphome/frontend/usb-browser-workflow.mjs";

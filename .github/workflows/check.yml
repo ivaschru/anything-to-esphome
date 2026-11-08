@@ -68,6 +68,7 @@ jobs:
       - run: node tests/test_usb_stage_session.mjs
       - run: node tests/test_usb_stage_files.mjs
       - run: node tests/test_usb_browser_plan.mjs
+      - run: node tests/test_usb_browser_workflow.mjs
       - run: node tests/test_usb_browser_control.mjs
       - run: node tests/test_usb_companion.mjs
       - run: node tests/test_monitor1_core_frontend.mjs

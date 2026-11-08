@@ -46,3 +46,15 @@ export async function collectFullUiScope(backend,context,evidence) {
   target:{kind:'browser_webusb',usb_serial:e.serial,wlan_mac:e.wlan_mac,boot_id:e.boot_id,co2_type:e.co2_type,stock_version:e.stock_version},
   bridge_checked:true,context_only:true,device_writes:0};
 }
+
+/** The single USB-derived LAN address, never a caller-selected host or scan. */
+export function fullUiIpv4(text) {
+ if(typeof text!=='string' || text.length>8192 || !text.startsWith('wlan0'))fail();
+ const rows=[...text.matchAll(/\binet (?:addr:)?([0-9.]+)(?=\s)/g)];
+ if(rows.length!==1)fail();
+ const host=rows[0][1],p=host.split('.');
+ if(p.length!==4 || !p.every(v=>/^(0|[1-9][0-9]{0,2})$/.test(v) && Number(v)<=255))fail();
+ const [a,b]=p.map(Number);
+ if(!(a===10 || a===172 && b>=16 && b<=31 || a===192 && b===168))fail();
+ return host;
+}

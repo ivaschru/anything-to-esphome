@@ -1,4 +1,4 @@
-import {collectFullUiScope,validateFullUiContext} from './usb-full-ui-scope.mjs';
+import {collectFullUiScope,validateFullUiContext,fullUiIpv4} from './usb-full-ui-scope.mjs';
 import {PmBootCommandStream,pmBootStreamService} from './usb-pm-boot-stream.mjs';
 import {BrowserPmBootSession} from './usb-pm-boot-session.mjs';
 import {bridgeBootCompletion} from './usb-bridge-boot-commands.mjs';
@@ -260,6 +260,20 @@ export class BrowserNativeChannel {
       return await collectFullUiScope({read:command=>this.#read(command),identity:async()=>{
         this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
       }},context,target);
+    }catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
+  }
+
+  async observeFullUiNetwork() {
+    // Only after a complete original post-PM scope, with no open API. The
+    // immutable command can read wlan0 only; frames contain no host selector.
+    if(!this.#fullUiContext || !this.#fullUi || this.#closed || this.#busy || this.#api || this.#apiUsed)error('usb_busy');
+    this.#busy=true;
+    try {
+      this.evidence();
+      if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope))error('usb_selection_changed');
+      const host=fullUiIpv4(await this.#read('LC_ALL=C /bin/busybox ifconfig wlan0'));
+      if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope))error('usb_selection_changed');
+      return {kind:'browser_full_ui_network',host,device_writes:0};
     }catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
   }
 

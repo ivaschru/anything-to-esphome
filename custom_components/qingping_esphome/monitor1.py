@@ -129,6 +129,27 @@ class Monitor1:
         async def bounded_exchange():
             try:
                 async with asyncio.timeout(900):
+                    if operation == "browser-wizard-status" or operation.startswith("browser-wizard-"):
+                        from .monitor1_browser_workflow import progress, run, ACTIONS
+                        from .monitor1_browser_relay import RelayRefusal
+                        # Page admission precedes any private engine or actor
+                        # startup; frame polling retains its separate budget.
+                        self.browser_admit(user, nonce)
+                        await self.start()
+                        try:
+                            if operation == "browser-wizard-status":
+                                value = await progress(self, user, nonce, data)
+                            else:
+                                phase = operation[len("browser-wizard-"):]
+                                if phase not in ACTIONS: raise RelayRefusal
+                                value = await run(self, user, nonce, phase, data)
+                        except RelayRefusal:
+                            raise CoreRefusal("usb_browser_scope_unverified") from None
+                        # At least one real private actor response has just
+                        # revalidated its page. Reflect that success in the
+                        # frame-admission cache; polling alone never renews it.
+                        self.browser_pages[nonce] = (user, time.monotonic())
+                        return True, "application/json", json.dumps(value).encode()
                     if operation == "browser-review":
                         from .monitor1_browser_review import review
                         from .monitor1_browser_relay import RelayRefusal

@@ -25,7 +25,7 @@ original disabled staging, script commit, bounded bridge trial and next-boot
 bridge arming. A separate button reads the result after you power-cycle the
 monitor yourself. **First installation on an untouched physical CGS1 has not
 been verified.** This path installs the stock-side bridge only; the computer
-browser-only WebUSB writer and fresh full native UI qualification are still unfinished.
+browser-only WebUSB writer is now composed experimentally; fresh full native UI hardware qualification remains outstanding.
 A separate downloaded computer ADB installer reuses these engines without a
 compiler or VM on the computer; see its section below. Normal
 HACS CGS1 admission remains source-only and `installation_ready=false`.
@@ -194,8 +194,8 @@ restart a build: select the saved job and check its state. An app restart can
 make a still-running old build unverified until its own terminal receipt is
 available; do not start a replacement or delete its history.
 
-**Built is not installed.** Physical first-install qualification and the
-browser-only WebUSB writer are still unfinished. Neither a complete compile nor a synthetic
+**Built is not installed.** The experimental browser writer still needs
+physical first-install qualification. Neither a complete compile nor a synthetic
 SDK/container test establishes device compatibility, live USB authority,
 Bluetooth proxy support or safe activation. Monitor 2 stays unverified.
 
@@ -219,9 +219,9 @@ installation readiness, starts a trial or grants another consumed operation.
 
 A lost response or reload reads the same private plan status. An interrupted
 or failed preparation preserves its inputs, log and history without replay.
-The browser-only WebUSB writer adapter is still unfinished; its capture is never
-relabelled as native get-devpath evidence to pass the native planner. Browser
-jobs can still prepare profiles/build programs without that adapter.
+The browser WebUSB writer uses its separate typed plan; its capture is never
+relabelled as native get-devpath evidence to pass the native planner. The
+private profile/build can finish without keeping USB selected.
 
 ## Install with the computer's USB
 
@@ -443,7 +443,7 @@ Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
 branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
 described below. The private boot observer also joins original arming history, the full native
 kernel/file scope and fresh authenticated sensor updates. The private PM next-boot join and post-PM Full UI review/RAM trial are also connected.
-Permanent startup, HA enrollment and the public browser UI remain unfinished. An untouched CGS1 has not
+The finite experimental browser UI now also composes permanent startup and native HA enrollment. An untouched CGS1 has not
 yet been tested; existing working monitors must not be reset to imitate one.
 
 After a private build, a computer USB job has its own **Prepare installation
@@ -576,8 +576,8 @@ next-boot command runs: it inhibits loading for the rest of THIS boot, backs up
 the verified opt-out, clears it and records AFTER-effects. A separate fixed
 read verifies those effects; actual USB close and separate channel ACK precede
 terminal persistence. It never loads the helper now, signals stock or reboots.
-Packet/ACK/close loss preserves uncertainty without replay. Public initiation
-and the later Full UI/enrollment browser stages remain unfinished.
+Packet/ACK/close loss preserves uncertainty without replay. The finite public wizard composes this separate step; physical first-install
+qualification remains outstanding.
 
 
 The private post-PM Full UI adapter now has a separate original-click selection
@@ -594,6 +594,33 @@ closed API, actual USB-close and separate channel ACK before its terminal record
 Ambiguous body, write, launch or cleanup never replays or adopts another lease.
 Keys and plaintext image bodies stay on the private actor/Core side; selected
 browser frames carry encrypted API bytes. Pure fixtures and real host Noise
-prove software composition only. Permanent/enrollment browser adapters and the
-public initiating wizard still need completion; no pristine-device, timer,
+prove software composition only. The finite public wizard now composes permanent/enrollment adapters too; no pristine-device, timer,
 physical screen/touch or firmware support qualification follows from host tests.
+
+
+### Integrated experimental browser walkthrough
+
+The source wizard now offers eight separately consumed computer-WebUSB steps
+inside the single HACS package. Stable0.2.10 predates these new buttons. Fresh
+CGS1 hardware qualification is still outstanding; this is stated beside the
+available experimental controls rather than disabling owner testing.
+
+After private profile/build/payload preparation, open the computer USB wizard:
+1. Stage the disabled recovery bundle
+2. Commit the exact startup hooks while runtime startup remains disabled
+3. Run the original60-second guarded bridge trial and verify stock return
+4. Arm bridge startup; fully power off/on, reconnect USB and check startup
+5. Prepare PM control for the next boot; fully power off/on again
+6. Check screen prerequisites and run the separate60-second Full UI trial;
+   inspect the visible screen, menu and touch during that trial
+7. Confirm both screen/touch and permanent startup in that same monitor boot
+8. Add through HA's standard ESPHome flow after USB-derived address and
+   independent encrypted LAN verification
+
+Every step uses a fresh original-click USB selection and complete backend
+checks. Status only reads history; a lost response never repeats a POST or
+recreates a continuation. Language preserves forms. The wizard never reboots,
+prunes history, fabricates native receipts, scans LAN or overwrites conflicting
+HA entries. Keep USB/power/private recovery files throughout. The final step
+needs actual LAN reachability from HA; lack of it leaves the consumed result
+unverified for manual reconciliation, never an automatic flow retry.

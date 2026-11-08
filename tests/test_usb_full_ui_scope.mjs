@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {BrowserNativeChannel as Raw} from '../custom_components/qingping_esphome/frontend/usb-native-channel.mjs';
 import {BrowserChannelPeer} from '../custom_components/qingping_esphome/frontend/usb-channel-peer.mjs';
 import {openBrowserFullUiControl} from '../custom_components/qingping_esphome/frontend/usb-browser-control.mjs';
-import {validateFullUiContext} from '../custom_components/qingping_esphome/frontend/usb-full-ui-scope.mjs';
+import {validateFullUiContext,fullUiIpv4} from '../custom_components/qingping_esphome/frontend/usb-full-ui-scope.mjs';
 const original='11111111-1111-4111-8111-111111111111',pm='22222222-2222-4222-8222-222222222222',boot='33333333-3333-4333-8333-333333333333';
 const pin={size:55,sha256:'a'.repeat(64)};
 const context={schema_version:1,kind:'browser_full_ui_context',job_id:'b'.repeat(32),plan_sha256:'c'.repeat(64),
@@ -38,6 +38,7 @@ function fixture(Native,current=boot) {
   const command=service.slice('shell:set -e\n'.length).split('\nprintf ')[0],marker=service.match(/__CGS1_CHANNEL_OK_[a-f0-9]+__/)[0];
   let value;
   if(command==="awk 'FNR>1 && $4==\"0A\" && $2 ~ /:17A5$/ {n++} END {print n+0}' /proc/net/tcp /proc/net/tcp6")value=state.listeners;
+  else if(command==='LC_ALL=C /bin/busybox ifconfig wlan0')value='wlan0 inet addr:192.168.1.25  Bcast:192.168.1.255';
   else if(command.startsWith('read-'))value=identity[command.slice(5)];
   else {assert.equal(command,fileCommand);
    state.reads++;value='55 1\n'+(state.changed?'0'.repeat(64):pin.sha256)+'  /data/.esphome-cgs1/program';}
@@ -56,6 +57,9 @@ for(const Native of [Raw,bundle.createNativeChannel().constructor]) {
   assert.equal(scope.data.kind,current===pm?'browser_full_ui_waiting_for_pm_boot':'browser_full_ui_scope');
   assert.equal(f.state.reads,2);await assert.rejects(f.link.probeCommitStream());await assert.rejects(f.link.checkInitialScope());
   if(current===boot) {
+   const network=await dispatch('full-ui-network');assert.equal(network.ok,true);assert.equal(network.data.host,'192.168.1.25');
+   assert.deepEqual(network.data,{kind:'browser_full_ui_network',host:'192.168.1.25',device_writes:0});
+
    f.state.listeners='0';
    const absent=await dispatch('api-open');assert.equal(absent.ok,true);assert.equal(absent.data.socket_open_issued,false);
    assert(!f.calls.includes('tcp:6053'));assert.equal(f.state.closed,0,'Known absent listener cannot retire or issue a socket');
@@ -105,3 +109,7 @@ for(const purpose of ['standard','full-ui']) {
  assert.equal(calls,purpose==='full-ui'?2049:2048);await peer.close();
 }
 console.log('Extended Full UI consumed-ID history crosses 2048; ordinary ceiling remains fixed PASS');
+
+for(const host of ['10.0.0.2','172.16.0.2','192.168.1.25'])assert.equal(fullUiIpv4('wlan0 inet addr:'+host+'  '),host);
+for(const raw of ['eth0 inet 192.168.1.2 ', 'wlan0 inet 127.0.0.1 ', 'wlan0 inet 8.8.8.8 ',
+ 'wlan0 inet 192.168.01.1 ', 'wlan0 inet 192.168.1.2 inet 192.168.1.3 ', 'wlan0 inet 192.168.1.2;reboot '])assert.throws(()=>fullUiIpv4(raw));

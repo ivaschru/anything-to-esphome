@@ -58,6 +58,27 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
+    if names & {'browser-ha-enrollment-intent.json', 'browser-ha-enrollment-proof.json', 'browser-ha-enrollment-result.json'}:
+        from browser_ha_enrollment import BrowserHaEnrollments
+        from browser_plan import BrowserPlans
+        try:
+            prior = BrowserHaEnrollments(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if prior.status(owner, directory.name)['state'] not in ('created', 'already_configured', 'conflict', 'manual_flow_required', 'unverified'):
+                raise ValueError
+            # A lost/no flow outcome is terminal only with a validated RESULT;
+            # an orphan proof or consumed read still fences later USB writers.
+            if 'browser-ha-enrollment-result.json' not in names: raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
+    if names & {'browser-full-ui-activation-intent.json', 'browser-full-ui-activation-complete.json'}:
+        from browser_full_ui_activation import BrowserFullUiActivations
+        from browser_plan import BrowserPlans
+        try:
+            prior = BrowserFullUiActivations(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if prior.status(owner, directory.name)['state'] != 'browser_full_ui_active_observed':
+                raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
     if names & {'browser-full-ui-trial-intent.json', 'browser-full-ui-trial-complete.json'}:
         from browser_full_ui_trial import BrowserFullUiTrials
         from browser_plan import BrowserPlans
