@@ -742,3 +742,5 @@ separate even though the HACS wizard is shared.
   run test_usb_file_observation.mjs plus probe/capture regressions and rebuild
   the offline bundle. This compatibility fix grants no browser writer or
   additional hardware qualification.
+
+- Catalog publishers can run from a clean source archive nested below another Git checkout. Always use `git ls-tree --full-tree` for fixed repository-root endpoint paths; default cwd filtering can silently remove the other profile. The nested publisher regression must pass before any catalog CAS.

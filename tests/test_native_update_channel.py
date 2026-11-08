@@ -59,4 +59,22 @@ class NativePublicationTests(unittest.TestCase):
         new=self.publish(head,binary=binary,manifest=raw,index=index,intent='second.json')
         self.assertEqual(channel.read_object(self.root,new['catalog_head'],'native-lite-434.json'),other)
 
+    def test_source_archive_in_nested_git_directory_preserves_both_endpoints(self):
+        # A clean source archive may live under .build in the shared checkout.
+        # Git ls-tree normally filters to cwd; fixed catalog paths are always
+        # repository-root paths, independent of the publisher's working folder.
+        self.set_native(); first=self.publish(); parent=first['catalog_head']
+        other=b'{"fixture":"unrelated exact hardware endpoint"}\n'
+        files=channel.native_catalog_files(self.root,parent)
+        files.update({'firmware-catalog.json':channel.encoded(self.index),'native-lite-434.json':other})
+        head=channel.commit(self.root,files,parent,'Second endpoint before nested publication')
+        channel.git(self.root,'push','origin',head+':'+channel.BRANCH)
+        meta,binary,raw=fixture.pair(3,'native-three',4)
+        manifest=json.loads(raw);manifest['native_update']={'format':'qingping-native-update-v1','patches':build.patch_table(ROOT,binary)}
+        raw=json.dumps(manifest).encode();index=channel.next_catalog('lite',meta,binary,raw,self.index)
+        nested=self.root/'.build'/'clean-source';nested.mkdir(parents=True)
+        result=channel.publish(nested,'lite',binary,raw,index,head,self.source,nested/'intent.json')
+        self.assertEqual(channel.read_object(nested,result['catalog_head'],'native-lite-434.json'),other)
+        self.assertEqual(json.loads(channel.read_object(nested,result['catalog_head'],'native-lite.json'))['public_version'],3)
+
 if __name__=='__main__':unittest.main()
