@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Bind the private Core guardian continuation to the original RAM task,
+  actor, reservation and retained writer lease. Consume before SDK/browser IO,
+  recheck the exact artifact around one start and after END, and preserve
+  lossless detached records. Lost ACK, drift or actor replacement cannot
+  replay or release the trial. Independent process/Noise/stock observations
+  and terminal completion remain unfinished; no public initiator is enabled.
+
 - Join the guardian transport to the original selected WebUSB channel's own
   completed RAM session. Finite private start/finish frames take no replacement
   packet or command. Recheck fresh source scope before one launch delivery;

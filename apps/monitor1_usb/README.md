@@ -496,9 +496,14 @@ data. It retains detached packet/readback metadata and repeats fresh scope
 checks before one launch delivery. Python verifies the original nonce and
 reported record sequence; unknown delivery never replays a phase.
 
-These reported records remain context: the private Core task/actor handoff,
-independent process/Noise observation and terminal journal verifier are still
-missing. The seventh pinned trial producer
+The private Core continuation now requires that original live RAM task,
+actor, operation reservation and retained lease. It consumes the continuation
+before SDK/browser IO, rechecks the same SDK/plan/commit/guardian around start
+and after END, and returns only an in-memory running object with detached
+reported records. Another task, worker or serialized ID cannot resume it.
+
+These records remain context: independent process/Noise/stock observation and
+the terminal journal verifier are still missing. The seventh pinned trial producer
 prevents older consumed packets from acquiring this new capability.
 
 Actual device image-FD admission and the complete bounded guardian lifecycle

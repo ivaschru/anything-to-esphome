@@ -121,13 +121,14 @@ class PreparedBrowserRam:
     Metadata properties return copies so a later private helper cannot silently
     replace the original pins. No method launches code or releases the lease.
     """
-    __slots__ = ('registry', 'current', 'capability', 'owner', 'nonce', 'channel_id', '_packet', '_proof', '_service', '_actor', '_operation')
+    __slots__ = ('registry', 'current', 'capability', 'owner', 'nonce', 'channel_id', '_packet', '_proof', '_service', '_actor', '_operation', '_guardian_used')
 
     def __init__(self, service, actor, operation, registry, current, cap, owner, nonce, channel_id, prepared, result):
         self.registry, self.current, self.capability = registry, current, cap
         self.owner, self.nonce, self.channel_id = owner, nonce, channel_id
         self._packet, self._proof = copy.deepcopy(prepared), copy.deepcopy(result)
         self._service, self._actor, self._operation = service, actor, operation
+        self._guardian_used = False
 
     @property
     def packet(self):
@@ -146,6 +147,18 @@ class PreparedBrowserRam:
 
     async def close(self):
         await self.capability.close()  # Separate actor terminal proof is still absent.
+
+    def claim_guardian(self):
+        """Consume the continuation in this same live task before any SDK IO.
+
+        This is not another journal/lease or a serializable permission. The
+        original actor already consumed its durable trial intent before RAM;
+        failure here or later cannot renew that attempt or release its fence.
+        """
+        self.live()
+        if self._guardian_used:
+            raise RelayRefusal
+        self._guardian_used = True
 
 
 async def prepare_ram(service, owner, nonce, data):

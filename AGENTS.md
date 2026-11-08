@@ -568,9 +568,14 @@ separate even though the HACS wizard is shared.
   guardian-start/guardian-finish frames with null data. Retain detached actual
   packet/proof inside that instance; never accept a replacement JSON handoff.
   Python keeps its own consumed phase/nonce and lossless reported records.
-  The private Core task/actor coordinator, independent process/stock/Noise
-  observer and terminal journal verifier are still missing; no public initiator
-  or lease release exists. Generate exact forty arguments and guarded text from
+  The private Core coordinator now consumes the original live RAM continuation
+  before SDK/browser IO and rehashes its exact SDK/commit/guardian around start
+  and after END. Keep the same task/reservation/actor/capability throughout;
+  detached JSON, another task or worker cannot continue it. Its running object
+  reports context only. Independent process/stock/Noise observation and terminal
+  journal verification are still missing; no public initiator or lease release
+  exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
+  exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
   sole RAM chmod. Keep all seven trial producers pinned; never adopt an older
   consumed packet. InitialGuardianStream consumes once, seals the complete
