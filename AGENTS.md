@@ -1032,3 +1032,22 @@ separate even though the HACS wizard is shared.
   changed producer/body/restart/actor/export cases, shared preparation/HTTP
   regressions and both HA USB suites. All programs/SDK/device data in these
   fixtures are explicitly synthetic; no RAM write or monitor QA follows.
+
+- BrowserInitialGuardianSink is only an unwired fixed one-file SYNC-v1
+  primitive for /tmp/qingping-initial-guardian-<bound id>/program. The future
+  private coordinator must first own the consumed journal/lease, recheck the
+  original selected capability/deadline, create/verify both private tmpfs jobs
+  and exclusively precreate the new destination. Descriptor JSON is not that
+  proof. Buffer at most 16MiB with ordered <=64KiB chunks; hash the entire file
+  before one pinned adbSyncPushV1 SEND/DATA/DONE, 0600, mtime0. No caller path,
+  Android mkdir workaround, SND2, chmod, exec, overwrite/resume or signal API.
+  Independently verify remote SHA/UID/nlink/root/mode afterward; wire OKAY is
+  not remote verification or image-FD admission. Success keeps the original
+  transport for that later readback/guardian lifecycle. Failure retires its own
+  connection without retry; late opens close without adoption, close callers
+  retain one actual result and no timer extends the original capability. This
+  source primitive adds no NativeChannel/Core frame or public writer yet.
+  Run test_usb_initial_guardian_file.mjs and actual pinned Tango
+  test_usb_initial_guardian_sync_v1.mjs, plus existing stage SYNC/Node tests.
+  The shared daemon fixture records only bytes and never opens a named path
+  or executes a program. Do not rebuild firmware or claim hardware QA from it.

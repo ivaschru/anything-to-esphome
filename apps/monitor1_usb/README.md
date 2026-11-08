@@ -463,3 +463,7 @@ future RAM write. It retains the shared writer lock and uncertain history after
 loss or restart; status cannot resend it. Its terminal verifier and device
 executor are still missing, so it cannot report a successful trial or unlock a
 consumed one. This internal prerequisite adds no installation button.
+The source branch also contains the bounded single-file guardian transfer
+primitive. It is not connected to a selected channel/Core route yet: private
+RAM job creation, independent remote verification and the guardian lifecycle
+still need their own adapter. Its in-memory SYNC tests perform no device IO.

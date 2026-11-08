@@ -80,6 +80,10 @@
   exports. Status is redacted and cannot restart an SDK or adopt a lease.
   Device execution and terminal guardian/API/return verification remain absent;
   no completion, installed state or public browser launch is enabled.
+- Prepare an unwired one-file RAM guardian SYNC-v1 primitive with a fixed bound
+  path, whole-body hash before open, ordered bounded chunks, private mode and
+  no retry. Verify its actual pinned encoder against an in-memory peer. This
+  does not create RAM jobs, verify remote files, launch or expose a writer.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.
