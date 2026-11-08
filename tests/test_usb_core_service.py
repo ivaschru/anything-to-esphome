@@ -130,11 +130,18 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
             headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
         self.assertEqual(response.status,403)
         self.assertIsNone(self.service.process)
-        self.service.call = AsyncMock(return_value=(True,module.INTERNAL_MIME,b"SYNTHETIC_PRIVATE_PAYLOAD"))
-        response = await client.post("/api/qingping_esphome/monitor1/jobs", data=b"null",
-            headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
-        self.assertEqual(response.status,403)
-        self.assertNotIn("SYNTHETIC_PRIVATE_PAYLOAD",await response.text())
+        for mime in module.INTERNAL_MIMES:
+            self.service.call = AsyncMock(return_value=(True,mime,b"SYNTHETIC_PRIVATE_PAYLOAD"))
+            response = await client.post("/api/qingping_esphome/monitor1/jobs", data=b"null",
+                headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
+            self.assertEqual(response.status,403)
+            self.assertNotIn("SYNTHETIC_PRIVATE_PAYLOAD",await response.text())
+        for operation in ('internal-browser-stage-context', 'internal-browser-stage-prepare', 'internal-browser-stage-record'):
+            before = self.service.call.await_count
+            response = await client.post('/api/qingping_esphome/monitor1/' + operation, data=b'not json',
+                headers={'Content-Type':'application/json','X-Qingping-Nonce':'a'*64})
+            self.assertEqual(response.status,403)
+            self.assertEqual(self.service.call.await_count,before)
 
     async def test_native_enrollment_and_lost_ack_status_keep_key_on_private_pipe(self):
         from test_usb_ha_enrollment_core import DATA, entry

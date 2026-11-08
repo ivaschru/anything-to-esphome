@@ -16,6 +16,7 @@ import sys
 from preparation import PreparationError, USER, private_directory, unique_json
 from server import Companion, Refusal
 from ha_enrollment import HaEnrollments, MIME as ENROLLMENT_MIME
+from browser_stage import MIME as BROWSER_STAGE_MIME
 
 MAX_REQUEST = 24 * 1024**2
 MAX_RESPONSE = 64 * 1024**2
@@ -54,9 +55,9 @@ class Actor:
                 self.usb_ready()
             value = {"devices": self.companion.discover(user, nonce)} if operation == "devices" else self.companion.jobs(user, nonce)
             return value, "application/json"
-        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|browser-plan|install-review|install|full-trial|full-activate|pm-enable))?", operation)
+        match = re.fullmatch(r"jobs/([a-f0-9]{32})(?:/(build|plan|browser-plan|browser-stage|install-review|install|full-trial|full-activate|pm-enable))?", operation)
         if match and data is None:
-            method = {None: "status", "build": "build_status", "plan": "plan_status", "browser-plan": "browser_plan_status",
+            method = {None: "status", "build": "build_status", "plan": "plan_status", "browser-plan": "browser_plan_status", "browser-stage": "browser_stage_status",
                       "install-review": "install_review", "install": "install_status", "full-trial": "full_trial_status",
                       "full-activate": "full_activation_status", "pm-enable": "pm_status"}[match[2]]
             return getattr(self.companion, method)(user, nonce, match[1]), "application/json"
@@ -74,6 +75,15 @@ class Actor:
             # HTTP rejects internal-* before body IO. The parent receives only
             # the checked target/digest; this offline read never opens USB.
             return self.companion.browser_plans.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation.startswith("internal-browser-stage-"):
+            stages = self.companion.browser_stages
+            if operation == "internal-browser-stage-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+                return stages.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+            if operation == "internal-browser-stage-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
+                return stages.prepare(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), BROWSER_STAGE_MIME
+            if operation == "internal-browser-stage-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return stages.record(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation.startswith("internal-enrollment-"):
             enrollments = HaEnrollments(self.companion.installations)
             if operation == "internal-enrollment-prepare" and set(data) == {"job_id", "expected_plan_sha256", "reviewed"}:
@@ -172,11 +182,14 @@ def main():
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     from core_tools import CoreTools
     tools = CoreTools(root)
+    companion = None
     try:
         companion = Companion(usb=tools.usb(), job_root=private_directory(root / "jobs"))
         serve(Actor(companion, setup=tools.prepare, usb_ready=tools.start_usb,
                     tools_ready=tools.admitted, prepared=tools.bind_job), sys.stdin.buffer, sys.stdout.buffer)
     finally:
+        if companion is not None:
+            companion.browser_stages.close()
         tools.close()
         os.close(lock)
 

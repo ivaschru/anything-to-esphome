@@ -1,3 +1,4 @@
+import {sourceFileObservationMatches} from "./usb-file-observation.mjs";
 /** One live WebUSB capability for the future server-mediated writer.
  *
  * This is transport plumbing, not an installation button or native ADB
@@ -124,7 +125,7 @@ export class BrowserNativeChannel {
       const before=await this.#identity();
       if(JSON.stringify(before)!==JSON.stringify(this.#scope)) error('usb_selection_changed');
       for(const file of this.#contract.files)
-        if(await this.#read(file.command)!==file.expected) error('usb_stock_unverified');
+        if(!sourceFileObservationMatches(await this.#read(file.command),file)) error('usb_stock_unverified');
       if(await this.#read(this.#contract.absent_install)!=='') error('usb_existing_installation');
       const after=await this.#identity();
       if(JSON.stringify(after)!==JSON.stringify(before)) error('usb_selection_changed');

@@ -27,6 +27,7 @@ jobs:
       - run: node tests/test_usb_probe.mjs
       - run: node tests/test_usb_native_channel.mjs
       - run: node tests/test_usb_channel_peer.mjs
+      - run: node tests/test_usb_file_observation.mjs
       - run: node tests/test_usb_stage_session.mjs
       - run: node tests/test_usb_stage_files.mjs
       - run: node tests/test_usb_browser_plan.mjs

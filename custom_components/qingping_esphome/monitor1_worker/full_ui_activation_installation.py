@@ -116,6 +116,8 @@ class FullUiActivations:
                 private_directory(other)
                 names = os.listdir(other)
                 actor = unique_json(read_private(other / "intent.json"))["owner"]
+                from browser_stage import fence_browser_stage
+                fence_browser_stage(self.installations, other, actor)
                 self.fence(other, actor)
                 from pm_extension_installation import PmExtensions
                 PmExtensions(self.installations).fence(other, actor)

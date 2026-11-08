@@ -28,6 +28,7 @@ from preparation import PreparationError, MAX_ARCHIVE, prepare_job, job_status, 
 from build_worker import Builds
 from install_plan import Plans
 from browser_plan import BrowserPlans
+from browser_stage import BrowserStages
 from installation import Installations
 from full_ui_installation import FullUiTrials
 from full_ui_activation_installation import FullUiActivations
@@ -207,6 +208,7 @@ class Companion:
         self.builds = Builds(job_root, CONTRACT)
         self.plans = Plans(self.builds)
         self.browser_plans = BrowserPlans(self.builds)
+        self.browser_stages = BrowserStages(self.browser_plans)
         self.installations = Installations(self.plans)
         self.full_trials = FullUiTrials(self.installations)
         self.full_activations = FullUiActivations(self.installations)
@@ -347,6 +349,10 @@ class Companion:
     def browser_plan_status(self, user, nonce, job_id):
         self.session(user, nonce)
         return self.browser_plans.status(user, job_id)
+
+    def browser_stage_status(self, user, nonce, job_id):
+        self.session(user, nonce)
+        return self.browser_stages.status(user, job_id)
 
     def install_review(self, user, nonce, job_id):
         self.session(user, nonce)
@@ -576,7 +582,10 @@ def main():
     server = Server(("0.0.0.0", 8099), Handler)
     server.daemon_threads = True
     server.companion = Companion()
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.companion.browser_stages.close()
 
 
 if __name__ == "__main__":

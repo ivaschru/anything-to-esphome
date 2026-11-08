@@ -39,11 +39,11 @@ function fixture(options={}) {
     if(plain===commands.setMode(role)) {assert(files.has(remote));files.get(remote).mode=['bridge-program','launch.sh','SnowApp-with-PM'].includes(role)?'700':'600';calls.push('chmod:'+role);return '';}
     if(plain===commands.inspect(role)) {
      const file=files.get(remote);assert(file);
-     return `${file.body.length} 1 0 ${file.mode}\n${options.badRemoteHash?'e'.repeat(64):sha(file.body)} ${remote}`;
+     return `${file.body.length} 1 0 ${file.mode}\n${options.badRemoteHash?'e'.repeat(64):sha(file.body)}${options.doubleSpace?'  ':' '}${remote}`;
     }
    }
    if(plain===commands.complete) {assert(!complete);assert.equal(files.size,9);complete=true;calls.push('complete');return '';}
-   if(plain===commands.inspectComplete) {assert(complete);return sha(commands.afterBytes)+' /data/.esphome-cgs1-stage/complete';}
+   if(plain===commands.inspectComplete) {assert(complete);return sha(commands.afterBytes)+(options.doubleSpace?'  ':' ')+'/data/.esphome-cgs1-stage/complete';}
    assert.fail('Unknown command in fixed stage sequence');
   },openSync:async()=>{guard();opens++;return {close:async()=>{calls.push('sync-close');}};},
   pushV1:async({filename,file})=>{
@@ -100,3 +100,8 @@ for(const options of [{badInventory:true},{badClose:true}]) {
 for(const change of [{plan_id:"'; arbitrary"},{plan_sha256:'bad'},{intent_sha256:['c'.repeat(64)]}])
  assert.throws(()=>stageCommands({plan_id:'a'.repeat(32),plan_sha256:'b'.repeat(64),intent_sha256:'c'.repeat(64),...change},'22222222-2222-2222-2222-222222222222'));
 console.log('Fixed disabled stage session: root/opt-outs before SYNC, remote hash/mode, AFTER-effects, actual close gate and no replay passed');
+
+{
+ const f=fixture({doubleSpace:true});await f.session.prepare();await transfer(f);
+ assert.equal((await f.session.finish()).transport_closed,true);assert.equal(f.closed,1);
+}

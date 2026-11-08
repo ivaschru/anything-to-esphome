@@ -5,7 +5,7 @@ import {BrowserUsbProbe} from "../custom_components/qingping_esphome/frontend/us
 import {contract as real} from "../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs";
 import {captureArchive} from "../custom_components/qingping_esphome/frontend/usb-capture.mjs";
 
-function fixture() {
+function fixture(separator=" ") {
   const contents=new Map(real.files.map((file,i)=>[file.path,new TextEncoder().encode(`synthetic-${i}`)]));
   const contract={...real,files:real.files.map(file=>{
     const data=contents.get(file.path), sha256=createHash("sha256").update(data).digest("hex");
@@ -14,7 +14,7 @@ function fixture() {
   const identity={uid:"0",wlan_mac:"02:00:00:00:00:01",arch:"armv7l",version:"CLEARGRASS_VERSION=4.1.8_0287",
     co2_type:"3",boot_id:"01234567-1234-4234-8234-123456789abc"};
   const replies=new Map(contract.identity.map(step=>[step.command,identity[step.name]]));
-  for(const file of contract.files) replies.set(file.command,file.expected);
+  for(const file of contract.files) replies.set(file.command,file.expected.replace(file.sha256+" "+file.path,file.sha256+separator+file.path));
   replies.set(contract.absent_install,"");
   const state={picked:0,closed:0,disposed:0,pulled:[],corrupt:false,extra:false,change:false};
   const client={
@@ -77,3 +77,8 @@ for(const flag of ["corrupt","extra","change"]) {
   assert.throws(()=>captureArchive(bad,contents,{}));
 }
 console.log("USB capture: fixed RECV, copy hashes, fresh scope, private USTAR and no partial archive passed");
+
+{
+ const f=fixture("  ");const result=await f.probe.capture();
+ assert.equal(result.archive.type,"application/x-tar");assert.equal(f.state.pulled.length,9);assert.equal(f.state.closed,1);
+}

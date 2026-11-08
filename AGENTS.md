@@ -94,15 +94,22 @@ separate even though the HACS wizard is shared.
   test_usb_stage_sync_v1.mjs in usb-companion CI. Synthetic wire/ACKs do not
   qualify the monitor filesystem, create an install route or authorize a
   vendor commit, trial, launch or boot change.
-  browser_stage.py is likewise an unwired private journal/packet engine, not
-  an actor/HTTP route. It consumes an owner/plan/channel intent before returning
+  browser_stage.py is a private journal/packet engine, not an HTTP writer.
+  Its internal actor handoff consumes an owner/plan/channel intent before returning
   the nine private bodies once, rehashes the same no-follow private FD, and
   records only exact remote file/source/opt-out/AFTER-effects plus closed-
   transport proof. An issued/lost packet is write-unverified, never zero-write
-  or replay authority. Before connecting it, implement the shared kernel lease,
-  cross-native/browser durable fences, private MIME isolation, actual disabled-
-  root writer/readback and independent close. No JSON scope alone grants those
-  prerequisites. The fixed stage-admission peer read returns only fresh factory
+  or replay authority. Hold the shared native-install kernel flock from packet
+  preparation until exact terminal proof and acknowledged transport closure.
+  Native initial/PM/full-trial/permanent writers fence uncertain browser history
+  under that same lock; a crash-released FD is no retry permission. Orphan or
+  malformed completion is not empty history. Computer exports refuse consumed
+  browser jobs. Internal stage context/packet/record operations never start ADB
+  and stay on the private actor pipe; HTTP rejects them before body reads and
+  never forwards their credential-bearing MIME. Actor shutdown closes only its
+  own host FD, preserving all history. The actual channel/frame coordinator is
+  still unwired: JSON scope alone cannot grant device authority.
+  The fixed stage-admission peer read returns only fresh factory
   evidence and measured ext4 free blocks; no allocation or root is created.
   Run test_usb_browser_stage.py and the registry/NativeChannel/peer admission
   tests. These fixtures are not device readback or an enabled browser installer.
@@ -120,6 +127,11 @@ separate even though the HACS wizard is shared.
   Run test_usb_stage_session.mjs and the explicit Linux/root rewritten-only
   test_monitor1_browser_stage_root.py fixture; never execute its production
   commands locally. Root fixture QA does not qualify an untouched monitor.
+  Fixed source/remote digest observations accept the exact one- or two-space
+  text delimiter from sha256sum, with the full expected digest/path and stat
+  lines unchanged. Do not trim arbitrary fields or reject ordinary BusyBox/GNU
+  output. Run test_usb_file_observation.mjs and the two-space probe/capture/
+  channel/session regressions; rebuild the offline bundle after shared edits.
   The GUI may now use a fresh original-click channel for browser-review:
   the private actor rehashes its owned detached plan, then Core requests only
   the peer's fixed scope-check and compares exact original channel/target/boot

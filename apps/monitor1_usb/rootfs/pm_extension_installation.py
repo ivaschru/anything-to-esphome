@@ -101,6 +101,8 @@ class PmExtensions:
                 private_directory(other)
                 names = os.listdir(other)
                 prior_owner = unique_json(read_private(other / 'intent.json'))['owner']
+                from browser_stage import fence_browser_stage
+                fence_browser_stage(self.installations, other, prior_owner)
                 self.fence(other, prior_owner)
                 FullUiActivations(self.installations).fence(other, prior_owner)
                 if 'install-intent.json' in names and self.installations.status(prior_owner, other.name)['state'] not in ('armed_waiting_reboot', 'bridge_observed'):

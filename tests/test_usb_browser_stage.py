@@ -1,5 +1,7 @@
 """Private one-use staging journal/packet with synthetic payloads, no device."""
 import base64
+import fcntl
+import os
 import hashlib
 import json
 from pathlib import Path
@@ -22,6 +24,7 @@ class StageTests(unittest.TestCase):
         self.plan = self.fixture.prepare()
         self.directory, self.owner, self.id = self.fixture.directory, self.fixture.owner, self.fixture.id
         self.manager = stage.BrowserStages(self.fixture.manager)
+        self.addCleanup(self.manager.close)
         self.raw_plan = json.loads((self.directory / 'browser-plan/plan.json').read_bytes())
         self.scope = {'channel_id': 'e' * 32, 'channel_nonce': '22222222-2222-2222-2222-222222222222',
             'target': self.raw_plan['target'], 'filesystem': {'magic': 'ef53', 'available_blocks': 10000, 'block_bytes': 4096}}
@@ -121,11 +124,110 @@ class StageTests(unittest.TestCase):
             self.prepare()
         self.assertFalse((self.directory / stage.INTENT).exists())
 
+    def test_actual_writer_flock_is_held_until_positive_terminal_close_proof(self):
+        packet = json.loads(self.prepare())
+        path = self.directory.parent.parent / 'native-install.lock'
+        fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW)
+        try:
+            with self.assertRaises(BlockingIOError):
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            restarted = stage.BrowserStages(self.fixture.manager)
+            with self.assertRaisesRegex(Exception, 'usb_busy'):
+                restarted._hold_lease(self.id)
+            self.assertIsNone(restarted.lease_fd)
+            self.manager.record(self.owner, self.id, packet['descriptor']['intent_sha256'], self.proof(packet))
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertIsNone(self.manager.lease_fd)
+            self.manager.fence_all()  # Exact terminal proof permits another job, never this replay.
+        finally:
+            os.close(fd)
+
+    def test_crash_released_kernel_lock_never_erases_durable_unknown_history(self):
+        self.prepare()
+        self.manager.close()  # Simulate owner-process exit, no device signal.
+        restarted = stage.BrowserStages(self.fixture.manager)
+        with self.assertRaisesRegex(Exception, 'usb_browser_stage_previous_unverified'):
+            restarted.fence_all()
+        native = SimpleNamespace(plans=SimpleNamespace(builds=self.fixture.manager.builds))
+        with self.assertRaisesRegex(Exception, 'usb_browser_stage_previous_unverified'):
+            stage.fence_browser_stage(native, self.directory, self.owner)
+
+    def test_orphan_completion_is_not_an_empty_history(self):
+        stage.write_new(self.directory / stage.COMPLETE, b'{}')
+        with self.assertRaises(Exception):
+            self.manager.status(self.owner, self.id)
+        native = SimpleNamespace(plans=SimpleNamespace(builds=self.fixture.manager.builds))
+        with self.assertRaisesRegex(Exception, 'usb_browser_stage_previous_unverified'):
+            stage.fence_browser_stage(native, self.directory, self.owner)
+
+    def test_computer_export_cannot_create_a_second_controller_after_browser_intent(self):
+        self.prepare()
+        with patch.object(sys, 'path', [str(plans.HERE), *sys.path]):
+            import computer_package
+        with self.assertRaisesRegex(Exception, 'usb_computer_after_install'):
+            computer_package.package_export(self.fixture.manager.builds, self.owner, self.id)
+
+    def test_private_actor_packet_context_status_and_record_never_start_native_adb(self):
+        from unittest.mock import Mock
+        app = plans.core_actor.Companion(self.fixture.fixture.fixture.fixture.capture.usb, self.directory.parent)
+        app.browser_stages = self.manager
+        nonce = app.page(self.owner)
+        usb = Mock()
+        actor = plans.core_actor.Actor(app, usb_ready=usb)
+        def request(op, data=None):
+            return {'user': self.owner, 'nonce': nonce, 'operation': op, 'data': data}
+        context, mime = actor.dispatch(request('internal-browser-stage-context',
+            {'job_id': self.id, 'expected_plan_sha256': self.plan['plan_sha256']}))
+        self.assertEqual(mime, 'application/json')
+        self.assertEqual(context['stage_state'], 'not_started')
+        body, mime = actor.dispatch(request('internal-browser-stage-prepare', {'job_id': self.id,
+            'expected_plan_sha256': self.plan['plan_sha256'], 'scope': self.scope, 'experimental_reviewed': True}))
+        self.assertEqual(mime, stage.MIME)
+        self.assertIsInstance(body, bytes)
+        packet = json.loads(body)
+        result, mime = actor.dispatch(request('jobs/' + self.id + '/browser-stage'))
+        self.assertEqual(result['state'], 'browser_stage_unverified')
+        self.assertEqual(mime, 'application/json')
+        key = json.loads(self.before)['api_encryption_key']
+        self.assertNotIn(key, json.dumps(result))
+        result, mime = actor.dispatch(request('internal-browser-stage-record', {'job_id': self.id,
+            'intent_sha256': packet['descriptor']['intent_sha256'], 'proof': self.proof(packet)}))
+        self.assertEqual(result['state'], 'staged_disabled_verified')
+        self.assertIsNone(self.manager.lease_fd)
+        usb.assert_not_called()
+
     def test_private_host_space_floor_precedes_consumption(self):
         with patch.object(stage.shutil, 'disk_usage', return_value=SimpleNamespace(free=stage.STOP_FREE - 1)):
             with self.assertRaisesRegex(Exception, 'usb_install_host_space'):
                 self.prepare()
         self.assertFalse((self.directory / stage.INTENT).exists())
+
+
+class NativeFenceDispatchTests(unittest.TestCase):
+    def test_every_native_writer_reads_browser_fence_before_own_intent_or_child(self):
+        import test_usb_install as install
+        import test_usb_full_ui_installation as trial
+        import test_usb_full_ui_activation_installation as activation
+        import test_usb_pm_extension_installation as pm
+        from unittest.mock import Mock
+        cases = ((install.InstallTests, 'install-intent.json'),
+                 (trial.TrialAuthorityTests, trial.trials.INTENT),
+                 (activation.AuthorityTests, activation.permanent.INTENT),
+                 (pm.AuthorityTests, pm.pm.INTENT))
+        for factory, marker in cases:
+            with self.subTest(writer=factory.__name__):
+                fixture = factory(methodName='runTest')
+                fixture.setUp()
+                try:
+                    runner = Mock()
+                    with patch.object(stage, 'fence_browser_stage', side_effect=stage.PreparationError('usb_browser_stage_previous_unverified')) as fence:
+                        with self.assertRaisesRegex(Exception, 'usb_browser_stage_previous_unverified'):
+                            fixture.start(runner)
+                        fence.assert_called_once()
+                    runner.assert_not_called()
+                    self.assertFalse((fixture.directory / marker).exists())
+                finally:
+                    fixture.doCleanups()
 
 
 if __name__ == '__main__':

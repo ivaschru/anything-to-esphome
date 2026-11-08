@@ -7,6 +7,7 @@ owned plan/channel intent before returning credential-bearing file bytes once;
 lost pipe replies permit status only. The native schema/USB loader is untouched.
 """
 import base64
+import fcntl
 import hashlib
 import json
 import os
@@ -14,7 +15,7 @@ import re
 import shutil
 import stat
 
-from preparation import PreparationError, owned_intent, read_private, unique_json, write_new
+from preparation import PreparationError, owned_intent, private_directory, read_private, unique_json, write_new
 from build_worker import STOP_FREE, build_report, private_hash, sync_directory
 from browser_plan import checked_intent, verify
 
@@ -49,9 +50,76 @@ def private_bytes(path, pin):
         return body
 
 
+def fence_browser_stage(installations, directory, owner):
+    """Cross-writer read fence, including a crash-released browser lease.
+
+    An orphan completion or malformed/changed journal is not absence. Reads
+    remain available, but no native/browser writer may renew unknown effects.
+    """
+    names = set(os.listdir(directory))
+    if not names & {INTENT, COMPLETE}:
+        return
+    from browser_plan import BrowserPlans
+    try:
+        if INTENT not in names or BrowserStages(BrowserPlans(installations.plans.builds)).status(owner, directory.name)['state'] != 'staged_disabled_verified':
+            raise ValueError
+    except Exception:
+        raise PreparationError('usb_browser_stage_previous_unverified') from None
+
+
 class BrowserStages:
     def __init__(self, plans):
         self.plans, self.parent = plans, plans.parent
+        self.lease_fd, self.lease_job = None, None
+
+    def close(self):
+        """Release only our host FD. Durable unknown history remains a fence.
+
+        Actor shutdown calls this after its bounded operation, never by PID or
+        to kill/adopt a device writer. A released flock alone grants no retry.
+        """
+        fd = self.lease_fd
+        self.lease_fd, self.lease_job = None, None
+        if fd is not None:
+            os.close(fd)
+
+    def _hold_lease(self, job_id):
+        if self.lease_fd is not None:
+            raise PreparationError('usb_busy')
+        fd = os.open(self.parent.parent / 'native-install.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1 or
+                    stat.S_IMODE(info.st_mode) != 0o600):
+                invalid()
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise PreparationError('usb_busy') from None
+        except BaseException:
+            os.close(fd)
+            raise
+        self.lease_fd, self.lease_job = fd, job_id
+
+    def fence_all(self):
+        """Check every existing native/browser writer, without restarting one."""
+        from install_plan import Plans
+        from installation import Installations
+        from full_ui_installation import FullUiTrials
+        from full_ui_activation_installation import FullUiActivations
+        from pm_extension_installation import PmExtensions
+        native = Installations(Plans(self.plans.builds))
+        for directory in private_directory(self.parent).iterdir():
+            private_directory(directory)
+            names = set(os.listdir(directory))
+            prior_owner = unique_json(read_private(directory / 'intent.json'))['owner']
+            fence_browser_stage(native, directory, prior_owner)
+            FullUiActivations(native).fence(directory, prior_owner)
+            PmExtensions(native).fence(directory, prior_owner)
+            if 'install-intent.json' in names and native.status(prior_owner, directory.name)['state'] not in ('armed_waiting_reboot', 'bridge_observed'):
+                raise PreparationError('usb_install_previous_unverified')
+            if 'full-ui-trial-intent.json' in names and FullUiTrials(native).status(prior_owner, directory.name)['state'] != 'full_ui_trial_returned_observed':
+                raise PreparationError('usb_full_ui_trial_previous_unverified')
 
     def _plan(self, owner, job_id, expected_sha):
         context = self.plans.context(owner, job_id, expected_sha)
@@ -62,6 +130,12 @@ class BrowserStages:
                 private_hash(directory / 'browser-plan/plan.json')['sha256'] != expected_sha):
             invalid()
         return directory, plan
+
+    def context(self, owner, job_id, expected_sha):
+        directory, plan = self._plan(owner, job_id, expected_sha)
+        return {'schema_version': 1, 'job_id': job_id, 'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
+                'source_commit': plan['basis']['source_commit'], 'target': plan['target'],
+                'requested_data_free_bytes': plan['requested_data_free_bytes'], 'stage_state': self.status(owner, job_id)['state']}
 
     def _intent(self, owner, job_id):
         directory, original, _ = owned_intent(self.parent, job_id, owner)
@@ -85,9 +159,10 @@ class BrowserStages:
     def prepare(self, owner, job_id, expected_sha, scope, reviewed):
         """Consume once, then return a private packet to Core's pipe only.
 
-        The caller must hold the native-install kernel lock, check every old
-        writer's durable fence, and retain the exact live channel. No browser
-        or HTTP-supplied target/space assertion is valid at that boundary.
+        This engine holds the shared native-install kernel lock and checks
+        every old writer's durable fence. The private caller must retain and
+        observe the exact live channel; HTTP-supplied target/space assertions
+        do not establish those observations.
         Returning this packet never means the device was changed or verified.
         """
         if reviewed is not True:
@@ -114,27 +189,35 @@ class BrowserStages:
             invalid()
         if shutil.disk_usage(self.parent).free < STOP_FREE:
             raise PreparationError('usb_install_host_space')
-        value = {'schema_version': 1, 'owner': owner, 'job_id': job_id, 'plan_sha256': expected_sha,
-                 'channel_id': scope['channel_id'], 'channel_nonce': scope['channel_nonce'], 'target': plan['target'],
-                 'data_free_bytes': fs['available_blocks'] * fs['block_bytes'],
-                 'experimental_reviewed': True, 'consumed_before_package': True}
-        raw = _json(value)
-        write_new(directory / INTENT, raw)
-        sync_directory(directory)  # Before reading/returning any writer packet.
-        intent_sha = hashlib.sha256(raw).hexdigest()
-        files = {role: plan['files'][role] for role in ROLES}
-        payloads = {}
-        for role, pin in files.items():
-            path = directory / 'browser-plan' / role
-            payloads[role] = base64.b64encode(private_bytes(path, pin)).decode()
-        packet = {'schema_version': 1, 'job_id': job_id, 'target': plan['target'],
-                  'requested_data_free_bytes': plan['requested_data_free_bytes'],
-                  'descriptor': {'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
-                                 'intent_sha256': intent_sha, 'files': files}, 'payloads': payloads}
-        body = _json(packet)
-        if len(body) > 48 * 1024**2:
-            invalid()
-        return body  # Opaque internal MIME only; never ordinary browser status.
+        self._hold_lease(job_id)
+        try:
+            self.fence_all()
+            value = {'schema_version': 1, 'owner': owner, 'job_id': job_id, 'plan_sha256': expected_sha,
+                     'channel_id': scope['channel_id'], 'channel_nonce': scope['channel_nonce'], 'target': plan['target'],
+                     'data_free_bytes': fs['available_blocks'] * fs['block_bytes'],
+                     'experimental_reviewed': True, 'consumed_before_package': True}
+            raw = _json(value)
+            write_new(directory / INTENT, raw)
+            sync_directory(directory)  # Before reading/returning any writer packet.
+            intent_sha = hashlib.sha256(raw).hexdigest()
+            files = {role: plan['files'][role] for role in ROLES}
+            payloads = {}
+            for role, pin in files.items():
+                path = directory / 'browser-plan' / role
+                payloads[role] = base64.b64encode(private_bytes(path, pin)).decode()
+            packet = {'schema_version': 1, 'job_id': job_id, 'target': plan['target'],
+                      'requested_data_free_bytes': plan['requested_data_free_bytes'],
+                      'descriptor': {'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
+                                     'intent_sha256': intent_sha, 'files': files}, 'payloads': payloads}
+            body = _json(packet)
+            if len(body) > 48 * 1024**2:
+                invalid()
+            return body  # Opaque internal MIME only; never ordinary browser status.
+
+        except BaseException:
+            if INTENT not in os.listdir(directory):
+                self.close()
+            raise
 
     def _expected_proof(self, directory, plan, intent, intent_sha):
         marker = (plan['plan_id'] + ' ' + intent['plan_sha256'] + ' ' + intent_sha + '\n').encode()
@@ -157,10 +240,16 @@ class BrowserStages:
         if not isinstance(intent_sha, str) or intent_sha != expected_sha or not self._proof_matches(directory, plan, intent, expected_sha, proof):
             invalid()
         if COMPLETE in os.listdir(directory):
-            return self.status(owner, job_id)  # History only; never new effects.
+            result = self.status(owner, job_id)  # History only; never new effects.
+            if self.lease_job == job_id:
+                self.close()
+            return result
         write_new(directory / COMPLETE, _json({'intent_sha256': expected_sha, 'proof': proof}))
         sync_directory(directory)
-        return self.status(owner, job_id)
+        result = self.status(owner, job_id)
+        if self.lease_job == job_id:
+            self.close()
+        return result
 
     def _proof_matches(self, directory, plan, intent, digest, proof):
         expected = self._expected_proof(directory, plan, intent, digest)
@@ -173,7 +262,10 @@ class BrowserStages:
     def status(self, owner, job_id):
         directory, _, _ = owned_intent(self.parent, job_id, owner)
         state = 'not_started'
-        if INTENT in os.listdir(directory):
+        names = set(os.listdir(directory))
+        if COMPLETE in names and INTENT not in names:
+            invalid()
+        if INTENT in names:
             directory, plan, intent, digest = self._intent(owner, job_id)
             state = 'browser_stage_unverified'
             if COMPLETE in os.listdir(directory):

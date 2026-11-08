@@ -80,14 +80,14 @@ console.log(JSON.stringify({create:c.create,guard:c.guard,complete:c.complete,in
             path.write_bytes(body)  # Emulate an upload to this test-only file.
             self.success(self.commands['setMode'][role])
             output = self.success(self.commands['inspect'][role])
-            self.assertIn(hashlib.sha256(body).hexdigest() + ' ' + str(path), output)
+            self.assertEqual(output.splitlines()[-1].split(), [hashlib.sha256(body).hexdigest(), str(path)])
         self.success(self.commands['complete'])
         self.assertEqual(set(os.listdir(self.base)), {'install.intent', 'disabled', 'pm-helper.disabled',
                                                     *(leaf for _, leaf in self.commands['roles'])})
         self.assertEqual(set(os.listdir(self.side)), {'intent', 'complete'})
         expected = ('a' * 32 + ' ' + 'b' * 64 + ' ' + 'c' * 64 + '\n').encode()
         self.assertEqual((self.side / 'complete').read_bytes(), expected)
-        self.assertEqual(self.success(self.commands['inspectComplete']), hashlib.sha256(expected).hexdigest() + ' ' + str(self.side / 'complete'))
+        self.assertEqual(self.success(self.commands['inspectComplete']).split(), [hashlib.sha256(expected).hexdigest(), str(self.side / 'complete')])
         self.assertNotEqual(self.run_shell(self.commands['complete']).returncode, 0)
         self.assertEqual(self.vendor.read_bytes(), b'synthetic vendor original, never executed\n')
 

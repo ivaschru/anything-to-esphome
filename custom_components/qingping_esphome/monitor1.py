@@ -24,7 +24,9 @@ DOMAIN = "qingping_esphome"
 MAX_INPUT = 24 * 1024**2
 MAX_OUTPUT = 64 * 1024**2
 INTERNAL_MIME = "application/vnd.qingping.internal-ha-enrollment+json"
-MIMES = {INTERNAL_MIME,"application/json", "application/x-tar",
+BROWSER_STAGE_MIME = "application/vnd.qingping.internal-browser-stage+json"
+INTERNAL_MIMES = {INTERNAL_MIME, BROWSER_STAGE_MIME}
+MIMES = {*INTERNAL_MIMES,"application/json", "application/x-tar",
          "application/vnd.qingping.private-profile+json",
          "application/vnd.qingping.private-computer-bundle+tar"}
 
@@ -285,8 +287,8 @@ class Monitor1View(HomeAssistantView):
                 elif not isinstance(nonce, str) or not re.fullmatch(r"[a-f0-9]{64}", nonce):
                     raise CoreRefusal("usb_unauthorized")
                 ok, mime, body = await service.call(user.id, nonce, operation, data)
-            if mime == INTERNAL_MIME:
-                raise CoreRefusal("usb_enrollment_unverified")
+            if mime in INTERNAL_MIMES:
+                raise CoreRefusal("usb_request_invalid")
             if mime != "application/json":
                 filename = {"application/x-tar": "qingping-cgs1-capture.tar",
                     "application/vnd.qingping.private-profile+json": "qingping-cgs1-private-profile.json",

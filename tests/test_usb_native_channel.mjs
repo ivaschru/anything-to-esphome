@@ -3,7 +3,7 @@ import {BrowserNativeChannel} from '../custom_components/qingping_esphome/fronte
 const boot='22222222-2222-2222-2222-222222222222';
 const identity={uid:'0',arch:'armv7l',version:'CLEARGRASS_VERSION=4.1.8_0287',co2_type:'3',boot_id:boot,wlan_mac:'02:00:00:00:00:01'};
 const contract={identity:Object.keys(identity).map(name=>({name,command:'read-'+name})),
- files:[{command:'read-fixed-original-pin',expected:'matching-pin'}],absent_install:'check-fixed-absent-install'};
+ files:[{path:'/data/synthetic-file',size:3,sha256:'a'.repeat(64),command:'read-fixed-original-pin',expected:'3 1\n'+'a'.repeat(64)+' /data/synthetic-file'}],absent_install:'check-fixed-absent-install'};
 function fixture() {
  const calls=[],state={boot,closed:0,apiClosed:0,filesystem:'ef53 10000 4096',changedPin:false,failApi:false};
  const api={close:async()=>{state.apiClosed++;},readable:new ReadableStream(),writable:new WritableStream()};
@@ -17,7 +17,7 @@ function fixture() {
   if(command==="stat -f -c '%t %a %S' /data") body=state.filesystem;
   else if(command.startsWith('read-') && command!=='read-fixed-original-pin') {
    const name=command.slice(5);assert(name in identity);body=name==='boot_id'?state.boot:identity[name];
-  } else if(command==='read-fixed-original-pin')body=state.changedPin?'foreign-pin':'matching-pin';
+  } else if(command==='read-fixed-original-pin')body=state.changedPin?'foreign-pin':contract.files[0].expected;
   else {assert.equal(command,'check-fixed-absent-install');body='';}
   return {readable:new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode(body+'\n'+marker+'\n'));controller.close();}}),close:async()=>{}};
  }};
@@ -80,4 +80,12 @@ for(const filesystem of ['tmpfs 10000 4096','ef53 bad 4096','ef53 10000 1','ef53
  assert.equal(acknowledged,false);assert.equal(f.state.closed,1);
  f.state.releaseClose();await first;await second;
  assert.equal(acknowledged,true);await f.link.close();assert.equal(f.state.closed,1);
+}
+
+{
+ const f=fixture();
+ // Preserve all physical pin values; only the standard text-mode separator differs.
+ contract.files[0].expected='3 1\n'+'a'.repeat(64)+'  /data/synthetic-file';
+ try {await f.link.select();await f.link.checkInitialScope();}finally {await f.link.close();}
+ contract.files[0].expected='3 1\n'+'a'.repeat(64)+' /data/synthetic-file';
 }

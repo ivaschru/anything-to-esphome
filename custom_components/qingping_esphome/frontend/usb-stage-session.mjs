@@ -7,6 +7,7 @@
  */
 import {BrowserStageFileSink,STAGE_ROLES} from './usb-stage-files.mjs';
 import {contract} from './usb-probe-contract.mjs';
+import {digestLineMatches} from './usb-file-observation.mjs';
 const base='/data/.esphome-cgs1',sidecar='/data/.esphome-cgs1-stage',hash=/^[a-f0-9]{64}$/,uuid=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const fail=()=>{throw {code:'usb_browser_stage_unverified'};};
 const executable=new Set(['bridge-program','launch.sh','SnowApp-with-PM']);
@@ -125,8 +126,8 @@ export class BrowserStageSession {
   }
   async #inspect(role,mode) {
     const pin=this.#packet.descriptor.files[role],leaf=STAGE_ROLES.find(([name])=>name===role)[1];
-    const expected=`${pin.size} 1 0 ${mode}\n${pin.sha256} ${base}/${leaf}`;
-    if(await this.#read(this.#commands.inspect(role))!==expected)throw Error();
+    const lines=(await this.#read(this.#commands.inspect(role))).split('\n');
+    if(lines.length!==2 || lines[0]!==`${pin.size} 1 0 ${mode}` || !digestLineMatches(lines[1],pin.sha256,base+'/'+leaf))throw Error();
   }
   async finishFile(role) {
     if(this.#closed || this.#busy || role!==this.#role)return this.#refuse();
@@ -150,7 +151,7 @@ export class BrowserStageSession {
       for(const [role] of STAGE_ROLES)await this.#inspect(role,executable.has(role)?'700':'600');
       await this.#write(this.#commands.complete);
       const after=await digest(this.#commands.afterBytes);
-      if(await this.#read(this.#commands.inspectComplete)!==`${after} ${sidecar}/complete`)throw Error();
+      if(!digestLineMatches(await this.#read(this.#commands.inspectComplete),after,sidecar+'/complete'))throw Error();
       await this.#identity();await this.#inventory();
       // Only after marker/readback and the actual owned USB close ACK may a
       // private Core coordinator record this terminal outcome. No code ran.

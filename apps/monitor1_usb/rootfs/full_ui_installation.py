@@ -113,6 +113,8 @@ class FullUiTrials:
                 private_directory(other)
                 names = os.listdir(other)
                 prior = unique_json(read_private(other / "intent.json"))
+                from browser_stage import fence_browser_stage
+                fence_browser_stage(self.installations, other, prior["owner"])
                 # An uncertain permanent child outlives a crash-released lock.
                 from full_ui_activation_installation import FullUiActivations
                 FullUiActivations(self.installations).fence(other, prior["owner"])

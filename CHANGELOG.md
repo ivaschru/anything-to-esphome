@@ -14,12 +14,16 @@
   private modes and no-retry cleanup. Verify its actual pinned Tango encoder
   against an in-memory old-daemon responder. It is not a device writer route.
 - Prepare the private staging journal/one-time packet and fixed read-only
-  ext4 admission. These are not connected to a writer endpoint; shared lease,
-  cross-writer fences and complete remote readback are still required.
+  ext4 admission. These are not connected to a writer endpoint. Retain the
+  shared writer lock until verified completion, fence uncertain history across
+  all native writers, and isolate packet bodies on the private worker pipe.
 - Compose the isolated disabled-root stage engine with both opt-outs,
   independent remote file verification and AFTER-effects/USB-close gates.
   Keep browser metadata outside the frozen guardian's exact payload tree.
   This engine is not yet connected to an installation endpoint.
+- Accept both exact one- and two-space sha256sum delimiters during fixed-file
+  USB checks, including initial browser discovery and capture. Keep digest,
+  full path, metadata and line count exact.
 - Browser device writing and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 
