@@ -36,7 +36,7 @@ class StageTests(unittest.TestCase):
         return {'plan_id': descriptor['plan_id'], 'plan_sha256': descriptor['plan_sha256'], 'intent_sha256': descriptor['intent_sha256'],
                 'channel_id': self.scope['channel_id'], 'channel_nonce': self.scope['channel_nonce'], 'target': self.scope['target'],
                 'files': descriptor['files'], 'stock_files': json.loads((self.directory / 'capture/result.json').read_bytes())['files'],
-                'root_mode_uid': '700 0', 'optouts_empty_regular': True, 'transport_closed': True,
+                'root_mode_uid': '700 0', 'stage_metadata_mode_uid': '700 0', 'optouts_empty_regular': True, 'transport_closed': True,
                 'vendor_files_changed': False, 'program_started': False, 'after_effects_sha256': hashlib.sha256(marker).hexdigest()}
 
     def test_intent_is_consumed_before_private_fixed_packet_delivery(self):

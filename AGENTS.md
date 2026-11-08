@@ -106,6 +106,20 @@ separate even though the HACS wizard is shared.
   evidence and measured ext4 free blocks; no allocation or root is created.
   Run test_usb_browser_stage.py and the registry/NativeChannel/peer admission
   tests. These fixtures are not device readback or an enabled browser installer.
+  BrowserStageSession now composes the fixed disabled-root engine, but is
+  still not exposed by a channel/frame/HTTP route. It creates both opt-outs
+  before file writes, precreates once, independently rechecks remote SHA/UID/
+  nlink/mode after SYNC, verifies original sources and records AFTER-effects
+  only after all writes. A positive result requires the actual owned close ACK.
+  The frozen initial guardian permits only its exact payload/flags/intent in
+  /data/.esphome-cgs1: NEVER add browser journal files there or relax that gate.
+  Browser-only metadata belongs in the separate fixed private
+  /data/.esphome-cgs1-stage sidecar (no executables), preserved on interruption.
+  Marker guards hash exact bytes/newlines and preserve failed substitution
+  status. Preserve original source53/C++ guards without a firmware rebuild.
+  Run test_usb_stage_session.mjs and the explicit Linux/root rewritten-only
+  test_monitor1_browser_stage_root.py fixture; never execute its production
+  commands locally. Root fixture QA does not qualify an untouched monitor.
   The GUI may now use a fresh original-click channel for browser-review:
   the private actor rehashes its owned detached plan, then Core requests only
   the peer's fixed scope-check and compares exact original channel/target/boot

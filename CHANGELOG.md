@@ -16,6 +16,10 @@
 - Prepare the private staging journal/one-time packet and fixed read-only
   ext4 admission. These are not connected to a writer endpoint; shared lease,
   cross-writer fences and complete remote readback are still required.
+- Compose the isolated disabled-root stage engine with both opt-outs,
+  independent remote file verification and AFTER-effects/USB-close gates.
+  Keep browser metadata outside the frozen guardian's exact payload tree.
+  This engine is not yet connected to an installation endpoint.
 - Browser device writing and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 

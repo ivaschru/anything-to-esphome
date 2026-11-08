@@ -7,7 +7,7 @@ const contract={identity:Object.keys(identity).map(name=>({name,command:'read-'+
 function fixture() {
  const calls=[],state={boot,closed:0,apiClosed:0,filesystem:'ef53 10000 4096',changedPin:false,failApi:false};
  const api={close:async()=>{state.apiClosed++;},readable:new ReadableStream(),writable:new WritableStream()};
- const client={close:async()=>{state.closed++;},createSocket:async service=>{
+ const client={close:async()=>{state.closed++;if(state.blockClose)await new Promise(resolve=>{state.releaseClose=resolve;});},createSocket:async service=>{
   calls.push(service);
   if(service==='tcp:6053') {if(state.failApi)throw Error('synthetic lost ACK');return api;}
   assert(service.startsWith('shell:set -e\n'));
@@ -70,4 +70,14 @@ for(const filesystem of ['tmpfs 10000 4096','ef53 bad 4096','ef53 10000 1','ef53
  const f=fixture();await f.link.select();f.state.filesystem=filesystem;
  await assert.rejects(f.link.checkStageScope());assert.equal(f.state.closed,1);
  assert(!f.calls.includes('tcp:6053'));
+}
+
+{
+ const f=fixture();await f.link.select();f.state.blockClose=true;
+ let acknowledged=false;
+ const first=f.link.close().then(()=>{acknowledged=true;}),second=f.link.close();
+ while(!f.state.releaseClose)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(acknowledged,false);assert.equal(f.state.closed,1);
+ f.state.releaseClose();await first;await second;
+ assert.equal(acknowledged,true);await f.link.close();assert.equal(f.state.closed,1);
 }

@@ -128,6 +128,7 @@ class BrowserStages:
             path = directory / 'browser-plan' / role
             payloads[role] = base64.b64encode(private_bytes(path, pin)).decode()
         packet = {'schema_version': 1, 'job_id': job_id, 'target': plan['target'],
+                  'requested_data_free_bytes': plan['requested_data_free_bytes'],
                   'descriptor': {'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
                                  'intent_sha256': intent_sha, 'files': files}, 'payloads': payloads}
         body = _json(packet)
@@ -141,7 +142,7 @@ class BrowserStages:
         return {'plan_id': plan['plan_id'], 'plan_sha256': intent['plan_sha256'], 'intent_sha256': intent_sha,
                 'channel_id': intent['channel_id'], 'channel_nonce': intent['channel_nonce'], 'target': intent['target'],
                 'files': {role: plan['files'][role] for role in ROLES}, 'stock_files': capture['files'],
-                'root_mode_uid': '700 0', 'optouts_empty_regular': True, 'transport_closed': True,
+                'root_mode_uid': '700 0', 'stage_metadata_mode_uid': '700 0', 'optouts_empty_regular': True, 'transport_closed': True,
                 'vendor_files_changed': False, 'program_started': False,
                 'after_effects_sha256': hashlib.sha256(marker).hexdigest()}
 

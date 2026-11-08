@@ -13,7 +13,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
-  #nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;
+  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -187,18 +187,23 @@ export class BrowserNativeChannel {
     } catch {await this.close();error('usb_close_unverified');}
   }
 
-  async close() {
-    if(this.#closed && !this.#client && !this.#connection && !this.#api) return;
+  close() {
+    if(this.#closing) return this.#closing;
     this.#closed=true;clearTimeout(this.#expiry);this.#expiry=undefined;
     const client=this.#client,connection=this.#connection,api=this.#api;
     this.#client=this.#connection=this.#api=undefined;
-    let failed=false;
-    if(api) {try {await this.#cleanup(()=>api.close());}catch {failed=true;}}
-    if(client) {try {await this.#cleanup(()=>client.close());}catch {failed=true;}}
-    else if(connection) {try {await this.#cleanup(async()=>{
-      const results=await Promise.allSettled([connection.readable.cancel(),connection.writable.close()]);
-      if(results.some(r=>r.status==='rejected')) error('usb_close_unverified');
-    });}catch {failed=true;}}
-    if(failed) error('usb_close_unverified');
+    // Concurrent page/session retirement must await this same real close ACK,
+    // rather than seeing cleared fields and declaring an in-flight close done.
+    this.#closing=(async()=>{
+      let failed=false;
+      if(api) {try {await this.#cleanup(()=>api.close());}catch {failed=true;}}
+      if(client) {try {await this.#cleanup(()=>client.close());}catch {failed=true;}}
+      else if(connection) {try {await this.#cleanup(async()=>{
+        const results=await Promise.allSettled([connection.readable.cancel(),connection.writable.close()]);
+        if(results.some(r=>r.status==='rejected')) error('usb_close_unverified');
+      });}catch {failed=true;}}
+      if(failed) error('usb_close_unverified');
+    })();
+    return this.#closing;
   }
 }
