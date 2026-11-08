@@ -136,7 +136,7 @@ class CoreServiceTests(unittest.IsolatedAsyncioTestCase):
                 headers={"Content-Type":"application/json", "X-Qingping-Nonce":"a"*64})
             self.assertEqual(response.status,403)
             self.assertNotIn("SYNTHETIC_PRIVATE_PAYLOAD",await response.text())
-        for operation in ('internal-browser-stage-context', 'internal-browser-stage-prepare', 'internal-browser-stage-record'):
+        for operation in ('internal-browser-stage-context', 'internal-browser-stage-prepare', 'internal-browser-stage-record', 'internal-browser-disabled-context'):
             before = self.service.call.await_count
             response = await client.post('/api/qingping_esphome/monitor1/' + operation, data=b'not json',
                 headers={'Content-Type':'application/json','X-Qingping-Nonce':'a'*64})

@@ -1,15 +1,22 @@
 import {BrowserChannelPeer} from './usb-channel-peer.mjs';
 
-/** Start from the original USB-picker click. There is no writer in this loop.
+/** Start from the original USB-picker click. This loop cannot initiate writes.
  * The existing authenticated parent supplies rpc; no URL/token/key is accepted.
  * Two handlers allow a pending read and its write/close to make progress. Poll
  * and answers are each issued once; a lost response closes the selected link.
  */
-export async function openBrowserControl(link,rpc) {
+export function openBrowserControl(link,rpc) {return openControl(link,rpc,false);}
+
+/** Separate original-click selector for later private staged reads. A review
+ * opening claims identity only; the requested collector still checks all files.
+ */
+export function openBrowserReviewControl(link,rpc) {return openControl(link,rpc,true);}
+
+async function openControl(link,rpc,review) {
   let registration;
   const peer=new BrowserChannelPeer(link);
   try {
-    const evidence=await link.select();
+    const evidence=await (review?link.selectForReview():link.select());
     registration=await rpc('browser/open',{evidence});
     if(!registration || Object.keys(registration).sort().join()!==['channel_id','state','writer_enabled'].sort().join() ||
        typeof registration.channel_id!=='string' || !/^[a-f0-9]{32}$/.test(registration.channel_id) ||

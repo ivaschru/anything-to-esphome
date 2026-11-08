@@ -40,6 +40,10 @@
 - Read the exact disabled staged scope through the selected browser channel: async
   source/root/marker/process/space checks and independent closing observations,
   with only known script variants and no writer or process control.
+- Join terminal owned-stage metadata to a fresh browser collector through the
+  private Core registry, with strict observation validation and close ACK.
+  The redacted result remains unqualified by the SDK policy and enables no
+  writer. Add a distinct original-click control helper for later staged reads.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

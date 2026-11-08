@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {openBrowserControl} from '../custom_components/qingping_esphome/frontend/usb-browser-control.mjs';
+import {openBrowserControl,openBrowserReviewControl} from '../custom_components/qingping_esphome/frontend/usb-browser-control.mjs';
 let count=0;const req=(operation,data=null)=>({id:(++count).toString(16).padStart(32,'0'),operation,data});
 const channel='c'.repeat(32);
 {
@@ -55,3 +55,20 @@ for(const lostClose of [false,true]) {
  assert.equal(calls.filter(op=>op==='browser/close').length,1,'Concurrent cleanup shares its one ACK');
 }
 console.log('Manual browser cleanup: one shared ACK, ordinary pending poll and lost-close refusal passed');
+
+{
+ let selected=0,closed=0;const calls=[],queue=[req('channel-close')];
+ const link={select:()=>{assert.fail('No implicit factory selection for staged review');},
+  selectForReview:()=>{selected++;return Promise.resolve({kind:'browser_webusb'});},close:async()=>{closed++;}};
+ const rpc=async(op)=>{calls.push(op);
+  if(op==='browser/open')return {channel_id:channel,state:'registered',writer_enabled:false};
+  if(op==='browser/poll')return {request:queue.shift()};
+  if(op==='browser/answer')return {state:'accepted'};
+  if(op==='browser/close')return {state:'retired'};
+  assert.fail(op);
+ };
+ const pending=openBrowserReviewControl(link,rpc);assert.equal(selected,1,'Original click starts the staged-review picker before RPC');
+ const session=await pending;assert.deepEqual(await session.done,{state:'closed'});
+ assert.equal(closed,1);assert.equal(calls.filter(op=>op==='browser/open').length,1);
+}
+console.log('Review control: separate original-click identity-only opening, same private framing and acknowledged cleanup passed');

@@ -75,6 +75,8 @@ class Actor:
             # HTTP rejects internal-* before body IO. The parent receives only
             # the checked target/digest; this offline read never opens USB.
             return self.companion.browser_plans.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation == "internal-browser-disabled-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+            return self.companion.browser_stages.disabled_context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation.startswith("internal-browser-stage-"):
             stages = self.companion.browser_stages
             if operation == "internal-browser-stage-context" and set(data) == {"job_id", "expected_plan_sha256"}:

@@ -862,3 +862,17 @@ separate even though the HACS wizard is shared.
   the private actor/SDK policy join and replacement adapter remain separate.
   Run test_usb_disabled_scope.mjs, including actual peer/NativeChannel joins,
   malformed/drift/failure cases, plus USB suites and rebuilt bundle checks.
+
+- internal-browser-disabled-context is private metadata from an exactly owned
+  terminal stage: rehash original plan/profile/source/proof and never include
+  key/payload bodies or create another intent. Generated disabled-contract.json
+  records required reader fingerprints, not proof of executed SDK policy.
+  Private Core disabled review joins this metadata to the original current
+  owner/page/channel/deadline, validates the fixed collector's exact DTO and
+  requires close ACK before a redacted scope-observed result. A failed maps/
+  process read is not absence; SDK qualification and writer/readiness remain
+  false. The separate openBrowserReviewControl uses selectForReview in its
+  original picker click; default opening stays factory-only. No public
+  initiating route/GUI, SDK policy child or commit writer is connected yet.
+  Run terminal-context actor, async disabled-review/expiry/close tests and
+  review-control/shared UI tests, both HA USB SDK suites and package checks.

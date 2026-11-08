@@ -19,7 +19,7 @@ FILES = (
     "pm_extension_guard.py", "pm_extension_usb.py", "pm_extension_installation.py",
     "full_ui_activation.py", "full_ui_activation_usb.py", "full_ui_activation_installation.py",
     "preparation.py", "server.py", "usb_install_job.py", "core_actor.py", "core_tools.py",
-    "contract.json", "core-tools.json", "computer-instructions.txt",
+    "contract.json", "disabled-contract.json", "core-tools.json", "computer-instructions.txt",
 )
 ASSETS = ("app.mjs", "index.html", "style.css", "usb-probe-bundle.mjs", "usb-probe-NOTICES.txt", "core-bridge.mjs")
 

@@ -11,6 +11,7 @@ import fcntl
 import hashlib
 import json
 import os
+from pathlib import Path
 import re
 import shutil
 import stat
@@ -136,6 +137,27 @@ class BrowserStages:
         return {'schema_version': 1, 'job_id': job_id, 'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
                 'source_commit': plan['basis']['source_commit'], 'target': plan['target'],
                 'requested_data_free_bytes': plan['requested_data_free_bytes'], 'stage_state': self.status(owner, job_id)['state']}
+
+    def disabled_context(self, owner, job_id, expected_sha):
+        """Private metadata for a NEW read on a terminal disabled stage.
+
+        Original plan/profile/source and terminal proof are rehashed; no file
+        bodies, key or new write intent is returned. Reader fingerprints are
+        required public inputs, not a claim that its SDK policy has run. A
+        later SDK join must verify them against the admitted private source.
+        """
+        directory, plan, intent, digest = self._intent(owner, job_id)
+        if (intent['plan_sha256'] != expected_sha or
+                self.status(owner, job_id)['state'] != 'staged_disabled_verified'):
+            invalid()
+        reader = unique_json(Path(__file__).with_name('disabled-contract.json').read_bytes())
+        return {'schema_version': 1, 'job_id': job_id, 'plan_sha256': expected_sha,
+                'source_commit': plan['basis']['source_commit'], 'stage_state': 'staged_disabled_verified',
+                'meta': {'schema_version': 1, 'job_id': job_id, 'target': plan['target'],
+                    'descriptor': {'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
+                        'intent_sha256': digest, 'files': {role: plan['files'][role] for role in ROLES}},
+                    'commit_nonce': None},
+                'reader_source_sha256': reader['source_sha256'], 'sdk_policy_checked': False, 'writer_enabled': False}
 
     def _intent(self, owner, job_id):
         directory, original, _ = owned_intent(self.parent, job_id, owner)

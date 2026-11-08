@@ -194,7 +194,31 @@ class StageTests(unittest.TestCase):
             'intent_sha256': packet['descriptor']['intent_sha256'], 'proof': self.proof(packet)}))
         self.assertEqual(result['state'], 'staged_disabled_verified')
         self.assertIsNone(self.manager.lease_fd)
+        context, mime = actor.dispatch(request('internal-browser-disabled-context',
+            {'job_id': self.id, 'expected_plan_sha256': self.plan['plan_sha256']}))
+        self.assertEqual(mime, 'application/json')
+        self.assertEqual(context['stage_state'], 'staged_disabled_verified')
+        self.assertEqual(context['meta']['descriptor'], packet['descriptor'])
+        self.assertIsNone(context['meta']['commit_nonce'])
+        self.assertFalse(context['sdk_policy_checked'] or context['writer_enabled'])
+        self.assertNotIn(key, json.dumps(context))
+        self.assertNotIn('payloads', context)
         usb.assert_not_called()
+
+    def test_disabled_context_requires_exact_terminal_owned_stage_and_is_read_only(self):
+        with self.assertRaises(Exception):
+            self.manager.disabled_context(self.owner, self.id, self.plan['plan_sha256'])
+        packet = json.loads(self.prepare())
+        with self.assertRaises(Exception):
+            self.manager.disabled_context(self.owner, self.id, self.plan['plan_sha256'])
+        self.manager.record(self.owner, self.id, packet['descriptor']['intent_sha256'], self.proof(packet))
+        before = {p.name: p.read_bytes() for p in self.directory.iterdir() if p.is_file()}
+        context = self.manager.disabled_context(self.owner, self.id, self.plan['plan_sha256'])
+        self.assertEqual(context['reader_source_sha256'], json.loads((plans.HERE / 'disabled-contract.json').read_bytes())['source_sha256'])
+        self.assertEqual(context['meta']['descriptor'], packet['descriptor'])
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.directory.iterdir() if p.is_file()})
+        for owner, digest in (('b' * 32, self.plan['plan_sha256']), (self.owner, 'f' * 64)):
+            with self.assertRaises(Exception):self.manager.disabled_context(owner, self.id, digest)
 
     def test_private_host_space_floor_precedes_consumption(self):
         with patch.object(stage.shutil, 'disk_usage', return_value=SimpleNamespace(free=stage.STOP_FREE - 1)):

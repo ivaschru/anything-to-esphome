@@ -1,5 +1,5 @@
 import {BrowserNativeChannel} from "../../custom_components/qingping_esphome/frontend/usb-native-channel.mjs";
-export {openBrowserControl} from "../../custom_components/qingping_esphome/frontend/usb-browser-control.mjs";
+export {openBrowserControl,openBrowserReviewControl} from "../../custom_components/qingping_esphome/frontend/usb-browser-control.mjs";
 import {Adb, AdbDaemonTransport, AdbSyncSocket, adbSyncPushV1} from "@yume-chan/adb";
 import {AdbDaemonWebUsbDeviceManager} from "@yume-chan/adb-daemon-webusb";
 import {BrowserUsbProbe} from "../../custom_components/qingping_esphome/frontend/usb-probe.mjs";
