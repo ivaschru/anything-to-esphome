@@ -587,6 +587,17 @@ separate even though the HACS wizard is shared.
   frame/records/stream Node tests and the pinned Tango512 fragmentation test.
   They execute no guardian/monitor and do not qualify a physical first install.
 
+- The initial process observer is an unwired read-only subset. Generate its
+  exact eleven commands from frozen native child_of/process_image/endpoint
+  helpers, never hand-author a new process/path selector. Pure parsing pins
+  full uint64 birth strings, live ancestry, named/kernel image identity/hash,
+  original guardian inode and API/OTA socket ownership. This supplies no
+  actual channel read, freshness, complete stock/vendor/intent/RAM/Noise proof
+  or terminal completion. Packaged metadata alone never upgrades a consumed
+  packet's permissions. Run generate_initial_process_contract.py --check and
+  test_usb_initial_process_observation.mjs; syntax/vector fixtures execute no
+  production-path script, guardian or monitor program.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

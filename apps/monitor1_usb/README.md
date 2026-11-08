@@ -506,6 +506,14 @@ These records remain context: independent process/Noise/stock observation and
 the terminal journal verifier are still missing. The seventh pinned trial producer
 prevents older consumed packets from acquiring this new capability.
 
+An additional unwired read-only process subset now derives eleven exact
+commands from the frozen native helpers. Its pure parser checks kernel child
+ancestry, actual/named image identity and hash, original guardian inode and
+API/OTA socket ownership without rounding uint64 process births. It does not
+open the selected channel, establish observation freshness or replace complete
+stock/vendor/intent/RAM/Noise and terminal checks. Packaged metadata alone
+grants no new permission to a consumed trial.
+
 Actual device image-FD admission and the complete bounded guardian lifecycle
 remain unfinished. No public initiating HTTP/UI control or
 physical first-install qualification follows. These adapters are development

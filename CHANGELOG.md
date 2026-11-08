@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Prepare an unwired fixed read-only process observer subset from the frozen
+  native helpers: kernel child ancestry, actual executable image identity/hash
+  and API/OTA socket ownership. Preserve full uint64 identities and original
+  RAM bindings. Exact eleven-command parity and malformed/replaced evidence
+  refusals are host-only checks; actual channel/SDK observation, stock/Noise
+  proof and terminal completion remain unfinished.
+
 - Bind the private Core guardian continuation to the original RAM task,
   actor, reservation and retained writer lease. Consume before SDK/browser IO,
   recheck the exact artifact around one start and after END, and preserve

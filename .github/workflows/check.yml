@@ -46,6 +46,8 @@ jobs:
       - run: node tests/test_usb_initial_guardian_frame.mjs
       - run: node tests/test_usb_initial_guardian_records.mjs
       - run: node tests/test_usb_initial_guardian_stream.mjs
+      - run: python tools/monitor1-usb/generate_initial_process_contract.py --check
+      - run: node tests/test_usb_initial_process_observation.mjs
       - run: node tests/test_usb_channel_peer.mjs
       - run: node tests/test_usb_file_observation.mjs
       - run: node tests/test_usb_stage_session.mjs
