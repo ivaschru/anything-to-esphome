@@ -1,0 +1,54 @@
+{
+  "format": "qingping-native-update-v1",
+  "hardware": "0001",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      18883,
+      4
+    ],
+    [
+      270130,
+      8
+    ],
+    [
+      271518,
+      7
+    ],
+    [
+      271582,
+      6
+    ],
+    [
+      271646,
+      5
+    ],
+    [
+      271679,
+      3
+    ],
+    [
+      271743,
+      2
+    ],
+    [
+      271776,
+      1
+    ],
+    [
+      271811,
+      0
+    ]
+  ],
+  "profile": "lite-434",
+  "public_version": 3,
+  "revision": 6,
+  "sha256": "11434721faf181aa779ea1a1c99bfaa0a0a60610a803e57f311a703fbd5f06cf",
+  "size": 1691440,
+  "source_stock_version": "4.3.4",
+  "summary": "Lite 4.3.4 / HW0001 firmware 3. Native ESPHome firmware updates without Qingping HACS. PM OFF stops readings only; fan shutdown is not supported.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v3/lite-434-template.bin"
+}
