@@ -11,44 +11,44 @@
       4
     ],
     [
-      270498,
+      270586,
       8
     ],
     [
-      271886,
+      271974,
       7
     ],
     [
-      271950,
+      272038,
       6
     ],
     [
-      272014,
+      272102,
       5
     ],
     [
-      272047,
+      272135,
       3
     ],
     [
-      272111,
+      272199,
       2
     ],
     [
-      272144,
+      272232,
       1
     ],
     [
-      272179,
+      272267,
       0
     ]
   ],
   "profile": "lite",
-  "public_version": 4,
-  "revision": 5,
-  "sha256": "3825ac726b16c7e37de4b5a0b7792ac095d2635e6359e84ac6db5bf5d3e67060",
-  "size": 1692848,
+  "public_version": 5,
+  "revision": 6,
+  "sha256": "f7a3e4f173b31e6495bfe83a4c466f7df371f916bbf2e42da4426248a1f23d37",
+  "size": 1693536,
   "source_stock_version": "4.5.8",
-  "summary": "Lite 4.5.8 / HW0001 firmware 4. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration.",
-  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v4/lite-template.bin"
+  "summary": "Lite 4.5.8 / HW0001 firmware 5. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration. Bounded continuation after transient HTTP read timeout.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v5/lite-template.bin"
 }
