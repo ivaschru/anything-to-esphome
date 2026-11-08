@@ -17,10 +17,10 @@ import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, validate_context as process_context, validate_observation as process_observation
-from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, SCOPE_WINDOW
+from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe"}
 MAX_BYTES = 65536
 
 
@@ -77,6 +77,8 @@ class BrowserChannel:
         self.guardian_used = False
         self.guardian_ready = None
         self.guardian_finished = False
+        self.guardian_ended = False
+        self.guardian_return_used = False
         self.guardian_observations = 0
         self.process_binding = self.process_root = self.process_guardian = None
         self.guardian_scope_basis = self.guardian_ram_root = None
@@ -104,7 +106,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation == 'guardian-scope-observe' else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -433,6 +435,7 @@ class BrowserChannel:
         except RelayRefusal:
             self._retire()
             raise
+        self.guardian_ended = True
         return value  # No terminal journal write, lease release or installed status.
 
     async def observe_initial_guardian_processes(self):
@@ -474,6 +477,30 @@ class BrowserChannel:
             self._retire()
             raise RelayRefusal from None
         return value  # No Noise sample, image FD, stop/reap or terminal lease release.
+
+    async def observe_initial_guardian_return(self):
+        """One null-data fixed read after original END and actual API-close.
+
+        The completed raw session must remain on this same channel. Preserve
+        the shared read budget/window; a pure DTO or a fresh socket cannot
+        acquire another attempt, positive close proof or journal completion.
+        """
+        if (self.guardian_ready is None or not self.guardian_ended or not self.guardian_finished or
+                self.guardian_return_used or self.pending or self.opened or self.opening or
+                self.guardian_api_mode or self.guardian_observations >= 32 or self.guardian_scope_basis is None):
+            raise RelayRefusal
+        process_context(self.process_binding, self.guardian_ready, self.process_root, self.process_guardian)
+        self.guardian_return_used = True
+        self.guardian_observations += 1
+        try:
+            async with asyncio.timeout(SCOPE_WINDOW), self.guardian_control:
+                value = await self._request('guardian-return-observe')
+                guardian_return(value, self.process_binding, self.guardian_ready, self.process_guardian,
+                                self.guardian_ram_root, self.guardian_scope_basis)
+            return value
+        except BaseException:
+            self._retire()
+            raise RelayRefusal from None
 
     async def open_initial_guardian_api(self):
         """Private original guardian read connection, with no host/key selector.

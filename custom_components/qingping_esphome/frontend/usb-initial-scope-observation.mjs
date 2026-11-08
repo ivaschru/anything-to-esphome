@@ -29,19 +29,20 @@ function file(value,pin,path) {
  const rows=lines(value);if(rows.length!==2 || rows[0]!==pin.size+' 1' || !digestLineMatches(rows[1],pin.sha256,path))fail();
 }
 
-export function initialGuardianScopeReads(input,ramInput,startInput) {
+function scopeReads(input,ramInput,startInput,returning=false) {
  const [packet,ram,start]=clone([input,ramInput,startInput]);
  initialGuardianProcessReads(packet,ram,start); // Complete typed original context, not IO/admission.
  if(contract.schema_version!==1 || contract.maximum_observation_ms!==5000 || contract.source_commit!==initialTrialContract.source_commit ||
     !same(contract.source_sha256,initialTrialContract.source_sha256) ||
-    fields(contract.branches)!==['empty','prefs_empty','prefs_file'].sort().join())fail();
+    fields(contract.branches)!==['empty','prefs_empty','prefs_file'].sort().join() ||
+    fields(contract.return_branches)!==fields(contract.branches))fail();
  const baseline=packet.context.committed_scope,values={guardian_pid:String(start.start.stamp[0]),child_pid:String(start.child.stamp[0]),
   stock_pid:String(baseline.stock_process[0]),watchdog_pid:String(baseline.watchdog_process[0]),
   guardian_job_id:packet.guardian_job_id,ram_job_id:packet.ram_job_id,
   ram_device:String(ram.uploaded.ram_root_identity[0]),node_name:packet.context.api_identity.node_name};
  const result={};
- for(const [layout,rows] of Object.entries(contract.branches)) {
-  if(!Array.isArray(rows) || rows.length!==(layout==='empty'?54:layout==='prefs_empty'?56:57))fail();
+ for(const [layout,rows] of Object.entries(returning?contract.return_branches:contract.branches)) {
+  if(!Array.isArray(rows) || rows.length!==((layout==='empty'?54:layout==='prefs_empty'?56:57)-(returning?11:0)))fail();
   const commands={};
   for(const row of rows) {
    if(fields(row)!==['key','parts'].sort().join() || typeof row.key!=='string' || Object.hasOwn(commands,row.key) || !Array.isArray(row.parts))fail();
@@ -62,9 +63,18 @@ export function initialGuardianScopeReads(input,ramInput,startInput) {
  return Object.freeze(result);
 }
 
-export async function initialGuardianScopeObservation(input,ramInput,startInput,observedInput) {
+export function initialGuardianScopeReads(input,ramInput,startInput) {return scopeReads(input,ramInput,startInput);}
+
+/** Fixed post-stop tail and strict absence scan. This is pure read context;
+ * an eventual live caller must retain the original consumed guardian session,
+ * await its ordered END/raw-close and API-close ACK before issuing any read.
+ * JSON cannot grant that capability, stop a process or complete a journal.
+ */
+export function initialGuardianReturnReads(input,ramInput,startInput) {return scopeReads(input,ramInput,startInput,true);}
+
+async function scopeObservation(input,ramInput,startInput,observedInput,returning=false) {
  const [packet,ram,start,reads]=clone([input,ramInput,startInput,observedInput]);
- const branches=initialGuardianScopeReads(packet,ram,start),base='/data/.esphome-cgs1';
+ const branches=scopeReads(packet,ram,start,returning),base='/data/.esphome-cgs1';
  let layout;
  if(lines(reads.ram_entries).length===0)layout='empty';
  else if(reads.ram_entries==='prefs') {
@@ -72,8 +82,11 @@ export async function initialGuardianScopeObservation(input,ramInput,startInput,
   else if(reads.prefs_entries===packet.context.api_identity.node_name+'.prefs')layout='prefs_file';else fail();
  } else fail();
  if(fields(reads)!==Object.keys(branches[layout]).sort().join())fail();
- const processKeys=Object.keys(initialGuardianProcessReads(packet,ram,start));
- const process=initialGuardianProcessObservation(packet,ram,start,Object.fromEntries(processKeys.map(k=>[k,reads[k]])));
+ let process;
+ if(!returning) {
+  const processKeys=Object.keys(initialGuardianProcessReads(packet,ram,start));
+  process=initialGuardianProcessObservation(packet,ram,start,Object.fromEntries(processKeys.map(k=>[k,reads[k]])));
+ }
  const scope=packet.context.committed_scope,meta=packet.context.meta,root=scope.root_identity;
  if(reads.process_scan!==String(scope.stock_process[0]))fail();
  const s=initialProcessText(reads.stock_process,[scope.stock_process[0],String(scope.stock_process[1])],'/data/bin/SnowApp',scope.watchdog_process[0]);
@@ -114,17 +127,21 @@ export async function initialGuardianScopeObservation(input,ramInput,startInput,
  const identity={uid:'0',wlan:target.wlan_mac,version:'CLEARGRASS_VERSION=4.1.8_0287',architecture:'armv7l',co2:String(target.co2_type),boot:target.boot_id};
  for(const [key,value] of Object.entries(identity))if(reads['identity_'+key]!==value)fail();
  const binding=Object.fromEntries(['job_id','plan_sha256','intent_sha256','channel_id','channel_nonce','nonce','ram_job_id','guardian_job_id'].map(k=>[k,packet[k]]));
- return Object.freeze({kind:'browser_initial_scope_observation',...binding,process,
+ return Object.freeze({kind:returning?'browser_initial_return_observation':'browser_initial_scope_observation',...binding,
+  ...(returning?{guardian:Object.freeze(start.start.stamp),child:Object.freeze(start.child.stamp),own_programs_absent:true}:{process}),
   root_identity:Object.freeze(root),ram_root_identity:Object.freeze(ramRoot),
   stock_process:Object.freeze([s[0],s[2]]),watchdog_process:Object.freeze([w[0],w[2]]),
   prefs_layout:layout,memory_free_bytes:memory.MemFree,memory_total_bytes:memory.MemTotal,kernel_scope_checked:true,
   image_fd_admitted:false,execution_authority:false,context_only:true});
 }
 
-export async function collectInitialGuardianScope(backend,packet,ram,start) {
+export function initialGuardianScopeObservation(input,ram,start,reads) {return scopeObservation(input,ram,start,reads);}
+export function initialGuardianReturnObservation(input,ram,start,reads) {return scopeObservation(input,ram,start,reads,true);}
+
+async function collectScope(backend,packet,ram,start,returning=false) {
  if(fields(backend)!=='read' || typeof backend.read!=='function')fail();
  [packet,ram,start]=clone([packet,ram,start]);
- const branches=initialGuardianScopeReads(packet,ram,start),reads={};
+ const branches=scopeReads(packet,ram,start,returning),reads={};
  let selected=branches.prefs_file;
  // The generated branch order is immutable. Choose only after positively
  // reading its discriminator, before any optional filename read is issued.
@@ -138,5 +155,18 @@ export async function collectInitialGuardianScope(backend,packet,ram,start) {
    else if(reads[key]!==packet.context.api_identity.node_name+'.prefs')fail();
   }
  }
- return initialGuardianScopeObservation(packet,ram,start,reads);
+ return scopeObservation(packet,ram,start,reads,returning);
+}
+
+export function collectInitialGuardianScope(backend,packet,ram,start) {return collectScope(backend,packet,ram,start);}
+export async function collectInitialGuardianReturn(backend,packet,ram,start) {
+ [packet,ram,start]=clone([packet,ram,start]); // One original basis across BOTH passes.
+ // Independent closing pass: a first scan/digest is not a stable post-stop
+ // snapshot. Both passes must positively refuse own programs and validate all
+ // original bytes/flags. Only measured MemFree may vary; it grants no space
+ // reservation. The actual caller bounds the whole read window, not each pass.
+ const before=await collectScope(backend,packet,ram,start,true);
+ const after=await collectScope(backend,packet,ram,start,true);
+ const stable=value=>Object.fromEntries(Object.entries(value).filter(([key])=>key!=='memory_free_bytes'));
+ if(!same(stable(before),stable(after)))fail();return after;
 }

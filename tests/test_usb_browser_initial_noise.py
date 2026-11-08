@@ -13,6 +13,7 @@ import math
 import struct
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import test_usb_browser_initial_relay as fixtures
@@ -21,6 +22,7 @@ sys.modules.setdefault('qingping_browser_contract.monitor1_browser_initial_relay
 spec = importlib.util.spec_from_file_location('qingping_browser_contract.monitor1_browser_initial_noise',
     fixtures.fixtures.joins.fixtures.readers.fixtures.fixtures.ROOT / 'monitor1_browser_initial_noise.py')
 module = importlib.util.module_from_spec(spec)
+sys.modules.setdefault(spec.name, module)
 spec.loader.exec_module(module)
 Refusal = fixtures.Refusal
 
@@ -267,8 +269,41 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(self.key, json.dumps(self.f.frames))
         self.assertNotIn(base64.b64decode(self.key), b''.join(self.raw_frames))
         self.f.assert_fenced()
-        await self.f.running.finish_records()
+        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: self.f.running.issued_at + 60)):
+            await self.f.running.finish_records()
+            returned = await self.f.running.observe_return()
+        self.assertTrue(returned['own_programs_absent'])
+        self.assertTrue(returned['context_only'])
+        self.assertFalse(self.f.b.cap.closed, 'Actual USB closure remains independent')
+        with self.assertRaises(Refusal):
+            await self.f.running.observe_return()
+        self.assertEqual(sum(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames), 1)
         await self.f.running.close()
+        self.f.assert_fenced()
+
+    async def test_immediate_reported_end_never_qualifies_a_real_stop(self):
+        await self.flow()
+        with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait):
+            await module.observe_initial_noise(self.f.context)
+        # The synthetic raw parser can immediately report elapsed_ms=60000;
+        # Core's real monotonic observation must not accept that as 60s.
+        await self.f.running.finish_records()
+        with self.assertRaises(Refusal):
+            await self.f.running.observe_return()
+        self.assertTrue(self.f.b.cap.closed)
+        self.assertFalse(any(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames))
+        self.f.assert_fenced()
+
+    async def test_stale_wire_at_end_never_reads_or_completes_return_scope(self):
+        await self.flow()
+        with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait):
+            await module.observe_initial_noise(self.f.context)
+        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: self.f.running.issued_at + 70)):
+            await self.f.running.finish_records()
+            with self.assertRaises(Refusal):
+                await self.f.running.observe_return()
+        self.assertTrue(self.f.b.cap.closed)
+        self.assertFalse(any(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames))
         self.f.assert_fenced()
 
     async def test_authenticated_wrong_device_info_is_refused_without_a_second_open(self):

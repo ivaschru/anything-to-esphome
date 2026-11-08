@@ -679,6 +679,23 @@ separate even though the HACS wizard is shared.
   proves host composition only, never physical readings, elapsed device time
   or an untouched-device installation.
 
+- Original post-stop scope is the frozen stock/vendor/intent/RAM tail with
+  strict INITIAL_PROCESS_SCAN, never live guardian/child exceptions or fake
+  process DTOs. Generate all 43/45/46 fixed reads in the tenth scope producer;
+  changed contract bytes fence old consumed packets. The selected channel's
+  one null guardian-return-observe needs original raw END/close and no API
+  socket. Read two independent complete passes under the same five-second
+  window and compare stable context; only measured MemFree may vary. Core
+  additionally needs its ORIGINAL Noise result, API-close ACK, exact child,
+  monotonic END reception at least 60s after original issue and wire age <= 20s
+  AT that reception, captured before SDK hashing. Preserve original task,
+  actor, capability, shared 32-read budget, no-replay and no device timer change.
+  Return scope remains context-only: actual USB-close, separate channel-close
+  ACK and actor terminal journal verification are still required. Do not
+  promote an immediate synthetic END or accelerated test clock to device QA.
+  Run test_usb_initial_return_observation.mjs, raw/delivered selected Native
+  integration, both HA USB suites and generation/package/bundle checks.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

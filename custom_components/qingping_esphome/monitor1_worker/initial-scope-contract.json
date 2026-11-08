@@ -1636,5 +1636,1091 @@
         ]
       }
     ]
+  },
+  "return_branches": {
+    "empty": [
+      {
+        "key": "process_scan",
+        "parts": [
+          "count=0\nfor link in /proc/[0-9]*/exe; do\n    count=$((count+1))\n    [ \"$count\" -le 4096 ] || exit 1\n    pid=${link#/proc/}; pid=${pid%/exe}\n    case \"$pid\" in (''|*[!0-9]*) exit 1;; esac\n    if executable=$(readlink \"$link\" 2>/dev/null); then\n        :\n    else\n        # Kernel threads and exited tasks legitimately have no executable.\n        # An unreadable live userspace exe is NOT evidence of its absence.\n        [ -d \"/proc/$pid\" ] || continue\n        metadata=$(sed 's/.*) //' \"/proc/$pid/stat\" 2>/dev/null | awk '{print $1, $7}')\n        set -- $metadata\n        if [ \"$#\" -ne 2 ]; then\n            [ ! -d \"/proc/$pid\" ] && continue\n            exit 1\n        fi\n        case \"$2\" in (''|*[!0-9]*) exit 1;; esac\n        case \"$1\" in (Z|X|x) continue;; esac\n        [ \"$(($2 & 2097152))\" -ne 0 ] || exit 1\n        continue\n    fi\n    case \"$executable\" in\n        (/data/.esphome-cgs1/*|/tmp/qingping-full-*/*|/tmp/qingping-initial-*/*) exit 1;;\n        (/data/bin/SnowApp) printf '%s\\n' \"$pid\";;\n    esac\ndone"
+        ]
+      },
+      {
+        "key": "stock_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_arguments",
+        "parts": [
+          "arguments=$(tr '\\000' '\\n' < /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/cmdline)\n[ \"$arguments\" = \"$(printf '/bin/sh\\n/data/bin/watchdog.sh')\" ]"
+        ]
+      },
+      {
+        "key": "stock_maps_0",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /data/.esphome-cgs1/ /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_1",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-full- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_2",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-initial- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "vendor_0",
+        "parts": [
+          "test ! -L /data/bin/SnowApp\ntest -f /data/bin/SnowApp\nstat -c '%s %h' /data/bin/SnowApp\nsha256sum /data/bin/SnowApp"
+        ]
+      },
+      {
+        "key": "vendor_1",
+        "parts": [
+          "test ! -L /data/bin/watchdog.sh\ntest -f /data/bin/watchdog.sh\nstat -c '%s %h' /data/bin/watchdog.sh\nsha256sum /data/bin/watchdog.sh"
+        ]
+      },
+      {
+        "key": "vendor_2",
+        "parts": [
+          "test ! -L /data/etc/init.d/start.sh\ntest -f /data/etc/init.d/start.sh\nstat -c '%s %h' /data/etc/init.d/start.sh\nsha256sum /data/etc/init.d/start.sh"
+        ]
+      },
+      {
+        "key": "vendor_3",
+        "parts": [
+          "test ! -L /etc/init.d/S12_launcher_init\ntest -f /etc/init.d/S12_launcher_init\nstat -c '%s %h' /etc/init.d/S12_launcher_init\nsha256sum /etc/init.d/S12_launcher_init"
+        ]
+      },
+      {
+        "key": "vendor_4",
+        "parts": [
+          "test ! -L /etc/init.d/S50_px3se_init\ntest -f /etc/init.d/S50_px3se_init\nstat -c '%s %h' /etc/init.d/S50_px3se_init\nsha256sum /etc/init.d/S50_px3se_init"
+        ]
+      },
+      {
+        "key": "vendor_5",
+        "parts": [
+          "test ! -L /lib/ld-2.23.so\ntest -f /lib/ld-2.23.so\nstat -c '%s %h' /lib/ld-2.23.so\nsha256sum /lib/ld-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_6",
+        "parts": [
+          "test ! -L /lib/libc-2.23.so\ntest -f /lib/libc-2.23.so\nstat -c '%s %h' /lib/libc-2.23.so\nsha256sum /lib/libc-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_7",
+        "parts": [
+          "test ! -L /usr/lib/libstdc++.so.6.0.20\ntest -f /usr/lib/libstdc++.so.6.0.20\nstat -c '%s %h' /usr/lib/libstdc++.so.6.0.20\nsha256sum /usr/lib/libstdc++.so.6.0.20"
+        ]
+      },
+      {
+        "key": "vendor_8",
+        "parts": [
+          "test ! -L /usr/lib/libQt5Core.so.5.9.4\ntest -f /usr/lib/libQt5Core.so.5.9.4\nstat -c '%s %h' /usr/lib/libQt5Core.so.5.9.4\nsha256sum /usr/lib/libQt5Core.so.5.9.4"
+        ]
+      },
+      {
+        "key": "staged_0",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/program\ntest -f /data/.esphome-cgs1/program\nstat -c '%s %h' /data/.esphome-cgs1/program\nsha256sum /data/.esphome-cgs1/program"
+        ]
+      },
+      {
+        "key": "staged_1",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm_qt_bridge.so\ntest -f /data/.esphome-cgs1/pm_qt_bridge.so\nstat -c '%s %h' /data/.esphome-cgs1/pm_qt_bridge.so\nsha256sum /data/.esphome-cgs1/pm_qt_bridge.so"
+        ]
+      },
+      {
+        "key": "staged_2",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/launch.sh\ntest -f /data/.esphome-cgs1/launch.sh\nstat -c '%s %h' /data/.esphome-cgs1/launch.sh\nsha256sum /data/.esphome-cgs1/launch.sh"
+        ]
+      },
+      {
+        "key": "staged_3",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/SnowApp-with-PM\ntest -f /data/.esphome-cgs1/SnowApp-with-PM\nstat -c '%s %h' /data/.esphome-cgs1/SnowApp-with-PM\nsha256sum /data/.esphome-cgs1/SnowApp-with-PM"
+        ]
+      },
+      {
+        "key": "staged_4",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/startup-hook.sh\ntest -f /data/.esphome-cgs1/startup-hook.sh\nstat -c '%s %h' /data/.esphome-cgs1/startup-hook.sh\nsha256sum /data/.esphome-cgs1/startup-hook.sh"
+        ]
+      },
+      {
+        "key": "staged_5",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-start.sh.original\ntest -f /data/.esphome-cgs1/stock-start.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-start.sh.original\nsha256sum /data/.esphome-cgs1/stock-start.sh.original"
+        ]
+      },
+      {
+        "key": "staged_6",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-watchdog.sh.original\ntest -f /data/.esphome-cgs1/stock-watchdog.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-watchdog.sh.original\nsha256sum /data/.esphome-cgs1/stock-watchdog.sh.original"
+        ]
+      },
+      {
+        "key": "staged_7",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/start.sh.candidate\ntest -f /data/.esphome-cgs1/start.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/start.sh.candidate\nsha256sum /data/.esphome-cgs1/start.sh.candidate"
+        ]
+      },
+      {
+        "key": "staged_8",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/watchdog.sh.candidate\ntest -f /data/.esphome-cgs1/watchdog.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/watchdog.sh.candidate\nsha256sum /data/.esphome-cgs1/watchdog.sh.candidate"
+        ]
+      },
+      {
+        "key": "root",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1\ntest -d /data/.esphome-cgs1\nstat -c '%d %i %a %u' /data/.esphome-cgs1\ntest ! -L /data/.esphome-cgs1/install.intent\ntest -f /data/.esphome-cgs1/install.intent\n[ \"$(stat -c '%s %a %u %h' /data/.esphome-cgs1/install.intent)\" = '98 600 0 1' ]\ncat /data/.esphome-cgs1/install.intent"
+        ]
+      },
+      {
+        "key": "parents",
+        "parts": [
+          "test ! -L /data/bin\ntest ! -L /data/etc\ntest ! -L /data/etc/init.d\nstat -c '%d' /data/bin /data/etc/init.d"
+        ]
+      },
+      {
+        "key": "disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/disabled\ntest -f /data/.esphome-cgs1/disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/disabled\nsha256sum /data/.esphome-cgs1/disabled"
+        ]
+      },
+      {
+        "key": "pm-helper.disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm-helper.disabled\ntest -f /data/.esphome-cgs1/pm-helper.disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/pm-helper.disabled\nsha256sum /data/.esphome-cgs1/pm-helper.disabled"
+        ]
+      },
+      {
+        "key": "absent_stores",
+        "parts": [
+          "# CGS1_INITIAL_ABSENT_STORES\nentries=$(LC_ALL=C ls -A1 /data/.esphome-cgs1)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (full-releases|wifi|prefs|full-state) exit 1;; esac\ndone\nentries=$(LC_ALL=C ls -A1 /tmp)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (qingping-cgs1-esphome.lock) exit 1;; esac\ndone"
+        ]
+      },
+      {
+        "key": "memory",
+        "parts": [
+          "# CGS1_INITIAL_MEMORY\nawk '$1 == \"MemTotal:\" || $1 == \"MemFree:\" { print }' /proc/meminfo"
+        ]
+      },
+      {
+        "key": "intent_file",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/initial-trial.intent\ntest -f /data/.esphome-cgs1/initial-trial.intent\nstat -c '%s %h' /data/.esphome-cgs1/initial-trial.intent\nsha256sum /data/.esphome-cgs1/initial-trial.intent"
+        ]
+      },
+      {
+        "key": "intent_mode",
+        "parts": [
+          "observed_value=$(stat -c '%a %u' /data/.esphome-cgs1/initial-trial.intent)\n[ \"$observed_value\" = '600 0' ]\n"
+        ]
+      },
+      {
+        "key": "nand_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /data/.esphome-cgs1"
+        ]
+      },
+      {
+        "key": "commit_marker",
+        "parts": [
+          "# CGS1_INITIAL_COMMIT_MARKER\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock\ntest -d /data/.esphome-cgs1/.commit-disabled.lock\nobserved_value=$(stat -c '%a %u' /data/.esphome-cgs1/.commit-disabled.lock)\n[ \"$observed_value\" = '700 0' ]\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock/owner\ntest -f /data/.esphome-cgs1/.commit-disabled.lock/owner\nobserved_value=$(stat -c '%s %a %u %h' /data/.esphome-cgs1/.commit-disabled.lock/owner)\n[ \"$observed_value\" = '82 600 0 1' ]\ncat /data/.esphome-cgs1/.commit-disabled.lock/owner"
+        ]
+      },
+      {
+        "key": "ram_identity",
+        "parts": [
+          "test ! -L /tmp\ntest ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\ntest -d /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -c '%d %i %a %u' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -f -c '%t' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "ram_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "identity_uid",
+        "parts": [
+          "id -u"
+        ]
+      },
+      {
+        "key": "identity_wlan",
+        "parts": [
+          "cat /sys/class/net/wlan0/address"
+        ]
+      },
+      {
+        "key": "identity_version",
+        "parts": [
+          "cat /data/etc/os-release"
+        ]
+      },
+      {
+        "key": "identity_architecture",
+        "parts": [
+          "uname -m"
+        ]
+      },
+      {
+        "key": "identity_co2",
+        "parts": [
+          "awk '\nBEGIN { section=0; count=0 }\n/^[ \\t]*\\[/ { section=($0 ~ /^[ \\t]*\\[sensors\\][ \\t]*\\r?$/) }\nsection && /^[ \\t]*co2_type[ \\t]*=/ {\n    value=$0; sub(/^[^=]*=[ \\t]*/, \"\", value); sub(/[ \\t\\r]*$/, \"\", value)\n    print value; count++\n}\nEND { if (count != 1) exit 1 }\n' /data/etc/setting.ini"
+        ]
+      },
+      {
+        "key": "identity_boot",
+        "parts": [
+          "cat /proc/sys/kernel/random/boot_id"
+        ]
+      }
+    ],
+    "prefs_empty": [
+      {
+        "key": "process_scan",
+        "parts": [
+          "count=0\nfor link in /proc/[0-9]*/exe; do\n    count=$((count+1))\n    [ \"$count\" -le 4096 ] || exit 1\n    pid=${link#/proc/}; pid=${pid%/exe}\n    case \"$pid\" in (''|*[!0-9]*) exit 1;; esac\n    if executable=$(readlink \"$link\" 2>/dev/null); then\n        :\n    else\n        # Kernel threads and exited tasks legitimately have no executable.\n        # An unreadable live userspace exe is NOT evidence of its absence.\n        [ -d \"/proc/$pid\" ] || continue\n        metadata=$(sed 's/.*) //' \"/proc/$pid/stat\" 2>/dev/null | awk '{print $1, $7}')\n        set -- $metadata\n        if [ \"$#\" -ne 2 ]; then\n            [ ! -d \"/proc/$pid\" ] && continue\n            exit 1\n        fi\n        case \"$2\" in (''|*[!0-9]*) exit 1;; esac\n        case \"$1\" in (Z|X|x) continue;; esac\n        [ \"$(($2 & 2097152))\" -ne 0 ] || exit 1\n        continue\n    fi\n    case \"$executable\" in\n        (/data/.esphome-cgs1/*|/tmp/qingping-full-*/*|/tmp/qingping-initial-*/*) exit 1;;\n        (/data/bin/SnowApp) printf '%s\\n' \"$pid\";;\n    esac\ndone"
+        ]
+      },
+      {
+        "key": "stock_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_arguments",
+        "parts": [
+          "arguments=$(tr '\\000' '\\n' < /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/cmdline)\n[ \"$arguments\" = \"$(printf '/bin/sh\\n/data/bin/watchdog.sh')\" ]"
+        ]
+      },
+      {
+        "key": "stock_maps_0",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /data/.esphome-cgs1/ /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_1",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-full- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_2",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-initial- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "vendor_0",
+        "parts": [
+          "test ! -L /data/bin/SnowApp\ntest -f /data/bin/SnowApp\nstat -c '%s %h' /data/bin/SnowApp\nsha256sum /data/bin/SnowApp"
+        ]
+      },
+      {
+        "key": "vendor_1",
+        "parts": [
+          "test ! -L /data/bin/watchdog.sh\ntest -f /data/bin/watchdog.sh\nstat -c '%s %h' /data/bin/watchdog.sh\nsha256sum /data/bin/watchdog.sh"
+        ]
+      },
+      {
+        "key": "vendor_2",
+        "parts": [
+          "test ! -L /data/etc/init.d/start.sh\ntest -f /data/etc/init.d/start.sh\nstat -c '%s %h' /data/etc/init.d/start.sh\nsha256sum /data/etc/init.d/start.sh"
+        ]
+      },
+      {
+        "key": "vendor_3",
+        "parts": [
+          "test ! -L /etc/init.d/S12_launcher_init\ntest -f /etc/init.d/S12_launcher_init\nstat -c '%s %h' /etc/init.d/S12_launcher_init\nsha256sum /etc/init.d/S12_launcher_init"
+        ]
+      },
+      {
+        "key": "vendor_4",
+        "parts": [
+          "test ! -L /etc/init.d/S50_px3se_init\ntest -f /etc/init.d/S50_px3se_init\nstat -c '%s %h' /etc/init.d/S50_px3se_init\nsha256sum /etc/init.d/S50_px3se_init"
+        ]
+      },
+      {
+        "key": "vendor_5",
+        "parts": [
+          "test ! -L /lib/ld-2.23.so\ntest -f /lib/ld-2.23.so\nstat -c '%s %h' /lib/ld-2.23.so\nsha256sum /lib/ld-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_6",
+        "parts": [
+          "test ! -L /lib/libc-2.23.so\ntest -f /lib/libc-2.23.so\nstat -c '%s %h' /lib/libc-2.23.so\nsha256sum /lib/libc-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_7",
+        "parts": [
+          "test ! -L /usr/lib/libstdc++.so.6.0.20\ntest -f /usr/lib/libstdc++.so.6.0.20\nstat -c '%s %h' /usr/lib/libstdc++.so.6.0.20\nsha256sum /usr/lib/libstdc++.so.6.0.20"
+        ]
+      },
+      {
+        "key": "vendor_8",
+        "parts": [
+          "test ! -L /usr/lib/libQt5Core.so.5.9.4\ntest -f /usr/lib/libQt5Core.so.5.9.4\nstat -c '%s %h' /usr/lib/libQt5Core.so.5.9.4\nsha256sum /usr/lib/libQt5Core.so.5.9.4"
+        ]
+      },
+      {
+        "key": "staged_0",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/program\ntest -f /data/.esphome-cgs1/program\nstat -c '%s %h' /data/.esphome-cgs1/program\nsha256sum /data/.esphome-cgs1/program"
+        ]
+      },
+      {
+        "key": "staged_1",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm_qt_bridge.so\ntest -f /data/.esphome-cgs1/pm_qt_bridge.so\nstat -c '%s %h' /data/.esphome-cgs1/pm_qt_bridge.so\nsha256sum /data/.esphome-cgs1/pm_qt_bridge.so"
+        ]
+      },
+      {
+        "key": "staged_2",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/launch.sh\ntest -f /data/.esphome-cgs1/launch.sh\nstat -c '%s %h' /data/.esphome-cgs1/launch.sh\nsha256sum /data/.esphome-cgs1/launch.sh"
+        ]
+      },
+      {
+        "key": "staged_3",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/SnowApp-with-PM\ntest -f /data/.esphome-cgs1/SnowApp-with-PM\nstat -c '%s %h' /data/.esphome-cgs1/SnowApp-with-PM\nsha256sum /data/.esphome-cgs1/SnowApp-with-PM"
+        ]
+      },
+      {
+        "key": "staged_4",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/startup-hook.sh\ntest -f /data/.esphome-cgs1/startup-hook.sh\nstat -c '%s %h' /data/.esphome-cgs1/startup-hook.sh\nsha256sum /data/.esphome-cgs1/startup-hook.sh"
+        ]
+      },
+      {
+        "key": "staged_5",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-start.sh.original\ntest -f /data/.esphome-cgs1/stock-start.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-start.sh.original\nsha256sum /data/.esphome-cgs1/stock-start.sh.original"
+        ]
+      },
+      {
+        "key": "staged_6",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-watchdog.sh.original\ntest -f /data/.esphome-cgs1/stock-watchdog.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-watchdog.sh.original\nsha256sum /data/.esphome-cgs1/stock-watchdog.sh.original"
+        ]
+      },
+      {
+        "key": "staged_7",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/start.sh.candidate\ntest -f /data/.esphome-cgs1/start.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/start.sh.candidate\nsha256sum /data/.esphome-cgs1/start.sh.candidate"
+        ]
+      },
+      {
+        "key": "staged_8",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/watchdog.sh.candidate\ntest -f /data/.esphome-cgs1/watchdog.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/watchdog.sh.candidate\nsha256sum /data/.esphome-cgs1/watchdog.sh.candidate"
+        ]
+      },
+      {
+        "key": "root",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1\ntest -d /data/.esphome-cgs1\nstat -c '%d %i %a %u' /data/.esphome-cgs1\ntest ! -L /data/.esphome-cgs1/install.intent\ntest -f /data/.esphome-cgs1/install.intent\n[ \"$(stat -c '%s %a %u %h' /data/.esphome-cgs1/install.intent)\" = '98 600 0 1' ]\ncat /data/.esphome-cgs1/install.intent"
+        ]
+      },
+      {
+        "key": "parents",
+        "parts": [
+          "test ! -L /data/bin\ntest ! -L /data/etc\ntest ! -L /data/etc/init.d\nstat -c '%d' /data/bin /data/etc/init.d"
+        ]
+      },
+      {
+        "key": "disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/disabled\ntest -f /data/.esphome-cgs1/disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/disabled\nsha256sum /data/.esphome-cgs1/disabled"
+        ]
+      },
+      {
+        "key": "pm-helper.disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm-helper.disabled\ntest -f /data/.esphome-cgs1/pm-helper.disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/pm-helper.disabled\nsha256sum /data/.esphome-cgs1/pm-helper.disabled"
+        ]
+      },
+      {
+        "key": "absent_stores",
+        "parts": [
+          "# CGS1_INITIAL_ABSENT_STORES\nentries=$(LC_ALL=C ls -A1 /data/.esphome-cgs1)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (full-releases|wifi|prefs|full-state) exit 1;; esac\ndone\nentries=$(LC_ALL=C ls -A1 /tmp)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (qingping-cgs1-esphome.lock) exit 1;; esac\ndone"
+        ]
+      },
+      {
+        "key": "memory",
+        "parts": [
+          "# CGS1_INITIAL_MEMORY\nawk '$1 == \"MemTotal:\" || $1 == \"MemFree:\" { print }' /proc/meminfo"
+        ]
+      },
+      {
+        "key": "intent_file",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/initial-trial.intent\ntest -f /data/.esphome-cgs1/initial-trial.intent\nstat -c '%s %h' /data/.esphome-cgs1/initial-trial.intent\nsha256sum /data/.esphome-cgs1/initial-trial.intent"
+        ]
+      },
+      {
+        "key": "intent_mode",
+        "parts": [
+          "observed_value=$(stat -c '%a %u' /data/.esphome-cgs1/initial-trial.intent)\n[ \"$observed_value\" = '600 0' ]\n"
+        ]
+      },
+      {
+        "key": "nand_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /data/.esphome-cgs1"
+        ]
+      },
+      {
+        "key": "commit_marker",
+        "parts": [
+          "# CGS1_INITIAL_COMMIT_MARKER\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock\ntest -d /data/.esphome-cgs1/.commit-disabled.lock\nobserved_value=$(stat -c '%a %u' /data/.esphome-cgs1/.commit-disabled.lock)\n[ \"$observed_value\" = '700 0' ]\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock/owner\ntest -f /data/.esphome-cgs1/.commit-disabled.lock/owner\nobserved_value=$(stat -c '%s %a %u %h' /data/.esphome-cgs1/.commit-disabled.lock/owner)\n[ \"$observed_value\" = '82 600 0 1' ]\ncat /data/.esphome-cgs1/.commit-disabled.lock/owner"
+        ]
+      },
+      {
+        "key": "ram_identity",
+        "parts": [
+          "test ! -L /tmp\ntest ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\ntest -d /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -c '%d %i %a %u' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -f -c '%t' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "ram_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "prefs_guard",
+        "parts": [
+          "test ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs\ntest -d /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs\nobserved_value=$(stat -c '%a %u %d' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs)\n[ \"$observed_value\" = '700 0 ",
+          {
+            "field": "ram_device"
+          },
+          "' ]\n"
+        ]
+      },
+      {
+        "key": "prefs_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs"
+        ]
+      },
+      {
+        "key": "identity_uid",
+        "parts": [
+          "id -u"
+        ]
+      },
+      {
+        "key": "identity_wlan",
+        "parts": [
+          "cat /sys/class/net/wlan0/address"
+        ]
+      },
+      {
+        "key": "identity_version",
+        "parts": [
+          "cat /data/etc/os-release"
+        ]
+      },
+      {
+        "key": "identity_architecture",
+        "parts": [
+          "uname -m"
+        ]
+      },
+      {
+        "key": "identity_co2",
+        "parts": [
+          "awk '\nBEGIN { section=0; count=0 }\n/^[ \\t]*\\[/ { section=($0 ~ /^[ \\t]*\\[sensors\\][ \\t]*\\r?$/) }\nsection && /^[ \\t]*co2_type[ \\t]*=/ {\n    value=$0; sub(/^[^=]*=[ \\t]*/, \"\", value); sub(/[ \\t\\r]*$/, \"\", value)\n    print value; count++\n}\nEND { if (count != 1) exit 1 }\n' /data/etc/setting.ini"
+        ]
+      },
+      {
+        "key": "identity_boot",
+        "parts": [
+          "cat /proc/sys/kernel/random/boot_id"
+        ]
+      }
+    ],
+    "prefs_file": [
+      {
+        "key": "process_scan",
+        "parts": [
+          "count=0\nfor link in /proc/[0-9]*/exe; do\n    count=$((count+1))\n    [ \"$count\" -le 4096 ] || exit 1\n    pid=${link#/proc/}; pid=${pid%/exe}\n    case \"$pid\" in (''|*[!0-9]*) exit 1;; esac\n    if executable=$(readlink \"$link\" 2>/dev/null); then\n        :\n    else\n        # Kernel threads and exited tasks legitimately have no executable.\n        # An unreadable live userspace exe is NOT evidence of its absence.\n        [ -d \"/proc/$pid\" ] || continue\n        metadata=$(sed 's/.*) //' \"/proc/$pid/stat\" 2>/dev/null | awk '{print $1, $7}')\n        set -- $metadata\n        if [ \"$#\" -ne 2 ]; then\n            [ ! -d \"/proc/$pid\" ] && continue\n            exit 1\n        fi\n        case \"$2\" in (''|*[!0-9]*) exit 1;; esac\n        case \"$1\" in (Z|X|x) continue;; esac\n        [ \"$(($2 & 2097152))\" -ne 0 ] || exit 1\n        continue\n    fi\n    case \"$executable\" in\n        (/data/.esphome-cgs1/*|/tmp/qingping-full-*/*|/tmp/qingping-initial-*/*) exit 1;;\n        (/data/bin/SnowApp) printf '%s\\n' \"$pid\";;\n    esac\ndone"
+        ]
+      },
+      {
+        "key": "stock_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_process",
+        "parts": [
+          "cat /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/stat\nstat -c '%u' /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "\nreadlink /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/exe"
+        ]
+      },
+      {
+        "key": "watchdog_arguments",
+        "parts": [
+          "arguments=$(tr '\\000' '\\n' < /proc/",
+          {
+            "field": "watchdog_pid"
+          },
+          "/cmdline)\n[ \"$arguments\" = \"$(printf '/bin/sh\\n/data/bin/watchdog.sh')\" ]"
+        ]
+      },
+      {
+        "key": "stock_maps_0",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /data/.esphome-cgs1/ /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_1",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-full- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "stock_maps_2",
+        "parts": [
+          "test -r /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps\nif grep -F -q /tmp/qingping-initial- /proc/",
+          {
+            "field": "stock_pid"
+          },
+          "/maps; then exit 1; else result=$?; [ \"$result\" -eq 1 ]; fi"
+        ]
+      },
+      {
+        "key": "vendor_0",
+        "parts": [
+          "test ! -L /data/bin/SnowApp\ntest -f /data/bin/SnowApp\nstat -c '%s %h' /data/bin/SnowApp\nsha256sum /data/bin/SnowApp"
+        ]
+      },
+      {
+        "key": "vendor_1",
+        "parts": [
+          "test ! -L /data/bin/watchdog.sh\ntest -f /data/bin/watchdog.sh\nstat -c '%s %h' /data/bin/watchdog.sh\nsha256sum /data/bin/watchdog.sh"
+        ]
+      },
+      {
+        "key": "vendor_2",
+        "parts": [
+          "test ! -L /data/etc/init.d/start.sh\ntest -f /data/etc/init.d/start.sh\nstat -c '%s %h' /data/etc/init.d/start.sh\nsha256sum /data/etc/init.d/start.sh"
+        ]
+      },
+      {
+        "key": "vendor_3",
+        "parts": [
+          "test ! -L /etc/init.d/S12_launcher_init\ntest -f /etc/init.d/S12_launcher_init\nstat -c '%s %h' /etc/init.d/S12_launcher_init\nsha256sum /etc/init.d/S12_launcher_init"
+        ]
+      },
+      {
+        "key": "vendor_4",
+        "parts": [
+          "test ! -L /etc/init.d/S50_px3se_init\ntest -f /etc/init.d/S50_px3se_init\nstat -c '%s %h' /etc/init.d/S50_px3se_init\nsha256sum /etc/init.d/S50_px3se_init"
+        ]
+      },
+      {
+        "key": "vendor_5",
+        "parts": [
+          "test ! -L /lib/ld-2.23.so\ntest -f /lib/ld-2.23.so\nstat -c '%s %h' /lib/ld-2.23.so\nsha256sum /lib/ld-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_6",
+        "parts": [
+          "test ! -L /lib/libc-2.23.so\ntest -f /lib/libc-2.23.so\nstat -c '%s %h' /lib/libc-2.23.so\nsha256sum /lib/libc-2.23.so"
+        ]
+      },
+      {
+        "key": "vendor_7",
+        "parts": [
+          "test ! -L /usr/lib/libstdc++.so.6.0.20\ntest -f /usr/lib/libstdc++.so.6.0.20\nstat -c '%s %h' /usr/lib/libstdc++.so.6.0.20\nsha256sum /usr/lib/libstdc++.so.6.0.20"
+        ]
+      },
+      {
+        "key": "vendor_8",
+        "parts": [
+          "test ! -L /usr/lib/libQt5Core.so.5.9.4\ntest -f /usr/lib/libQt5Core.so.5.9.4\nstat -c '%s %h' /usr/lib/libQt5Core.so.5.9.4\nsha256sum /usr/lib/libQt5Core.so.5.9.4"
+        ]
+      },
+      {
+        "key": "staged_0",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/program\ntest -f /data/.esphome-cgs1/program\nstat -c '%s %h' /data/.esphome-cgs1/program\nsha256sum /data/.esphome-cgs1/program"
+        ]
+      },
+      {
+        "key": "staged_1",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm_qt_bridge.so\ntest -f /data/.esphome-cgs1/pm_qt_bridge.so\nstat -c '%s %h' /data/.esphome-cgs1/pm_qt_bridge.so\nsha256sum /data/.esphome-cgs1/pm_qt_bridge.so"
+        ]
+      },
+      {
+        "key": "staged_2",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/launch.sh\ntest -f /data/.esphome-cgs1/launch.sh\nstat -c '%s %h' /data/.esphome-cgs1/launch.sh\nsha256sum /data/.esphome-cgs1/launch.sh"
+        ]
+      },
+      {
+        "key": "staged_3",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/SnowApp-with-PM\ntest -f /data/.esphome-cgs1/SnowApp-with-PM\nstat -c '%s %h' /data/.esphome-cgs1/SnowApp-with-PM\nsha256sum /data/.esphome-cgs1/SnowApp-with-PM"
+        ]
+      },
+      {
+        "key": "staged_4",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/startup-hook.sh\ntest -f /data/.esphome-cgs1/startup-hook.sh\nstat -c '%s %h' /data/.esphome-cgs1/startup-hook.sh\nsha256sum /data/.esphome-cgs1/startup-hook.sh"
+        ]
+      },
+      {
+        "key": "staged_5",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-start.sh.original\ntest -f /data/.esphome-cgs1/stock-start.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-start.sh.original\nsha256sum /data/.esphome-cgs1/stock-start.sh.original"
+        ]
+      },
+      {
+        "key": "staged_6",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/stock-watchdog.sh.original\ntest -f /data/.esphome-cgs1/stock-watchdog.sh.original\nstat -c '%s %h' /data/.esphome-cgs1/stock-watchdog.sh.original\nsha256sum /data/.esphome-cgs1/stock-watchdog.sh.original"
+        ]
+      },
+      {
+        "key": "staged_7",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/start.sh.candidate\ntest -f /data/.esphome-cgs1/start.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/start.sh.candidate\nsha256sum /data/.esphome-cgs1/start.sh.candidate"
+        ]
+      },
+      {
+        "key": "staged_8",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/watchdog.sh.candidate\ntest -f /data/.esphome-cgs1/watchdog.sh.candidate\nstat -c '%s %h' /data/.esphome-cgs1/watchdog.sh.candidate\nsha256sum /data/.esphome-cgs1/watchdog.sh.candidate"
+        ]
+      },
+      {
+        "key": "root",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1\ntest -d /data/.esphome-cgs1\nstat -c '%d %i %a %u' /data/.esphome-cgs1\ntest ! -L /data/.esphome-cgs1/install.intent\ntest -f /data/.esphome-cgs1/install.intent\n[ \"$(stat -c '%s %a %u %h' /data/.esphome-cgs1/install.intent)\" = '98 600 0 1' ]\ncat /data/.esphome-cgs1/install.intent"
+        ]
+      },
+      {
+        "key": "parents",
+        "parts": [
+          "test ! -L /data/bin\ntest ! -L /data/etc\ntest ! -L /data/etc/init.d\nstat -c '%d' /data/bin /data/etc/init.d"
+        ]
+      },
+      {
+        "key": "disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/disabled\ntest -f /data/.esphome-cgs1/disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/disabled\nsha256sum /data/.esphome-cgs1/disabled"
+        ]
+      },
+      {
+        "key": "pm-helper.disabled",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/pm-helper.disabled\ntest -f /data/.esphome-cgs1/pm-helper.disabled\nstat -c '%s %a %u %h' /data/.esphome-cgs1/pm-helper.disabled\nsha256sum /data/.esphome-cgs1/pm-helper.disabled"
+        ]
+      },
+      {
+        "key": "absent_stores",
+        "parts": [
+          "# CGS1_INITIAL_ABSENT_STORES\nentries=$(LC_ALL=C ls -A1 /data/.esphome-cgs1)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (full-releases|wifi|prefs|full-state) exit 1;; esac\ndone\nentries=$(LC_ALL=C ls -A1 /tmp)\nprintf '%s\\n' \"$entries\" | while IFS= read -r entry; do\n    case \"$entry\" in (qingping-cgs1-esphome.lock) exit 1;; esac\ndone"
+        ]
+      },
+      {
+        "key": "memory",
+        "parts": [
+          "# CGS1_INITIAL_MEMORY\nawk '$1 == \"MemTotal:\" || $1 == \"MemFree:\" { print }' /proc/meminfo"
+        ]
+      },
+      {
+        "key": "intent_file",
+        "parts": [
+          "test ! -L /data/.esphome-cgs1/initial-trial.intent\ntest -f /data/.esphome-cgs1/initial-trial.intent\nstat -c '%s %h' /data/.esphome-cgs1/initial-trial.intent\nsha256sum /data/.esphome-cgs1/initial-trial.intent"
+        ]
+      },
+      {
+        "key": "intent_mode",
+        "parts": [
+          "observed_value=$(stat -c '%a %u' /data/.esphome-cgs1/initial-trial.intent)\n[ \"$observed_value\" = '600 0' ]\n"
+        ]
+      },
+      {
+        "key": "nand_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /data/.esphome-cgs1"
+        ]
+      },
+      {
+        "key": "commit_marker",
+        "parts": [
+          "# CGS1_INITIAL_COMMIT_MARKER\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock\ntest -d /data/.esphome-cgs1/.commit-disabled.lock\nobserved_value=$(stat -c '%a %u' /data/.esphome-cgs1/.commit-disabled.lock)\n[ \"$observed_value\" = '700 0' ]\ntest ! -L /data/.esphome-cgs1/.commit-disabled.lock/owner\ntest -f /data/.esphome-cgs1/.commit-disabled.lock/owner\nobserved_value=$(stat -c '%s %a %u %h' /data/.esphome-cgs1/.commit-disabled.lock/owner)\n[ \"$observed_value\" = '82 600 0 1' ]\ncat /data/.esphome-cgs1/.commit-disabled.lock/owner"
+        ]
+      },
+      {
+        "key": "ram_identity",
+        "parts": [
+          "test ! -L /tmp\ntest ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\ntest -d /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -c '%d %i %a %u' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "\nstat -f -c '%t' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "ram_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          }
+        ]
+      },
+      {
+        "key": "prefs_guard",
+        "parts": [
+          "test ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs\ntest -d /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs\nobserved_value=$(stat -c '%a %u %d' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs)\n[ \"$observed_value\" = '700 0 ",
+          {
+            "field": "ram_device"
+          },
+          "' ]\n"
+        ]
+      },
+      {
+        "key": "prefs_entries",
+        "parts": [
+          "LC_ALL=C ls -A1 /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs"
+        ]
+      },
+      {
+        "key": "prefs_file",
+        "parts": [
+          "test ! -L /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs/",
+          {
+            "field": "node_name"
+          },
+          ".prefs\ntest -f /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs/",
+          {
+            "field": "node_name"
+          },
+          ".prefs\nstat -c '%s %a %u %h %d' /tmp/qingping-initial-trial-",
+          {
+            "field": "ram_job_id"
+          },
+          "/prefs/",
+          {
+            "field": "node_name"
+          },
+          ".prefs"
+        ]
+      },
+      {
+        "key": "identity_uid",
+        "parts": [
+          "id -u"
+        ]
+      },
+      {
+        "key": "identity_wlan",
+        "parts": [
+          "cat /sys/class/net/wlan0/address"
+        ]
+      },
+      {
+        "key": "identity_version",
+        "parts": [
+          "cat /data/etc/os-release"
+        ]
+      },
+      {
+        "key": "identity_architecture",
+        "parts": [
+          "uname -m"
+        ]
+      },
+      {
+        "key": "identity_co2",
+        "parts": [
+          "awk '\nBEGIN { section=0; count=0 }\n/^[ \\t]*\\[/ { section=($0 ~ /^[ \\t]*\\[sensors\\][ \\t]*\\r?$/) }\nsection && /^[ \\t]*co2_type[ \\t]*=/ {\n    value=$0; sub(/^[^=]*=[ \\t]*/, \"\", value); sub(/[ \\t\\r]*$/, \"\", value)\n    print value; count++\n}\nEND { if (count != 1) exit 1 }\n' /data/etc/setting.ini"
+        ]
+      },
+      {
+        "key": "identity_boot",
+        "parts": [
+          "cat /proc/sys/kernel/random/boot_id"
+        ]
+      }
+    ]
   }
 }

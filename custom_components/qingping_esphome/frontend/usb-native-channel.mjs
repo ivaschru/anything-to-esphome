@@ -2,7 +2,7 @@ import {InitialRamCommandStream,initialRamStreamService} from './usb-initial-ram
 import {BrowserInitialRamSession} from './usb-initial-ram-session.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from './usb-initial-guardian-stream.mjs';
 import {initialGuardianProcessReads,initialGuardianProcessObservation} from './usb-initial-process-observation.mjs';
-import {collectInitialGuardianScope} from './usb-initial-scope-observation.mjs';
+import {collectInitialGuardianScope,collectInitialGuardianReturn} from './usb-initial-scope-observation.mjs';
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
 import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
@@ -28,7 +28,7 @@ export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
   #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;#ramProbeUsed=false;#ramUsed=false;#ramStream;#ram;
   #ramPacket;#ramProof;#guardian;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
-  #guardianStarted;#guardianObservations=0;
+  #guardianStarted;#guardianEnded;#guardianReturnUsed=false;#guardianObservations=0;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -351,8 +351,32 @@ export class BrowserNativeChannel {
       await this.close().catch(()=>{});error('usb_browser_scope_unverified');
     }
     this.#guardianFinished=true;this.#busy=true; // A lost terminal record never permits another read/launch attempt.
-    try {this.evidence();const value=await this.#guardian.finish();this.evidence();return value;}
+    try {this.evidence();const value=await this.#guardian.finish();this.evidence();this.#guardianEnded=JSON.parse(JSON.stringify(value));return value;}
     catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  /** One fixed post-stop read on the ORIGINAL completed guardian session.
+   * Raw END/close and API-close must already be acknowledged. Unlike live
+   * scope, this reader admits no own program to the strict absence scan.
+   * It grants no signal, restart, journal completion or transport-close proof.
+   */
+  async observeInitialGuardianReturn() {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || !this.#guardianEnded ||
+       !this.#guardianFinished || this.#guardianReturnUsed || this.#guardianObservations>=32) {
+      await this.close().catch(()=>{});error('usb_browser_scope_unverified');
+    }
+    this.#guardianReturnUsed=true;this.#guardianObservations++;this.#busy=true;
+    const began=performance.now();
+    try {
+      this.evidence();
+      const value=await collectInitialGuardianReturn({read:async command=>{
+        this.evidence();if(performance.now()-began>5000)error('usb_browser_scope_unverified');
+        const text=await this.#read(command);this.evidence();return text;
+      }},this.#ramPacket,this.#ramProof,this.#guardianStarted);
+      this.evidence();if(performance.now()-began>5000)error('usb_browser_scope_unverified');
+      return value;
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
 

@@ -1,5 +1,14 @@
 ## Unreleased – browser USB installation work
 
+- Join the original guardian's post-stop fixed scope to its selected USB
+  channel and private Core continuation. Use strict positive absence of own
+  programs and two independent full read passes; preserve roots, stock births,
+  original intent/RAM and known byte pins. Core joins its own END time to the
+  original authenticated wire result and API-close ACK, rejecting immediate
+  reported stops and stale samples. Actual USB/channel close, terminal journal
+  verification and public browser installation remain unfinished. All timing
+  acceleration and synthetic replies belong only to host tests.
+
 - Add the private Core Noise observer over that original guardian relay.
   Verify authenticated name/MAC, unique physical entities and independently
   fresh wire generations with ten-second separation, alongside full scope

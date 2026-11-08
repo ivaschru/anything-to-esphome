@@ -15,7 +15,7 @@ from .monitor1_browser_channel import guardian_record
 from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same
 from .monitor1_browser_initial_review import context
 from .monitor1_browser_relay import RelayRefusal
-from .monitor1_browser_process_observation import BINDING, validate_observation, scope_basis, validate_scope, SCOPE_WINDOW
+from .monitor1_browser_process_observation import BINDING, validate_observation, scope_basis, validate_scope, validate_return, SCOPE_WINDOW
 
 
 async def _checked(ram):
@@ -65,7 +65,7 @@ def records(value, packet, started=None):
 
 class RunningBrowserGuardian:
     """In-memory continuation only; JSON cannot recreate this task/actor join."""
-    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations', '_api_used', '_api_context', '_api_relay', '_noise_used', '_wire_observation')
+    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations', '_api_used', '_api_context', '_api_relay', '_noise_used', '_wire_observation', '_ended', '_end_observed_at', '_return_used', '_return_observation')
 
     def __init__(self, ram, started, issued_at):
         self._ram, self._started, self._issued_at = ram, copy.deepcopy(started), issued_at
@@ -75,6 +75,8 @@ class RunningBrowserGuardian:
         self._api_context = self._api_relay = None
         self._noise_used = False
         self._wire_observation = None
+        self._ended = self._end_observed_at = self._return_observation = None
+        self._return_used = False
 
     def live(self):
         if self._closed:
@@ -98,10 +100,12 @@ class RunningBrowserGuardian:
         self._finished = True  # Consume before a possibly lost END/close answer.
         try:
             value = await self._ram.capability.finish_initial_guardian()
+            received_at = time.monotonic()  # Before SDK hashing; never accept a browser timestamp.
             self.live()
             packet = await _checked(self._ram)
             records(value, packet, self._started)
             self.live()
+            self._ended, self._end_observed_at = copy.deepcopy(value), received_at
             return copy.deepcopy(value)  # Still records_only; no lease/journal/status write.
         except BaseException:
             await self.close()
@@ -157,6 +161,49 @@ class RunningBrowserGuardian:
             if time.monotonic() - began > SCOPE_WINDOW:
                 raise RelayRefusal
             return copy.deepcopy(value)
+        except BaseException:
+            await self.close()
+            raise RelayRefusal from None
+        finally:
+            self._busy = False
+
+    async def observe_return(self):
+        """Join original authenticated wire, actual END and fixed return scope.
+
+        Records alone do not qualify a stop. Require the original same-task
+        Noise result, independent API-close ACK, exact child/reap and a wire
+        message no older than twenty seconds when Core received END. A host
+        minimum of sixty seconds excludes an immediate reported END fixture;
+        none of these clocks can extend the independent device stop timer.
+        This still cannot release the journal or claim USB/channel closure.
+        """
+        from .monitor1_browser_initial_noise import InitialWireObservation
+        self.live()
+        wire = self._wire_observation
+        if (not self._finished or self._ended is None or self._end_observed_at is None or self._busy or
+                self._return_used or self._observations >= 32 or type(wire) is not InitialWireObservation or
+                wire._running is not self or wire._samples < 2 or
+                wire._close_proof != {'api_closed': True, 'transport_closed': False, 'context_only': True} or
+                self._ram.capability.opened or self._ram.capability.opening or self._ram.capability.pending):
+            raise RelayRefusal
+        self._return_used, self._busy = True, True
+        self._observations += 1
+        began = time.monotonic()
+        try:
+            age = self._end_observed_at - wire._last_sample_at
+            if (not 0 <= age <= 20 or self._end_observed_at - self._issued_at < 60 or
+                    self._ended['end']['child'] != wire.reported['child']):
+                raise RelayRefusal
+            value = await self._ram.capability.observe_initial_guardian_return()
+            self.live()
+            packet, ram = self._ram.packet, self._ram.proof
+            validate_return(value, {k: packet[k] for k in BINDING}, self._started,
+                            ram['uploaded']['guardian_file_identity'], ram['uploaded']['ram_root_identity'], scope_basis(packet))
+            self.live()
+            if time.monotonic() - began > SCOPE_WINDOW:
+                raise RelayRefusal
+            self._return_observation = copy.deepcopy(value)
+            return copy.deepcopy(value)  # Not terminal journal or actual close proof.
         except BaseException:
             await self.close()
             raise RelayRefusal from None

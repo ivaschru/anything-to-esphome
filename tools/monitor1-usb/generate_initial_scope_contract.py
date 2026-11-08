@@ -147,21 +147,37 @@ def content():
     receipt.update(guardian={'size': 1700033, 'sha256': 'b' * 64}, nonce='ef' * 16)
     lookup = {value: key for key, value in VALUES.items()}
     pattern = re.compile('|'.join(re.escape(v) for v in sorted(lookup, key=len, reverse=True)))
-    branches = {}
+    branches, return_branches = {}, {}
     for layout in ('empty', 'prefs_empty', 'prefs_file'):
         rows = capture(plan, '2' * 64, baseline, receipt, (int(VALUES['guardian_pid']), 1900037),
                        [int(VALUES['ram_device']), 100], VALUES['node_name'], (int(VALUES['child_pid']), 1900043), layout)
-        reads = []
-        for row in rows:
-            parts, offset = [], 0
-            for match in pattern.finditer(row['command']):
-                if offset < match.start(): parts.append(row['command'][offset:match.start()])
-                parts.append({'field': lookup[match.group()]}); offset = match.end()
-            if offset < len(row['command']): parts.append(row['command'][offset:])
-            reads.append({'key': row['key'], 'parts': parts})
-        branches[layout] = reads
+        # Post-stop scope cannot use the live reader's two admitted process
+        # exceptions. Reuse only its exact stock/vendor/intent/RAM tail, with
+        # the frozen pre-start scan that positively refuses ALL own programs.
+        # No fake guardian/child readbacks are inserted to satisfy a live DTO.
+        # This is a read-only composition, not native trial() completion.
+        returned = [dict(row) for row in rows if row['key'] not in {
+            'child_before', 'child_after', 'endpoint', *(
+                prefix + suffix for prefix in ('guardian', 'child') for suffix in
+                ('_process_before', '_file', '_image', '_process_after'))}]
+        if len(returned) != len(rows) - 11 or returned[0]['key'] != 'process_scan':
+            raise ValueError('Frozen post-stop tail boundary changed')
+        returned[0]['command'] = trial.initial.INITIAL_PROCESS_SCAN
+        def templates(selected):
+            reads = []
+            for row in selected:
+                parts, offset = [], 0
+                for match in pattern.finditer(row['command']):
+                    if offset < match.start(): parts.append(row['command'][offset:match.start()])
+                    parts.append({'field': lookup[match.group()]}); offset = match.end()
+                if offset < len(row['command']): parts.append(row['command'][offset:])
+                reads.append({'key': row['key'], 'parts': parts})
+            return reads
+        branches[layout] = templates(rows)
+        return_branches[layout] = templates(returned)
     return json.dumps({'schema_version': 1, 'source_commit': pinned['source_commit'], 'maximum_observation_ms': int(window[0]),
-                       'source_sha256': pinned['source_sha256'], 'branches': branches}, indent=2) + '\n'
+                       'source_sha256': pinned['source_sha256'], 'branches': branches,
+                       'return_branches': return_branches}, indent=2) + '\n'
 
 
 def main():

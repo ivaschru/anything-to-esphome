@@ -18,6 +18,7 @@ checker = module
 value = json.loads(sys.stdin.buffer.read(1024 * 1024))
 assert set(value) == {'packet', 'ram', 'started', 'observed'}
 packet, ram, started = value['packet'], value['ram'], value['started']
-checker.validate_scope(value['observed'], {k: packet[k] for k in checker.BINDING}, started,
+validate = checker.validate_return if value['observed']['kind'] == 'browser_initial_return_observation' else checker.validate_scope
+validate(value['observed'], {k: packet[k] for k in checker.BINDING}, started,
     ram['uploaded']['guardian_file_identity'], ram['uploaded']['ram_root_identity'], checker.scope_basis(packet))
 print(json.dumps({'context_checked': True, 'execution_authority': False}))

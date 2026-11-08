@@ -14,13 +14,18 @@ const hash=body=>createHash('sha256').update(body).digest('hex');
 async function selected(options={},Native=undefined) {
  const packet=structuredClone(original.packet),body=new Uint8Array(131089).fill(27);
  packet.context.guardian={size:body.length,sha256:hash(body)};
- let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture,scopeFixture,scopeReads=0;
+ let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture,scopeFixture,scopeReads=0,returning=false,returnReads=0;
  let apiOpening=false,apiOpens=0,apiCloses=0,apiController,apiCancelled=false,scopeGate,scopeEntered,releaseScope;
  const apiWrites=[];
  const scopeRead=command=>{
   if(!scopeFixture)return undefined;
-  const keys=Object.keys(scopeFixture.commands),key=keys[scopeReads%keys.length];assert.equal(command,scopeFixture.commands[key]);scopeReads++;
-  return options.unknownPrefs && key==='prefs_entries'?'unknown.prefs':scopeFixture.reads[key];
+  const commands=returning?scopeFixture.return_commands:scopeFixture.commands;
+  const reads=returning?scopeFixture.return_reads:scopeFixture.reads;
+  const keys=Object.keys(commands),key=keys[(returning?returnReads:scopeReads)%keys.length];
+  assert.equal(command,commands[key]);if(returning)returnReads++;else scopeReads++;
+  if(returning && options.returnRootChanged && key==='root')return reads[key].replace(' 700 0',' 755 0');
+  if(returning && options.returnSecondPass && returnReads>keys.length && key==='process_scan')return reads[key]+'\n123';
+  return options.unknownPrefs && key==='prefs_entries'?'unknown.prefs':reads[key];
  };
  const fixture=disabledTransport({committed:true,unsupported:options.unsupported,
   identityRead:command=>apiOpening && scopeReads && scopeReads%57===0?undefined:scopeRead(command),
@@ -72,7 +77,7 @@ async function selected(options={},Native=undefined) {
   expectProcesses:start=>{processFixture=initialProcessFixture(processPacket,processRam,start,options);},
   expectScope:start=>{scopeFixture=JSON.parse(execFileSync(process.env.PYTHON||'python3',['tests/fixtures/monitor1_browser_initial_scope.py','--stdin'],{
    input:JSON.stringify({packet:processPacket,ram:processRam,started:start,layout:'prefs_file'}),encoding:'utf8',maxBuffer:1024*1024}));},
-  get scopeReads(){return scopeReads;},
+  get scopeReads(){return scopeReads;},expectReturn:()=>{returning=true;},get returnReads(){return returnReads;},
   pauseScope:()=>{
    scopeGate=new Promise(resolve=>{releaseScope=resolve;});
    return new Promise(resolve=>{scopeEntered=resolve;});
@@ -96,7 +101,23 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  assert.equal((await f.call('api-close')).ok,true);assert.equal((await pending).data,'');
  assert.equal(f.apiCloses,1);assert.equal(f.fixture.closed,0,'API close preserves the original guardian transport');
  assert.equal((await f.call('guardian-finish')).ok,true);assert.equal(f.guardianStarts,1);
+ f.expectReturn();const returned=await f.call('guardian-return-observe');
+ assert.equal(returned.ok,true);assert.equal(returned.data.own_programs_absent,true);assert.equal(f.returnReads,92);
+ assert.equal(f.fixture.closed,0,'Return observation is not actual USB closure');
  assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
+}
+for(const options of [{returnRootChanged:true},{returnSecondPass:true},{earlyReturn:true},{repeatReturn:true}]) {
+ const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ if(!options.earlyReturn)assert.equal((await f.call('guardian-finish')).ok,true);
+ f.expectReturn();const returned=await f.call('guardian-return-observe');
+ assert.equal(returned.ok,Boolean(options.repeatReturn));
+ if(options.repeatReturn) {
+  const reads=f.returnReads;assert.equal((await f.call('guardian-return-observe')).ok,false);assert.equal(f.returnReads,reads);
+ }
+ assert.equal(f.fixture.closed,1);assert.equal(f.guardianStarts,1);
+ if(options.earlyReturn)assert.equal(f.returnReads,0,'No post-stop read before original raw END/close');
 }
 for(const options of [{apiOpenLoss:true},{apiCloseLoss:true}]) {
  const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
@@ -129,7 +150,7 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
  await assert.rejects(f.call('guardian-start'));assert.equal(f.guardianStarts,1);
 }
-for(const operation of ['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe']) {
+for(const operation of ['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe']) {
  const f=await selected();assert.equal((await f.call(operation)).ok,false);assert.equal(f.guardianStarts,0);assert.equal(f.fixture.closed,1);
 }
 {

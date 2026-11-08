@@ -572,3 +572,15 @@ an encrypted synthetic responder across the actual loopback/finite frames and
 a test-only accelerated clock. The result is private in-memory context. The
 later device stop, stock return, actual USB closure, terminal journal verifier
 and fresh-device qualification are still unfinished.
+
+The private post-stop scope now also uses the original selected channel after
+its ordered raw END/close and API-close acknowledgement. Its frozen tail reads
+stock/vendor/intent/RAM and uses the strict scan that admits no own program.
+Two independent complete passes must agree under one five-second window;
+only measured free RAM may change. Core requires its original Noise result,
+exact child/reap, at least 60s between original issue and Core END reception,
+and a last accepted wire message no older than 20s at that reception. The
+original channel/task/actor and budgets remain. This read is context only:
+actual USB close, separate channel-close ACK, terminal journal verification
+and fresh-device qualification remain unfinished. Immediate fake END records
+and accelerated host-test clocks do not qualify the device stop timer.

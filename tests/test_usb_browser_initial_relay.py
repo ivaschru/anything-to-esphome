@@ -83,6 +83,11 @@ class InitialRelayTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(frame['data'], 'No host, key, PID, command or replacement packet selector')
         if op == 'guardian-scope-observe':
             value = self.f.f.scope_observation()
+        elif op == 'guardian-return-observe':
+            value = self.f.f.scope_observation()
+            process = value.pop('process')
+            value.update(kind='browser_initial_return_observation', guardian=process['guardian'],
+                         child=process['child'], own_programs_absent=True)
         elif op == 'guardian-finish':
             _, value = self.f.f.records()
         elif op == 'api-open':

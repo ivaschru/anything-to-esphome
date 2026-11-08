@@ -82,12 +82,14 @@ def scope_basis(packet):
         raise RelayRefusal from None
 
 
-def validate_scope(value, binding, started, guardian_identity, ram_root, basis):
+def _validate_scope(value, binding, started, guardian_identity, ram_root, basis, *, returning=False):
     """Independent channel/Core join, still context rather than FD admission."""
-    fields = {'kind', *BINDING, 'process', 'root_identity', 'ram_root_identity', 'stock_process',
+    fields = {'kind', *BINDING, 'root_identity', 'ram_root_identity', 'stock_process',
               'watchdog_process', 'prefs_layout', 'memory_free_bytes', 'memory_total_bytes', 'kernel_scope_checked',
               'image_fd_admitted', 'execution_authority', 'context_only'}
-    if (not isinstance(value, dict) or set(value) != fields or value['kind'] != 'browser_initial_scope_observation' or
+    fields |= {'guardian', 'child', 'own_programs_absent'} if returning else {'process'}
+    expected_kind = 'browser_initial_return_observation' if returning else 'browser_initial_scope_observation'
+    if (not isinstance(value, dict) or set(value) != fields or value['kind'] != expected_kind or
             any(not isinstance(value[k], str) or value[k] != binding[k] for k in BINDING) or
             value['kernel_scope_checked'] is not True or value['context_only'] is not True or
             value['image_fd_admitted'] is not False or value['execution_authority'] is not False or
@@ -103,7 +105,28 @@ def validate_scope(value, binding, started, guardian_identity, ram_root, basis):
     for key in ('stock_process', 'watchdog_process'):
         if not stamp(value[key]) or value[key] != basis[key]:
             raise RelayRefusal
-    validate_observation(value['process'], binding, started, basis['root_identity'][0], guardian_identity)
-    if len({value['stock_process'][0], value['watchdog_process'][0],
-            value['process']['guardian'][0], value['process']['child'][0]}) != 4:
+    if returning:
+        validate_context(binding, started, basis['root_identity'][0], guardian_identity)
+        if (value['own_programs_absent'] is not True or not stamp(value['guardian']) or not stamp(value['child']) or
+                value['guardian'] != started['start']['stamp'] or value['child'] != started['child']['stamp']):
+            raise RelayRefusal
+        guardian, child = value['guardian'], value['child']
+    else:
+        validate_observation(value['process'], binding, started, basis['root_identity'][0], guardian_identity)
+        guardian, child = value['process']['guardian'], value['process']['child']
+    if len({value['stock_process'][0], value['watchdog_process'][0], guardian[0], child[0]}) != 4:
         raise RelayRefusal
+
+
+def validate_scope(value, binding, started, guardian_identity, ram_root, basis):
+    return _validate_scope(value, binding, started, guardian_identity, ram_root, basis)
+
+
+def validate_return(value, binding, started, guardian_identity, ram_root, basis):
+    """Pure post-stop context only, not END/age/actual close or terminal proof.
+
+    A live caller must independently join this to its original completed raw
+    guardian session and authenticated wire observation. No JSON can supply
+    those capabilities or release the journal from this validator alone.
+    """
+    return _validate_scope(value, binding, started, guardian_identity, ram_root, basis, returning=True)
