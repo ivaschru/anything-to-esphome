@@ -13,7 +13,7 @@ import secrets
 from .monitor1_browser_relay import RelayRefusal
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete"}
 MAX_BYTES = 65536
 
 
@@ -29,6 +29,8 @@ class BrowserChannel:
         self.opened = False
         self.opening = False
         self.staging = False
+        self.committing = False
+        self.commit_probe = False
 
     def _retire(self):
         self.closed = True
@@ -49,7 +51,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "commit-prepare", "commit-step", "commit-complete") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -142,12 +144,12 @@ class BrowserChannel:
         compare it with this channel and its separately verified owned plan.
         A cached successful report can never renew a write/launch intent.
         """
-        if self.staging or self.opened or self.opening or self.pending:
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
 
     async def check_stage_scope(self):
-        if self.staging or self.opened or self.opening or self.pending:
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("stage-admission")
 
@@ -157,7 +159,7 @@ class BrowserChannel:
         Its metadata must come from the owned verified stage journal. Returned
         scope remains evidence, never a commit/rollback intent or native USB.
         """
-        if self.staging or self.opened or self.opening or self.pending:
+        if self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("disabled-scope", {"meta": meta})
 
@@ -168,7 +170,7 @@ class BrowserChannel:
         frame. The selected peer independently admits factory scope and makes
         both opt-outs before its sole ordered nine-file sequence.
         """
-        if self.staging or self.opened or self.opening or self.pending:
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.staging = True
         if await self._request("stage-prepare", {"packet": packet, "stock_files": stock_files}) != {"state": "disabled_root_created"}:
@@ -208,8 +210,44 @@ class BrowserChannel:
         # independently rehashed packet before recording a terminal outcome.
         return await self._request("stage-complete")
 
+    async def probe_commit_stream(self):
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.commit_probe = True  # Consume even a lost read-only probe ACK.
+        expected = {'kind': 'browser_fixed_stdin_probe', 'service': 'exec:/bin/sh', 'ready': True,
+                    'device_files_changed': False, 'writer_enabled': False}
+        value = await self._request('commit-stream-check')
+        if (not isinstance(value, dict) or value != expected or value['ready'] is not True or
+                value['device_files_changed'] is not False or value['writer_enabled'] is not False):
+            self._retire()
+            raise RelayRefusal
+
+    async def begin_commit(self, packet):
+        if not self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.committing = True  # Before any possibly lost delivery/ACK.
+        value = await self._request('commit-prepare', {'packet': packet})
+        if value != {'state': 'commit_scope_rechecked', 'writer_enabled': False} or value.get('writer_enabled') is not False:
+            self._retire()
+            raise RelayRefusal
+
+    async def commit_step(self, phase):
+        if not self.committing or self.pending or phase not in ('claim', 'watchdog', 'start'):
+            raise RelayRefusal
+        value = await self._request('commit-step', {'phase': phase})
+        if (not isinstance(value, dict) or set(value) != {'phase', 'completed', 'scope'} or
+                value['phase'] != phase or value['completed'] is not True or not isinstance(value['scope'], dict)):
+            self._retire()
+            raise RelayRefusal
+        return value['scope']
+
+    async def finish_commit(self):
+        if not self.committing or self.pending:
+            raise RelayRefusal
+        return await self._request('commit-complete')
+
     async def open_api(self):
-        if self.staging or self.opened or self.opening:
+        if self.commit_probe or self.committing or self.staging or self.opened or self.opening:
             raise RelayRefusal
         self.opening = True
         try:

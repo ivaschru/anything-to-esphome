@@ -30,6 +30,8 @@ jobs:
       - run: node tests/test_usb_disabled_scope.mjs
       - run: python tools/monitor1-usb/generate_disabled_contract.py --check
       - run: node tests/test_usb_disabled_commands.mjs
+      - run: node tests/test_usb_disabled_stream.mjs
+      - run: node tests/test_usb_native_commit.mjs
       - run: python tools/monitor1-usb/generate_disabled_commands.py --check
       - run: node tests/test_usb_channel_peer.mjs
       - run: node tests/test_usb_file_observation.mjs
@@ -112,6 +114,7 @@ jobs:
         run: |
           npm ci --prefix tools/monitor1-usb --ignore-scripts --no-audit --no-fund
           node tests/test_usb_stage_sync_v1.mjs
+          node tests/test_usb_disabled_stream_tango.mjs
           node tools/monitor1-usb/build.mjs
           python3 tools/monitor1-usb/package_core.py --check
           git diff --exit-code -- custom_components/qingping_esphome/frontend/usb-probe-bundle.mjs custom_components/qingping_esphome/frontend/usb-probe-NOTICES.txt apps/monitor1_usb/rootfs/static/usb-probe-bundle.mjs apps/monitor1_usb/rootfs/static/usb-probe-NOTICES.txt

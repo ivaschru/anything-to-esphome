@@ -16,7 +16,7 @@ import secrets
 from preparation import PreparationError, owned_intent, read_private, unique_json, write_new
 from build_worker import sync_directory
 from browser_disabled_policy import checked_input, verify_source
-from browser_disabled_observation import validate_scope, validate_assessment
+from browser_disabled_observation import validate_assessment, validate_commit_observations
 
 INTENT = 'browser-commit-intent.json'
 COMPLETE = 'browser-commit-complete.json'
@@ -118,23 +118,7 @@ class BrowserCommits:
             invalid()
         meta = {**context['meta'], 'commit_nonce': value['nonce']}
         reader = unique_json((ROOT / 'disabled-contract.json').read_bytes())
-        factory = {v['path']: v['sha256'] for v in unique_json((ROOT / 'contract.json').read_bytes())['files']}
-        # The stable entire scope must remain the initial one. Only the two
-        # prescribed vendor transitions, known lock and current free bytes may
-        # differ. ACK text alone never substitutes for any full observation.
-        mutable = {'vendor_hashes', 'commit_nonce', 'data_available_bytes'}
-        baseline = {k: v for k, v in value['initial_scope'].items() if k not in mutable}
-        for index, observed in enumerate(proof['observations']):
-            validate_scope(observed, meta, reader)
-            if {k: v for k, v in observed.items() if k not in mutable} != baseline:
-                invalid()
-            expected = dict(factory)
-            if index >= 1:
-                expected['/data/bin/watchdog.sh'] = reader['patched']['/data/bin/watchdog.sh']['sha256']
-            if index == 2:
-                expected['/data/etc/init.d/start.sh'] = reader['patched']['/data/etc/init.d/start.sh']['sha256']
-            if dict(observed['vendor_hashes']) != expected:
-                invalid()
+        validate_commit_observations(proof['observations'], value['initial_scope'], meta, reader)
 
     def record(self, owner, job_id, intent_sha256, proof):
         directory, value, digest, context = self._intent(owner, job_id)

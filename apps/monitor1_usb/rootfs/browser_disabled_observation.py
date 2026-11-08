@@ -81,3 +81,28 @@ def validate_assessment(value, job_id, plan_sha256, source_commit, raw):
             type(value['device_writes']) is not int or value['device_writes'] != 0 or
             value['writer_enabled'] is not False or value['installation_ready'] is not False or value['live_recheck_required'] is not True):
         raise ObservationRefusal
+
+
+def validate_commit_observations(observations, initial_scope, meta, reader):
+    """Validate an independent prefix, never declare a whole commit complete.
+
+    The terminal journal separately requires exactly three entries and its
+    original transport-close proof. Core can check each prefix before another
+    step; a cached prefix grants no new issue, retry or live capability.
+    """
+    if not isinstance(observations, list) or not 1 <= len(observations) <= 3:
+        raise ObservationRefusal
+    factory = {v['path']: v['sha256'] for v in json.loads((ROOT / 'contract.json').read_bytes())['files']}
+    mutable = {'vendor_hashes', 'commit_nonce', 'data_available_bytes'}
+    baseline = {k: v for k, v in initial_scope.items() if k not in mutable}
+    for index, observed in enumerate(observations):
+        validate_scope(observed, meta, reader)
+        if {k: v for k, v in observed.items() if k not in mutable} != baseline:
+            raise ObservationRefusal
+        expected = dict(factory)
+        if index >= 1:
+            expected['/data/bin/watchdog.sh'] = reader['patched']['/data/bin/watchdog.sh']['sha256']
+        if index == 2:
+            expected['/data/etc/init.d/start.sh'] = reader['patched']['/data/etc/init.d/start.sh']['sha256']
+        if dict(observed['vendor_hashes']) != expected:
+            raise ObservationRefusal

@@ -22,7 +22,7 @@ function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
-  #staging=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
+  #staging=false;#committing=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   constructor(link) {this.#link=link;}
 
   async dispatch(request) {
@@ -35,6 +35,7 @@ export class BrowserChannelPeer {
     try {
       if(this.#checking && request.operation!=='channel-close') fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
+      if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
@@ -43,6 +44,23 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='commit-stream-check') {
+        if(request.data!==null || this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {data=await this.#link.probeCommitStream();}finally {this.#checking=false;}
+      } else if(request.operation==='commit-prepare') {
+        if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='packet') fail();
+        this.#committing=true;this.#checking=true;
+        try {data=await this.#link.beginCommit(request.data.packet);}finally {this.#checking=false;}
+      } else if(request.operation==='commit-step' || request.operation==='commit-complete') {
+        if(!this.#committing || this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {
+          if(request.operation==='commit-step') {
+            if(!request.data || Object.keys(request.data).join()!=='phase' || !['claim','watchdog','start'].includes(request.data.phase)) fail();
+            data=await this.#link.commitStep(request.data.phase);
+          } else {if(request.data!==null) fail();data=await this.#link.finishCommit();}
+        }finally {this.#checking=false;}
       } else if(request.operation==='stage-prepare') {
         if(this.#opening || this.#socket || this.#closing || !request.data ||
            Object.keys(request.data).sort().join()!==['packet','stock_files'].sort().join()) fail();

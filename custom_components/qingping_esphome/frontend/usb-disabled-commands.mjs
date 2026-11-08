@@ -26,12 +26,9 @@ function stable(value) {
 const same=(a,b)=>stable(a)===stable(b);
 const numeric=(v,min=1,max=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(v) && v>=min && v<=max;
 
-export function disabledCommand(meta,scope,nonce,phase) {
- // Reuse the exact fixed reader metadata validation, including all nine source
- // pins, safe identity values and complete original marker/boot bindings.
+export function validateDisabledObservation(meta,scope) {
+ // Share the exact fixed reader metadata gate with later transaction stages.
  disabledScopeCommands(meta);
- if(!['claim','watchdog','start'].includes(phase) || typeof nonce!=='string' || !noncePattern.test(nonce) ||
-    (phase==='claim'?meta.commit_nonce!==null:meta.commit_nonce!==nonce))fail();
  const fields=['kind','target','plan_id','plan_sha256','stage_intent_sha256','root_identity','install_marker',
   'root_mode','root_uid','disabled_flags','source_hashes','vendor_hashes','stock_process','watchdog_process',
   'own_code_running','pm_helper_loaded','data_available_bytes','same_filesystem','staged_files','commit_nonce'];
@@ -52,6 +49,23 @@ export function disabledCommand(meta,scope,nonce,phase) {
  const vendors=scope.vendor_hashes;
  if(!Array.isArray(vendors) || vendors.length!==writes.vendor_paths.length ||
     vendors.some((v,i)=>!Array.isArray(v) || v.length!==2 || v[0]!==writes.vendor_paths[i] || typeof v[1]!=='string' || !hex.test(v[1])))fail();
+ for(const [path,digest] of vendors) {
+  const factory=contract.files.find(v=>v.path===path)?.sha256;
+  if(digest!==factory && digest!==reader.patched[path]?.sha256)fail();
+ }
+}
+
+/** Strict complete observation only; this never grants a write intent. */
+export function stableDisabledScope(scope) {
+ const mutable=new Set(['vendor_hashes','commit_nonce','data_available_bytes']);
+ return stable(Object.fromEntries(Object.entries(scope).filter(([key])=>!mutable.has(key))));
+}
+
+export function disabledCommand(meta,scope,nonce,phase) {
+ validateDisabledObservation(meta,scope);
+ if(!['claim','watchdog','start'].includes(phase) || typeof nonce!=='string' || !noncePattern.test(nonce) ||
+    (phase==='claim'?meta.commit_nonce!==null:meta.commit_nonce!==nonce))fail();
+ const desc=meta.descriptor,stock=scope.stock_process,parent=scope.watchdog_process,vendors=scope.vendor_hashes;
  // A known partial forward state may be read, but only this exact previous
  // acknowledgement's combination belongs to the proposed next phase. This
  // generator never infers completion or finishes a partial old transaction.

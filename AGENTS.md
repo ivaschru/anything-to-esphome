@@ -908,7 +908,8 @@ separate even though the HACS wizard is shared.
   observation. No caller command/path, rollback, launch or generic shell
   operation exists. Its returned text is NOT a live capability, consumed
   intent, write/ACK/retry or hardware qualification. The private consumed journal/retained lease is now present; finite
-  selected-channel execution and actual independent readback remain unfinished.
+  selected-channel execution and private Core readback composition are now
+  connected; public initiating UI/later lifecycle adapters remain unfinished.
   Keep set -eu/umask 077 in each eventual owned shell session. Guarded bodies
   exceed a 4KiB OPEN packet. Tango2.6.2 rejects any packet larger than the
   actual negotiated maxPayloadSize; never infer the monitor's current limit
@@ -939,8 +940,40 @@ separate even though the HACS wizard is shared.
   permission; the future Core coordinator must retain/recheck its original
   capability and separate channel close ACK before private actor record.
   internal-browser-commit-* is pipe-only and never initializes ADB; HTTP rejects
-  it before body IO. No public initiator or actual command-stream adapter is
-  enabled. Run test_usb_browser_commit.py for real fsync/flock, lost packet,
+  it before body IO. No public initiator is enabled. The private command-stream
+  composition is described below. Run test_usb_browser_commit.py for real fsync/flock, lost packet,
   orphan/partial/changed proof and producer, lease non-adoption, actor guards
   and redaction, plus both HA USB suites and HTTP-before-body tests. Synthetic
   scope/SDK fixtures are explicit and never claimed as a monitor commit.
+
+
+- Browser disabled commit now has a private selected-channel composition:
+  fixed stdin probe -> fresh staged collector -> consumed actor packet ->
+  separate prepare/claim/watchdog/start/complete frames -> repeated full scope
+  -> actual USB close -> independent channel-close ACK -> actor record.
+  No public HTTP/UI action starts this sequence. Keep the original owner/page/
+  channel/nonce/deadline and reject other API/stage phases once its probe is
+  reserved. Rehash the actor producer before the first write frame; only exact
+  known snapshot prefixes and final transport proof can release the lease.
+  A failed/lost packet, step, scope or close never retries or auto-rolls back.
+  Monitor initial-install qualification and later trial/boot/UI stages remain
+  separate; installed/readiness stay false after committed-disabled.
+
+- usb-disabled-stream uses only a tiny typed exec:/bin/sh -c bootstrap. Before
+  interpreting the body, receive its bounded exact ASCII byte count into RAM
+  and verify SHA-256. Never stream executable shell lines directly: truncated
+  stdin can otherwise turn a destination into another syntactically valid path.
+  No script file is persisted. Its typed OPEN contains only fixed code/size/
+  digest/marker; command bodies use bounded WRTE with actual Tango fragmentation
+  and concurrent output draining. Never close duplex stdin early. Require exact
+  completion text, EOF and owned remote socket close, then live identity/scope.
+  Unsupported raw exec has no PTY/shell-v2 fallback; the harmless fixed probe
+  must pass before consuming a write intent. Actual device support is not
+  inferred from a compile or emulator. Preserve bounded lifetime/cleanup,
+  late-open retirement, shared close result and no-replay phase counters.
+  Run test_usb_disabled_stream.mjs, test_usb_native_commit.mjs and actual pinned
+  test_usb_disabled_stream_tango.mjs (512-byte emulator window). The bootstrap
+  fixture executes only synthetic temporary effects and checks truncation/hash/
+  NUL/extra-stdin refusal; production guard scripts are never executed locally.
+  Run both HA USB suites, test_usb_browser_commit_transfer.py, full pure tests,
+  source generators and the rebuilt offline bundle/package checks.

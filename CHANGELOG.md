@@ -59,6 +59,12 @@
   Fence unknown history across restart and require three exact whole-scope
   readbacks plus actual close proof before accepting a terminal result. Keep
   packet loss non-replayable and pipe-only; transport execution is not enabled.
+- Connect the private consumed commit to the selected browser transport and
+  finite phase frames, with a harmless raw-stdin probe, fresh scope before/after
+  each step, original capability/deadline guards and independent close proof.
+- Receive complete command bodies as bounded RAM data and verify length/SHA
+  before parsing any shell. Truncated input never executes a shorter path;
+  no script file, arbitrary command route or PTY fallback is introduced.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

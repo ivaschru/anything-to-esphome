@@ -1,4 +1,6 @@
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
+import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
+import {BrowserDisabledCommitSession} from "./usb-disabled-session.mjs";
 import {BrowserStageSession} from "./usb-stage-session.mjs";
 import {sourceFileObservationMatches} from "./usb-file-observation.mjs";
 /** One live WebUSB capability for the future server-mediated writer.
@@ -17,7 +19,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
-  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;
+  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -135,7 +137,8 @@ export class BrowserNativeChannel {
   }
 
   async checkInitialScope() {
-    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
+    if(this.#commitProbeUsed) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed) error('usb_busy');
     this.#busy=true;
     try {
       this.evidence();
@@ -157,7 +160,7 @@ export class BrowserNativeChannel {
    */
   async checkStageScope() {
     const evidence=await this.checkInitialScope();
-    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed) error('usb_busy');
     this.#busy=true;
     try {
       const fields=(await this.#read("stat -f -c '%t %a %S' /data")).split(/\s+/);
@@ -177,9 +180,14 @@ export class BrowserNativeChannel {
    * Both target joins and every source/root/session read are repeated here.
    */
   async checkDisabledScope(meta) {
-    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed) error('usb_busy');
     this.#busy=true;
-    try {
+    try {return await this.#disabledScope(meta);}
+    catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  async #disabledScope(meta) {
       const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
         wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
       if(!meta?.target || Object.keys(meta.target).sort().join()!==Object.keys(target).sort().join() ||
@@ -187,9 +195,52 @@ export class BrowserNativeChannel {
       return await collectDisabledScope({read:command=>this.#read(command),identity:async()=>{
         this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
       }},meta);
+  }
+
+  /** Read-only raw-stdin capability probe before any commit intent. No PTY,
+   * alternate service or automatic fallback is attempted on old adbd failure.
+   */
+  async probeCommitStream() {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitProbeUsed) error('usb_selection_consumed');
+    this.#commitProbeUsed=true;this.#busy=true;
+    try {
+      this.evidence();
+      if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope)) error('usb_selection_changed');
+      this.#commitStream=new DisabledCommandStream({
+        live:()=>{this.evidence();return true;},
+        open:framing=>{this.evidence();return this.#client.createSocket(disabledStreamService(framing));},
+        closeTransport:()=>this.close(),
+      });
+      const result=await this.#commitStream.probe();
+      if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope)) error('usb_selection_changed');
+      this.evidence();return result;
     } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
+
+  async beginCommit(packet) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed || !this.#commitProbeUsed || !this.#commitStream) error('usb_selection_consumed');
+    this.#commitUsed=true;this.#busy=true; // Before a lost prepare/first scope.
+    try {
+      const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
+        wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
+      if(packet?.channel_nonce!==this.#nonce || !packet.meta?.target ||
+         Object.keys(packet.meta.target).sort().join()!==Object.keys(target).sort().join() ||
+         Object.keys(target).some(key=>packet.meta.target[key]!==target[key])) error('usb_selection_changed');
+      this.#commit=new BrowserDisabledCommitSession({scope:meta=>this.#disabledScope(meta),closeTransport:()=>this.close()},this.#commitStream,packet);
+      return await this.#commit.prepare();
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+  async #commitCall(method,...args) {
+    if(this.#closed || this.#busy || !this.#commit) error('usb_browser_scope_unverified');
+    this.#busy=true;
+    try {this.evidence();return await this.#commit[method](...args);}
+    catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+  commitStep(phase) {return this.#commitCall('step',phase);}
+  finishCommit() {return this.#commitCall('finish');}
 
   /** Private finite stage entry, never a shell/filename callback from a frame.
    * The Core coordinator must consume its owner/plan/channel intent FIRST.
@@ -197,7 +248,7 @@ export class BrowserNativeChannel {
    * before creating a new disabled root; stale JSON cannot skip those reads.
    */
   async beginStage(packet,stockFiles) {
-    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_selection_consumed');
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed || this.#commitProbeUsed) error('usb_selection_consumed');
     this.#stageUsed=true; // A lost prepare/root ACK can never create another session.
     try {
       const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
@@ -251,7 +302,7 @@ export class BrowserNativeChannel {
   finishStage() {return this.#stageCall('finish');}
 
   async openApi() {
-    if(this.#busy || this.#stageUsed || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
+    if(this.#busy || this.#stageUsed || this.#commitProbeUsed || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
     this.#apiUsed=true;this.#apiCount++; // Consume before a possibly lost ACK.
     try {
       this.evidence();
@@ -306,6 +357,8 @@ export class BrowserNativeChannel {
     // Its repeat close observes the original success/failure, never a retry.
     const stage=this.#stage;
     if(stage)void this.#closing.finally(()=>stage.close()).catch(()=>{});
+    const commit=this.#commit,stream=this.#commitStream;
+    if(commit || stream)void this.#closing.finally(()=>Promise.all([commit?.close(),stream?.close()])).catch(()=>{});
     return this.#closing;
   }
 }
