@@ -31,7 +31,7 @@ FIELDS['commit_nonce'] = '6b14947f19e44c6c99b5ae57c81752a4'  # Canonical builder
 FIELDS.update({'staged_' + str(i): 'QP_BROWSER_RAM_FIELD_STAGED_' + str(i) for i in range(len(commit.staging.STAGED))})
 FIELDS.update({'vendor_' + str(i): 'QP_BROWSER_RAM_FIELD_VENDOR_' + str(i) for i in range(len(commit.preflight.FILES))})
 PRODUCERS = ['browser_initial_journal.py', 'browser_initial_observation.py', 'browser_initial_trial.py',
-             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json']
+             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json']
 
 
 def split_fields(text):
@@ -88,7 +88,7 @@ def ram_allocation_script(values):
         'test ! -e ' + guardian + '/program\ntest ! -L ' + guardian + '/program\nset -C\n: > ' + guardian + '/program')
 
 
-def commands(values):
+def preparation_guard(values):
     staged, vendors = list(commit.staging.STAGED), sorted(commit.preflight.FILES)
     plan = {'plan_id': values['plan_id'], 'files': {name: {'sha256': values['staged_' + str(i)]} for i, name in enumerate(staged)}}
     scope = SimpleNamespace(root_identity=(values['root_device'], values['root_inode']),
@@ -102,8 +102,12 @@ def commands(values):
     # Strengthen only the initial RAM-program scan with the canonical initial
     # reader. Never weaken the frozen root, source, flags, lock or PID checks.
     guard = guard.replace(commit.review.PROCESS_SCAN, initial.INITIAL_PROCESS_SCAN)
-    create = ('set -eu\numask 077\n' + guard + initial.ABSENT_STORES + '\n' +
-              initial.tcp_read(False) + '\n' + initial.tcp_read(True) + '\n' + ram_allocation_script(values))
+    return ('set -eu\numask 077\n' + guard + initial.ABSENT_STORES + '\n' +
+            initial.tcp_read(False) + '\n' + initial.tcp_read(True) + '\n')
+
+
+def commands(values):
+    create = preparation_guard(values) + ram_allocation_script(values)
     ram = '/tmp/qingping-initial-trial-' + values['ram_job_id']
     guardian = '/tmp/qingping-initial-guardian-' + values['guardian_job_id']
     tmp = ('test ! -L /tmp\ntest -d /tmp\n' + commit.equal('readlink -f /tmp', '/tmp') +

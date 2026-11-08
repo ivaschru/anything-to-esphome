@@ -1,5 +1,13 @@
 ## Unreleased – browser USB installation work
 
+- Derive the frozen guardian's exact forty-field ABI and guarded RAM launch
+  text from its original source. Add a uint64-safe ordered stdout parser and
+  one-shot sealed-stdin transport with bounded ACK/close cleanup. These remain
+  unwired to the selected-channel/Core launch lifecycle; reported records do
+  not prove image admission, authenticated runtime health or terminal stop.
+  The new seventh trial producer fences older consumed packets. Native source
+  and firmware are unchanged; no public browser installer is enabled.
+
 - Join the RAM session to the original selected WebUSB channel and finite
   private Core frames. Consume the actor trial packet only after a harmless
   probe/fresh scope, independently check bytes/producers/inodes and recheck the

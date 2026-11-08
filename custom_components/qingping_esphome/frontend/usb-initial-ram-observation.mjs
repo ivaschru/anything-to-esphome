@@ -34,6 +34,28 @@ const same=(a,b)=>a.length===b.length && a.every((v,i)=>v===b[i]);
 const observationFields=['kind','phase','job_id','plan_sha256','intent_sha256','channel_id','channel_nonce',
  'nonce','ram_job_id','guardian_job_id','ram_root_identity','guardian_root_identity','guardian_file_identity',
  'guardian_size','guardian_sha256','tmpfs_available_bytes','image_fd_admitted','execution_authority','context_only'];
+/** Shared typed DTO validation only; the original live reader remains required. */
+export function validateInitialRamObservation(value,packet,uploaded=false,previous=null) {
+ const pin=packet?.context?.guardian;
+ if(!pin || !Number.isSafeInteger(pin.size) || pin.size<52 || pin.size>16*1024*1024 ||
+    typeof pin.sha256!=='string' || !/^[a-f0-9]{64}$/.test(pin.sha256) || typeof uploaded!=='boolean' ||
+    fields(value)!==observationFields.sort().join() || value.kind!=='browser_initial_ram_observation' ||
+    value.phase!==(uploaded?'uploaded':'precreated') ||
+    ['job_id','plan_sha256','intent_sha256','channel_id','channel_nonce','nonce','ram_job_id','guardian_job_id']
+     .some(k=>typeof packet[k]!=='string' || value[k]!==packet[k]) ||
+    value.guardian_size!==(uploaded?pin.size:0) || value.guardian_sha256!==(uploaded?pin.sha256:empty) ||
+    value.image_fd_admitted!==false || value.execution_authority!==false || value.context_only!==true ||
+    !Number.isSafeInteger(value.tmpfs_available_bytes) || value.tmpfs_available_bytes<reserve+(uploaded?0:pin.size) ||
+    value.tmpfs_available_bytes>2147483647)fail();
+ const keys=['ram_root_identity','guardian_root_identity','guardian_file_identity'],ids=keys.map(k=>value[k]);
+ if(ids.some(v=>!Array.isArray(v) || v.length!==2 || v.some(n=>!Number.isSafeInteger(n) || n<1)) ||
+    new Set(ids.map(v=>v[0])).size!==1 || new Set(ids.map(v=>v[1])).size!==3)fail();
+ if(previous!==null) {
+  validateInitialRamObservation(previous,packet,false);
+  if(keys.some(k=>!same(value[k],previous[k])))fail();
+ }
+}
+
 function readback(packet,fresh,reads,previous) {
  initialRamCommands(packet,fresh); // Exact original packet/source/fresh committed preparation check; no IO.
  if(fields(reads)!==['roots_before','guardian','roots_after'].sort().join())fail();
@@ -60,11 +82,12 @@ function readback(packet,fresh,reads,previous) {
      !same(previous.guardian_file_identity,identity) || !Number.isSafeInteger(previous.tmpfs_available_bytes) ||
      previous.tmpfs_available_bytes<reserve+pin.size || previous.tmpfs_available_bytes>2147483647)fail();
  }
- return Object.freeze({kind:'browser_initial_ram_observation',phase:uploaded?'uploaded':'precreated',...binding,
+ const result=Object.freeze({kind:'browser_initial_ram_observation',phase:uploaded?'uploaded':'precreated',...binding,
   ram_root_identity:Object.freeze(first.identities[0]),guardian_root_identity:Object.freeze(first.identities[1]),
   guardian_file_identity:Object.freeze(identity),guardian_size:size,guardian_sha256:sha,
   tmpfs_available_bytes:Math.min(first.available,last.available),
   image_fd_admitted:false,execution_authority:false,context_only:true});
+ validateInitialRamObservation(result,packet,uploaded,previous);return result;
 }
 export function initialRamPrecreated(packet,fresh,reads) {return readback(packet,fresh,reads,null);}
 export function initialGuardianReadback(packet,fresh,previous,reads) {

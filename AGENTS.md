@@ -563,6 +563,19 @@ separate even though the HACS wizard is shared.
   Run test_usb_initial_ram_session.mjs, test_usb_native_initial_ram.mjs and all
   test_usb_*.py on both HA SDKs after these frame/owner/actor changes.
 
+- The browser guardian ABI/text/stdout transport is still unwired to that
+  live RAM handoff. Generate its exact forty arguments and guarded text from
+  frozen source53, including original file inode/SHA before and after the
+  sole RAM chmod. Keep all seven trial producers pinned; never adopt an older
+  consumed packet. InitialGuardianStream consumes once, seals the complete
+  body, validates ordered START/CHILD/END and awaits final WRTE ACK plus remote
+  close. Preserve uint64 birth ticks as decimal strings. Reported records grant
+  no PID adoption, signal, image-FD admission or terminal completion. Keep
+  original deadlines and the device's independent 60/5/5 loop unchanged.
+  Run generate_initial_guardian_contract.py --check, the three guardian
+  frame/records/stream Node tests and the pinned Tango512 fragmentation test.
+  They execute no guardian/monitor and do not qualify a physical first install.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

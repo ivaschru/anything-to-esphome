@@ -21,7 +21,7 @@ from .monitor1_browser_initial_review import context, validate_preparation
 
 ROOT = Path(__file__).parent / 'monitor1_worker'
 PRODUCERS = ('browser_initial_journal.py', 'browser_initial_observation.py', 'browser_initial_trial.py',
-             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json')
+             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json')
 MIME = 'application/vnd.qingping.internal-browser-trial+json'
 EMPTY = hashlib.sha256(b'').hexdigest()
 RESERVE = 8 * 1024**2

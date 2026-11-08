@@ -10,6 +10,8 @@ import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {DisabledCommandStream,disabledStreamService} from '../custom_components/qingping_esphome/frontend/usb-disabled-stream.mjs';
+import {InitialGuardianStream,initialGuardianStreamService} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-stream.mjs';
+import {initialGuardianLaunchBody} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-frame.mjs';
 const args=process.argv.slice(2);
 if(args.length && !(args.length===2 && args[0]==='--dependencies'))throw Error('Only the pinned dependency directory is accepted');
 const root=path.resolve(args.length?args[1]:'tools/monitor1-usb');
@@ -20,12 +22,17 @@ const loaded=spawnSync('python3',['tests/fixtures/monitor1_browser_commands.py']
 assert.equal(loaded.status,0,loaded.stderr);const vectors=JSON.parse(loaded.stdout).slice(0,3);
 const ramLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_initial_ram.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
 assert.equal(ramLoaded.status,0,ramLoaded.stderr);const ram=JSON.parse(ramLoaded.stdout)[0];
+const guardianLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_guardian_frame.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
+assert.equal(guardianLoaded.status,0,guardianLoaded.stderr);const guardian=JSON.parse(guardianLoaded.stdout)[0];
 const {InitialRamCommandStream,initialRamStreamService}=await import('../custom_components/qingping_esphome/frontend/usb-initial-ram-stream.mjs');
 for(const scenario of [
  {Stream:DisabledCommandStream,service:disabledStreamService,operations:vectors,
   execute:(stream,v)=>stream.execute(v.meta,v.scope,v.nonce,v.phase),bodies:vectors.map(v=>v.expected)},
  {Stream:InitialRamCommandStream,service:initialRamStreamService,operations:[ram],
-  execute:(stream,v)=>stream.create(v.packet,v.preparation),bodies:[ram.expected.create]}
+  execute:(stream,v)=>stream.create(v.packet,v.preparation),bodies:[ram.expected.create]},
+ {guardian:true,Stream:InitialGuardianStream,service:initialGuardianStreamService,operations:[guardian],
+  execute:async(stream,v)=>{await stream.start(v.packet,v.fresh,v.ram);return stream.finish();},
+  bodies:[initialGuardianLaunchBody(guardian.packet,guardian.fresh,guardian.ram)]}
 ]) {
 const encoder=new TextEncoder(),decoder=new TextDecoder(),maximum=512;
 let incoming,wireClosed=false,retired=0;
@@ -55,7 +62,12 @@ function outgoing(packet) {
   if(state.body.length===state.framing.size) {
    assert.equal(createHash('sha256').update(state.body).digest('hex'),state.framing.sha256);
    const marker=state.framing.marker;
-   const prefix=state.body.includes('CGS1_FIXED_STDIN_READY')?'CGS1_FIXED_STDIN_READY\n':'';
+   // Guardian records are emulator bytes only: no process starts and no
+   // sixty-second device timer or independently verified stop is asserted.
+   const nonce=guardian.packet.nonce;
+   const prefix=scenario.guardian?
+    `CGS1_TRIAL_START_V1 ${nonce} 123 1000\nCGS1_TRIAL_CHILD_V1 ${nonce} 124 456\nCGS1_TRIAL_END_V1 ${nonce} 123 1000 124 456 60000 1 1 1 0 15\n`:
+    (state.body.includes('CGS1_FIXED_STDIN_READY')?'CGS1_FIXED_STDIN_READY\n':'');
    const output=encoder.encode(prefix+'\n'+marker+'\n');
    for(let i=0;i<output.length;i+=maximum)state.output.push(output.slice(i,i+maximum));
    nextOutput(state);
@@ -78,12 +90,15 @@ const transport=new AdbDaemonTransport({serial:'synthetic-only',connection,versi
 const client=new Adb(transport);
 const stream=new scenario.Stream({live:()=>!wireClosed,open:framing=>client.createSocket(scenario.service(framing)),
  closeTransport:async()=>{retired++;await client.close();}});
-await stream.probe();
+// The standalone guardian transport has no probe API. Its future private
+// selected-channel caller must already have completed the harmless RAM probe.
+const offset=scenario.guardian?0:1;
+if(offset)await stream.probe();
 for(const v of scenario.operations)await scenario.execute(stream,v);
-assert.equal(opens.length,scenario.operations.length+1);assert(opens.every(state=>state.closed),'Every fixed shell waited for its own remote CLSE');
-scenario.bodies.forEach((body,i)=>assert.equal(opens[i+1].body,body));
+assert.equal(opens.length,scenario.operations.length+offset);assert(opens.every(state=>state.closed),'Every fixed shell waited for its own remote CLSE');
+scenario.bodies.forEach((body,i)=>assert.equal(opens[i+offset].body,body));
 assert(opens.some(state=>state.body.length>4096));
 assert(writes.length>=Math.ceil(opens.reduce((n,state)=>n+state.body.length,0)/maximum));assert(writes.every(length=>length<=maximum));assert(writes.some(length=>length===maximum));
 await stream.close();assert.equal(retired,1);
 }
-console.log('Actual Tango2.6.2: disabled and initial RAM fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');
+console.log('Actual Tango2.6.2: disabled, initial RAM and guardian fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');

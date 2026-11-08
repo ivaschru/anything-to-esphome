@@ -485,8 +485,18 @@ task cannot adopt that handoff. Its properties return detached metadata; it
 contains no guardian body or encryption key. The actor's consumed journal and
 writer lease remain retained, even if the transport is later closed.
 
-This stops before chmod/exec, actual device image-FD admission and the bounded
-guardian lifecycle/terminal verifier. No public initiating HTTP/UI control or
+The next standalone source primitive now derives the exact forty guardian
+arguments and guarded launch text from the unchanged native implementation.
+It repeats the original file inode/SHA around the sole RAM chmod and sends the
+complete sealed body once. Its bounded stdout transport validates ordered
+START/CHILD/END, lossless process birth ticks, the final marker and actual raw
+close. These reported records remain context: the transport is not yet joined
+to the original selected-channel/Core handoff, independent process/Noise
+observation or terminal journal verifier. The seventh pinned trial producer
+prevents older consumed packets from acquiring this new capability.
+
+Actual device image-FD admission and the complete bounded guardian lifecycle
+remain unfinished. No public initiating HTTP/UI control or
 physical first-install qualification follows. These adapters are development
 source and are not part of stable HACS 0.2.10. Protocol/host fixtures execute no
 monitor binary and do not qualify a physical installation.

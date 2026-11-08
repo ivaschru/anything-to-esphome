@@ -30,7 +30,8 @@ export const initialRamContract = {
     "browser_initial_trial.py",
     "browser_initial_trial_job.py",
     "initial-trial-contract.json",
-    "initial-ram-contract.json"
+    "initial-ram-contract.json",
+    "initial-guardian-contract.json"
   ],
   "source_sha256": {
     "commit_disabled_install.py": "b78470c8fe3f6275d2eca07067ec56beb858f11d8037b435be08f9f6781b4408",

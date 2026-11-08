@@ -14,7 +14,7 @@ COMPONENT = ROOT / "custom_components/qingping_esphome"
 FILES = (
     "browser_payload.py", "browser_plan.py", "browser_plan_job.py", "browser_stage.py", "browser_commit.py", "browser_disabled_commit_policy.py",
     "browser_disabled_observation.py", "browser_disabled_policy.py", "browser_disabled_policy_job.py",
-    "browser_initial_trial.py", "browser_initial_trial_job.py", "initial-trial-contract.json", "initial-ram-contract.json",
+    "browser_initial_trial.py", "browser_initial_trial_job.py", "initial-trial-contract.json", "initial-ram-contract.json", "initial-guardian-contract.json",
     "browser_initial_observation.py", "browser_initial_journal.py",
     "ha_enrollment.py", "ha_enrollment_usb.py",
     "backup_export.py", "build_worker.py", "computer_install.py", "computer_package.py",
