@@ -12,6 +12,7 @@ import hashlib
 from pm_policy import POLICY, digest as pm_digest
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -28,10 +29,26 @@ image = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(image)
 
 
+def bind_ui_release(text, release):
+    """Bind only the ordinary staged UI to its profile-local release metadata.
+
+    Probe branches stay at public version zero. The checked-in shared source
+    stays unchanged, so an independent hardware profile does not acquire a
+    different source identity merely because Lite's integer counter advances.
+    Require one normal branch: a changed header contract must fail the build.
+    """
+    pattern = r'(#else\nstatic constexpr const char \*UI_VERSION = )"[^"\n]+";(\n//[^\n]*\nstatic constexpr unsigned PUBLIC_VERSION = )([1-9][0-9]*);'
+    result, count = re.subn(pattern, lambda m: m[1] + json.dumps(release["version"]) + ";" + m[2] + str(release["public_version"]) + ";", text)
+    if count != 1: raise ValueError("Normal Lite UI release branch changed")
+    return result
+
+
 def main():
     work = ROOT / ".build/lite-source"
     shutil.copytree(ROOT / "ports/lite", work, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__", ".esphome", "secrets.yaml"))
+    ui = work / "components/cgdn1_ui/cgdn1_ui.h"
+    ui.write_text(bind_ui_release(ui.read_text(), json.loads((ROOT / "firmware/releases.json").read_text())["lite"]))
     values = {key: value.decode() for key, value in image.SLOTS.items() if key != "noise_psk"}
     release = json.loads((ROOT / "firmware/releases.json").read_text())["lite"]
     values["api_key"] = base64.b64encode(image.SLOTS["noise_psk"]).decode()

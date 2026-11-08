@@ -753,3 +753,5 @@ separate even though the HACS wizard is shared.
   host budget/stream tests and a real device-owned INSTALL must pass before
   promoting the new Lite 5 / lite-434 4 images. Earlier staged counters stay
   immutable and unpromoted.
+
+- Lite builder binds the normal staged UI_VERSION/PUBLIC_VERSION to firmware/releases.json; do not edit the shared header solely to advance Lite counters, which would invalidate another hardware profile's source identity. Probe version-zero branches remain unchanged; assert exactly one normal branch.
