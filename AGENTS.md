@@ -1,6 +1,6 @@
 # Qingping ESPHome
 
-- Canonical `lite` firmware 3 and `lite-434` firmware 2 add device-owned native
+- Canonical `lite` firmware 4 and `lite-434` firmware 3 add device-owned native
   ESPHome UpdateEntity checks, independent of HACS/Device Builder. See
   docs/NATIVE_FIRMWARE_UPDATES.md. Keep TLS/certificate verification, fixed
   immutable profile URLs, USB and strict increasing counters. No auto-install.
@@ -10,6 +10,11 @@
   NVS namespace qf_native contains a value-free consumed attempt journal, never
   credentials or an erase/reset path. Pending old-boot outcomes block replay.
   Native and encrypted local OTA share UI admission/progress/error handling.
+  Keep dynamic TLS buffers and a 1 KiB outgoing/16 KiB incoming record limit
+  on this non-PSRAM board; never bypass CA verification on allocation failure.
+  Publish the initial installed state even before a catalog check succeeds.
+  The staged/unpromoted Lite3 and lite-434 v2 tags are immutable failed
+  qualification history, not releases to install or overwrite.
   Publish native-<profile>.json atomically with the same immutable app pair;
   every publisher must preserve other native endpoints as well as index maps.
   Keep existing HACS entities/history in place while suppressing duplicate

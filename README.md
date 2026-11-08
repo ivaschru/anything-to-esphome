@@ -167,7 +167,7 @@ remain immutable; the commands below describing them are historical.
 
 ## Firmware updates in Home Assistant
 
-Starting with **Lite 4.5.8 firmware 3** and **Lite 4.3.4 firmware 2**, the
+Starting with **Lite 4.5.8 firmware 4** and **Lite 4.3.4 firmware 3**, the
 monitor itself supplies a standard ESPHome **Firmware** update entity. It works
 with Home Assistant's ordinary ESPHome integration: **Qingping HACS and Device
 Builder are not required** after the initial upgrade. Checks run every six

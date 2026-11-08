@@ -32,8 +32,8 @@ def main():
     # staged replacements are part of this profile's own source digest.
     shutil.copyfile(ROOT / "ports/lite-434/cgdn1_pm.h", work / "components/cgdn1_pm/cgdn1_pm.h")
     ui = work / "components/cgdn1_ui/cgdn1_ui.h"
-    ui.write_text(ui.read_text().replace("2026.11.08-ui25-native3", release["version"])
-                  .replace("PUBLIC_VERSION = 3;", f"PUBLIC_VERSION = {release["public_version"]};"))
+    ui.write_text(ui.read_text().replace("2026.11.08-ui25-native4", release["version"])
+                  .replace("PUBLIC_VERSION = 4;", f"PUBLIC_VERSION = {release["public_version"]};"))
     exporter = work / "components/cgdn1_ui/update_profile.h"
     wire = exporter.read_text()
     assert wire.count('body["profile"] = "lite";') == 1
@@ -137,6 +137,12 @@ update:
     revision: {release["revision"]}
     public_version: {release["public_version"]}
     update_interval: 6h
+text_sensor:
+  - platform: template
+    name: "Firmware update status"
+    entity_category: diagnostic
+    update_interval: 30s
+    lambda: return id(native_firmware).diagnostic();
 wifi:
   id: template_wifi
   ap:
@@ -156,6 +162,11 @@ api:
 esp32:
   framework:
     sdkconfig_options:
+      # Keep 16 KiB incoming TLS records supported. Dynamic buffers release
+      # idle TX/RX storage during certificate verification on this non-PSRAM
+      # ESP32; the small outgoing buffer only carries handshake/GET requests.
+      CONFIG_MBEDTLS_DYNAMIC_BUFFER: "y"
+      CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN: "1024"
       CONFIG_MBEDTLS_GCM_C: "y"
       CONFIG_MBEDTLS_AES_C: "y"
 '''

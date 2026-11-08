@@ -30,6 +30,7 @@ class NativeUpdate : public update::UpdateEntity, public PollingComponent {
     ui_progress_ = std::move(progress); ui_finish_ = std::move(finish);
   }
   void setup() override;
+  std::string diagnostic() const;
   void update() override { check(); }
   void check() override;
   void perform(bool force) override;
@@ -50,5 +51,7 @@ class NativeUpdate : public update::UpdateEntity, public PollingComponent {
   std::function<void(float)> ui_progress_;
   std::function<void(bool)> ui_finish_;
   Release available_;
+  uint32_t heap_before_{0}, largest_before_{0}, heap_after_{0};
+  uint8_t last_check_{0};
 };
 }  // namespace esphome::qf_native_update

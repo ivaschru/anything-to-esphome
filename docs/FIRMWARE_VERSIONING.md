@@ -111,8 +111,8 @@ qualified complete ESPHome port.
 
 ## Native updater generations
 
-The native-updater feature starts independently at lite / public 3 / revision 4
-and lite-434 / public 2 / revision 5. It does not merge their counters or PM
+The native-updater feature starts independently at lite / public 4 / revision 5
+and lite-434 / public 3 / revision 6. It does not merge their counters or PM
 policies. Firmware-only tags/catalogs remain independent of the HACS version.
 A one-time upgrade adds the updater to older firmware; later compatible
 updates work through the ordinary ESPHome integration without Qingping HACS.

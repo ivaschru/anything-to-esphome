@@ -129,6 +129,12 @@ update:
     revision: {release["revision"]}
     public_version: {release["public_version"]}
     update_interval: 6h
+text_sensor:
+  - platform: template
+    name: "Firmware update status"
+    entity_category: diagnostic
+    update_interval: 30s
+    lambda: return id(native_firmware).diagnostic();
 wifi:
   id: template_wifi
   ap:
@@ -148,6 +154,11 @@ api:
 esp32:
   framework:
     sdkconfig_options:
+      # Keep 16 KiB incoming TLS records supported. Dynamic buffers release
+      # idle TX/RX storage during certificate verification on this non-PSRAM
+      # ESP32; the small outgoing buffer only carries handshake/GET requests.
+      CONFIG_MBEDTLS_DYNAMIC_BUFFER: "y"
+      CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN: "1024"
       CONFIG_MBEDTLS_GCM_C: "y"
       CONFIG_MBEDTLS_AES_C: "y"
 '''

@@ -46,9 +46,9 @@ static constexpr unsigned PUBLIC_VERSION = 0;
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
 static constexpr unsigned PUBLIC_VERSION = 0;
 #else
-static constexpr const char *UI_VERSION = "2026.11.08-ui25-native3";
+static constexpr const char *UI_VERSION = "2026.11.08-ui25-native4";
 // Product version is independent from the exact diagnostic UI/build identity.
-static constexpr unsigned PUBLIC_VERSION = 3;
+static constexpr unsigned PUBLIC_VERSION = 4;
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};

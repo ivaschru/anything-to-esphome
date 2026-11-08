@@ -11,6 +11,7 @@
 #include "esphome/core/log.h"
 #include <driver/gpio.h>
 #include <esp_ota_ops.h>
+#include <esp_heap_caps.h>
 #include <nvs.h>
 #include <mbedtls/platform_util.h>
 
@@ -45,6 +46,10 @@ bool NativeUpdate::usb_() const {
 void NativeUpdate::setup() {
   update_info_.current_version = std::to_string(version_);
   update_info_.title = "Qingping firmware";
+  // Publish the installed version even before Internet access succeeds. Without
+  // has_state, the native API deliberately omits current_version and HA cannot
+  // offer an explicit refresh of an unavailable entity after a transient error.
+  publish_state();
   nvs_handle_t handle; Journal value{}; size_t size = sizeof(value);
   auto result = nvs_open("qf_native", NVS_READONLY, &handle);
   if (result == ESP_OK) {
@@ -64,6 +69,14 @@ void NativeUpdate::setup() {
   // Delay the first check to leave startup/source readiness undisturbed. This
   // timer/check never calls perform(), and failures never schedule an install.
   set_timeout(60000, [this]() { check(); });
+}
+
+std::string NativeUpdate::diagnostic() const {
+  // Public operational numbers only: no network names, keys, app bytes or
+  // journal reset/action. This remains useful when a TLS check is refused.
+  return "check=" + std::to_string(last_check_) + " heap_before=" + std::to_string(heap_before_) +
+         " largest_before=" + std::to_string(largest_before_) + " heap_after=" + std::to_string(heap_after_) +
+         " pending_review=" + std::to_string(blocked_);
 }
 
 bool NativeUpdate::fetch_(Release &out) {
@@ -116,9 +129,16 @@ void NativeUpdate::check() {
   // public result crosses back via defer; credentials are never read here.
   const auto started = xTaskCreate([](void *context) {
     auto *self = static_cast<NativeUpdate *>(context);
+    const auto heap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    const auto largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     auto release = std::make_shared<Release>();
     const bool ok = self->fetch_(*release);
-    self->defer([self, release, ok]() {
+    const auto after = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    self->defer([self, release, ok, heap, largest, after]() {
+      self->heap_before_ = heap; self->largest_before_ = largest; self->heap_after_ = after;
+      self->last_check_ = ok ? 1 : 2;
+      ESP_LOGD(TAG, "Catalog check=%u internal_heap=%u largest=%u after=%u", self->last_check_,
+               self->heap_before_, self->largest_before_, self->heap_after_);
       if (ok) {
         self->available_ = *release;
         const bool newer = newer_release(release->revision, release->version, self->revision_, self->version_);

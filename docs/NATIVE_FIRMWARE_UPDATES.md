@@ -1,7 +1,7 @@
 # Firmware updates without Qingping HACS
 
-The `lite` (original 4.5.8 / HW0001) firmware 3 and `lite-434` (original
-4.3.4 / HW0001) firmware 2 add a **native ESPHome firmware update entity**.
+The `lite` (original 4.5.8 / HW0001) firmware 4 and `lite-434` (original
+4.3.4 / HW0001) firmware 3 add a **native ESPHome firmware update entity**.
 Home Assistant's ordinary ESPHome integration displays it in **Settings →
 System → Updates**. Neither Qingping HACS nor ESPHome Device Builder is needed
 for this path after the one-time upgrade to a firmware containing the updater.
@@ -97,3 +97,14 @@ public app bytes against the canonical Python personalizer. Git fixtures
 exercise real atomic publication/CAS and preservation of the other endpoint.
 These software checks do not substitute for a physical native OTA followed by
 fresh identity, retained settings and repeated physical CO₂/raw T/raw RH checks.
+
+## Unpromoted qualification candidates
+
+The immutable firmware-lite-v3 and firmware-lite-434-v2 tags were staged for
+first native qualification, but were not promoted into the ordinary firmware
+index. The physical test found certificate-verification MPI allocation failure
+on the non-PSRAM ESP32. TLS verification stayed enabled and no native INSTALL
+was sent. Keep these historical tags unchanged; they are not qualified releases.
+The next candidates use dynamic TLS buffers, retain 16 KiB incoming record
+support and reduce the outgoing buffer to 1 KiB. Native state is also published
+at setup so installed firmware remains visible during catalog failures.

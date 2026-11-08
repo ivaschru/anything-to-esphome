@@ -473,7 +473,7 @@
 - Однократная OTA-команда с приватным журналом и проверкой native API
 - Общие исходники CGS1 S8/SCD40; Monitor 2 остаётся unverified
 - Новый мастер ещё требует полного испытания установки на реальном приборе
-## Firmware: Lite 3 / Lite 4.3.4 2; integration source changes
+## Firmware: Lite 4 / Lite 4.3.4 3; integration source changes
 
 - Add native ESPHome firmware updates without Qingping HACS or Device Builder:
   profile-specific HTTPS checks every six hours and standard HA UpdateEntity.
