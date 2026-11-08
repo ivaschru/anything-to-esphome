@@ -25,7 +25,7 @@ COMPLETE = 'browser-initial-trial-complete.json'
 MIME = 'application/vnd.qingping.internal-browser-trial+json'
 ROOT = Path(__file__).parent
 PRODUCERS = ('browser_initial_journal.py', 'browser_initial_observation.py', 'browser_initial_trial.py',
-             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json', 'initial-process-contract.json')
+             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json', 'initial-process-contract.json', 'browser_initial_api.py')
 
 
 def invalid():

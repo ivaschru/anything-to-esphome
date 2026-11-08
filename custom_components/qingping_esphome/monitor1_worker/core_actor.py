@@ -18,6 +18,7 @@ from server import Companion, Refusal
 from ha_enrollment import HaEnrollments, MIME as ENROLLMENT_MIME
 from browser_stage import MIME as BROWSER_STAGE_MIME
 from browser_initial_journal import MIME as BROWSER_INITIAL_MIME
+from browser_initial_api import MIME as BROWSER_INITIAL_API_MIME, package as initial_api_package
 
 MAX_REQUEST = 24 * 1024**2
 MAX_RESPONSE = 64 * 1024**2
@@ -85,6 +86,8 @@ class Actor:
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation.startswith("internal-browser-initial-trial-"):
             stages = self.companion.browser_stages
+            if operation == "internal-browser-initial-trial-api" and set(data) == {"job_id", "plan_sha256", "intent_sha256", "channel_id", "channel_nonce", "nonce", "ram_job_id", "guardian_job_id"}:
+                return initial_api_package(stages, user, data), BROWSER_INITIAL_API_MIME
             if operation == "internal-browser-initial-trial-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
                 return stages.prepare_initial_trial(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), BROWSER_INITIAL_MIME
             if operation == "internal-browser-initial-trial-status" and set(data) == {"job_id"}:

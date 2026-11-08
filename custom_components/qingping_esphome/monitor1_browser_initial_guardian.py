@@ -65,12 +65,13 @@ def records(value, packet, started=None):
 
 class RunningBrowserGuardian:
     """In-memory continuation only; JSON cannot recreate this task/actor join."""
-    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations')
+    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations', '_api_used')
 
     def __init__(self, ram, started, issued_at):
         self._ram, self._started, self._issued_at = ram, copy.deepcopy(started), issued_at
         self._finished = self._closed = False
         self._busy, self._observations = False, 0
+        self._api_used = False
 
     def live(self):
         if self._closed:

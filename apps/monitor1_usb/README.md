@@ -503,7 +503,7 @@ and after END, and returns only an in-memory running object with detached
 reported records. Another task, worker or serialized ID cannot resume it.
 
 These records remain context: independent process/Noise/stock observation and
-the terminal journal verifier are still missing. Eight pinned trial producers
+the terminal journal verifier are still missing. Nine pinned trial producers
 now include the fixed process contract; older consumed packets cannot acquire
 this new capability.
 
@@ -518,6 +518,15 @@ independently checks the returned binding, stamps and image identities. No
 caller PID/path/command is accepted; the 32-read budget never extends the
 original deadline. Complete stock/vendor/intent/RAM/Noise and terminal checks
 remain separate. Packaged metadata alone grants no new permission to a trial.
+
+The original Core running task can now read one separate private API context
+from the same still-leased actor. The actor rehashes the original consumed
+packet, plan and profile before and after delivery. Only its private MIME
+carries the Noise key; browser packets, frames, status, SDK input and HTTP
+never receive it. Another task or restarted actor cannot adopt the read, and
+a lost answer does not permit a retry. This step opens no socket and supplies
+no authenticated wire samples. Complete live scope, the original USB relay,
+fresh Noise generations and independent stop/close proof remain unfinished.
 
 Actual device image-FD admission and the complete bounded guardian lifecycle
 remain unfinished. No public initiating HTTP/UI control or

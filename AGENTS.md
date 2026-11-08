@@ -577,7 +577,7 @@ separate even though the HACS wizard is shared.
   exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
   exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
-  sole RAM chmod. Keep all eight trial producers pinned; never adopt an older
+  sole RAM chmod. Keep all nine trial producers pinned; never adopt an older
   consumed packet. InitialGuardianStream consumes once, seals the complete
   body, validates ordered START/CHILD/END and awaits final WRTE ACK plus remote
   close. Preserve uint64 birth ticks as decimal strings. Reported records grant
@@ -604,6 +604,20 @@ separate even though the HACS wizard is shared.
   test_usb_initial_process_observation.mjs; syntax/vector fixtures execute no
   production-path script, guardian or monitor program. Run the raw/delivered
   selected-channel integration and both HA USB suites after changing this join.
+
+- The private initial API context is a separate key-bearing actor/Core pipe
+  MIME, never a browser frame or SDK/subprocess input. Require the original
+  retained actor lease, complete consumed packet binding and rehashed private
+  profile/plan before and after delivery. Core consumes its read once in the
+  same running task/reservation/capability; loss cannot replay it or adopt a
+  restarted actor. The ninth producer pins browser_initial_api.py and fences
+  older consumed packets. Keep identity detached, repr redacted and the key
+  out of status, packet, logs, HTTP, browser storage and public metadata.
+  This read opens no API/USB socket and proves no authenticated sample or
+  terminal completion. Full live scope, the original channel's opaque relay,
+  Noise wire generations and independent stop/close proof remain required.
+  Run test_usb_browser_initial_api.py and both actual HA USB suites; retain
+  HTTP-before-body rejection for every internal operation/MIME.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

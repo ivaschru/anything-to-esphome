@@ -1,5 +1,11 @@
 ## Unreleased – browser USB installation work
 
+- Add a separate private actor/Core Noise context for the original consumed
+  browser trial. Rehash the original profile/plan under its retained lease,
+  consume Core's read once and fence old packets with the ninth producer.
+  No key enters browser frames, SDK input, status or HTTP. This read opens no
+  socket; authenticated wire observation and terminal trial proof remain open.
+
 - Connect the fixed process subset to the original selected WebUSB channel,
   finite null-data frame and live Core guardian handoff. Retain original RAM/
   start pins, bound reads and independently validate lossless context in Core
