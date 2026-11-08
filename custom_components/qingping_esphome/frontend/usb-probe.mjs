@@ -1,3 +1,4 @@
+import {sourceFileObservationMatches} from "./usb-file-observation.mjs";
 import {captureArchive} from "./usb-capture.mjs";
 
 /** Read-only browser USB selection/capture for the CGS1 installer.
@@ -135,7 +136,7 @@ export class BrowserUsbProbe {
       // first-install probe refuses already modified or unknown installations.
       for (const file of this.#contract.files) {
         const observed = await this.#read(file.command);
-        if (observed !== file.expected) refused("usb_stock_unverified");
+        if (!sourceFileObservationMatches(observed,file)) refused("usb_stock_unverified");
       }
       if (await this.#read(this.#contract.absent_install) !== "") refused("usb_existing_installation");
       if (await this.#read("cat /proc/sys/kernel/random/boot_id") !== identity.boot_id ||
@@ -190,7 +191,7 @@ export class BrowserUsbProbe {
     // No archive is returned before independent complete post-copy source,
     // identity and absent-install checks. A partial read is discarded locally.
     for (const file of this.#contract.files)
-      if (await this.#read(file.command) !== file.expected) refused("usb_capture_unverified");
+      if (!sourceFileObservationMatches(await this.#read(file.command),file)) refused("usb_capture_unverified");
     if (await this.#read(this.#contract.absent_install) !== "") refused("usb_existing_installation");
     for (const step of this.#contract.identity)
       if (await this.#read(step.command) !== identity[step.name]) refused("usb_selection_changed");

@@ -117,3 +117,10 @@ await import("./test_usb_build.mjs");
 await import("./test_usb_plan.mjs");
 await import("./test_usb_install.mjs");
 await import("./test_usb_private_download.mjs");
+
+{
+ const f=fixture();
+ for(const file of contract.files)f.replies.set(file.command,file.expected.replace(file.sha256+' '+file.path,file.sha256+'  '+file.path));
+ assert.equal((await f.probe.select()).source_checked,true);
+ assert.equal(f.state.closed,1);
+}
