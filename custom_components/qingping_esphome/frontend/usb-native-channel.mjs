@@ -1,11 +1,13 @@
+import {BrowserStageSession} from "./usb-stage-session.mjs";
 import {sourceFileObservationMatches} from "./usb-file-observation.mjs";
 /** One live WebUSB capability for the future server-mediated writer.
  *
  * This is transport plumbing, not an installation button or native ADB
  * get-devpath substitute. The selected USB object, authenticated connection
  * and unpredictable channel nonce must all remain in this instance. JSON
- * reports cannot reopen it. Only fixed original-file reads and the fixed
- * device API socket are available here; shell/push/launch remain unavailable.
+ * reports cannot reopen it. Fixed reads/API and a private finite disabled-root
+ * stage are available; no caller-selected shell/path/launch is admitted. The
+ * stage still needs a consumed Core intent and is not a public installer.
  */
 const error=code=>{throw {code};};
 const serialPattern=/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -14,7 +16,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
-  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;
+  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -118,7 +120,7 @@ export class BrowserNativeChannel {
   }
 
   async checkInitialScope() {
-    if(this.#busy || this.#api || this.#apiUsed) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
     this.#busy=true;
     try {
       this.evidence();
@@ -140,7 +142,7 @@ export class BrowserNativeChannel {
    */
   async checkStageScope() {
     const evidence=await this.checkInitialScope();
-    if(this.#busy || this.#api || this.#apiUsed) error('usb_busy');
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
     this.#busy=true;
     try {
       const fields=(await this.#read("stat -f -c '%t %a %S' /data")).split(/\s+/);
@@ -155,8 +157,67 @@ export class BrowserNativeChannel {
     finally {this.#busy=false;}
   }
 
+  /** Private finite stage entry, never a shell/filename callback from a frame.
+   * The Core coordinator must consume its owner/plan/channel intent FIRST.
+   * This browser repeats physical source/identity/space reads immediately
+   * before creating a new disabled root; stale JSON cannot skip those reads.
+   */
+  async beginStage(packet,stockFiles) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_selection_consumed');
+    this.#stageUsed=true; // A lost prepare/root ACK can never create another session.
+    try {
+      const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
+        wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
+      if(!packet?.target || Object.keys(packet.target).sort().join()!==Object.keys(target).sort().join() ||
+        Object.keys(target).some(key=>packet.target[key]!==target[key]) ||
+        !stockFiles || Object.keys(stockFiles).sort().join()!==this.#contract.files.map(file=>file.path).sort().join() ||
+        this.#contract.files.some(file=>stockFiles[file.path]?.size!==file.size || stockFiles[file.path]?.sha256!==file.sha256) ||
+        typeof this.#library.createSyncSocket!=='function' || typeof this.#library.pushV1!=='function') error('usb_channel_unverified');
+      const identity=async()=>{
+        this.evidence();
+        return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
+      };
+      const inventory=async()=>{
+        for(const file of this.#contract.files)
+          if(!sourceFileObservationMatches(await this.#read(file.command),file)) return false;
+        return true;
+      };
+      this.#stage=new BrowserStageSession({
+        read:command=>this.#read(command),identity,inventory,
+        initial:async(_,minimum)=>{
+          if(!await identity() || !await inventory() || await this.#read(this.#contract.absent_install)!=='') return false;
+          const parts=(await this.#read("stat -f -c '%t %a %S' /data")).split(/\s+/);
+          if(parts.length!==3 || parts[0]!=='ef53' || !/^[0-9]+$/.test(parts[1]) || !/^[0-9]+$/.test(parts[2])) return false;
+          const blocks=Number(parts[1]),size=Number(parts[2]);
+          return Number.isSafeInteger(blocks) && blocks>=0 && Number.isSafeInteger(size) && size>=512 && size<=65536 &&
+            Number.isSafeInteger(blocks*size) && blocks*size>=minimum && await identity();
+        },
+        openSync:()=>this.#bounded(async()=>{
+          const socket=await this.#client.createSocket('sync:');
+          if(this.#closed) {await this.#cleanup(()=>socket.close());error('usb_selection_consumed');}
+          try {return this.#library.createSyncSocket(socket);}catch {await this.#cleanup(()=>socket.close());throw Error();}
+        },5000),
+        pushV1:options=>this.#library.pushV1(options),closeTransport:()=>this.close(),
+      },packet,stockFiles);
+      return await this.#stage.prepare();
+    } catch {await this.close().catch(()=>{});error('usb_browser_stage_unverified');}
+  }
+
+  // These methods retain the actual selected transport and the original stage.
+  // The session owns finite role/order/offset/hash checks; none accepts a path,
+  // shell string, retry, process identifier or another transport descriptor.
+  async #stageCall(method,...args) {
+    if(this.#closed || !this.#stage) error('usb_browser_stage_unverified');
+    try {this.evidence();return await this.#stage[method](...args);}
+    catch {await this.close().catch(()=>{});error('usb_browser_stage_unverified');}
+  }
+  stageBeginFile(role) {return this.#stageCall('begin',role);}
+  stageAppend(role,offset,bytes) {return this.#stageCall('append',role,offset,bytes);}
+  stageFinishFile(role) {return this.#stageCall('finishFile',role);}
+  finishStage() {return this.#stageCall('finish');}
+
   async openApi() {
-    if(this.#busy || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
+    if(this.#busy || this.#stageUsed || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
     this.#apiUsed=true;this.#apiCount++; // Consume before a possibly lost ACK.
     try {
       this.evidence();
@@ -205,6 +266,12 @@ export class BrowserNativeChannel {
       });}catch {failed=true;}}
       if(failed) error('usb_close_unverified');
     })();
+    // Retire buffered stage bytes/timers after this independent transport
+    // close settles. Do not await stage.close inside #closing: the sink's
+    // closeTransport callback awaits this same ACK and would form a cycle.
+    // Its repeat close observes the original success/failure, never a retry.
+    const stage=this.#stage;
+    if(stage)void this.#closing.finally(()=>stage.close()).catch(()=>{});
     return this.#closing;
   }
 }

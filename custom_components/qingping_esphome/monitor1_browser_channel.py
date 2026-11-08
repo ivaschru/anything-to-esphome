@@ -2,8 +2,9 @@
 
 The admin adapter joins actual user/page ownership. The browser
 can answer only an outstanding server-created request. It cannot choose a
-command, host, port, key, file or writer. The fixed scope-check reuses only original-file/identity reads. There are no install/launch operations
-in this protocol. A dropped request/answer retires the channel, never retries.
+command, host, port, key, file or writer. The fixed scope-check reuses only original-file/identity reads. Private Core code
+may additionally issue the finite disabled-root stage sequence after consuming
+its writer intent. No public request creates those frames or launches code. A dropped request/answer retires the channel, never retries.
 """
 import asyncio
 import base64
@@ -11,7 +12,8 @@ import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 
-OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission"}
+OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete"}
 MAX_BYTES = 65536
 
 
@@ -26,6 +28,7 @@ class BrowserChannel:
         self.polling = False
         self.opened = False
         self.opening = False
+        self.staging = False
 
     def _retire(self):
         self.closed = True
@@ -46,7 +49,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -139,17 +142,64 @@ class BrowserChannel:
         compare it with this channel and its separately verified owned plan.
         A cached successful report can never renew a write/launch intent.
         """
-        if self.opened or self.opening or self.pending:
+        if self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
 
     async def check_stage_scope(self):
-        if self.opened or self.opening or self.pending:
+        if self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("stage-admission")
 
+    async def begin_stage(self, packet, stock_files):
+        """Private Core entry after its retained lease/consumed plan intent.
+
+        Fixed metadata only, no payload body/path/command is accepted by this
+        frame. The selected peer independently admits factory scope and makes
+        both opt-outs before its sole ordered nine-file sequence.
+        """
+        if self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.staging = True
+        if await self._request("stage-prepare", {"packet": packet, "stock_files": stock_files}) != {"state": "disabled_root_created"}:
+            self._retire()
+            raise RelayRefusal
+
+    async def stage_begin_file(self, role):
+        if not self.staging or self.pending:
+            raise RelayRefusal
+        result = await self._request("stage-file-begin", {"role": role})
+        if (not isinstance(result, dict) or set(result) != {"role", "offset"} or result["role"] != role or
+                type(result["offset"]) is not int or result["offset"] != 0):
+            self._retire()
+            raise RelayRefusal
+
+    async def stage_chunk(self, role, offset, body):
+        if (not self.staging or self.pending or not isinstance(body, bytes) or
+                not 0 < len(body) <= MAX_BYTES or type(offset) is not int or offset < 0):
+            raise RelayRefusal
+        result = await self._request("stage-chunk", {"role": role, "offset": offset, "body": base64.b64encode(body).decode()})
+        if (not isinstance(result, dict) or set(result) != {"role", "offset"} or result["role"] != role or
+                type(result["offset"]) is not int or result["offset"] != offset + len(body)):
+            self._retire()
+            raise RelayRefusal
+
+    async def stage_finish_file(self, role):
+        if not self.staging or self.pending:
+            raise RelayRefusal
+        if await self._request("stage-file-finish", {"role": role}) != {"role": role, "state": "remote_file_verified"}:
+            self._retire()
+            raise RelayRefusal
+
+    async def finish_stage(self):
+        if not self.staging or self.pending:
+            raise RelayRefusal
+        # The private coordinator checks all exact proof fields against its
+        # independently rehashed packet before recording a terminal outcome.
+        return await self._request("stage-complete")
+
     async def open_api(self):
-        if self.opened or self.opening:
+        if self.staging or self.opened or self.opening:
             raise RelayRefusal
         self.opening = True
         try:

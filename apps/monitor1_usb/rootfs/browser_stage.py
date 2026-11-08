@@ -207,6 +207,7 @@ class BrowserStages:
                 payloads[role] = base64.b64encode(private_bytes(path, pin)).decode()
             packet = {'schema_version': 1, 'job_id': job_id, 'target': plan['target'],
                       'requested_data_free_bytes': plan['requested_data_free_bytes'],
+                      'stock_files': unique_json(read_private(directory / 'capture/result.json'))['files'],
                       'descriptor': {'plan_id': plan['plan_id'], 'plan_sha256': expected_sha,
                                      'intent_sha256': intent_sha, 'files': files}, 'payloads': payloads}
             body = _json(packet)

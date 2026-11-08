@@ -1,5 +1,5 @@
-/** Fixed API-only peer for the future authenticated Core/browser control loop.
- * No URL, file, shell, host, port, key, install or launch selector is accepted.
+/** Finite read/API/disabled-stage peer for the private Core control loop.
+ * No URL, caller file path, shell, host, port, key or launch selector is accepted.
  * Requests are consumed before IO. HTTP delivery/reply failures must close
  * this peer, not repeat dispatch; its caller owns that authenticated framing.
  */
@@ -22,7 +22,7 @@ function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
-  #checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
+  #staging=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   constructor(link) {this.#link=link;}
 
   async dispatch(request) {
@@ -34,10 +34,33 @@ export class BrowserChannelPeer {
     let data=null;
     try {
       if(this.#checking && request.operation!=='channel-close') fail();
+      if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
         try {data=await (request.operation==='scope-check' ? this.#link.checkInitialScope() : this.#link.checkStageScope());}finally {this.#checking=false;}
+      } else if(request.operation==='stage-prepare') {
+        if(this.#opening || this.#socket || this.#closing || !request.data ||
+           Object.keys(request.data).sort().join()!==['packet','stock_files'].sort().join()) fail();
+        this.#staging=true;this.#checking=true; // Before the first root-write ACK.
+        try {data=await this.#link.beginStage(request.data.packet,request.data.stock_files);}finally {this.#checking=false;}
+      } else if(['stage-file-begin','stage-chunk','stage-file-finish','stage-complete'].includes(request.operation)) {
+        if(!this.#staging || this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {
+          if(request.operation==='stage-complete') {
+            if(request.data!==null) fail();
+            data=await this.#link.finishStage();
+          } else {
+            const keys=request.operation==='stage-chunk'?['role','offset','body']:['role'];
+            if(!request.data || Object.keys(request.data).sort().join()!==keys.sort().join() || typeof request.data.role!=='string') fail();
+            if(request.operation==='stage-chunk') {
+              const chunk=bytes(request.data.body);
+              if(!chunk.length || !Number.isInteger(request.data.offset) || request.data.offset<0) fail();
+              data=await this.#link.stageAppend(request.data.role,request.data.offset,chunk);
+            } else data=await this.#link[request.operation==='stage-file-begin'?'stageBeginFile':'stageFinishFile'](request.data.role);
+          }
+        } finally {this.#checking=false;}
       } else if(request.operation==='api-open' && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#opening=true;
@@ -87,16 +110,19 @@ export class BrowserChannelPeer {
     }
   }
 
-  async close() {
-    if(this.#closed) return;
+  close() {
+    if(this.#cleanupPromise)return this.#cleanupPromise;
     this.#closed=true;
-    // Closing the owned link retires its transport and pending IO. Locks are
-    // released after cancellation, never used to adopt an unrelated socket.
-    try {await cleanup(()=>this.#link.close());}
-    finally {
-      if(this.#reader) {try {await cleanup(()=>this.#reader.cancel());this.#reader.releaseLock();}catch {}this.#reader=undefined;}
-      if(this.#writer) {try {this.#writer.releaseLock();}catch {}this.#writer=undefined;}
-      this.#socket=undefined;this.#buffer=new Uint8Array();
-    }
+    // All close callers await the same owned transport ACK. Cleared fields
+    // must not turn an in-flight or failed close into a later positive result.
+    this.#cleanupPromise=(async()=>{
+      try {await cleanup(()=>this.#link.close());}
+      finally {
+        if(this.#reader) {try {await cleanup(()=>this.#reader.cancel());this.#reader.releaseLock();}catch {}this.#reader=undefined;}
+        if(this.#writer) {try {this.#writer.releaseLock();}catch {}this.#writer=undefined;}
+        this.#socket=undefined;this.#buffer=new Uint8Array();
+      }
+    })();
+    return this.#cleanupPromise;
   }
 }

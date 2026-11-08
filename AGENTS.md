@@ -79,9 +79,9 @@ separate even though the HACS wizard is shared.
   browser staging and writer admission remain unwired. Run all USB tests
   on the actual HA SDK and Node peer/control/parent tests before changing this
   exception. Preserve ordinary native operation serialization.
-  BrowserStageFileSink is still an unwired fixed file-transport primitive:
-  no channel method, HTTP/frame route or GUI writer exposes it yet. A future
-  private caller must consume its write intent, recheck live scope/ext4 and
+  BrowserStageFileSink is used only by the fixed StageSession/NativeChannel
+  adapter and finite private Core stage frames. No public initiating HTTP route
+  or GUI writer exposes it. The private caller must consume its write intent, recheck live scope/ext4 and
   create the exact root with both opt-outs BEFORE constructing it. Descriptor
   hashes are byte context, not proof of those prerequisites. Only the nine
   canonical staging roles under the fixed disabled root, ordered private 0600
@@ -108,13 +108,14 @@ separate even though the HACS wizard is shared.
   and stay on the private actor pipe; HTTP rejects them before body reads and
   never forwards their credential-bearing MIME. Actor shutdown closes only its
   own host FD, preserving all history. The actual channel/frame coordinator is
-  still unwired: JSON scope alone cannot grant device authority.
+  uses the private Core coordinator: JSON scope alone cannot grant device authority.
   The fixed stage-admission peer read returns only fresh factory
   evidence and measured ext4 free blocks; no allocation or root is created.
   Run test_usb_browser_stage.py and the registry/NativeChannel/peer admission
   tests. These fixtures are not device readback or an enabled browser installer.
   BrowserStageSession now composes the fixed disabled-root engine, but is
-  still not exposed by a channel/frame/HTTP route. It creates both opt-outs
+  exposed only through finite private channel/frame methods, not a public
+  initiating HTTP route. It creates both opt-outs
   before file writes, precreates once, independently rechecks remote SHA/UID/
   nlink/mode after SYNC, verifies original sources and records AFTER-effects
   only after all writes. A positive result requires the actual owned close ACK.
@@ -804,3 +805,22 @@ separate even though the HACS wizard is shared.
   readiness. Never publish private candidate outputs, QtCore or profiles.
   Run tests/test_monitor1_publication.py for reproducibility, tag immutability
   and the actual atomic two-tag/catalog CAS, plus existing firmware tests.
+
+- Private monitor1_browser_stage joins the rehashed actor plan/context, fresh
+  registry stage-admission and retained lease/consumed packet before its fixed
+  NativeChannel/StageSession transfer. Rehash every bounded private payload
+  before the first stage frame. Only canonical roles, sequential <=64KiB
+  chunks and exact remote proof are admitted. Channel source/identity reads
+  remain fixed; pinned Tango SYNC-v1 has no Android mkdir workaround.
+  Before terminal actor record require both actual USB-close proof and the
+  separate channel-close ACK on the original owner/page/nonce/deadline. Lost
+  packet/root/chunk/close/proof or cancellation preserves unknown history,
+  never repeats prepare, recreates a root or releases the retained lease.
+  The original transport close result also retires stage buffers/timers; do
+  not form a promise cycle by awaiting sink close inside transport close.
+  Peer close callers share the same actual ACK. This private composition has
+  no public initiator or installation UI yet. Vendor commit, launch, boot,
+  Full UI and HA enrollment stay independent missing browser adapters. Run
+  test_usb_native_stage.mjs (real peer + selected-channel composition) and
+  test_usb_browser_stage_transfer.py (real async registry/channel + synthetic
+  actor) plus all USB/Node regressions. Host fixtures do not qualify hardware.

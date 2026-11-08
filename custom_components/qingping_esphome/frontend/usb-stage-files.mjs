@@ -1,7 +1,7 @@
 /** Fixed disabled-root file transport, not an installation coordinator.
  *
- * This building block is deliberately not exposed by BrowserNativeChannel,
- * the frame peer or the wizard yet. Its future private caller must FIRST
+ * Only the fixed StageSession/NativeChannel and private Core frame coordinator
+ * use this building block; no public writer UI exists. Its caller must FIRST
  * consume its owner/plan write intent, recheck the actual selected handle,
  * admit ext4 capacity, and create the exact private root with both opt-outs.
  * A descriptor is byte context, never proof that those steps happened.

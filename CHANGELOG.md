@@ -24,7 +24,14 @@
 - Accept both exact one- and two-space sha256sum delimiters during fixed-file
   USB checks, including initial browser discovery and capture. Keep digest,
   full path, metadata and line count exact.
-- Browser device writing and untouched-device qualification remain unfinished.
+- Join the private stage packet to the actual selected NativeChannel and
+  finite Core/browser frames. Rehash all payloads before the first stage
+  frame, then require remote file verification, AFTER-effects and independent
+  USB/channel close acknowledgements before recording completion. Unknown
+  outcomes never replay or release the retained writer lease.
+- Retire stage buffers and timers after the original transport close, without
+  recursive cleanup or treating another close caller as a fresh success.
+- The public browser installation route and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 
 ## 0.2.8

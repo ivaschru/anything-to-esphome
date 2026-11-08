@@ -7,7 +7,7 @@ import {BrowserStageSession,stageCommands} from '../custom_components/qingping_e
 import {STAGE_ROLES} from '../custom_components/qingping_esphome/frontend/usb-stage-files.mjs';
 import {contract} from '../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs';
 const base='/data/.esphome-cgs1',sha=bytes=>createHash('sha256').update(bytes).digest('hex');
-function fixture(options={}) {
+export function fixture(options={}) {
  const contents=Object.fromEntries(STAGE_ROLES.map(([role])=>[role,new TextEncoder().encode('synthetic-not-firmware-'+role)]));
  const descriptor={plan_id:'a'.repeat(32),plan_sha256:'b'.repeat(64),intent_sha256:'c'.repeat(64),
   files:Object.fromEntries(STAGE_ROLES.map(([role])=>[role,{size:contents[role].length,sha256:sha(contents[role])}]))};
@@ -53,8 +53,8 @@ function fixture(options={}) {
    files.get(filename).body=new Uint8Array(Buffer.concat(blocks));
    if(options.lostPushAck)throw Error('synthetic private wire error');
   },closeTransport:async()=>{closed++;if(options.badClose)throw Error('synthetic private close error');}};
- const session=new BrowserStageSession(backend,packet,stock);
- return {session,contents,packet,commands,stock,calls,files,get root(){return root;},get complete(){return complete;},
+ const session=options.withoutSession?undefined:new BrowserStageSession(backend,packet,stock);
+ return {session,backend,contents,packet,commands,stock,calls,files,get root(){return root;},get complete(){return complete;},
   get closed(){return closed;},get opens(){return opens;},get inventory(){return inventory;},get releaseInitial(){return releaseInitial;}};
 }
 async function transfer(f) {
