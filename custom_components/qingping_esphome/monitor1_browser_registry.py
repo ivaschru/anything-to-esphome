@@ -91,6 +91,39 @@ class BrowserRegistry:
             capability._retire()
             raise RelayRefusal from None
 
+    async def stage_admission(self, owner, nonce, identity, target, requested_free):
+        """Fixed fresh read for a future writer, not public JSON authority.
+
+        target and requested_free must come from the private rehashed plan.
+        This read neither creates a root nor consumes a writer. Its current
+        filesystem observation reserves no space and cannot be replayed later.
+        """
+        capability = self.capability(owner, nonce, identity)
+        current = self.current
+        evidence = current['reported_evidence']
+        expected = {'kind': 'browser_webusb', 'usb_serial': evidence['serial'], **{key: evidence[key] for key in
+            ('wlan_mac', 'boot_id', 'co2_type', 'stock_version')}}
+        if (not isinstance(target, dict) or target != expected or type(target.get('co2_type')) is not int or
+                type(requested_free) is not int or not 0 < requested_free <= 256 * 1024**2):
+            raise RelayRefusal
+        try:
+            observed = await capability.check_stage_scope()
+            if (self.current is not current or self.capability(owner, nonce, identity) is not capability or capability.closed or
+                    not isinstance(observed, dict) or set(observed) != {'evidence', 'filesystem'} or
+                    observed['evidence'] != evidence or not isinstance(observed['evidence'], dict) or
+                    type(observed['evidence'].get('co2_type')) is not int or observed['evidence'].get('native_get_devpath') is not False):
+                raise RelayRefusal
+            fs = observed['filesystem']
+            if (not isinstance(fs, dict) or set(fs) != {'magic', 'available_blocks', 'block_bytes'} or fs['magic'] != 'ef53' or
+                    type(fs['available_blocks']) is not int or not 0 <= fs['available_blocks'] < 2**53 or
+                    type(fs['block_bytes']) is not int or not 512 <= fs['block_bytes'] <= 65536 or
+                    not requested_free <= fs['available_blocks'] * fs['block_bytes'] < 2**53):
+                raise RelayRefusal
+            return {'channel_id': identity, 'channel_nonce': evidence['channel'], 'target': expected, 'filesystem': dict(fs)}
+        except BaseException:
+            capability._retire()
+            raise RelayRefusal from None
+
     async def dispatch(self, owner, nonce, operation, data):
         if operation == "open":
             return self.open(owner, nonce, data)

@@ -34,10 +34,10 @@ export class BrowserChannelPeer {
     let data=null;
     try {
       if(this.#checking && request.operation!=='channel-close') fail();
-      if(request.operation==='scope-check' && request.data===null) {
+      if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
-        try {data=await this.#link.checkInitialScope();}finally {this.#checking=false;}
+        try {data=await (request.operation==='scope-check' ? this.#link.checkInitialScope() : this.#link.checkStageScope());}finally {this.#checking=false;}
       } else if(request.operation==='api-open' && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#opening=true;

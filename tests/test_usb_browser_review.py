@@ -133,6 +133,37 @@ class ReviewTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Refusal):
             self.capability.answer({'id': request['id'], 'ok': True, 'data': self.evidence})
 
+    async def test_initial_stage_admission_joins_actual_fixed_fs_observation(self):
+        task = asyncio.create_task(self.registry.stage_admission(self.owner, self.nonce, self.id,
+            self.context['target'], 16000000))
+        request = await self.capability.poll()
+        self.assertEqual(request['operation'], 'stage-admission')
+        self.assertIsNone(request['data'])
+        fs = {'magic': 'ef53', 'available_blocks': 10000, 'block_bytes': 4096}
+        self.capability.answer({'id': request['id'], 'ok': True, 'data': {'evidence': self.evidence, 'filesystem': fs}})
+        scope = await task
+        self.assertEqual(scope, {'channel_id': self.id, 'channel_nonce': self.evidence['channel'],
+                                'target': self.context['target'], 'filesystem': fs})
+        self.assertFalse(self.capability.closed)
+        self.assertFalse(self.capability.opened)
+
+    async def test_unknown_or_insufficient_filesystem_retires_stage_admission(self):
+        for fs in ({'magic': 'tmpfs', 'available_blocks': 10000, 'block_bytes': 4096},
+                   {'magic': 'ef53', 'available_blocks': 1, 'block_bytes': 4096},
+                   {'magic': 'ef53', 'available_blocks': True, 'block_bytes': 4096}):
+            other = registry_module.BrowserRegistry()
+            try:
+                identity = other.open(self.owner, self.nonce, {'evidence': self.evidence})['channel_id']
+                cap = other.capability(self.owner, self.nonce, identity)
+                task = asyncio.create_task(other.stage_admission(self.owner, self.nonce, identity, self.context['target'], 16000000))
+                request = await cap.poll()
+                cap.answer({'id': request['id'], 'ok': True, 'data': {'evidence': self.evidence, 'filesystem': fs}})
+                with self.subTest(fs=fs), self.assertRaises(Refusal):
+                    await task
+                self.assertTrue(cap.closed)
+            finally:
+                other.stop()
+
     async def test_read_is_refused_while_api_is_open(self):
         self.capability.opened = True
         with self.assertRaises(Refusal):

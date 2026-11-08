@@ -133,6 +133,27 @@ export class BrowserNativeChannel {
     finally {this.#busy=false;}
   }
 
+  /** Fixed measured ext4 admission for the future initial-stage coordinator.
+   * No allocation probe or caller path/command. Free blocks are a current
+   * observation, not a reservation or permission to create the private root.
+   */
+  async checkStageScope() {
+    const evidence=await this.checkInitialScope();
+    if(this.#busy || this.#api || this.#apiUsed) error('usb_busy');
+    this.#busy=true;
+    try {
+      const fields=(await this.#read("stat -f -c '%t %a %S' /data")).split(/\s+/);
+      if(fields.length!==3 || fields[0]!=='ef53' || !/^[0-9]+$/.test(fields[1]) || !/^[0-9]+$/.test(fields[2])) error('usb_channel_unverified');
+      const blocks=Number(fields[1]),size=Number(fields[2]);
+      if(!Number.isSafeInteger(blocks) || blocks<0 || !Number.isSafeInteger(size) || size<512 || size>65536 ||
+         !Number.isSafeInteger(blocks*size)) error('usb_channel_unverified');
+      if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope)) error('usb_selection_changed');
+      this.evidence();
+      return {evidence,filesystem:{magic:'ef53',available_blocks:blocks,block_bytes:size}};
+    } catch {await this.close();error('usb_channel_unverified');}
+    finally {this.#busy=false;}
+  }
+
   async openApi() {
     if(this.#busy || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
     this.#apiUsed=true;this.#apiCount++; // Consume before a possibly lost ACK.

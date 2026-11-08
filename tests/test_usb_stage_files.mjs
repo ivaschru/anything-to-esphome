@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {BrowserStageFileSink,STAGE_ROLES} from '../custom_components/qingping_esphome/frontend/usb-stage-files.mjs';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
+// Parse the canonical Python table without importing or executing an adapter.
+const canonical=JSON.parse(execFileSync(process.env.QINGPING_TEST_PYTHON || 'python3',['-c',
+ "import ast,json; t=ast.parse(open('ports/monitor1/stage_install_adb.py').read()); print(json.dumps(next(ast.literal_eval(n.value) for n in t.body if isinstance(n,ast.Assign) and any(isinstance(k,ast.Name) and k.id=='STAGED' for k in n.targets))))"],{encoding:'utf8'}));
+assert.deepEqual(STAGE_ROLES,Object.entries(canonical),'Keep the exact canonical fixed staging roles');
+
 function fixture({badAck=false,badClose=false}={}) {
  const contents=Object.fromEntries(STAGE_ROLES.map(([role])=>[role,new TextEncoder().encode('synthetic-not-firmware-'+role)]));
  const descriptor={plan_id:'a'.repeat(32),plan_sha256:'b'.repeat(64),intent_sha256:'c'.repeat(64),

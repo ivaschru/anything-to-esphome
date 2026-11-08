@@ -6,7 +6,7 @@ function fixture() {
  let controller,closed=0,apiClosed=0,written=[];
  const makeSocket=()=>({readable:new ReadableStream({start(c){controller=c;}}),
   writable:new WritableStream({write(value){written.push(value);}})});
- const link={checkInitialScope:async()=>({kind:'browser_webusb',serial:'synthetic-usb'}),openApi:async()=>makeSocket(),closeApi:async()=>{apiClosed++;},close:async()=>{closed++;}};
+ const link={checkStageScope:async()=>({evidence:{kind:'browser_webusb'},filesystem:{magic:'ef53'}}),checkInitialScope:async()=>({kind:'browser_webusb',serial:'synthetic-usb'}),openApi:async()=>makeSocket(),closeApi:async()=>{apiClosed++;},close:async()=>{closed++;}};
  return {peer:new BrowserChannelPeer(link),push:value=>controller.enqueue(value),get closed(){return closed;},get apiClosed(){return apiClosed;},written};
 }
 {
@@ -35,4 +35,10 @@ console.log('Browser API peer: exact finite frames, opaque bounded bytes, concur
  const f=fixture();await f.peer.dispatch(request('api-open'));
  assert.equal((await f.peer.dispatch(request('scope-check'))).ok,false);
  assert.equal(f.closed,1);
+}
+
+{
+ const f=fixture();const reply=await f.peer.dispatch(request('stage-admission'));
+ assert.equal(reply.ok,true);assert.deepEqual(reply.data,{evidence:{kind:'browser_webusb'},filesystem:{magic:'ef53'}});
+ await f.peer.close();
 }

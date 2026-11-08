@@ -11,7 +11,7 @@ import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 
-OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check"}
+OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission"}
 MAX_BYTES = 65536
 
 
@@ -46,7 +46,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation == "scope-check" else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -142,6 +142,11 @@ class BrowserChannel:
         if self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
+
+    async def check_stage_scope(self):
+        if self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        return await self._request("stage-admission")
 
     async def open_api(self):
         if self.opened or self.opening:

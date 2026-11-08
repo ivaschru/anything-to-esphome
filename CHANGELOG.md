@@ -13,6 +13,9 @@
 - Add an unwired fixed nine-file SYNC-v1 sink with hash-before-send,
   private modes and no-retry cleanup. Verify its actual pinned Tango encoder
   against an in-memory old-daemon responder. It is not a device writer route.
+- Prepare the private staging journal/one-time packet and fixed read-only
+  ext4 admission. These are not connected to a writer endpoint; shared lease,
+  cross-writer fences and complete remote readback are still required.
 - Browser device writing and untouched-device qualification remain unfinished.
   Stable HACS remains 0.2.8; no hardware support or firmware version changes.
 

@@ -5,7 +5,7 @@ const identity={uid:'0',arch:'armv7l',version:'CLEARGRASS_VERSION=4.1.8_0287',co
 const contract={identity:Object.keys(identity).map(name=>({name,command:'read-'+name})),
  files:[{command:'read-fixed-original-pin',expected:'matching-pin'}],absent_install:'check-fixed-absent-install'};
 function fixture() {
- const calls=[],state={boot,closed:0,apiClosed:0,changedPin:false,failApi:false};
+ const calls=[],state={boot,closed:0,apiClosed:0,filesystem:'ef53 10000 4096',changedPin:false,failApi:false};
  const api={close:async()=>{state.apiClosed++;},readable:new ReadableStream(),writable:new WritableStream()};
  const client={close:async()=>{state.closed++;},createSocket:async service=>{
   calls.push(service);
@@ -14,7 +14,8 @@ function fixture() {
   const command=service.slice('shell:set -e\n'.length).split('\nprintf ')[0];
   const marker=service.match(/__CGS1_CHANNEL_OK_[a-f0-9]+__/)[0];
   let body;
-  if(command.startsWith('read-') && command!=='read-fixed-original-pin') {
+  if(command==="stat -f -c '%t %a %S' /data") body=state.filesystem;
+  else if(command.startsWith('read-') && command!=='read-fixed-original-pin') {
    const name=command.slice(5);assert(name in identity);body=name==='boot_id'?state.boot:identity[name];
   } else if(command==='read-fixed-original-pin')body=state.changedPin?'foreign-pin':'matching-pin';
   else {assert.equal(command,'check-fixed-absent-install');body='';}
@@ -58,3 +59,15 @@ function fixture() {
  await f.link.close();assert.equal(f.state.closed,1);assert.equal(f.state.apiClosed,2);
 }
 console.log('Live WebUSB transport: original picker, typed evidence, source/boot fences, fixed API socket, no adoption/retry and owned cleanup passed');
+
+{
+ const f=fixture();await f.link.select();
+ const result=await f.link.checkStageScope();assert.equal(result.evidence.native_get_devpath,false);
+ assert.deepEqual(result.filesystem,{magic:'ef53',available_blocks:10000,block_bytes:4096});
+ assert(!f.calls.includes('tcp:6053'));await f.link.close();
+}
+for(const filesystem of ['tmpfs 10000 4096','ef53 bad 4096','ef53 10000 1','ef53 999999999999999999999999 4096']) {
+ const f=fixture();await f.link.select();f.state.filesystem=filesystem;
+ await assert.rejects(f.link.checkStageScope());assert.equal(f.state.closed,1);
+ assert(!f.calls.includes('tcp:6053'));
+}
