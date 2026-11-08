@@ -1,7 +1,8 @@
 # Qingping ESPHome
 
-- Canonical `lite` firmware 4 and `lite-434` firmware 3 add device-owned native
-  ESPHome UpdateEntity checks, independent of HACS/Device Builder. See
+- Canonical `lite` firmware 5 and `lite-434` firmware 4 add device-owned native
+  ESPHome UpdateEntity checks, independent of HACS/Device Builder. This is a
+  required contract for these qualified profiles, not an optional HACS path. See
   docs/NATIVE_FIRMWARE_UPDATES.md. Keep TLS/certificate verification, fixed
   immutable profile URLs, USB and strict increasing counters. No auto-install.
   The streaming personalizer verifies the FULL original SHA/layout/markers
@@ -13,7 +14,7 @@
   Keep dynamic TLS buffers and a 1 KiB outgoing/16 KiB incoming record limit
   on this non-PSRAM board; never bypass CA verification on allocation failure.
   Publish the initial installed state even before a catalog check succeeds.
-  The staged/unpromoted Lite3 and lite-434 v2 tags are immutable failed
+  The staged/unpromoted Lite 3/4 and lite-434 2/3 tags are immutable
   qualification history, not releases to install or overwrite.
   Publish native-<profile>.json atomically with the same immutable app pair;
   every publisher must preserve other native endpoints as well as index maps.

@@ -118,7 +118,7 @@ must never receive this image through model-name or public-number inference.
 
 ## Device-owned native endpoints
 
-Lite 4.5.8 firmware 4 and Lite 4.3.4 firmware 3 add ordinary ESPHome update
+Lite 4.5.8 firmware 5 and Lite 4.3.4 firmware 4 add ordinary ESPHome update
 entities and their own guarded HTTPS downloader. The same firmware-only
 transaction publishes fixed native-lite.json/native-lite-434.json endpoints
 and their immutable public app pair. Both publishers preserve other native

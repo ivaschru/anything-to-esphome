@@ -25,7 +25,7 @@ A friendly name is not hardware identity.
 | Release line | Package family | First numbered release | Current readiness |
 |---|---|---|---|
 | Lite, direct-I2C / original stock 4.5.8 | ESP32 application replacement | 1 | One battery APP upgrade, live sensors, retained settings/keys and automatic HA adoption verified; a physical two-server move is not claimed |
-| Lite, direct-I²C / original stock 4.3.4 | ESP32 application replacement, `lite-434` | 1 | Separate polling-only image; PM OFF does not stop the fan. Existing native updates require integration 0.2.9+; factory BLE unqualified |
+| Lite, direct-I²C / original stock 4.3.4 | ESP32 application replacement, `lite-434` | 1 | Separate polling-only image; PM OFF does not stop the fan. One initial transition may use integration 0.2.9+; firmware 4 provides subsequent standard ESPHome updates without HACS. Factory BLE unqualified |
 | Monitor 1 / S8 | Full ESPHome runtime bundle | 1 (source-built runtime) | Runtime/source builds tested; common initial USB installer and automatic updater remain separate unfinished capabilities |
 | Monitor 1 / SCD40 | Full ESPHome runtime bundle | 1 (source-built runtime) | Separate CO2 backend; same source/runtime qualification boundary |
 | Lite, external MCU / original stock 4.2.1 | Not yet qualified | None | In development; no installation image |
@@ -111,9 +111,26 @@ qualified complete ESPHome port.
 
 ## Native updater generations
 
-The native-updater feature starts independently at lite / public 4 / revision 5
-and lite-434 / public 3 / revision 6. It does not merge their counters or PM
+The qualified native-updater releases start independently at lite / public 5 /
+revision 6 and lite-434 / public 4 / revision 7. It does not merge their counters or PM
 policies. Firmware-only tags/catalogs remain independent of the HACS version.
 A one-time upgrade adds the updater to older firmware; later compatible
 updates work through the ordinary ESPHome integration without Qingping HACS.
+For these qualified ESP32 Lite profiles, device-owned updates are a required
+product contract:
+
+- The firmware MUST check only its own compatible hardware-profile catalog and
+  expose a standard ESPHome firmware UpdateEntity to Home Assistant.
+- Release checking and installation of later compatible firmware MUST work
+  through the ordinary ESPHome integration without Qingping HACS or Device
+  Builder. HACS may assist initial installation/adoption, but is not a required
+  dependency of subsequent firmware updates.
+- Checking a catalog MUST NOT install automatically. Installation requires an
+  explicit user action, verified HTTPS, USB and the existing image/profile guards.
+- The update MUST preserve the device's current identity, keys, Wi-Fi/AP,
+  display-feed configuration and saved settings.
+
+This requirement does not declare an unfinished family supported. Monitor 1,
+external-MCU Lite and Monitor 2 need separate implementation and qualification
+before an update backend can be offered.
 See [the device-owned updater](NATIVE_FIRMWARE_UPDATES.md).
