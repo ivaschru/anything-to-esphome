@@ -30,8 +30,8 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 | **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
 | **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
-| **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
-| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
+| **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
+| **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
 | **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
 
