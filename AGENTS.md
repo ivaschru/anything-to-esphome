@@ -712,3 +712,11 @@ separate even though the HACS wizard is shared.
   USB, exact identity, private settings, one-use intent and encrypted app-only
   transfer guards remain identical. This is a stock-generation discriminator,
   not a newly established PCB revision number.
+
+- Browser USB source checks accept the exact one- or two-space text delimiter
+  emitted by sha256sum. Digest, full fixed path, stat fields and line count
+  remain exact; never trim arbitrary output into a valid pin. Use the shared
+  usb-file-observation.mjs parser for initial and post-capture verification,
+  run test_usb_file_observation.mjs plus probe/capture regressions and rebuild
+  the offline bundle. This compatibility fix grants no browser writer or
+  additional hardware qualification.

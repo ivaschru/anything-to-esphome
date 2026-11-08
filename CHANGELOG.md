@@ -1,3 +1,12 @@
+## 0.2.10
+
+- Fix Monitor 1 browser USB discovery and original-file capture rejecting
+  normal BusyBox/GNU sha256sum output with two spaces before the filename.
+  Keep exact file paths, SHA-256 values, sizes, link counts and line counts.
+- Preserve the separate Lite 4.3.4 support from 0.2.9 and existing firmware
+  releases. No new browser write route, device update or hardware support
+  follows from this installer compatibility fix.
+
 ## 0.2.9
 
 - Support the separate Lite original-stock 4.3.4 / HW0001 firmware line
