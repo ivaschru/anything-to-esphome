@@ -556,6 +556,19 @@ original actor/reservation/packet. The observation deadline is bounded by the
 original guardian issue plus 50 seconds and the original channel deadline.
 Normal API-close ACK preserves USB for the later END/return read; lost ACK or
 actor replacement retires the channel without replay. This is still private
-source work: encrypted Noise authentication, fresh physical wire generations,
+source work: the private Noise observation is described below; physical qualification,
 post-stop return and terminal journal verification remain unfinished. The
 loopback echo tests prove transport composition only, not monitor qualification.
+
+The Core Noise observer is now also joined privately to that original relay.
+It checks authenticated DeviceInfo name/MAC, unique physical entity metadata,
+finite valid readings, fresh stock-response age and new callbacks for every
+physical field in at least two accepted vectors ten seconds apart. Fixed
+scope is checked every two seconds beside the opaque API read. The original
+30-second connection and 50-second observation ceilings remain; the last five
+seconds are reserved for independent cleanup. Key references are dropped after
+client transport and browser API-close acknowledgement. Real HA SDK tests use
+an encrypted synthetic responder across the actual loopback/finite frames and
+a test-only accelerated clock. The result is private in-memory context. The
+later device stop, stock return, actual USB closure, terminal journal verifier
+and fresh-device qualification are still unfinished.

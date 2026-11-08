@@ -1,5 +1,13 @@
 ## Unreleased – browser USB installation work
 
+- Add the private Core Noise observer over that original guardian relay.
+  Verify authenticated name/MAC, unique physical entities and independently
+  fresh wire generations with ten-second separation, alongside full scope
+  reads. Preserve connect/observation ceilings and independent acknowledged
+  API cleanup. Real HA SDK tests use an encrypted synthetic responder through
+  the actual relay/finite frames; no physical trial, stop/return/USB-close
+  evidence, terminal journal release or public browser installer is claimed.
+
 - Join the original guardian's fixed API stream to a private Core loopback
   relay. Repeat complete scope before opening, allow one opaque pending read
   beside scope observation, serialize control IO and keep all original budgets.

@@ -573,7 +573,7 @@ separate even though the HACS wizard is shared.
   and after END. Keep the same task/reservation/actor/capability throughout;
   detached JSON, another task or worker cannot continue it. Its running object
   reports context only. Complete fixed live scope is joined separately below;
-  Noise observation and terminal journal verification are still missing; no public initiator or lease release
+  Private Noise observation is joined below; terminal journal verification is still missing; no public initiator or lease release
   exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
   exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
@@ -656,6 +656,28 @@ separate even though the HACS wizard is shared.
   both HA USB suites and package checks. This opaque loopback fixture is not a
   Noise handshake, authenticated wire generation, terminal proof or physical QA;
   no public initiating writer or terminal journal release is enabled.
+
+- observe_initial_noise is a private same-operation continuation, never an
+  HTTP/UI action. Consume it once before IO; use the exact Core-only key with
+  aioesphomeapi on the original relay loopback, and verify authenticated
+  DeviceInfo name/MAC plus unique physical sensor object IDs/keys. Disable
+  time provision. Read connections may retry only after actual prior API-close
+  ACK and within the unchanged 16-open/30s connect limits. Reject missing,
+  nonfinite, sentinel, invalid-range, stale or display-subdevice values. Every
+  physical field needs independently new callbacks and accepted vectors at
+  least ten seconds apart; cached rereads never advance a generation. Complete
+  scope runs beside the pending API read every two seconds. The 50s original
+  observation ceiling reserves its last five seconds for independent cleanup;
+  never extend the device timer. The private result pins actual oldest wire
+  reception time so the future terminal join can reject stale evidence. Close
+  only the owned client transport, then await browser API-close ACK; avoid raw
+  graceful-disconnect error logging. Retire the key reference without claiming
+  secure erase. No terminal journal verifier, stop/return/USB-close proof or
+  public initiating installer follows. Run test_usb_browser_initial_noise.py
+  with both real HA SDKs: independent encrypted responder through actual Core
+  loopback/finite frames plus accelerated test-only observation clock. This
+  proves host composition only, never physical readings, elapsed device time
+  or an untouched-device installation.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
