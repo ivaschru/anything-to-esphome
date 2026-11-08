@@ -37,6 +37,9 @@
 - Add a separate original-click reconnect for later staged-scope review.
   It reads identity only and leaves the normal factory-selection and initial
   stage gates unchanged; no later writer or UI route is enabled by that read.
+- Read the exact disabled staged scope through the selected browser channel: async
+  source/root/marker/process/space checks and independent closing observations,
+  with only known script variants and no writer or process control.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

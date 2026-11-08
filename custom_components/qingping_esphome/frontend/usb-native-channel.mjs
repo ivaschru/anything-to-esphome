@@ -1,3 +1,4 @@
+import {collectDisabledScope} from "./usb-disabled-scope.mjs";
 import {BrowserStageSession} from "./usb-stage-session.mjs";
 import {sourceFileObservationMatches} from "./usb-file-observation.mjs";
 /** One live WebUSB capability for the future server-mediated writer.
@@ -168,6 +169,25 @@ export class BrowserNativeChannel {
       this.evidence();
       return {evidence,filesystem:{magic:'ef53',available_blocks:blocks,block_bytes:size}};
     } catch {await this.close();error('usb_channel_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  /** Fixed read-only staged collector for a later private transaction.
+   * The opening selectForReview identity is not file or writer authority.
+   * Both target joins and every source/root/session read are repeated here.
+   */
+  async checkDisabledScope(meta) {
+    if(this.#busy || this.#api || this.#apiUsed || this.#stageUsed) error('usb_busy');
+    this.#busy=true;
+    try {
+      const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
+        wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
+      if(!meta?.target || Object.keys(meta.target).sort().join()!==Object.keys(target).sort().join() ||
+         Object.keys(target).some(key=>meta.target[key]!==target[key])) error('usb_channel_unverified');
+      return await collectDisabledScope({read:command=>this.#read(command),identity:async()=>{
+        this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
+      }},meta);
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
 

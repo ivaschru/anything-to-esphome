@@ -846,3 +846,19 @@ separate even though the HACS wizard is shared.
   consumed intent before writes; identity context cannot renew an old session.
   No public UI uses this reconnect yet. Test existing-root/changed-source
   refusal, invalid identity, picker activation and no native path/adoption.
+
+- usb-disabled-scope is a fixed read-only staged collector through the actual
+  selected NativeChannel/private finite disabled-scope frame. Generate its
+  process scan/bootstrap/source closure with generate_disabled_contract.py;
+  CI --check rejects stale bytes. Recheck target/boot, root inode/mode/entries,
+  exact stage intent/AFTER-effects, both empty opt-outs, all staged/vendor
+  bytes, same-filesystem parents, unique stock/watchdog birth/exe/UID/argv,
+  positive absent PM mapping and ext4 headroom. Repeat the whole stable scope
+  independently after reads. A failed proc/maps scan is never absence.
+  Optional commit_nonce only compares the private journal's known owner lock;
+  it never creates/adopts one. Only known factory/patched scripts are readable
+  variants. No arbitrary paths/commands, lock/write/launch/signal or public
+  initiator is exposed. Returned JSON is context, not a commit/rollback intent;
+  the private actor/SDK policy join and replacement adapter remain separate.
+  Run test_usb_disabled_scope.mjs, including actual peer/NativeChannel joins,
+  malformed/drift/failure cases, plus USB suites and rebuilt bundle checks.

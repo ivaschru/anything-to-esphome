@@ -13,7 +13,7 @@ import secrets
 from .monitor1_browser_relay import RelayRefusal
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope"}
 MAX_BYTES = 65536
 
 
@@ -49,7 +49,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -150,6 +150,16 @@ class BrowserChannel:
         if self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("stage-admission")
+
+    async def check_disabled_scope(self, meta):
+        """Fixed read-only collector, callable only by future private Core code.
+
+        Its metadata must come from the owned verified stage journal. Returned
+        scope remains evidence, never a commit/rollback intent or native USB.
+        """
+        if self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        return await self._request("disabled-scope", {"meta": meta})
 
     async def begin_stage(self, packet, stock_files):
         """Private Core entry after its retained lease/consumed plan intent.

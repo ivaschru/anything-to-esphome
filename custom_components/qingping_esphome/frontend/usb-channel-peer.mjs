@@ -39,6 +39,10 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
         try {data=await (request.operation==='scope-check' ? this.#link.checkInitialScope() : this.#link.checkStageScope());}finally {this.#checking=false;}
+      } else if(request.operation==='disabled-scope') {
+        if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
+        this.#checking=true;
+        try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
       } else if(request.operation==='stage-prepare') {
         if(this.#opening || this.#socket || this.#closing || !request.data ||
            Object.keys(request.data).sort().join()!==['packet','stock_files'].sort().join()) fail();

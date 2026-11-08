@@ -92,6 +92,23 @@ class ChannelTests(unittest.IsolatedAsyncioTestCase):
             await relay.close()
 
 
+class DisabledScopeFramesTests(unittest.IsolatedAsyncioTestCase):
+    async def test_only_private_caller_can_enqueue_fixed_disabled_scope_metadata(self):
+        channel=channel_module.BrowserChannel()
+        meta={"synthetic":"private checked stage metadata"}
+        task=asyncio.create_task(channel.check_disabled_scope(meta))
+        request=await channel.poll()
+        self.assertEqual(request['operation'],'disabled-scope')
+        self.assertEqual(request['data'],{'meta':meta})
+        self.assertFalse(channel.opened)
+        # This layer returns evidence only; the later private policy join must
+        # validate the full observation, target and original current channel.
+        observed={'kind':'synthetic-evidence-not-authority'}
+        channel.answer({'id':request['id'],'ok':True,'data':observed})
+        self.assertEqual(await task,observed)
+        channel._retire()
+
+
 class RegistryTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.registry=sys.modules['qingping_browser_contract.monitor1_browser_registry'].BrowserRegistry()
