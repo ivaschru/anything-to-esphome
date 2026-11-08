@@ -63,14 +63,24 @@ class AllocationTail(unittest.TestCase):
     def execute(self, fs=None):
         script = 'set -eu\numask 077\n' + commands.ram_allocation_script(self.values)
         script = script.replace('/proc/meminfo', str(self.mem)).replace('/tmp', str(self.tmp))
-        if fs is not None:
-            # Only the capacity observation is replaced, to exercise ARM32
-            # overflow/refusal on a 64-bit runner without a giant RAM mount.
-            script = script.replace("stat -f -c '%t %a %S' " + str(self.tmp), "printf '%s\\n' '" + fs + "'")
-        return subprocess.run(['sh', '-c', script], capture_output=True, timeout=5).returncode
+        if fs is None:
+            # Hosted runners may mount many GiB of tmpfs. The production ARM32
+            # guard deliberately refuses a multiplication outside signed32.
+            # Keep the real tmpfs magic/block size and cap ONLY the fixture's
+            # observed free blocks to a CGS1-sized 128MiB, never above actual
+            # measured availability. Do not weaken the production guard.
+            raw = subprocess.check_output(['stat', '-f', '-c', '%t %a %S', str(self.tmp)], text=True).split()
+            self.assertEqual(raw[0], '1021994')
+            fs = f'{raw[0]} {min(int(raw[1]), (128 * 1024**2) // int(raw[2]))} {raw[2]}'
+        # Only the capacity observation is replaced. All directories/files,
+        # ownership, exclusive creation and preservation checks are real.
+        script = script.replace("stat -f -c '%t %a %S' " + str(self.tmp), "printf '%s\\n' '" + fs + "'")
+        result = subprocess.run(['sh', '-c', script], capture_output=True, timeout=5)
+        self.last_error = result.stderr.decode(errors='replace')[-2048:]
+        return result.returncode
 
     def test_exclusive_private_creation(self):
-        self.assertEqual(self.execute(), 0)
+        self.assertEqual(self.execute(), 0, self.last_error)
         self.assertEqual(list(self.ram.iterdir()), [])
         self.assertEqual([p.name for p in self.guardian.iterdir()], ['program'])
         for path, mode in ((self.ram, 0o700), (self.guardian, 0o700), (self.guardian / 'program', 0o600)):

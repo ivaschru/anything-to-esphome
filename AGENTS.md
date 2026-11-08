@@ -528,8 +528,13 @@ separate even though the HACS wizard is shared.
   an exclusive empty 0600 guardian file; collisions preserve history. Eventual
   execution requires the sealed length/SHA RAM stream, not raw shell lines or
   long OPEN packets. Independent metadata/hash/inode readback and actual FD
-  admission remain required. Run generate_initial_ram_commands.py --check,
-  test_usb_initial_ram_commands.mjs and the Linux/root allocation-tail fixture;
+  admission remain required. The pure readback parser brackets file stat/SHA
+  with two exact root observations and preserves all three original inodes
+  across precreate/upload; fresh matching bytes at a replacement inode refuse.
+  These context-only DTOs are not live handle/lease or image-FD authority.
+  Run generate_initial_ram_commands.py --check,
+  test_usb_initial_ram_commands.mjs, test_usb_initial_ram_observation.mjs and
+  the Linux/root allocation-tail fixture;
   syntax/parity/temporary-root tests do not qualify a physical installation.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before

@@ -476,3 +476,9 @@ file are described. These commands are still unwired: the selected-channel
 coordinator, sealed transfer, independent readback and actual device FD/launch
 lifecycle remain unfinished. Text parity and the isolated Linux/root allocation
 fixture do not qualify a physical first installation.
+
+An independent pure parser now brackets the fixed guardian stat/SHA read with
+two root observations and binds the precreated RAM/root/file inodes through
+upload. Matching bytes at a replaced inode refuse. It returns context only;
+the live selected-channel coordinator and actual device FD admission remain
+separate, and no hardware reads are performed by this parser.
