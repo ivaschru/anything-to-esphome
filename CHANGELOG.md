@@ -1,5 +1,14 @@
 ## Unreleased – browser USB installation work
 
+- Connect private browser bridge next-boot arming end to end: harmless probe,
+  fresh stopped scope, separate consumed actor intent, canonical sealed flag
+  transition, explicit armed readback, actual USB close, separate channel ACK
+  and immutable terminal record. Preserve task/actor/deadline and no replay;
+  retain recovery/PM opt-out and all unknown history. Add real host actor/flock,
+  raw/delivered selected-channel and pinned Tango512 transport tests. No reboot,
+  running-install/readiness claim, public UI or fresh-device QA is enabled.
+
+
 - Join private browser arming-basis reads to the exact stopped trial history
   and a fresh selected USB scope. Positively verify the one original persistent
   trial marker in both root passes, preserving the ordinary collector's unknown

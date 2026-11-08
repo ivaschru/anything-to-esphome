@@ -20,7 +20,7 @@ from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, va
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
 
@@ -67,6 +67,10 @@ class BrowserChannel:
         self.staging = False
         self.committing = False
         self.commit_probe = False
+        self.boot_probe = False
+        self.booting = False
+        self.boot_next = 0
+        self.boot_finished = False
         self.ram_probe = False
         self.ramming = False
         self.ram_prepared = False
@@ -108,7 +112,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -205,11 +209,15 @@ class BrowserChannel:
         compare it with this channel and its separately verified owned plan.
         A cached successful report can never renew a write/launch intent.
         """
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
 
     async def check_stage_scope(self):
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("stage-admission")
@@ -220,21 +228,59 @@ class BrowserChannel:
         Its metadata must come from the owned verified stage journal. Returned
         scope remains evidence, never a commit/rollback intent or native USB.
         """
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("disabled-scope", {"meta": meta})
 
     async def check_initial_trial_preparation(self, meta):
         """Fixed read only; no RAM job, trial intent or image-FD authority."""
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("initial-trial-preparation", {"meta": meta})
 
     async def check_bridge_boot_preparation(self, meta, marker):
         """Fresh fixed stopped scope; no writer or native receipt adoption."""
-        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.booting or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("bridge-boot-preparation", {"meta": meta, "trial_marker": marker})
+
+    async def probe_bridge_boot_stream(self):
+        if self.boot_probe or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.boot_probe = True
+        value = await self._request("bridge-boot-stream-check")
+        if (not isinstance(value, dict) or set(value) != {'kind', 'service', 'ready', 'device_files_changed', 'writer_enabled'} or
+                value['kind'] != 'browser_fixed_stdin_probe' or value['service'] != 'exec:/bin/sh' or value['ready'] is not True or
+                value['device_files_changed'] is not False or value['writer_enabled'] is not False):
+            self._retire(); raise RelayRefusal
+
+    async def begin_bridge_boot(self, packet):
+        if not self.boot_probe or self.booting or self.pending or self.opened or self.opening:
+            raise RelayRefusal
+        self.booting = True
+        value = await self._request("bridge-boot-prepare", {"packet": packet})
+        if (not isinstance(value, dict) or set(value) != {'state', 'writer_enabled'} or
+                value['state'] != 'bridge_boot_scope_rechecked' or value['writer_enabled'] is not False):
+            self._retire(); raise RelayRefusal
+
+    async def bridge_boot_step(self, phase):
+        phases = ('before', 'arm', 'armed', 'complete')
+        if not self.booting or self.boot_finished or self.boot_next >= len(phases) or phases[self.boot_next] != phase or self.pending:
+            raise RelayRefusal
+        self.boot_next += 1
+        value = await self._request("bridge-boot-step", {"phase": phase})
+        if not isinstance(value, dict) or set(value) != {'phase', 'completed'} or value['phase'] != phase or value['completed'] is not True:
+            self._retire(); raise RelayRefusal
+
+    async def finish_bridge_boot(self):
+        if not self.booting or self.boot_finished or self.boot_next != 4 or self.pending:
+            raise RelayRefusal
+        self.boot_finished = True
+        return await self._request("bridge-boot-complete")
 
     async def begin_stage(self, packet, stock_files):
         """Private Core entry after its retained lease/consumed plan intent.
@@ -243,6 +289,8 @@ class BrowserChannel:
         frame. The selected peer independently admits factory scope and makes
         both opt-outs before its sole ordered nine-file sequence.
         """
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.staging = True
@@ -284,6 +332,8 @@ class BrowserChannel:
         return await self._request("stage-complete")
 
     async def probe_commit_stream(self):
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.commit_probe = True  # Consume even a lost read-only probe ACK.
@@ -296,6 +346,8 @@ class BrowserChannel:
             raise RelayRefusal
 
     async def begin_commit(self, packet):
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or not self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.committing = True  # Before any possibly lost delivery/ACK.
@@ -321,6 +373,8 @@ class BrowserChannel:
 
     async def probe_initial_ram_stream(self):
         """Harmless fixed exec probe before the separate actor consumes intent."""
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.ram_probe = True
@@ -338,6 +392,8 @@ class BrowserChannel:
         This transport does not verify an actor journal or supply permission.
         Finite metadata frames cannot select paths, commands or another handle.
         """
+        if self.boot_probe:
+            raise RelayRefusal
         if not self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.ramming = True  # Consume before possibly lost RAM creation delivery.
@@ -551,6 +607,8 @@ class BrowserChannel:
                 self.opening = False
 
     async def open_api(self):
+        if self.boot_probe:
+            raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:
             raise RelayRefusal
         self.opening = True

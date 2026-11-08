@@ -11,6 +11,15 @@ import {validateDisabledObservation} from './usb-disabled-commands.mjs';
 const fail=()=>{throw {code:'usb_browser_scope_unverified'};};
 const noncePattern=/^[a-f0-9]{32}$/;
 
+/** Derived fixed AFTER-effects record, never a caller-supplied body/path. */
+export async function bridgeBootCompletion(plan,sha,nonce) {
+ if(typeof plan!=='string' || !noncePattern.test(plan) || typeof sha!=='string' || !/^[a-f0-9]{64}$/.test(sha) ||
+    typeof nonce!=='string' || !noncePattern.test(nonce))fail();
+ const body=new TextEncoder().encode(`arm ${nonce} ${plan} ${sha}\n`);
+ return {size:body.byteLength,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',body)),
+  value=>value.toString(16).padStart(2,'0')).join('')};
+}
+
 export async function bridgeNextBootCommand(meta,scope,nonce,phase) {
  validateDisabledObservation(meta,scope);
  if(boot.schema_version!==1 || !['before','arm','armed','complete'].includes(phase) ||
@@ -31,10 +40,8 @@ export async function bridgeNextBootCommand(meta,scope,nonce,phase) {
  scope.vendor_hashes.forEach(([path,pin],i)=>{if(path!==boot.vendor_paths[i])fail();values['vendor_'+i]=pin;});
  // Copy all typed values before this await. Concurrent changes to caller JSON
  // must not replace validated leaves during hashing or change a record's body.
- const body=new TextEncoder().encode(`arm ${nonce} ${values.plan_id} ${values.plan_sha256}\n`);
- values.completion_size=String(body.byteLength);
- values.completion_sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',body)),
-  value=>value.toString(16).padStart(2,'0')).join('');
+ const pin=await bridgeBootCompletion(values.plan_id,values.plan_sha256,nonce);
+ values.completion_size=String(pin.size);values.completion_sha256=pin.sha256;
  const parts=boot.templates[phase];
  if(!Array.isArray(parts))fail();
  const command=parts.map(part=>{
@@ -43,7 +50,7 @@ export async function bridgeNextBootCommand(meta,scope,nonce,phase) {
   return values[part.field];
  }).join('');
  const literals=command.replace(/^# CGS1_BRIDGE_(?:NEXT_BOOT_SCOPE (?:disabled|backup_disabled|armed)|COMPLETION arm)$/gm,'').replace(/^# CGS1_INITIAL_ABSENT_STORES$/gm,'');
- if(command.length>65536 || literals.includes('CGS1_') || /[^\x09\x0a\x0d\x20-\x7e]/.test(command))fail();
+ if(command.length>32768 || literals.includes('CGS1_') || /[^\x09\x0a\x0d\x20-\x7e]/.test(command))fail();
  // These are the same per-process shell settings as native completed_write.
  // The eventual transport must use sealed stdin, not a long OPEN packet or
  // executable partial shell lines. Returning text does NOT consume an intent.

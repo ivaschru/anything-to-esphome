@@ -17,6 +17,19 @@ const sourcePaths=contract.files.map(file=>file.path);
  * It never executes a command and accepts no remote path or arbitrary text.
  */
 export function stageCommands(descriptor,boot) {
+  return stageCommandsInternal(descriptor,boot,false);
+}
+
+/** Read-only stage/source guards for the explicit next-boot armed state.
+ * The ordinary disabled guard is unchanged. Expose no create/mode/write
+ * functions from this variant; its caller must positively list exact flags.
+ */
+export function bridgeBootStageReads(descriptor,boot) {
+  const all=stageCommandsInternal(descriptor,boot,true);
+  return Object.freeze({guard:all.guard,inspect:all.inspect,inspectComplete:all.inspectComplete,afterBytes:all.afterBytes});
+}
+
+function stageCommandsInternal(descriptor,boot,armed) {
   if(!descriptor || typeof descriptor.plan_id!=='string' || !/^[a-f0-9]{32}$/.test(descriptor.plan_id) ||
      typeof descriptor.plan_sha256!=='string' || !hash.test(descriptor.plan_sha256) ||
      typeof descriptor.intent_sha256!=='string' || !hash.test(descriptor.intent_sha256) || typeof boot!=='string' || !uuid.test(boot)) fail();
@@ -36,7 +49,7 @@ export function stageCommands(descriptor,boot) {
     sideRegular('intent',scope.length+1)+'\n'+exact(sidecar+'/intent',scope);
   const guard=bootGuard+'\n'+sideGuard+`\ntest ! -L ${base}\ntest -d ${base}\nCGS1_STAGE_ROOT=$(stat -c '%a %u' ${base})\ntest "$CGS1_STAGE_ROOT" = '700 0'\n`+
     regular('install.intent',marker.length+1)+'\n'+exact(base+'/install.intent',marker)+'\n'+
-    regular('disabled',0)+'\n'+regular('pm-helper.disabled',0);
+    regular(armed?'disabled.before-next-boot':'disabled',0)+'\n'+regular('pm-helper.disabled',0);
   const leafFor=role=>{const row=STAGE_ROLES.find(([name])=>name===role);if(!row)fail();return row[1];};
   return Object.freeze({
     guard,

@@ -10,8 +10,16 @@ import unittest
 from unittest.mock import AsyncMock
 
 import test_usb_browser_initial_review as fixtures
+import test_usb_browser_initial_ram as ram_fixture
 
 sys.modules.setdefault('qingping_browser_contract.monitor1_browser_initial_review', fixtures.review)
+sys.modules.setdefault('qingping_browser_contract.monitor1_browser_initial_ram', ram_fixture.transfer)
+observation_name = 'qingping_browser_contract.monitor1_worker.browser_bridge_boot_observation'
+observation_spec = importlib.util.spec_from_file_location(observation_name,
+    fixtures.fixtures.fixtures.ROOT / 'monitor1_worker/browser_bridge_boot_observation.py')
+observation_module = importlib.util.module_from_spec(observation_spec)
+sys.modules.setdefault(observation_name, observation_module)
+observation_spec.loader.exec_module(observation_module)
 spec = importlib.util.spec_from_file_location('qingping_browser_contract.monitor1_browser_bridge_boot',
     fixtures.fixtures.fixtures.ROOT / 'monitor1_browser_bridge_boot.py')
 review = importlib.util.module_from_spec(spec)

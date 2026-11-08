@@ -17,6 +17,7 @@ export function fixedStdinFixture(Stream,service,options={}) {
     const next=new Uint8Array(bytes.length+chunk.length);next.set(bytes);next.set(chunk,bytes.length);bytes=next;
     if(bytes.length===frame.size && !options.noResponse) {
      assert.equal(createHash('sha256').update(bytes).digest('hex'),frame.sha256);
+     if(options.onBody)options.onBody(record.body);
      const marker=frame.marker;
      const prefix=record.body.includes('CGS1_FIXED_STDIN_READY')?'CGS1_FIXED_STDIN_READY\n':'';
      let output=encoder.encode(prefix+'\n'+marker+'\n');
@@ -36,5 +37,5 @@ export function fixedStdinFixture(Stream,service,options={}) {
   if(options.unsupported)throw Error('synthetic unsupported fixed exec');
   return raw;
  }};
- return {stream:new Stream(backend),records,opened:opened.promise,get retired(){return retired;},stop(){live=false;},releaseOpen(){openWait.resolve();}};
+ return {stream:new Stream(backend),openRaw:backend.open,records,opened:opened.promise,get retired(){return retired;},stop(){live=false;},releaseOpen(){openWait.resolve();}};
 }

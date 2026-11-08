@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {BrowserNativeChannel} from '../../custom_components/qingping_esphome/frontend/usb-native-channel.mjs';
 import {BrowserChannelPeer} from '../../custom_components/qingping_esphome/frontend/usb-channel-peer.mjs';
-import {collectDisabledScope,disabledScopeCommands} from '../../custom_components/qingping_esphome/frontend/usb-disabled-scope.mjs';
+import {collectDisabledScope,disabledScopeCommands,armedBridgeScopeCommands} from '../../custom_components/qingping_esphome/frontend/usb-disabled-scope.mjs';
 import {disabledContract} from '../../custom_components/qingping_esphome/frontend/usb-disabled-contract.mjs';
 import {contract} from '../../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs';
 import {STAGE_ROLES} from '../../custom_components/qingping_esphome/frontend/usb-stage-files.mjs';
@@ -14,18 +14,23 @@ function stat(pid,parent,start) {
  return `${pid} (synthetic ) process) ${fields.join(' ')}\n0\n${pid===50?'/data/bin/SnowApp':'/bin/busybox'}`;
 }
 export function disabledScopeFixture(options={}) {
- const meta={schema_version:1,job_id:'a'.repeat(32),target:{kind:'browser_webusb',wlan_mac:'02:00:00:00:00:01',co2_type:2,
+ const meta=options.meta?structuredClone(options.meta):{schema_version:1,job_id:'a'.repeat(32),target:{kind:'browser_webusb',wlan_mac:'02:00:00:00:00:01',co2_type:2,
   stock_version:'4.1.8_0287',usb_serial:'synthetic-usb',boot_id:'22222222-2222-2222-2222-222222222222'},
   descriptor:{plan_id:'b'.repeat(32),plan_sha256:'c'.repeat(64),intent_sha256:'d'.repeat(64),
    files:Object.fromEntries(STAGE_ROLES.map(([role])=>[role,{size:17,sha256:disabledContract.sources[role]||'e'.repeat(64)}]))},
   commit_nonce:options.lock?'f'.repeat(32):null};
- const commands=disabledScopeCommands(meta),calls=[];let rootReads=0,scanReads=0,vendorReads=0,identities=0;
+ const commands=(options.armed?armedBridgeScopeCommands:disabledScopeCommands)(meta),calls=[];let rootReads=0,scanReads=0,vendorReads=0,identities=0;
  const backend={identity:async target=>{identities++;assert.deepEqual(target,meta.target);return !options.badIdentity;},read:async command=>{
   calls.push(command);
   if(options.badGuard && command.includes(commands.stage.guard))throw Error('synthetic private guard error');
   if(command===commands.root){rootReads++;return '1 '+(options.changedRoot && rootReads>1?'3':'2')+' 700 0';}
-  if(command===commands.entries)return [...STAGE_ROLES.map(([,leaf])=>leaf),'install.intent','disabled','pm-helper.disabled',
+  if(command===commands.entries)return [...STAGE_ROLES.map(([,leaf])=>leaf),'install.intent','pm-helper.disabled',...(options.armed?['disabled.before-next-boot','bridge-next-boot.complete']:['disabled']),
    ...(options.lock?['.commit-disabled.lock']:[]),...(options.trialMarker && !options.missingTrialEntry?['initial-trial.intent']:[]),...(options.extraRoot?['foreign-file']:[])].join('\n');
+  if(command.includes('/bridge-next-boot.complete')) {
+   if(!options.armed || !options.armMarker || options.armMarkerReadError)throw Error('synthetic arming marker refused');
+   const pin=options.armMarker;
+   return `${pin.size} 600 0 1\n${options.armMarkerWrongHash || options.armMarkerChanged && rootReads>1?'0'.repeat(64):pin.sha256}  ${base}/bridge-next-boot.complete`;
+  }
   if(command.includes('/initial-trial.intent')) {
    if(!options.trialMarker || options.markerReadError)throw Error('synthetic marker read refused');
    const pin=options.trialMarker;
@@ -57,7 +62,13 @@ export function disabledScopeFixture(options={}) {
 export function selectedDisabledScope(f,Native=BrowserNativeChannel) {
  const target=f.meta.target,identity={uid:'0',wlan_mac:target.wlan_mac,version:'CLEARGRASS_VERSION=4.1.8_0287',arch:'armv7l',
   co2_type:String(target.co2_type),boot_id:target.boot_id};let closed=0,picked=0;
- const client={close:async()=>{closed++;},createSocket:async service=>{
+ const raws=[];
+ const client={close:async()=>{closed++;for(const socket of raws)await socket.close();if(f.transportCloseLoss)throw Error('synthetic private transport close');},createSocket:async service=>{
+  if(service.startsWith('exec:')) {
+   assert.equal(typeof f.openRaw,'function');
+   const frame={size:Number(service.match(/count=([0-9]+)/)[1]),sha256:service.match(/[a-f0-9]{64}/)[0],marker:service.match(/__CGS1_FIXED_OK_[a-f0-9]{32}__/)[0]};
+   const socket=await f.openRaw(frame);assert.equal(socket.service,service);raws.push(socket);return socket;
+  }
   assert(service.startsWith('shell:set -e\n'),'No sync/API/writer service');
   const marker=service.match(/__CGS1_CHANNEL_OK_[a-f0-9]+__/)[0],command=service.slice('shell:set -e\n'.length,service.lastIndexOf('\nprintf '));
   const step=contract.identity.find(v=>v.command===command),body=step?identity[step.name]:await f.backend.read(command);

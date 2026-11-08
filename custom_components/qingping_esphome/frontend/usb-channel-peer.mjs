@@ -21,6 +21,7 @@ function bytes(value) {
 function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
+  #booting=false;
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
   #staging=false;#committing=false;#ramming=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   #ramComplete=false;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
@@ -42,6 +43,7 @@ export class BrowserChannelPeer {
       // exception. The original two-handler budget is unchanged.
       if(this.#checking && request.operation!=='channel-close' &&
          !(this.#scopeChecking && guardianApi && this.#socket && request.operation==='api-read')) fail();
+      if(this.#booting && !['bridge-boot-preparation','bridge-boot-prepare','bridge-boot-step','bridge-boot-complete','channel-close'].includes(request.operation))fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
       if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
       if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation))fail();
@@ -54,6 +56,22 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='bridge-boot-stream-check') {
+        if(request.data!==null || this.#opening || this.#socket || this.#closing || this.#booting)fail();
+        this.#booting=true;this.#checking=true;
+        try {data=await this.#link.probeBridgeBootStream();}finally {this.#checking=false;}
+      } else if(request.operation==='bridge-boot-prepare') {
+        if(!this.#booting || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='packet')fail();
+        this.#checking=true;
+        try {data=await this.#link.beginBridgeBoot(request.data.packet);}finally {this.#checking=false;}
+      } else if(request.operation==='bridge-boot-step') {
+        if(!this.#booting || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='phase')fail();
+        this.#checking=true;
+        try {data=await this.#link.bridgeBootStep(request.data.phase);}finally {this.#checking=false;}
+      } else if(request.operation==='bridge-boot-complete') {
+        if(!this.#booting || request.data!==null || this.#opening || this.#socket || this.#closing)fail();
+        this.#checking=true;
+        try {data=await this.#link.completeBridgeBoot();}finally {this.#checking=false;}
       } else if(request.operation==='bridge-boot-preparation') {
         if(this.#opening || this.#socket || this.#closing || !request.data ||
            Object.keys(request.data).sort().join()!=='meta,trial_marker')fail();

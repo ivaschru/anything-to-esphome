@@ -1,6 +1,6 @@
 /** Shared internal sealed-stdin transport mechanics for finite wrappers.
  *
- * Only DisabledCommandStream and InitialRamCommandStream construct this with
+ * Only the fixed disabled/RAM/bridge-boot wrappers construct this with
  * their module-owned pure assembler. No peer/frame exports this helper or
  * accepts an assembler, shell body, service, path, timeout or retry selector.
  * Original live capability/deadline and independently consumed journal remain
@@ -141,9 +141,9 @@ export class FixedStdinLifecycle {
   if(this.#busy || !this.#ready || this.#closed) {await this.close().catch(()=>{});fail();}
   this.#busy=true;
   try {
-   // assemble is a trusted synchronous module closure from a finite wrapper,
+   // assemble is a trusted module closure from a finite wrapper,
    // never a function/body/path received from a frame or HTTP request.
-   const body=this.#assemble(input);
+   const body=await this.#bounded(()=>this.#assemble(input),Date.now()+5000);
    await this.#run(body,'',30000);
    this.#live();return {completed:true};
   } catch {await this.close().catch(()=>{});fail();}

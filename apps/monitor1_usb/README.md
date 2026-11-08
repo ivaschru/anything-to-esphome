@@ -440,8 +440,8 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 ### Browser USB preparation in the development branch
 
 Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
-branch has the private stage → disabled commit → bounded bridge trial pipeline
-described below. Next-boot/observer/PM, Full UI/permanent startup, HA enrollment
+branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
+described below. Later boot observation/PM, Full UI/permanent startup, HA enrollment
 and their browser UI composition remain unfinished. An untouched CGS1 has not
 yet been tested; existing working monitors must not be reset to imitate one.
 
@@ -527,10 +527,9 @@ first installation. The frozen firmware/native source is not rebuilt here.
 The next-boot adapter now also has pure generated before/arm/armed/completion
 text. Sixteen vectors match the unchanged native builder byte-for-byte, including
 recovery flag before bridge-opt-out removal and the correlated completion SHA
-and byte count. Nineteen refusal cases and syntax-only parsing pass. This
-module is not connected to a selected transport, stopped journal or consumed
-arming intent. Its generated text/metadata alone enables no button or writer;
-independent fresh reads and actual close proofs are still required.
+and byte count. Nineteen refusal cases and syntax-only parsing pass. The pure
+module alone enables no button or writer. Its separate consumed execution join
+now performs the fresh reads and actual close proofs described below.
 
 The private next-boot preparation now reads the exact stopped browser journal
 and all nine arming source pins. It derives the size/SHA of the original
@@ -539,4 +538,18 @@ collector verifies that known file in both root passes, plus the original
 stock/vendor/root/flags/resources. Unknown extra files still refuse. Core
 rechecks the private context after USB IO and awaits owned channel closure.
 This read grants no arming intent/lease or native trial receipt; the separate
-consumed flag transition and its terminal proof remain to be connected.
+consumed flag transition and terminal proof are described below.
+
+The private arming composition now joins those prerequisites in the original
+reserved Core task/actor. It probes fixed sealed stdin before consumption,
+collects fresh stopped scope, then fsyncs a separate arming intent before any
+flag-changing frame. The exact canonical before/arm/armed/completion sequence
+saves the empty recovery backup before removing only the empty bridge opt-out;
+PM remains disabled. A separate double-pass armed collector checks original
+roots/source/vendor/stock, positive flag entries and both trial/completion
+markers. Actual USB close and independent channel-close ACK precede the actor's
+immutable terminal record and lease release. Lost packet/phase/close/record
+replies never repeat a write or auto-roll back. The historical result is armed
+for the next ordinary boot, with installed/activated/readiness false. No reboot
+or process launch occurs here. Real host/transport tests use synthetic device
+replies; physical first-install and the later boot observer remain separate.

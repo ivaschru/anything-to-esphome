@@ -726,7 +726,8 @@ separate even though the HACS wizard is shared.
   next-boot/observer/PM, Full UI/permanent/enrollment and public UI are still
   separate unfinished adapters. Do not rebuild frozen firmware for this join.
 
-- usb-bridge-boot-commands is pure, unwired next-boot text only. Generate
+- usb-bridge-boot-commands is pure next-boot text; its private execution join
+  is described below. Generate
   before/arm/armed/completion from canonical arm_bridge_next_boot_adb builders;
   preserve all guards, recovery-before-unlink and AFTER-effects record bytes.
   Derive the completion SHA/size from the actual typed plan/nonce, never from
@@ -734,7 +735,7 @@ separate even though the HACS wizard is shared.
   distinct typed arm nonce. No disarm/start/reboot/generic selector exists.
   Text/metadata grants no stopped-trial receipt, fresh live channel, consumed
   intent or lease. Do not manufacture a native trial receipt/get-devpath; those
-  browser joins and actual readback/close remain to be implemented. Packaged
+  browser joins must use the separate consumed composition below. Packaged
   metadata alone must not upgrade the existing ten trial producers or an old
   consumed grant. Run generate_bridge_boot_contract.py --check and the sixteen
   canonical parity vectors plus refusals in test_usb_bridge_boot_commands.mjs.
@@ -753,6 +754,40 @@ separate even though the HACS wizard is shared.
   expiry or lost close cannot qualify it. Run test_usb_browser_bridge_boot_*.py
   and test_usb_bridge_boot_scope.mjs (raw/delivered selected peer), rebuild the
   offline bundle/package, and preserve all existing scope/USB regressions.
+
+- browser_bridge_boot_journal is a separate consumed private arming packet,
+  not a native trial receipt or device executor. Require the exact stopped
+  trial/context, fresh distinct selected channel and strict preparation under
+  the original native-install flock. O_EXCL + file/directory fsync precede
+  metadata delivery. Lost packet/actor exit never grants retry or adoption;
+  orphan/changed history fences every other writer/export across restart.
+  Only the original retained actor lease can record exact finite step ACKs,
+  explicit armed scope and independent actual USB/channel closure. The armed
+  DTO compares invariant source/vendor/root/stock directly to the original
+  disabled baseline; never relabel it as a currently disabled Snapshot. PM
+  remains disabled, recovery backup retained, exact AFTER-effects SHA/size
+  required. Historical armed_next_boot is not running/installed/readiness.
+  Private pipe routes deny HTTP before body IO; no generic flags/commands/PID
+  control, auto-reboot/retry/rollback or public UI. Run actual journal/actor/
+  flock and proof-fault tests plus the full USB suites after its joins change.
+
+- Private browser arming now composes probe -> exact stopped scope -> consumed
+  actor packet -> fixed before/arm/armed/completion sealed streams -> explicit
+  independent armed scope -> actual USB close -> separate channel ACK -> actor
+  terminal record. Preserve original shielded task/reservation/process/registry
+  and producers around every await; a foreign task performs no channel IO.
+  Only the generated canonical backup-before-unlink transition executes. PM
+  remains disabled; no reboot, process launch, disarm/rollback or public writer
+  initiator. The next ordinary boot still needs its separate live observer.
+  Shared stdin assembly now awaits only trusted module-owned assemblers under
+  a bounded five-second admission; body size/ASCII/hash/deadline gates remain.
+  Armed reads use a separate read-only stage view with recovery flag checks,
+  exact positive root names and both original trial/AFTER-effects marker pins.
+  Do not turn this DTO into a fictitious currently-disabled Snapshot. Actual
+  Tango512/ACK/CLSE, raw/delivered Native/session and real Core/actor/fsync/flock
+  fixtures cover the join with synthetic device replies only. Run the full
+  USB suites, all Node tests and package/generator checks after these changes;
+  no hardware/first-install qualification follows from those tests.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

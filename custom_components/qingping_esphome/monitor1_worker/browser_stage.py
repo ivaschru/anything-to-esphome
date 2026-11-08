@@ -58,6 +58,15 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
+    if names & {'browser-bridge-boot-intent.json', 'browser-bridge-boot-complete.json'}:
+        from browser_bridge_boot_journal import BrowserBridgeBoot
+        from browser_plan import BrowserPlans
+        try:
+            previous = BrowserBridgeBoot(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if previous.status(owner, directory.name)['state'] != 'bridge_autostart_armed_next_boot_unverified':
+                raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
     if names & {'browser-initial-trial-intent.json', 'browser-initial-trial-complete.json'}:
         # Completion needs the exact validated terminal journal. A released
         # crash FD, orphan file or changed producer never permits a new writer.
@@ -209,6 +218,18 @@ class BrowserStages:
     def bridge_boot_context(self, owner, job_id, expected_sha):
         from browser_bridge_boot import context
         return context(self, owner, job_id, expected_sha)
+
+    def prepare_bridge_boot(self, owner, job_id, expected_sha, scope, reviewed):
+        from browser_bridge_boot_journal import BrowserBridgeBoot
+        return BrowserBridgeBoot(self).prepare(owner, job_id, expected_sha, scope, reviewed)
+
+    def record_bridge_boot(self, owner, job_id, digest, proof):
+        from browser_bridge_boot_journal import BrowserBridgeBoot
+        return BrowserBridgeBoot(self).record(owner, job_id, digest, proof)
+
+    def bridge_boot_status(self, owner, job_id):
+        from browser_bridge_boot_journal import BrowserBridgeBoot
+        return BrowserBridgeBoot(self).status(owner, job_id)
 
     def initial_trial_status(self, owner, job_id):
         from browser_initial_journal import BrowserInitialTrials

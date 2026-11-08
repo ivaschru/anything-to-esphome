@@ -86,6 +86,15 @@ class Actor:
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation == "internal-browser-bridge-boot-context" and set(data) == {"job_id", "expected_plan_sha256"}:
             return self.companion.browser_stages.bridge_boot_context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation.startswith("internal-browser-bridge-boot-"):
+            stages = self.companion.browser_stages
+            if operation == "internal-browser-bridge-boot-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
+                return stages.prepare_bridge_boot(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), "application/json"
+            if operation == "internal-browser-bridge-boot-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return stages.record_bridge_boot(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
+            if operation == "internal-browser-bridge-boot-status" and set(data) == {"job_id"}:
+                return stages.bridge_boot_status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation.startswith("internal-browser-initial-trial-"):
             stages = self.companion.browser_stages
             if operation == "internal-browser-initial-trial-api" and set(data) == {"job_id", "plan_sha256", "intent_sha256", "channel_id", "channel_nonce", "nonce", "ram_job_id", "guardian_job_id"}:

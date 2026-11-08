@@ -11,6 +11,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {DisabledCommandStream,disabledStreamService} from '../custom_components/qingping_esphome/frontend/usb-disabled-stream.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-stream.mjs';
+import {BridgeBootCommandStream,bridgeBootStreamService} from '../custom_components/qingping_esphome/frontend/usb-bridge-boot-session.mjs';
 import {initialGuardianLaunchBody} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-frame.mjs';
 const args=process.argv.slice(2);
 if(args.length && !(args.length===2 && args[0]==='--dependencies'))throw Error('Only the pinned dependency directory is accepted');
@@ -24,8 +25,12 @@ const ramLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_initial_ra
 assert.equal(ramLoaded.status,0,ramLoaded.stderr);const ram=JSON.parse(ramLoaded.stdout)[0];
 const guardianLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_guardian_frame.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
 assert.equal(guardianLoaded.status,0,guardianLoaded.stderr);const guardian=JSON.parse(guardianLoaded.stdout)[0];
+const bootLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_boot_commands.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
+assert.equal(bootLoaded.status,0,bootLoaded.stderr);const boot=JSON.parse(bootLoaded.stdout).slice(0,4);
 const {InitialRamCommandStream,initialRamStreamService}=await import('../custom_components/qingping_esphome/frontend/usb-initial-ram-stream.mjs');
 for(const scenario of [
+ {Stream:BridgeBootCommandStream,service:bridgeBootStreamService,operations:boot,
+  execute:(stream,v)=>stream.execute(v.meta,v.scope,v.nonce,v.phase),bodies:boot.map(v=>v.expected.replace(/\n$/,''))},
  {Stream:DisabledCommandStream,service:disabledStreamService,operations:vectors,
   execute:(stream,v)=>stream.execute(v.meta,v.scope,v.nonce,v.phase),bodies:vectors.map(v=>v.expected)},
  {Stream:InitialRamCommandStream,service:initialRamStreamService,operations:[ram],
@@ -101,4 +106,4 @@ assert(opens.some(state=>state.body.length>4096));
 assert(writes.length>=Math.ceil(opens.reduce((n,state)=>n+state.body.length,0)/maximum));assert(writes.every(length=>length<=maximum));assert(writes.some(length=>length===maximum));
 await stream.close();assert.equal(retired,1);
 }
-console.log('Actual Tango2.6.2: disabled, initial RAM and guardian fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');
+console.log('Actual Tango2.6.2: bridge-boot, disabled, initial RAM and guardian fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');

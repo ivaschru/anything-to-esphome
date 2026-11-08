@@ -5,7 +5,7 @@
  */
 import {contract} from './usb-probe-contract.mjs';
 import {disabledContract} from './usb-disabled-contract.mjs';
-import {stageCommands} from './usb-stage-session.mjs';
+import {stageCommands,bridgeBootStageReads} from './usb-stage-session.mjs';
 import {STAGE_ROLES} from './usb-stage-files.mjs';
 import {digestLineMatches} from './usb-file-observation.mjs';
 const base='/data/.esphome-cgs1',side='/data/.esphome-cgs1-stage';
@@ -18,7 +18,9 @@ function positive(value) {
 }
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 
-export function disabledScopeCommands(meta) {
+export function disabledScopeCommands(meta) {return scopeCommands(meta,false);}
+export function armedBridgeScopeCommands(meta) {return scopeCommands(meta,true);}
+function scopeCommands(meta,armed) {
  const fields=['schema_version','job_id','target','descriptor','commit_nonce'];
  if(!meta || Object.keys(meta).sort().join()!==fields.sort().join() || meta.schema_version!==1 ||
     typeof meta.job_id!=='string' || !/^[a-f0-9]{32}$/.test(meta.job_id) ||
@@ -38,7 +40,7 @@ export function disabledScopeCommands(meta) {
  }
  if(total>32*1024*1024)fail();
  for(const [role,digest] of Object.entries(disabledContract.sources))if(meta.descriptor.files[role]?.sha256!==digest)fail();
- const stage=stageCommands(meta.descriptor,meta.target.boot_id);
+ const stage=(armed?bridgeBootStageReads:stageCommands)(meta.descriptor,meta.target.boot_id);
  const lock=base+'/.commit-disabled.lock',marker='commit-disabled '+meta.commit_nonce+' '+meta.descriptor.plan_id;
  // A nonce is only a read comparator obtained from the private journal. It
  // never creates/adopts a lock or authorizes another forward/rollback attempt.
@@ -85,9 +87,17 @@ export async function collectStoppedTrialScope(backend,input,marker) {
  return await collect(backend,input,JSON.parse(JSON.stringify(marker)));
 }
 
-async function collect(backend,input,marker) {
+/** Explicit armed reader, with both fixed marker pins; never an extra-file API. */
+export async function collectArmedBridgeScope(backend,input,marker,completion) {
+ const valid=v=>v && Object.keys(v).sort().join()==='sha256,size' && Number.isSafeInteger(v.size) &&
+  v.size>0 && v.size<=4096 && typeof v.sha256==='string' && /^[a-f0-9]{64}$/.test(v.sha256);
+ if(!valid(marker) || !valid(completion))fail();
+ return await collect(backend,input,JSON.parse(JSON.stringify(marker)),JSON.parse(JSON.stringify(completion)));
+}
+
+async function collect(backend,input,marker,completion=undefined) {
  if(!backend || Object.keys(backend).sort().join()!==['read','identity'].sort().join() || Object.values(backend).some(v=>typeof v!=='function'))fail();
- const commands=disabledScopeCommands(input),meta=JSON.parse(JSON.stringify(input));
+ const commands=scopeCommands(input,completion!==undefined),meta=JSON.parse(JSON.stringify(input));
  const read=command=>backend.read(command);
  const identity=async()=>{if(await backend.identity(meta.target)!==true)fail();};
  const empty=async command=>{if(await read(command)!=='')fail();};
@@ -95,7 +105,8 @@ async function collect(backend,input,marker) {
   const value=(await read(commands.root)).split(' ');
   if(value.length!==4 || value[2]!=='700' || value[3]!=='0')fail();
   const result=[positive(value[0]),positive(value[1])];
-  const names=[...STAGE_ROLES.map(([,leaf])=>leaf),'install.intent','disabled','pm-helper.disabled'];
+  const names=[...STAGE_ROLES.map(([,leaf])=>leaf),'install.intent','pm-helper.disabled',
+   ...(completion?['disabled.before-next-boot','bridge-next-boot.complete']:['disabled'])];
   if(meta.commit_nonce!==null)names.push('.commit-disabled.lock');
   if(marker) {
    if(meta.commit_nonce===null)fail();
@@ -104,6 +115,11 @@ async function collect(backend,input,marker) {
    const command=`test ! -L ${path}\ntest -f ${path}\nstat -c '%s %a %u %h' ${path}\nsha256sum ${path}`;
    const rows=(await read(command)).split('\n');
    if(rows.length!==2 || rows[0]!==`${marker.size} 600 0 1` || !digestLineMatches(rows[1],marker.sha256,path))fail();
+  }
+  if(completion) {
+   const path=base+'/bridge-next-boot.complete';
+   const rows=(await read(`test ! -L ${path}\ntest -f ${path}\nstat -c '%s %a %u %h' ${path}\nsha256sum ${path}`)).split('\n');
+   if(rows.length!==2 || rows[0]!==`${completion.size} 600 0 1` || !digestLineMatches(rows[1],completion.sha256,path))fail();
   }
   if(!same((await read(commands.entries)).split('\n').sort(),names.sort()) ||
      !same((await read(commands.sideEntries)).split('\n').sort(),['complete','intent']) ||
@@ -150,9 +166,10 @@ async function collect(backend,input,marker) {
   if(!same(await root(),rootId) || !same(await vendors(),beforeVendors) || !same(await session(),beforeSession))fail();
   await staged();await identity();
   const emptySha=await sha(new Uint8Array());
-  return {kind:'browser_disabled_scope',target:meta.target,plan_id:meta.descriptor.plan_id,plan_sha256:meta.descriptor.plan_sha256,
+  return {kind:completion?'browser_bridge_armed_scope':'browser_disabled_scope',target:meta.target,plan_id:meta.descriptor.plan_id,plan_sha256:meta.descriptor.plan_sha256,
    stage_intent_sha256:meta.descriptor.intent_sha256,root_identity:rootId,install_marker:meta.descriptor.plan_id+' '+meta.descriptor.plan_sha256,
-   root_mode:0o700,root_uid:0,disabled_flags:Array.from({length:2},()=>[emptySha,0,0o600,0,1,false]),
+   root_mode:0o700,root_uid:0,...(completion?{boot_flags:{bridge_disabled:false,recovery_backup:true,pm_disabled:true},arm_marker:completion}:
+    {disabled_flags:Array.from({length:2},()=>[emptySha,0,0o600,0,1,false])}),
    source_hashes:Object.entries(disabledContract.sources).sort(([a],[b])=>a<b?-1:a>b?1:0),vendor_hashes:beforeVendors,
    stock_process:beforeSession.stock,watchdog_process:beforeSession.watchdog,own_code_running:false,pm_helper_loaded:false,
    data_available_bytes:available,same_filesystem:true,staged_files:meta.descriptor.files,commit_nonce:meta.commit_nonce};
