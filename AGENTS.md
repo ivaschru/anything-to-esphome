@@ -977,3 +977,20 @@ separate even though the HACS wizard is shared.
   NUL/extra-stdin refusal; production guard scripts are never executed locally.
   Run both HA USB suites, test_usb_browser_commit_transfer.py, full pure tests,
   source generators and the rebuilt offline bundle/package checks.
+
+- internal-browser-initial-trial-context is a private artifact-only read after
+  an exactly owned terminal browser commit. Rehash the original schema2 plan,
+  candidate result/profile/source, separate initial-trial-guardian-program and
+  terminal commit proof; never add another role to the frozen nine-file NAND
+  tree, rewrite an old plan or fabricate a native commit receipt/get-devpath.
+  generate_initial_trial_contract.py pins the required frozen source53 reader
+  and C++ guardian inputs. Import only after actual source verification in the
+  job's existing SDK; call only canonical guardian_artifact, not trial/Adb or
+  a native loader. Compare the exact canonical stdin/result bytes and recheck
+  original files after the child. No new intent, lease, RAM allocation, upload,
+  launch, boot change or public HTTP/UI initiator follows. Artifact checking
+  is distinct from the device's actual image-FD/capability admission, which
+  stays false in this DTO. The bounded browser trial lifecycle is still missing.
+  Run test_usb_browser_initial_trial.py, the source generator/package checks
+  and both HA USB suites. Synthetic programs/ELF headers test byte/ABI gates
+  only and must never be described as a physical guardian or monitor trial.

@@ -1,0 +1,31 @@
+{
+  "source_commit": "53d97b9609e8e0fcdfc5d003101f620098dbc734",
+  "guardian_role": "initial-trial-guardian-program",
+  "source_sha256": {
+    "bootstrap_patches.py": "12bc6fb3fadfe6c0101130914c3dafe7db243669b8a000e83806ff0afd66f959",
+    "build_candidate.py": "a5583b8e0159c3df425d5e500de5599b66b93a5e17ff6107d8fa75fe64caa294",
+    "build_pm_helper.py": "94a8f6c9d11fad0c18d459019b9791db1797ce339a5aa9b821d41b2199aa8851",
+    "commit_disabled_install.py": "b78470c8fe3f6275d2eca07067ec56beb858f11d8037b435be08f9f6781b4408",
+    "disabled_commit_policy.py": "ad8b50cd9c112f37b40bb1f3a77ba2ca598bf307deb1817ea1fdda4c492f2ab7",
+    "initial_bridge_trial_main.cpp": "fd00040a0c6fbf23ded86e833aa86dd5dbaa9f75a3b5ca25bb9b53ae485eb5eb",
+    "initial_bridge_trial_policy.py": "c304ce59b7df712bcbb9b2fa1564a70e1ed22fb5c2575d3bdbeebc08556b4677",
+    "initial_trial_admission.h": "77f5b1ce0c002ec9f32b87ce6615e4128134b28363e33bfc530f32af87dc9ba5",
+    "initial_trial_child.h": "5fe9e093428228ee9b0a9f6b599f402825e9a952623bfff160a4e7af3ae954cf",
+    "initial_trial_device.h": "7e2b0e9857b37b0530bc8fb69d8bb42df5a54485aef1b86fb2f75da2e078c39d",
+    "initial_trial_exec.h": "a5f09c528f03e0c61c7748ce4d68861507d2e79a49240e92dcdba89b96cbd880",
+    "initial_trial_filesystem.h": "b3018ddb17960c4bb5108602e243121159d4542f19522de9a9d4542ee9a830c5",
+    "initial_trial_intent.h": "ac429b5817af301da0cc3f3ba7f32f9cbb4730e8fb53771ba08873a91bf20c11",
+    "initial_trial_ram_scope.h": "393ab184fa31189cde891c9e736256af2eb3945f1dc6ca34a74dbd077e4276b9",
+    "initial_trial_resources.h": "d09bdf079d157a80f385a3e83d14f9237514393e635b17f6b0c33061892a492f",
+    "initial_trial_scope.h": "e3f059e3c5f97b241c588b71a7c6aa8df114bddac0082f6a1f0a2520eab9e7ac",
+    "initial_trial_self.h": "d62dbc7cf9d513bed3a506e64993efc710f3c12e7ebf6030d9754ba5a054f357",
+    "initial_trial_stock.h": "8e94e07eb9ca82f16fb79c36b8b72f69792a107b575cda356353c0b29a87e1a9",
+    "initial_trial_vendor.h": "08a506963b9e9a4c2b2b36c2085976ccfbbc6deec3276c67a8149b6d2d70b90c",
+    "preflight_adb.py": "128cf367baeee28bcfb4156256548fdded689a42d50662e77580fdd71ab19b47",
+    "prepare_install.py": "92f99cf2ff074d58f734303c54907a73feffab33d4e174d70def6d1ee70fa375",
+    "review_disabled_install.py": "174d4e23e1aaf4c386ab7afcf280a7b99b169ca877130ad1f556295a28850d1a",
+    "review_initial_trial.py": "d9f2f022edbbe190d8c8b0ccbb87071f9c6dfcb53320f8e53232264ac71cc0b4",
+    "stage_install_adb.py": "7546caa212b3b44b1a3d8717e550b7bfd5f0893a342c80c6e847cfd2be56b8eb",
+    "trial_initial_bridge_adb.py": "4f29bb503dd2d792a42aa2a642505edd2ccf84a3eb35ae7a8964b39006aaf032"
+  }
+}

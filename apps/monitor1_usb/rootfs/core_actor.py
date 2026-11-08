@@ -77,6 +77,11 @@ class Actor:
             return self.companion.browser_plans.context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation == "internal-browser-disabled-context" and set(data) == {"job_id", "expected_plan_sha256"}:
             return self.companion.browser_stages.disabled_context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation == "internal-browser-initial-trial-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+            # Artifact-only read in the existing private SDK. This does not
+            # allocate/upload/launch, adopt native receipts or initialize ADB.
+            from browser_initial_trial import context
+            return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation == "internal-browser-disabled-assess" and set(data) == {"job_id", "expected_plan_sha256", "channel_id", "channel_nonce", "scope"}:
             # Pure SDK analysis is pipe-only and never starts native ADB. The
             # private Core caller supplies its actual still-current capability.

@@ -446,4 +446,10 @@ selection and compares the actual connection, boot and fixed factory files with
 that build. It performs no device write. A successful check does not enable a
 server USB install or a later write using cached evidence. Lost preparation
 responses can only read the same job's status. Browser writing is still being
-integrated; this source-branch feature is not part of stable HACS 0.2.8.
+integrated; these private writer adapters are not part of stable HACS 0.2.10.
+
+The development branch also checks the bounded first-trial guardian as its
+own candidate artifact after a terminal browser commit. This private SDK read
+does not create a trial intent, allocate RAM, upload or execute anything. The
+actual on-device image-FD admission and bounded trial lifecycle remain separate
+unfinished work; a successful artifact check does not qualify installation.

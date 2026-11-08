@@ -65,6 +65,10 @@
 - Receive complete command bodies as bounded RAM data and verify length/SHA
   before parsing any shell. Truncated input never executes a shorter path;
   no script file, arbitrary command route or PTY fallback is introduced.
+- Prepare the first browser trial's separate guardian artifact through a
+  private read-only SDK check, bound to the original completed commit, plan,
+  candidate and frozen sources. Preserve image-FD admission as unverified;
+  this prerequisite neither allocates RAM nor uploads/launches a program.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.
