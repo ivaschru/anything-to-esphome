@@ -35,7 +35,7 @@ function scopeReads(input,ramInput,startInput,returning=false) {
  if(contract.schema_version!==1 || contract.maximum_observation_ms!==5000 || contract.source_commit!==initialTrialContract.source_commit ||
     !same(contract.source_sha256,initialTrialContract.source_sha256) ||
     fields(contract.branches)!==['empty','prefs_empty','prefs_file'].sort().join() ||
-    fields(contract.return_branches)!==fields(contract.branches))fail();
+    fields(contract.return_branches)!==fields(contract.branches) || returning && contract.post_stop_transport_close!==true)fail();
  const baseline=packet.context.committed_scope,values={guardian_pid:String(start.start.stamp[0]),child_pid:String(start.child.stamp[0]),
   stock_pid:String(baseline.stock_process[0]),watchdog_pid:String(baseline.watchdog_process[0]),
   guardian_job_id:packet.guardian_job_id,ram_job_id:packet.ram_job_id,

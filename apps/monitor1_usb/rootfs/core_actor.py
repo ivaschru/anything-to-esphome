@@ -90,6 +90,8 @@ class Actor:
                 return initial_api_package(stages, user, data), BROWSER_INITIAL_API_MIME
             if operation == "internal-browser-initial-trial-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
                 return stages.prepare_initial_trial(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), BROWSER_INITIAL_MIME
+            if operation == "internal-browser-initial-trial-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return stages.record_initial_trial(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
             if operation == "internal-browser-initial-trial-status" and set(data) == {"job_id"}:
                 return stages.initial_trial_status(user, data["job_id"]), "application/json"
             raise Refusal("usb_request_invalid")

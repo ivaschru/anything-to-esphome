@@ -43,8 +43,8 @@ export class BrowserChannelPeer {
       if(this.#checking && request.operation!=='channel-close' &&
          !(this.#scopeChecking && guardianApi && this.#socket && request.operation==='api-read')) fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
-      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
-      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','channel-close'].includes(request.operation) && !(guardianApi && apiOperation))fail();
+      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
+      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation))fail();
       if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
@@ -78,7 +78,7 @@ export class BrowserChannelPeer {
             data=await this.#link.initialRamAppend(request.data.offset,chunk);
           }
         }finally {this.#checking=false;}
-      } else if(['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe'].includes(request.operation)) {
+      } else if(['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close'].includes(request.operation)) {
         const concurrentScope=request.operation==='guardian-scope-observe' && guardianApi && !this.#writing;
         if(request.data!==null || !this.#ramComplete || this.#opening || this.#closing ||
            this.#socket && !concurrentScope || request.operation==='guardian-scope-observe' && this.#writing)fail();
@@ -91,6 +91,9 @@ export class BrowserChannelPeer {
           } else if(request.operation==='guardian-finish') {
             if(!this.#guardianReady || this.#guardianFinished)fail();this.#guardianFinished=true;
             data=await this.#link.finishInitialGuardian();
+          } else if(request.operation==='guardian-return-close') {
+            if(!this.#guardianReady || !this.#guardianFinished)fail();
+            data=await this.#link.closeInitialGuardianReturn();
           } else if(request.operation==='guardian-return-observe') {
             if(!this.#guardianReady || !this.#guardianFinished)fail();
             data=await this.#link.observeInitialGuardianReturn();

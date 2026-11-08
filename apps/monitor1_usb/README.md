@@ -439,148 +439,87 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 
 ### Browser USB preparation in the development branch
 
-After its private build, a computer USB job has its own **Prepare installation
-files** step. It retains the browser capture; it does not invent a native USB
-path. **Select and check the computer USB monitor** opens a new Chrome USB
-selection and compares the actual connection, boot and fixed factory files with
-that build. It performs no device write. A successful check does not enable a
-server USB install or a later write using cached evidence. Lost preparation
-responses can only read the same job's status. Browser writing is still being
-integrated; these private writer adapters are not part of stable HACS 0.2.10.
+Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
+branch has the private stage → disabled commit → bounded bridge trial pipeline
+described below. Next-boot/observer/PM, Full UI/permanent startup, HA enrollment
+and their browser UI composition remain unfinished. An untouched CGS1 has not
+yet been tested; existing working monitors must not be reset to imitate one.
 
-The development branch also checks the bounded first-trial guardian as its
-own candidate artifact after a terminal browser commit. This private SDK read
-does not create a trial intent, allocate RAM, upload or execute anything. The
-actual on-device image-FD admission and bounded trial lifecycle remain separate
-unfinished work; a successful artifact check does not qualify installation.
-The private preparation reader now checks the selected monitor's committed
-scope, absent persistent stores/RAM processes, free API/OTA ports and genuine
-free RAM twice, preserving the original root/process identities. It rechecks
-the guardian/proof afterward and closes the owned channel. It creates no RAM
-job or trial intent and exposes no public browser launch control.
-The separate private journal can now consume one guardian packet before any
-future RAM write. It retains the shared writer lock and uncertain history after
-loss or restart; status cannot resend it. Its terminal verifier and device
-executor are still missing, so it cannot report a successful trial or unlock a
-consumed one. This internal prerequisite adds no installation button.
-The source branch now joins fixed RAM creation, single-file guardian SYNC and
-independent root/file readback through the actual selected WebUSB channel and
-finite private Core frames. It requires the positive harmless exec probe before
-the actor consumes the trial intent, a new matching committed scope, genuine
-MemFree and a bounded tmpfs budget. Only new 0700 jobs and an exclusive empty
-0600 file are created. The sealed creation body is length/SHA-checked before
-shell parsing; it is never streamed as executable partial lines.
+After a private build, a computer USB job has its own **Prepare installation
+files** step. It retains the browser capture instead of inventing a native USB
+path. **Select and check the computer USB monitor** opens a new Chrome picker
+and compares the actual connection, boot and fixed factory files with that
+build. This read grants no cached write permission. A lost preparation response
+can only read the same job's status.
 
-Complete source checks bracket both RAM readback phases. File stat/SHA reads
-are bracketed by exact root observations and preserve all original inodes
-through upload. Replaced inodes, changed scope, partial IO or lost ACK retire
-this original channel without retry or cleanup of unknown device effects.
-The private Core coordinator also rechecks the packet bytes/producers and the
-original SDK/commit result. Python JSON bool/int equality grants no evidence.
+The internal pipeline keeps its original owner/page/channel, task reservation,
+worker process, consumed intent and deadlines. JSON IDs, copied metadata,
+restarted actors or another task cannot acquire those continuations. Its ten
+trial producers are pinned: changed source/contract bytes refuse old consumed
+attempts. Native ADB paths/receipts are never fabricated for WebUSB.
 
-Success returns an internal live handoff tied to the same shielded Core task,
-still-held operation reservation, actual worker process and owner/page/channel
-with its original deadline. A JSON ID, copied metadata, restarted worker or new
-task cannot adopt that handoff. Its properties return detached metadata; it
-contains no guardian body or encryption key. The actor's consumed journal and
-writer lease remain retained, even if the transport is later closed.
+1. **Stage and disabled commit.** Check the fixed source/identity/ext4 scope,
+   consume the actor journal before device IO, create only the disabled own
+   root and both opt-outs, and transfer the nine canonical files with the
+   pinned Tango SYNC-v1. Check remote metadata/SHA independently. The separate
+   guarded vendor commit repeats the original scope/CAS gates; it neither
+   activates a runtime nor enables boot. Each phase requires actual USB close,
+   a separate channel-close ACK and its original actor's terminal record.
+2. **Prepare the first trial.** Rehash the exact owned terminal commit,
+   profile/plan and separately built guardian in the existing SDK. Read the
+   committed scope twice, including positive store/process/TCP absence and
+   conservative MemFree. The harmless exec probe must succeed before consuming
+   a new trial intent. Allocate only new 0700 tmpfs jobs and an exclusive empty
+   0600 guardian file. Upload once, then recheck full remote SHA/mode/UID/nlink,
+   original directory/file inodes and source scope around both readback phases.
+   Unknown effects are retained, never pruned or retried.
+3. **Run one bounded guardian.** `run_guardian_trial` accepts only the original
+   live RAM object and awaits all existing continuations inline. It rehashes
+   the original SDK/plan/commit/guardian around start and after END. The sealed
+   launch body derives all forty arguments from the frozen native source and
+   checks exact bytes before shell parsing. Only its fixed RAM chmod precedes
+   launch. START/CHILD/END parsing preserves uint64 birth ticks and final raw
+   EOF/close. The device's independent 60/5/5-second stop/reap loop is unchanged;
+   Core never signals a reported PID or sleeps to manufacture an END.
+4. **Observe real encrypted messages.** A separate private actor/Core MIME
+   carries the key; no browser frame, status, HTTP or SDK input receives it.
+   The same selected handle provides only tcp:6053 through a Core-owned
+   loopback. Every open repeats full fixed scope; an opaque read may coexist
+   with the two-second scope checks. DeviceInfo name/MAC and unique physical
+   sensor keys must match. At least two accepted vectors ten seconds apart
+   need new callbacks for every physical field, finite valid readings, fresh
+   stock-response age and wire timestamps. The original 30-second connection
+   and 50-second observation ceilings reserve five seconds for cleanup. API
+   teardown requires its actual ACK and keeps USB for END/return reads.
+5. **Verify stop and return.** Core joins the original Noise object to exact
+   child/reap records, its own END reception at least sixty seconds after issue
+   and a last accepted wire age no greater than twenty seconds at that instant.
+   The original selected channel reads two complete frozen stock/vendor/intent/
+   RAM passes in one five-second window. The strict process scan admits no own
+   program. Stable context must agree; only measured free RAM may change.
+   The generated 43/45/46-read tail never fabricates live process rows.
+6. **Close and record.** A separate null return-close frame awaits the actual
+   original USB close; Core independently awaits channel-close ACK. Only the
+   original closed continuation can send one private terminal record. The actor
+   independently verifies exact binding, START/CHILD/END/reap, wire identity/
+   count/age, original returned roots/RAM/stock/flags and both closes. It requires
+   its still-retained original lease, writes the immutable completion with
+   O_EXCL plus file/directory fsync, then releases that host lock. The result is
+   historical `browser_initial_trial_stopped_observed`: installed, activated and
+   installation_ready remain false. Lost record replies allow status reading
+   only, never another record/launch. Orphan, malformed or changed-producer
+   history stays fenced across restart; status cannot adopt a lease.
 
-The next standalone source primitive now derives the exact forty guardian
-arguments and guarded launch text from the unchanged native implementation.
-It repeats the original file inode/SHA around the sole RAM chmod and sends the
-complete sealed body once. Its bounded stdout transport validates ordered
-START/CHILD/END, lossless process birth ticks, the final marker and actual raw
-close. The transport now continues only the actual selected channel's own
-completed RAM session through finite private start/finish frames with null
-data. It retains detached packet/readback metadata and repeats fresh scope
-checks before one launch delivery. Python verifies the original nonce and
-reported record sequence; unknown delivery never replays a phase.
+All device commands remain fixed and bounded, without caller PID/path/command
+selectors. The 32 logical scope-read budget and original transport lifetime
+remain shared. Sealed stdin receives and verifies the complete length/SHA body
+before interpretation; truncated shell lines are never executed. Lost packet,
+ACK, scope or close retires only the owned connection and preserves uncertainty.
+No automatic retry, rollback, reboot or permanent activation is added.
 
-The private Core continuation now requires that original live RAM task,
-actor, operation reservation and retained lease. It consumes the continuation
-before SDK/browser IO, rechecks the same SDK/plan/commit/guardian around start
-and after END, and returns only an in-memory running object with detached
-reported records. Another task, worker or serialized ID cannot resume it.
-
-These records remain context: authenticated Noise, post-stop stock-return and
-the terminal journal verifier are still missing. Ten pinned trial producers
-now include the fixed process contract; older consumed packets cannot acquire
-this new capability.
-
-An additional read-only process subset now derives eleven exact
-commands from the frozen native helpers. Its pure parser checks kernel child
-ancestry, actual/named image identity and hash, original guardian inode and
-API/OTA socket ownership without rounding uint64 process births. It does not
-choose a channel or establish whole-observation freshness. The original
-selected channel now executes those fixed reads through one finite null-data
-frame. The Core running object retains the same task/actor/RAM capability and
-independently checks the returned binding, stamps and image identities. No
-caller PID/path/command is accepted; the 32-read budget never extends the
-original deadline. Complete stock/vendor/intent/RAM/Noise and terminal checks
-remain separate. Packaged metadata alone grants no new permission to a trial.
-
-The original Core running task can now read one separate private API context
-from the same still-leased actor. The actor rehashes the original consumed
-packet, plan and profile before and after delivery. Only its private MIME
-carries the Noise key; browser packets, frames, status, SDK input and HTTP
-never receive it. Another task or restarted actor cannot adopt the read, and
-a lost answer does not permit a retry. This step opens no socket and supplies
-no authenticated wire samples. Complete live scope, the original USB relay,
-fresh Noise generations and independent stop/close proof remain unfinished.
-
-The complete fixed live-scope read is now connected separately through a null
-guardian-scope-observe frame on the same original channel. The plan-verified
-non-secret API identity fixes the only permitted node.prefs filename before
-packet consumption and must match the private key context. Generated native
-readers provide 54, 56 or 57 reads for an empty RAM job, empty prefs or that
-single prefs file. They join stock ancestry/maps, vendor/staged bytes, original
-roots/flags, absent stores, running MemFree, exact creator intent and commit
-marker, RAM contents, identity and a closing kernel-child read. Unknown layout
-or failed reads refuse. Browser and Core independently bound the whole read
-window to five seconds and share the original 32-read budget. No key reaches
-the browser. This still supplies no Noise samples, FD admission or terminal
-stop/return/close proof. Synthetic fixtures do not establish device timing.
-
-Actual device image-FD admission and the complete bounded guardian lifecycle
-remain unfinished. No public initiating HTTP/UI control or
-physical first-install qualification follows. These adapters are development
-source and are not part of stable HACS 0.2.10. Protocol/host fixtures execute no
-monitor binary and do not qualify a physical installation.
-
-The private original guardian API transport now composes the same selected
-WebUSB handle with a Core-owned loopback relay. It takes no host/port/key from
-browser frames. Every open repeats full fixed scope; one opaque pending read
-can coexist with scope observation, while control IO stays serialized. Only
-this listener's actual serve/pump tasks can delegate opaque IO under the
-original actor/reservation/packet. The observation deadline is bounded by the
-original guardian issue plus 50 seconds and the original channel deadline.
-Normal API-close ACK preserves USB for the later END/return read; lost ACK or
-actor replacement retires the channel without replay. This is still private
-source work: the private Noise observation is described below; physical qualification,
-post-stop return and terminal journal verification remain unfinished. The
-loopback echo tests prove transport composition only, not monitor qualification.
-
-The Core Noise observer is now also joined privately to that original relay.
-It checks authenticated DeviceInfo name/MAC, unique physical entity metadata,
-finite valid readings, fresh stock-response age and new callbacks for every
-physical field in at least two accepted vectors ten seconds apart. Fixed
-scope is checked every two seconds beside the opaque API read. The original
-30-second connection and 50-second observation ceilings remain; the last five
-seconds are reserved for independent cleanup. Key references are dropped after
-client transport and browser API-close acknowledgement. Real HA SDK tests use
-an encrypted synthetic responder across the actual loopback/finite frames and
-a test-only accelerated clock. The result is private in-memory context. The
-later device stop, stock return, actual USB closure, terminal journal verifier
-and fresh-device qualification are still unfinished.
-
-The private post-stop scope now also uses the original selected channel after
-its ordered raw END/close and API-close acknowledgement. Its frozen tail reads
-stock/vendor/intent/RAM and uses the strict scan that admits no own program.
-Two independent complete passes must agree under one five-second window;
-only measured free RAM may change. Core requires its original Noise result,
-exact child/reap, at least 60s between original issue and Core END reception,
-and a last accepted wire message no older than 20s at that reception. The
-original channel/task/actor and budgets remain. This read is context only:
-actual USB close, separate channel-close ACK, terminal journal verification
-and fresh-device qualification remain unfinished. Immediate fake END records
-and accelerated host-test clocks do not qualify the device stop timer.
+Host tests join actual aioesphomeapi Noise, loopback/finite frames, the private
+actor and real fsync/flock. Device USB replies, scope and elapsed clock are
+synthetic. Raw and delivered browser bundles also test actual transport close
+separately from channel ACK. These tests establish source composition and
+refusal behavior, not physical sensor values, device timer/FD admission or a
+first installation. The frozen firmware/native source is not rebuilt here.

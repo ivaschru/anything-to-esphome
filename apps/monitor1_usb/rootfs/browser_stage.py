@@ -59,10 +59,16 @@ def fence_browser_stage(installations, directory, owner):
     """
     names = set(os.listdir(directory))
     if names & {'browser-initial-trial-intent.json', 'browser-initial-trial-complete.json'}:
-        # The private trial packet is consumed before RAM writes, but its
-        # terminal guardian/API/return verifier is not connected yet. Neither
-        # a released crash FD nor a file named complete permits another writer.
-        raise PreparationError('usb_browser_stage_previous_unverified')
+        # Completion needs the exact validated terminal journal. A released
+        # crash FD, orphan file or changed producer never permits a new writer.
+        from browser_initial_journal import BrowserInitialTrials
+        from browser_plan import BrowserPlans
+        try:
+            prior = BrowserInitialTrials(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if prior.status(owner, directory.name)['state'] != 'browser_initial_trial_stopped_observed':
+                raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
     commit_names = {'browser-commit-intent.json', 'browser-commit-complete.json'}
     if not names & ({INTENT, COMPLETE} | commit_names):
         return
@@ -195,6 +201,10 @@ class BrowserStages:
     def prepare_initial_trial(self, owner, job_id, expected_sha, scope, reviewed):
         from browser_initial_journal import BrowserInitialTrials
         return BrowserInitialTrials(self).prepare(owner, job_id, expected_sha, scope, reviewed)
+
+    def record_initial_trial(self, owner, job_id, intent_sha256, proof):
+        from browser_initial_journal import BrowserInitialTrials
+        return BrowserInitialTrials(self).record(owner, job_id, intent_sha256, proof)
 
     def initial_trial_status(self, owner, job_id):
         from browser_initial_journal import BrowserInitialTrials

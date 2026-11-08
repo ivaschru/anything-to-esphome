@@ -88,6 +88,10 @@ class InitialRelayTests(unittest.IsolatedAsyncioTestCase):
             process = value.pop('process')
             value.update(kind='browser_initial_return_observation', guardian=process['guardian'],
                          child=process['child'], own_programs_absent=True)
+        elif op == 'guardian-return-close':
+            self.assertIsNotNone(self.b.cap.guardian_return_observation)
+            value = {'kind': 'browser_initial_return_closed', 'observation': self.b.cap.guardian_return_observation,
+                     'transport_closed': True, 'context_only': True}
         elif op == 'guardian-finish':
             _, value = self.f.f.records()
         elif op == 'api-open':

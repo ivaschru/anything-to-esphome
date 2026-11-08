@@ -1,5 +1,17 @@
 ## Unreleased – browser USB installation work
 
+- Complete the private original-task bounded guardian composition through
+  authenticated Noise, END/reap, double-pass return, actual USB close,
+  independent channel-close ACK and immutable actor terminal record. Require
+  the original retained lease and strict proof before fsync/release; lost
+  replies permit historical status only. Unknown/changed history remains
+  fenced, without retry, activation or installed/readiness claims. Add real
+  Noise/actor/fsync/flock composition and forged-proof/closure-loss tests with
+  synthetic device replies and clock; no physical first-install QA follows.
+  Align English/Russian development instructions around the current pipeline.
+  Browser next-boot/PM/Full UI/enrollment/UI and fresh-device QA remain open.
+
+
 - Join the original guardian's post-stop fixed scope to its selected USB
   channel and private Core continuation. Use strict positive absence of own
   programs and two independent full read passes; preserve roots, stock births,

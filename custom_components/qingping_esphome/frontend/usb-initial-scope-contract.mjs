@@ -2723,5 +2723,6 @@ export const initialScopeContract = {
         ]
       }
     ]
-  }
+  },
+  "post_stop_transport_close": true
 };

@@ -177,7 +177,7 @@ def content():
         return_branches[layout] = templates(returned)
     return json.dumps({'schema_version': 1, 'source_commit': pinned['source_commit'], 'maximum_observation_ms': int(window[0]),
                        'source_sha256': pinned['source_sha256'], 'branches': branches,
-                       'return_branches': return_branches}, indent=2) + '\n'
+                       'return_branches': return_branches, 'post_stop_transport_close': True}, indent=2) + '\n'
 
 
 def main():

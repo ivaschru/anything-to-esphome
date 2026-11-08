@@ -68,7 +68,8 @@ class JournalTests(unittest.TestCase):
         self.assertFalse(result['replay_allowed'] or result['installed'] or result['activated'] or result['writer_enabled'])
         self.assertNotIn(packet['nonce'],json.dumps(result));self.assertNotIn('guardian_body',result)
         self.assertEqual(len(self.f.calls),calls,'Status never starts another SDK')
-        self.assertFalse(hasattr(self.manager,'record'),'No unimplemented terminal verifier can claim success')
+        with self.assertRaises(Exception): self.manager.record(self.owner,self.job,packet['intent_sha256'],{})
+        self.assertFalse((self.directory/journal.COMPLETE).exists(),'A consumed packet alone is no terminal proof')
         with self.assertRaises(Exception):self.prepare()
 
     def test_lost_packet_preserves_consumption_and_all_native_browser_fences_across_restart(self):

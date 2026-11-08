@@ -20,7 +20,7 @@ from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, va
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
 
@@ -79,6 +79,8 @@ class BrowserChannel:
         self.guardian_finished = False
         self.guardian_ended = False
         self.guardian_return_used = False
+        self.guardian_return_observation = None
+        self.guardian_return_close_used = False
         self.guardian_observations = 0
         self.process_binding = self.process_root = self.process_guardian = None
         self.guardian_scope_basis = self.guardian_ram_root = None
@@ -497,6 +499,24 @@ class BrowserChannel:
                 value = await self._request('guardian-return-observe')
                 guardian_return(value, self.process_binding, self.guardian_ready, self.process_guardian,
                                 self.guardian_ram_root, self.guardian_scope_basis)
+            self.guardian_return_observation = copy.deepcopy(value)
+            return value
+        except BaseException:
+            self._retire()
+            raise RelayRefusal from None
+
+    async def close_initial_guardian_return(self):
+        """One actual selected-USB close, not yet the separate channel ACK."""
+        if (self.guardian_return_observation is None or self.guardian_return_close_used or
+                self.pending or self.opened or self.opening or self.guardian_api_mode):
+            raise RelayRefusal
+        self.guardian_return_close_used = True
+        try:
+            value = await self._request('guardian-return-close')
+            if (not isinstance(value, dict) or set(value) != {'kind', 'observation', 'transport_closed', 'context_only'} or
+                    value['kind'] != 'browser_initial_return_closed' or value['transport_closed'] is not True or
+                    value['context_only'] is not True or value['observation'] != self.guardian_return_observation):
+                raise RelayRefusal
             return value
         except BaseException:
             self._retire()

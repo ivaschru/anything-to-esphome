@@ -28,7 +28,7 @@ export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
   #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;#ramProbeUsed=false;#ramUsed=false;#ramStream;#ram;
   #ramPacket;#ramProof;#guardian;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
-  #guardianStarted;#guardianEnded;#guardianReturnUsed=false;#guardianObservations=0;
+  #guardianStarted;#guardianEnded;#guardianReturned;#guardianReturnUsed=false;#guardianReturnCloseUsed=false;#guardianObservations=0;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -375,8 +375,25 @@ export class BrowserNativeChannel {
         const text=await this.#read(command);this.evidence();return text;
       }},this.#ramPacket,this.#ramProof,this.#guardianStarted);
       this.evidence();if(performance.now()-began>5000)error('usb_browser_scope_unverified');
-      return value;
+      this.#guardianReturned=JSON.parse(JSON.stringify(value));return value;
     } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  /** Actual USB teardown is a separate fixed phase from the return read.
+   * Await the original real close result before reporting it; the peer/Core
+   * still need a distinct channel-close ACK and original actor verification.
+   * Lost acknowledgement never admits another close-phase issue or launch.
+   */
+  async closeInitialGuardianReturn() {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || !this.#guardianReturned ||
+       !this.#guardianEnded || this.#guardianReturnCloseUsed)error('usb_browser_scope_unverified');
+    this.#guardianReturnCloseUsed=true;this.#busy=true;
+    const observed=JSON.parse(JSON.stringify(this.#guardianReturned));
+    try {
+      this.evidence();await this.close();
+      return {kind:'browser_initial_return_closed',observation:observed,transport_closed:true,context_only:true};
+    } catch {await this.close().catch(()=>{});error('usb_close_unverified');}
     finally {this.#busy=false;}
   }
 
@@ -560,7 +577,7 @@ export class BrowserNativeChannel {
     const ram=this.#ram,ramStream=this.#ramStream;
     if(ram || ramStream)void this.#closing.finally(()=>Promise.all([ram?.close(),ramStream?.close()])).catch(()=>{});
     const guardian=this.#guardian;
-    this.#ramPacket=this.#ramProof=this.#guardianStarted=undefined;
+    this.#ramPacket=this.#ramProof=this.#guardianStarted=this.#guardianEnded=this.#guardianReturned=undefined;
     if(guardian)void this.#closing.finally(()=>guardian.close()).catch(()=>{});
     return this.#closing;
   }

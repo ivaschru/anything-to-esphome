@@ -2,10 +2,12 @@
 
 The peer and USB device are synthetic and the observation clock is accelerated
 only inside this test module. These checks do not run a monitor/guardian or
-qualify its physical samples, timer, post-stop return or terminal journal.
+qualify its physical samples, timer or first installation. The actual host
+terminal journal verifier/fsync/flock are exercised with synthetic device IO.
 """
 import asyncio
 import base64
+import copy
 from dataclasses import dataclass
 import importlib.util
 import json
@@ -118,14 +120,42 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.remote_reader = self.remote_writer = None
         self.wrong_identity = False
         self.subscribed = False
+        self.composed_end_at = None
         self.base_answer = self.f.answer
+        self.base_exchange = self.f.f.exchange
+        self.f.f.f.b.service.exchange.side_effect = self.exchange
+        self.terminal_calls = 0
+        self.lose_terminal_reply = False
         self.f.answer = self.answer
 
-    async def flow(self):
-        await self.f.original_flow()
-        self.clock = self.f.running.issued_at + .5
-        self.identity = self.f.context.identity
-        self.key = self.f.context._noise_psk  # Synthetic fixture key, never a device secret.
+    async def exchange(self, owner, nonce, operation, data):
+        if operation != 'internal-browser-initial-trial-record':
+            return await self.base_exchange(owner, nonce, operation, data)
+        self.terminal_calls += 1
+        self.assertTrue(self.f.b.cap.closed)
+        self.assertEqual(self.f.frames[-1]['operation'], 'channel-close')
+        self.assertIsNotNone(self.f.b.j.stages.lease_fd)
+        body, mime = self.f.b.actor.dispatch({'user': owner, 'nonce': nonce, 'operation': operation, 'data': data})
+        if self.lose_terminal_reply:
+            raise OSError('Synthetic private response loss after immutable record')
+        return True, mime, json.dumps(body).encode()
+
+    async def flow(self, prepared_only=False):
+        if prepared_only:
+            # Prepare the actual original RAM grant in this test operation, then
+            # let the production coordinator start/read/observe/stop/record it.
+            # Only browser USB replies and time are simulated, not continuations.
+            self.ram = await self.f.b.run_prepare()
+            self.clock = module._now() + .5
+            self.identity = copy.deepcopy(self.ram.packet['context']['api_identity'])
+            self.key = json.loads((self.f.b.j.directory / 'profile.json').read_bytes())['api_encryption_key']
+            self.f.pump_task = asyncio.create_task(self.f.pump())
+            self.addAsyncCleanup(self.f.stop_pump)
+        else:
+            await self.f.original_flow()
+            self.clock = self.f.running.issued_at + .5
+            self.identity = self.f.context.identity
+            self.key = self.f.context._noise_psk  # Synthetic fixture key, never a device secret.
         self.server = await asyncio.start_server(self.accept, '127.0.0.1', 0)
         self.addAsyncCleanup(self.stop_server)
 
@@ -228,6 +258,12 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
 
     async def answer(self, frame):
         op = frame['operation']
+        if op == 'guardian-start':
+            first, _ = self.f.f.f.records()
+            self.f.b.cap.answer({'id': frame['id'], 'ok': True, 'data': first})
+            return
+        if op == 'guardian-finish' and self.composed_end_at is not None:
+            self.clock = self.composed_end_at  # Test-only device wait; no production sleep/clock override.
         if op not in ('api-open', 'api-read', 'api-write', 'api-close'):
             return await self.base_answer(frame)
         if op == 'api-open':
@@ -247,7 +283,11 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
             self.remote_writer.close()
             await self.remote_writer.wait_closed()
             value = None
-        self.f.b.cap.answer({'id': frame['id'], 'ok': True, 'data': value})
+        try:
+            self.f.b.cap.answer({'id': frame['id'], 'ok': True, 'data': value})
+        except Refusal:
+            if not self.f.b.cap.closed:
+                raise  # Only an already-retired late read answer is disposable.
 
     async def test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate(self):
         await self.flow()
@@ -278,8 +318,61 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Refusal):
             await self.f.running.observe_return()
         self.assertEqual(sum(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames), 1)
-        await self.f.running.close()
-        self.f.assert_fenced()
+        closed = await self.f.running.close_return_transport()
+        self.assertTrue(closed.reported['transport_closed'])
+        self.assertTrue(closed.reported['channel_closed'])
+        self.assertTrue(self.f.b.cap.closed)
+        with self.assertRaises(TypeError):
+            json.dumps(closed)
+        async def other_task():
+            return closed.reported
+        with self.assertRaises(Refusal):
+            await asyncio.create_task(other_task())
+        with self.assertRaises(Refusal):
+            await self.f.running.close_return_transport()
+        with self.assertRaises(Refusal):
+            await asyncio.create_task(closed.record())
+        self.assertEqual(self.terminal_calls, 0, 'A new task cannot write the terminal actor journal')
+        status = await closed.record()
+        self.assertEqual(status['state'], 'browser_initial_trial_stopped_observed')
+        self.assertFalse(status['installed'])
+        self.assertIsNone(self.f.b.j.stages.lease_fd)
+        self.assertTrue((self.f.b.j.directory / fixtures.fixtures.journals.journal.COMPLETE).is_file())
+        with self.assertRaises(Refusal):
+            await closed.record()
+        self.assertEqual(self.terminal_calls, 1)
+        journal = fixtures.fixtures.journals.journal
+        intent = json.loads((self.f.b.j.directory / journal.INTENT).read_bytes())
+        complete = json.loads((self.f.b.j.directory / journal.COMPLETE).read_bytes())
+        original = complete['proof']
+        # Exercise the ACTUAL independent actor verifier with copies only. No
+        # real history is rewritten; each forged scalar must preserve refusal.
+        edits = [
+            lambda p: p.update(extra=True), lambda p: p.update(channel_closed=1),
+            lambda p: p.update(core_elapsed_at_end_ms=59999),
+            lambda p: p['wire'].update(samples=1), lambda p: p['wire'].update(samples=True),
+            lambda p: p['wire'].update(last_sample_age_at_reap_s=21),
+            lambda p: p['wire']['identity'].update(node_name='wrong-node'),
+            lambda p: p['records'].update(raw_closed=1),
+            lambda p: p['records']['end'].update(reaped=False),
+            lambda p: p['records']['end'].update(forced=True),
+            lambda p: p['records']['end'].update(wait_status=9),
+            lambda p: p['records']['end'].update(elapsed_ms=59999),
+            lambda p: p['records']['end']['guardian'].__setitem__(0, 123.0),
+            lambda p: p['returned'].update(own_programs_absent=1),
+            lambda p: p['returned']['ram_root_identity'].__setitem__(0, 7.0),
+            lambda p: p['returned']['guardian'].__setitem__(0, 123.0),
+            lambda p: p['returned']['stock_process'].__setitem__(1, '999'),
+            lambda p: p['returned'].update(memory_free_bytes=1),
+            lambda p: p['transport'].update(transport_closed=1),
+            lambda p: p['transport']['observation']['guardian'].__setitem__(0, 123.0)]
+        for key in original['binding']:
+            edits.append(lambda p, key=key: p['binding'].__setitem__(key, 'wrong-binding'))
+        for edit in edits:
+            altered = copy.deepcopy(original); edit(altered)
+            with self.subTest(edit=edits.index(edit)), self.assertRaises(Exception):
+                journal.BrowserInitialTrials._proof(intent, complete['intent_sha256'], altered)
+        self.assertEqual(self.f.b.j.manager.status(self.f.b.owner, self.f.b.j.job)['state'], status['state'])
 
     async def test_immediate_reported_end_never_qualifies_a_real_stop(self):
         await self.flow()
@@ -306,6 +399,57 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames))
         self.f.assert_fenced()
 
+    async def stopped_returned(self):
+        await self.flow()
+        with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait):
+            await module.observe_initial_noise(self.f.context)
+        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: self.f.running.issued_at + 60)):
+            await self.f.running.finish_records()
+            await self.f.running.observe_return()
+
+    async def test_lost_terminal_response_preserves_verified_history_and_never_repeats_record(self):
+        await self.stopped_returned()
+        closed = await self.f.running.close_return_transport()
+        self.lose_terminal_reply = True
+        with self.assertRaises(Refusal):
+            await closed.record()
+        self.assertEqual(self.terminal_calls, 1)
+        self.assertIsNone(self.f.b.j.stages.lease_fd)
+        journal = fixtures.fixtures.journals.journal
+        stored = json.loads((self.f.b.j.directory / journal.COMPLETE).read_bytes())
+        self.assertEqual(self.f.b.j.manager.status(self.f.b.owner, self.f.b.j.job)['state'],
+                         'browser_initial_trial_stopped_observed')
+        with self.assertRaises(Refusal):
+            await closed.record()
+        self.assertEqual(self.terminal_calls, 1)
+        fresh = fixtures.fixtures.journals.fixtures.commits.fixtures.stage.BrowserStages(self.f.b.j.stages.plans)
+        other = journal.BrowserInitialTrials(fresh)
+        self.assertEqual(other.status(self.f.b.owner, self.f.b.j.job)['state'], 'browser_initial_trial_stopped_observed')
+        with self.assertRaises(Exception):
+            other.record(self.f.b.owner, self.f.b.j.job, stored['intent_sha256'], stored['proof'])
+        self.assertIsNone(fresh.lease_fd, 'Historical status does not adopt a lease')
+        self.f.b.j.stages.fence_all()  # Valid original history no longer counts as uncertain.
+
+    async def test_actual_usb_close_loss_keeps_unknown_journal_and_original_lease(self):
+        await self.stopped_returned()
+        self.f.fail_phase = 'guardian-return-close'
+        with self.assertRaises(Refusal):
+            await self.f.running.close_return_transport()
+        self.assertEqual(self.terminal_calls, 0)
+        self.f.assert_fenced()
+        self.assertTrue(self.f.b.cap.closed)
+        self.assertIsNone(self.f.running._closed_transport)
+
+    async def test_independent_channel_ack_loss_cannot_complete_after_actual_usb_close(self):
+        await self.stopped_returned()
+        self.f.fail_phase = 'channel-close'
+        with self.assertRaises(Refusal):
+            await self.f.running.close_return_transport()
+        self.assertTrue(any(frame['operation'] == 'guardian-return-close' for frame in self.f.frames))
+        self.assertEqual(self.terminal_calls, 0)
+        self.f.assert_fenced()
+        self.assertIsNone(self.f.running._closed_transport)
+
     async def test_authenticated_wrong_device_info_is_refused_without_a_second_open(self):
         await self.flow()
         self.wrong_identity = True
@@ -316,3 +460,40 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.f.b.cap.closed)
         self.assertEqual(sum(frame['operation'] == 'api-open' for frame in self.f.frames), 1)
         self.f.assert_fenced()
+
+
+    async def test_private_composition_runs_original_grant_through_real_noise_and_actor_record(self):
+        await self.flow(prepared_only=True)
+        guardian = fixtures.fixtures.joins.guardian
+        self.composed_end_at = self.clock + 60
+        with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait), \
+                patch.object(guardian, 'time', SimpleNamespace(monotonic=lambda: self.clock)):
+            result = await guardian.run_guardian_trial(self.ram)
+        self.assertEqual(result['state'], 'browser_initial_trial_stopped_observed')
+        self.assertFalse(result['installed'])
+        self.assertFalse(result['activated'])
+        self.assertEqual(self.terminal_calls, 1)
+        self.assertIsNone(self.f.b.j.stages.lease_fd)
+        order = [frame['operation'] for frame in self.f.frames]
+        self.assertEqual(order.count('guardian-start'), 1)
+        phases = ('guardian-start', 'api-open', 'api-close', 'guardian-finish',
+                  'guardian-return-observe', 'guardian-return-close', 'channel-close')
+        self.assertEqual([op for op in order if op in phases], list(phases))
+        self.f.b.usb.assert_not_called()
+        with self.assertRaises(Refusal):
+            await guardian.run_guardian_trial(self.ram)
+        self.assertEqual(self.terminal_calls, 1, 'A consumed composition never retries its terminal write')
+        self.assertEqual(order, [frame['operation'] for frame in self.f.frames])
+        self.assertNotIn(self.key, json.dumps(self.f.frames))
+
+    async def test_private_composition_identity_failure_closes_without_finish_or_record(self):
+        await self.flow(prepared_only=True)
+        self.wrong_identity = True
+        guardian = fixtures.fixtures.joins.guardian
+        with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait), \
+                patch.object(guardian, 'time', SimpleNamespace(monotonic=lambda: self.clock)), self.assertRaises(Refusal):
+            await guardian.run_guardian_trial(self.ram)
+        self.assertEqual(self.terminal_calls, 0)
+        self.assertTrue(self.f.b.cap.closed)
+        self.f.assert_fenced()
+        self.assertFalse(any(frame['operation'] in ('guardian-finish', 'guardian-return-observe') for frame in self.f.frames))

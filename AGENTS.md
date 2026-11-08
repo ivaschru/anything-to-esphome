@@ -573,8 +573,9 @@ separate even though the HACS wizard is shared.
   and after END. Keep the same task/reservation/actor/capability throughout;
   detached JSON, another task or worker cannot continue it. Its running object
   reports context only. Complete fixed live scope is joined separately below;
-  Private Noise observation is joined below; terminal journal verification is still missing; no public initiator or lease release
-  exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
+  Private Noise and terminal journal verification are joined below; only the
+  original verified terminal record can release the retained lease. No public
+  initiating writer is enabled. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
   exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
   sole RAM chmod. Keep all ten trial producers pinned; never adopt an older
@@ -655,7 +656,8 @@ separate even though the HACS wizard is shared.
   test_usb_browser_initial_relay.py, framing/raw/delivered NativeChannel tests,
   both HA USB suites and package checks. This opaque loopback fixture is not a
   Noise handshake, authenticated wire generation, terminal proof or physical QA;
-  no public initiating writer or terminal journal release is enabled.
+  no public initiating writer follows from that transport primitive alone. The
+  complete terminal join is documented below.
 
 - observe_initial_noise is a private same-operation continuation, never an
   HTTP/UI action. Consume it once before IO; use the exact Core-only key with
@@ -672,8 +674,8 @@ separate even though the HACS wizard is shared.
   reception time so the future terminal join can reject stale evidence. Close
   only the owned client transport, then await browser API-close ACK; avoid raw
   graceful-disconnect error logging. Retire the key reference without claiming
-  secure erase. No terminal journal verifier, stop/return/USB-close proof or
-  public initiating installer follows. Run test_usb_browser_initial_noise.py
+  secure erase. Noise alone grants no terminal record. The separate stop/return/close/journal
+  join below remains mandatory; no public initiating installer follows. Run test_usb_browser_initial_noise.py
   with both real HA SDKs: independent encrypted responder through actual Core
   loopback/finite frames plus accelerated test-only observation clock. This
   proves host composition only, never physical readings, elapsed device time
@@ -690,11 +692,39 @@ separate even though the HACS wizard is shared.
   monotonic END reception at least 60s after original issue and wire age <= 20s
   AT that reception, captured before SDK hashing. Preserve original task,
   actor, capability, shared 32-read budget, no-replay and no device timer change.
-  Return scope remains context-only: actual USB-close, separate channel-close
-  ACK and actor terminal journal verification are still required. Do not
+  Return scope remains context-only: the separate actual USB-close, channel-close
+  ACK and actor terminal journal join below are mandatory. Do not
   promote an immediate synthetic END or accelerated test clock to device QA.
   Run test_usb_initial_return_observation.mjs, raw/delivered selected Native
   integration, both HA USB suites and generation/package/bundle checks.
+
+- Private run_guardian_trial composes the ORIGINAL PreparedBrowserRam inline:
+  start -> private Core API context -> authenticated Noise -> raw END/reap ->
+  double-pass return -> actual original USB close -> independent channel-close
+  ACK -> actor terminal record. No new task, selector, HTTP/UI initiator or
+  device timer override. Failure retires only the original connection and
+  preserves consumed history; never repeat a phase or signal a reported PID.
+  ClosedBrowserGuardian cannot use ram.live after intentional USB closure;
+  it instead verifies the same task/reservation/actor/registry/producer and
+  positively closed original capability. JSON/copies/another actor cannot
+  continue it. Record is consumed before private pipe IO, even if its reply
+  is lost. Only historical status may reconcile that loss.
+  browser_initial_journal independently verifies exact binding, strict original
+  START/CHILD/END/reap and PID/birth types, wire identity/count/age, Core elapsed
+  time, original return roots/RAM/stock/flags and actual transport/channel ACKs.
+  Require the ORIGINAL still-held actor lease, O_EXCL + file/directory fsync
+  before releasing it. Valid completion is stopped_observed history only:
+  installed/activated/readiness remain false. Orphan/malformed/drifted proof or
+  producer stays fenced across restart. Never manufacture an uncertain complete
+  record or weaken a fence from a successful scope/Noise read alone. Internal
+  record stays pipe-only and is denied HTTP before body reads. The generated
+  post_stop_transport_close flag pins the same tenth producer, never upgrades
+  an older consumed packet. Run all USB tests on both HA SDKs plus raw/delivered
+  Native integration and bundle/package/generator checks. The composition test
+  uses real encrypted responder/loopback/framing/actor fsync/flock with synthetic
+  USB/scope/clock; it is not physical timer/FD/sensor/first-install QA. Browser
+  next-boot/observer/PM, Full UI/permanent/enrollment and public UI are still
+  separate unfinished adapters. Do not rebuild frozen firmware for this join.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
@@ -1198,12 +1228,12 @@ separate even though the HACS wizard is shared.
   the context after reading. Packet loss, artifact drift or actor exit keeps
   durable unknown history and no replay; native/browser writers and computer
   exports fence even orphan trial history after restart. A status never starts
-  another SDK, exposes the body or adopts a lease. No terminal verifier/record
-  API exists yet: a file named complete must refuse, never release a fence or
-  claim a stopped/installed result. Preserve image_fd_admitted=false. A future
-  original-capability coordinator still needs fixed RAM transfer, unchanged
-  timed guardian, actual image admission, authenticated API/stop/return proof
-  and independent close before any completion path is implemented. HTTP denies
+  another SDK, exposes the body or adopts a lease. Only the strict terminal verifier below may create a completion from the
+  original actor lease after all independent observations; an arbitrary file
+  named complete must refuse. Preserve image_fd_admitted=false in metadata.
+  Status reads cannot adopt a lease, replay a record or grant installation
+  readiness. Actual device FD admission and physical first-install qualification
+  remain separate from host source composition. HTTP denies
   every internal operation before body IO and rejects its private MIME. Run
   test_usb_browser_initial_journal.py for real fsync/flock/lost packet/orphan/
   changed producer/body/restart/actor/export cases, shared preparation/HTTP

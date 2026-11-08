@@ -27,7 +27,7 @@ async function selected(options={},Native=undefined) {
   if(returning && options.returnSecondPass && returnReads>keys.length && key==='process_scan')return reads[key]+'\n123';
   return options.unknownPrefs && key==='prefs_entries'?'unknown.prefs':reads[key];
  };
- const fixture=disabledTransport({committed:true,unsupported:options.unsupported,
+ const fixture=disabledTransport({committed:true,unsupported:options.unsupported,closeLoss:options.transportCloseLoss,
   identityRead:command=>apiOpening && scopeReads && scopeReads%57===0?undefined:scopeRead(command),
   beforeReadReply:async command=>{
    if(scopeGate && command===scopeFixture?.commands.process_scan){scopeEntered();await scopeGate;scopeGate=undefined;}
@@ -104,7 +104,19 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  f.expectReturn();const returned=await f.call('guardian-return-observe');
  assert.equal(returned.ok,true);assert.equal(returned.data.own_programs_absent,true);assert.equal(f.returnReads,92);
  assert.equal(f.fixture.closed,0,'Return observation is not actual USB closure');
- assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
+ const closed=await f.call('guardian-return-close');assert.equal(closed.ok,true);assert.equal(closed.data.transport_closed,true);
+ assert.deepEqual(closed.data.observation,returned.data);assert.equal(f.fixture.closed,1);
+ assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1,'Independent channel ACK reuses the actual close result');
+}
+{
+ const f=await selected({transportCloseLoss:true});await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ assert.equal((await f.call('guardian-finish')).ok,true);f.expectReturn();
+ assert.equal((await f.call('guardian-return-observe')).ok,true);
+ assert.equal((await f.call('guardian-return-close')).ok,false);
+ assert.equal(f.fixture.closed,1);assert.equal(f.guardianStarts,1);
+ await assert.rejects(f.call('guardian-return-close'));assert.equal(f.fixture.closed,1,'Lost close ACK never issues another transport teardown');
 }
 for(const options of [{returnRootChanged:true},{returnSecondPass:true},{earlyReturn:true},{repeatReturn:true}]) {
  const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
@@ -150,7 +162,7 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
  await assert.rejects(f.call('guardian-start'));assert.equal(f.guardianStarts,1);
 }
-for(const operation of ['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe']) {
+for(const operation of ['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close']) {
  const f=await selected();assert.equal((await f.call(operation)).ok,false);assert.equal(f.guardianStarts,0);assert.equal(f.fixture.closed,1);
 }
 {

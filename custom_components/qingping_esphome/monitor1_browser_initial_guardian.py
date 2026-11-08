@@ -1,18 +1,20 @@
-"""Private original-task RAM -> guardian transport join, without completion.
+"""Private original-task RAM -> bounded guardian -> stopped journal join.
 
 No HTTP/UI initiator imports this coordinator. It retains the exact live Core
 task, operation reservation, actor process and consumed journal lease from RAM.
 SDK artifact checks bracket the one start issue and terminal record read. The
 selected peer independently repeats fresh device guards and owns raw cleanup.
-Reported START/CHILD/END are still context, never process adoption, independent
-authenticated health, device stop/stock-return proof or a journal completion.
+Reported START/CHILD/END alone are context, never process adoption or proof of
+health/return. Completion additionally joins original Noise, return and both
+close acknowledgements through the independent actor verifier.
 The unchanged device guardian owns its child and the fixed 60/5/5 stop timer.
 """
 import copy
 import time
 
 from .monitor1_browser_channel import guardian_record
-from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same
+from .monitor1_browser_stage import document
+from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same, actor_live, producer
 from .monitor1_browser_initial_review import context
 from .monitor1_browser_relay import RelayRefusal
 from .monitor1_browser_process_observation import BINDING, validate_observation, scope_basis, validate_scope, validate_return, SCOPE_WINDOW
@@ -65,7 +67,7 @@ def records(value, packet, started=None):
 
 class RunningBrowserGuardian:
     """In-memory continuation only; JSON cannot recreate this task/actor join."""
-    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations', '_api_used', '_api_context', '_api_relay', '_noise_used', '_wire_observation', '_ended', '_end_observed_at', '_return_used', '_return_observation')
+    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations', '_api_used', '_api_context', '_api_relay', '_noise_used', '_wire_observation', '_ended', '_end_observed_at', '_return_used', '_return_observation', '_return_close_used', '_closed_transport')
 
     def __init__(self, ram, started, issued_at):
         self._ram, self._started, self._issued_at = ram, copy.deepcopy(started), issued_at
@@ -76,7 +78,8 @@ class RunningBrowserGuardian:
         self._noise_used = False
         self._wire_observation = None
         self._ended = self._end_observed_at = self._return_observation = None
-        self._return_used = False
+        self._return_used = self._return_close_used = False
+        self._closed_transport = None
 
     def live(self):
         if self._closed:
@@ -210,10 +213,107 @@ class RunningBrowserGuardian:
         finally:
             self._busy = False
 
+    async def close_return_transport(self):
+        """Await actual selected USB close AND the independent channel ACK.
+
+        Keep the original actor/reservation after closure, but do not call
+        ram.live() then: its deliberate live-USB prerequisite no longer holds.
+        Only a newly created original in-memory closed continuation can carry
+        these checked results to the private actor terminal verifier.
+        """
+        self.live()
+        if self._return_observation is None or self._return_close_used or self._busy:
+            raise RelayRefusal
+        self._return_close_used, self._busy = True, True
+        try:
+            value = await self._ram.capability.close_initial_guardian_return()
+            self.live()
+            if (value['observation'] != self._return_observation or value['transport_closed'] is not True or
+                    value['context_only'] is not True):
+                raise RelayRefusal
+            await self._ram.capability.close()  # Independent peer channel-close ACK.
+            self._closed = True
+            result = ClosedBrowserGuardian(self, value)
+            self._closed_transport = result
+            result.live()
+            return result  # No journal write, release, boot or installation readiness.
+        except BaseException:
+            await self.close()
+            raise RelayRefusal from None
+        finally:
+            self._busy = False
+
     async def close(self):
         self._closed = True
         try:
             await self._ram.close()  # Only the original channel, never a reported device PID.
+        except BaseException:
+            raise RelayRefusal from None
+
+
+class ClosedBrowserGuardian:
+    """Original task/actor continuation after both positively checked closes."""
+    __slots__ = ('_running', '_transport', '_record_used')
+
+    def __init__(self, running, transport):
+        self._running, self._transport = running, copy.deepcopy(transport)
+        self._record_used = False
+
+    def __repr__(self):
+        return '<ClosedBrowserGuardian context only>'
+
+    def live(self):
+        running, ram = self._running, self._running._ram
+        actor_live(ram._service, ram._actor, ram._operation)
+        if (running._closed_transport is not self or running._closed is not True or
+                ram.registry.current is not ram.current or
+                ram.registry.capability(ram.owner, ram.nonce, ram.channel_id) is not ram.capability or
+                ram.capability.closed is not True or ram.capability.failed or
+                ram._packet['producer_sha256'] != producer()):
+            raise RelayRefusal
+
+    @property
+    def reported(self):
+        self.live()
+        return {'kind': 'browser_initial_closed_transport', 'api_closed': True,
+                'transport_closed': True, 'channel_closed': True, 'context_only': True}
+
+
+    async def record(self):
+        """One private actor write from this ORIGINAL closed continuation.
+
+        A serialized report, another task/actor or status reconciliation cannot
+        obtain this call. Consume before pipe IO. If the answer is lost, only
+        read historical actor status; never resend the record/launch/packet.
+        """
+        self.live()
+        if self._record_used:
+            raise RelayRefusal
+        self._record_used = True
+        running, ram = self._running, self._running._ram
+        packet, wire = ram.packet, running._wire_observation
+        proof = {
+            'binding': {k: packet[k] for k in BINDING},
+            'ram_root_identity': ram.proof['uploaded']['ram_root_identity'],
+            'records': copy.deepcopy(running._ended),
+            'wire': {'samples': wire._samples, 'identity': packet['context']['api_identity'],
+                     'last_sample_age_at_reap_s': running._end_observed_at - wire._last_sample_at},
+            'returned': copy.deepcopy(running._return_observation),
+            'transport': copy.deepcopy(self._transport), 'channel_closed': True,
+            'core_elapsed_at_end_ms': int((running._end_observed_at - running._issued_at) * 1000)}
+        try:
+            value = document(await ram._service.exchange(ram.owner, ram.nonce,
+                'internal-browser-initial-trial-record', {'job_id': packet['job_id'],
+                 'intent_sha256': packet['intent_sha256'], 'proof': proof}), mime='application/json', limit=16384)
+            self.live()
+            fields = {'job_id', 'state', 'replay_allowed', 'installed', 'installation_ready', 'writer_enabled',
+                      'activated', 'device_write_attempted', 'launch_attempted', 'live_recheck_required'}
+            if (not isinstance(value, dict) or set(value) != fields or value['job_id'] != packet['job_id'] or
+                    value['state'] != 'browser_initial_trial_stopped_observed' or
+                    any(value[k] is not False for k in ('replay_allowed', 'installed', 'installation_ready', 'writer_enabled', 'activated')) or
+                    any(value[k] is not True for k in ('device_write_attempted', 'launch_attempted', 'live_recheck_required'))):
+                raise RelayRefusal
+            return value  # Historical stopped observation, never activation or device qualification.
         except BaseException:
             raise RelayRefusal from None
 
@@ -243,4 +343,46 @@ async def start_guardian(ram):
             await ram.close()
         except BaseException:
             pass
+        raise RelayRefusal from None
+
+
+async def run_guardian_trial(ram):
+    """Run the bounded private trial in its ORIGINAL reserved Core operation.
+
+    The caller already owns the consumed RAM handoff; accepting service/job/JSON
+    selectors here would incorrectly turn detached history into launch authority.
+    Await each existing continuation inline, rather than spawning a replacement
+    task that could inherit neither the reservation nor the actor's live grant.
+    The independent device guardian still owns its fixed stop/reap timer. This
+    coordinator neither sleeps to fake END nor signals/adopts a reported PID.
+
+    A failure retires only the original channel. All consumed history remains;
+    no phase, terminal record or device command is automatically repeated. An
+    acknowledged record returns historical stopped state, never activation,
+    next-boot arming or public installation readiness. There is no HTTP/UI
+    initiator for this private composition.
+    """
+    if type(ram) is not PreparedBrowserRam:
+        raise RelayRefusal
+    running = None
+    try:
+        # Import lazily to preserve the existing API/relay/guardian dependency
+        # direction. The key remains on the actor/Core pipe, never in USB frames.
+        from .monitor1_browser_initial_api import read_initial_api_context
+        from .monitor1_browser_initial_noise import observe_initial_noise
+        running = await start_guardian(ram)
+        context = await read_initial_api_context(running)
+        await observe_initial_noise(context)
+        await running.finish_records()
+        await running.observe_return()
+        closed = await running.close_return_transport()
+        return await closed.record()
+    except BaseException:
+        try:
+            if running is None:
+                await ram.close()
+            else:
+                await running.close()
+        except BaseException:
+            pass  # A cleanup failure cannot authorize record/retry or mask uncertainty.
         raise RelayRefusal from None
