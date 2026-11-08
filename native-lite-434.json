@@ -1,0 +1,54 @@
+{
+  "format": "qingping-native-update-v1",
+  "hardware": "0001",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      18889,
+      4
+    ],
+    [
+      253138,
+      8
+    ],
+    [
+      254469,
+      7
+    ],
+    [
+      254533,
+      6
+    ],
+    [
+      254597,
+      5
+    ],
+    [
+      254630,
+      3
+    ],
+    [
+      254694,
+      2
+    ],
+    [
+      254727,
+      1
+    ],
+    [
+      254762,
+      0
+    ]
+  ],
+  "profile": "lite-434",
+  "public_version": 1,
+  "revision": 4,
+  "sha256": "8bbf522433c7375d03ab0cc54c0dc7f1cdb97dd38b58ee832332f1fcdb6decea",
+  "size": 1545200,
+  "source_stock_version": "4.3.4",
+  "summary": "Lite original stock 4.3.4 / HW0001 firmware 1. CO2, temperature and humidity supported. PM OFF stops readings only; fan shutdown is not supported.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v1/lite-434-template.bin"
+}

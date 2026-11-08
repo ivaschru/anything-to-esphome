@@ -7,48 +7,48 @@
       4
     ],
     [
-      19254,
+      19264,
       4
     ],
     [
-      269962,
+      253522,
       8
     ],
     [
-      271350,
+      254853,
       7
     ],
     [
-      271414,
+      254917,
       6
     ],
     [
-      271478,
+      254981,
       5
     ],
     [
-      271511,
+      255014,
       3
     ],
     [
-      271575,
+      255078,
       2
     ],
     [
-      271608,
+      255111,
       1
     ],
     [
-      271643,
+      255146,
       0
     ]
   ],
   "profile": "lite",
-  "public_version": 3,
-  "revision": 4,
-  "sha256": "bc1afc632b571985f289d0ebfd1336237419c5d7dd35e5644e465f3c1390d346",
-  "size": 1689232,
+  "public_version": 2,
+  "revision": 3,
+  "sha256": "ca68ed3c5754eae2957d2e0a45b64959bc45f54f2bfa2a3f52d5d477220880ef",
+  "size": 1546736,
   "source_stock_version": "4.5.8",
-  "summary": "Lite 4.5.8 / HW0001 firmware 3. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration.",
-  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v3/lite-template.bin"
+  "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 2. PM OFF uses guarded quiet operation while CO2/temperature/humidity continue.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v2/lite-template.bin"
 }
