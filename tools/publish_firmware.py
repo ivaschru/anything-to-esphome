@@ -210,7 +210,7 @@ def save_intent(path,value):
     finally:os.close(dfd)
 
 
-def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit,intent):
+def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit,intent,*,stage_native=False):
     """Create-only tag plus catalog CAS, sharing one atomic remote transaction.
 
     Existing identical tags are reconciled, never recreated. A stale catalog
@@ -223,6 +223,8 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
     stem='lite-template' if profile=='lite' else profile+'-template'
     files={stem+'.bin':binary,stem+'.json':manifest_bytes}
     native=native_manifest(profile,entry,binary,manifest_bytes)
+    if stage_native and (native is None or not expected_head):
+        raise ValueError('Native qualification needs an existing catalog and native image')
     if native is not None:files['native-'+profile+'.json']=native
     if existing:
         fetch_object(root,existing)
@@ -239,9 +241,14 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
         tag_head=commit(root,files,source_commit,'Publish '+tag+' public assets')
     catalog_files=native_catalog_files(root,expected_head)
     if native is not None:catalog_files['native-'+profile+'.json']=native
-    catalog_files['firmware-catalog.json']=encoded(index)
+    # First-time qualification can expose the immutable app/native endpoint
+    # ONLY to firmware that already implements this new route. Keep the old
+    # ordinary HACS index unchanged until the physical transition is reviewed.
+    # Promotion is a second distinct CAS action, never an automatic resend.
+    indexed=json.loads(read_object(root,expected_head,'firmware-catalog.json')) if stage_native else index
+    catalog_files['firmware-catalog.json']=encoded(indexed)
     previous_files=native_catalog_files(root,expected_head)
-    if (expected_head and json.loads(read_object(root,expected_head,'firmware-catalog.json'))==index
+    if (expected_head and json.loads(read_object(root,expected_head,'firmware-catalog.json'))==indexed
             and all(previous_files.get(name)==data for name,data in catalog_files.items() if name!='firmware-catalog.json')):
         if not existing:raise RuntimeError('Catalog points to a missing firmware tag')
         return {'state':'already_published','tag':tag,'catalog_head':expected_head}
@@ -255,16 +262,18 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
         'origin',f'{tag_head}:{ref}',f'{next_head}:{BRANCH}')
     if remote_ref(root,ref)!=tag_head or remote_ref(root,BRANCH)!=next_head:
         raise RuntimeError('Publication reply requires read-only reconciliation')
-    return {**value,'state':'published'}
+    return {**value,'state':'staged_native' if stage_native else 'published'}
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile',required=True,choices=('lite','lite-434'))
     parser.add_argument('--publish',action='store_true')
+    parser.add_argument('--stage-native',action='store_true',help='Stage native qualification without promoting the ordinary index')
     parser.add_argument('--status',action='store_true')
     parser.add_argument('--source-commit',help='Exact reviewed source SHA; defaults to the Actions commit/HEAD')
     args=parser.parse_args()
+    if args.publish and args.stage_native:raise ValueError('Select staging or promotion, never both')
     if args.status:
         print(json.dumps({'catalog_head':remote_ref(ROOT,BRANCH),'catalog_url':catalog.CATALOG_URL}));return
     metadata=json.loads((ROOT/('firmware/lite434-release.json' if args.profile=='lite-434' else 'firmware/releases.json')).read_text())
@@ -292,8 +301,10 @@ def main():
     head,previous=previous_catalog(ROOT)
     index=next_catalog(args.profile,metadata,binary,manifest_bytes,previous)
     tag=catalog.firmware_tag(args.profile,index['hardware_releases' if args.profile=='lite-434' else 'releases'][args.profile]['public_version'])
-    if args.publish:
-        result=publish(ROOT,args.profile,binary,manifest_bytes,index,head,source,ROOT/'.build/firmware-publication'/tag/'intent.json')
+    if args.publish or args.stage_native:
+        result=publish(ROOT,args.profile,binary,manifest_bytes,index,head,source,
+                       ROOT/'.build/firmware-publication'/tag/('stage-intent.json' if args.stage_native else 'intent.json'),
+                       stage_native=args.stage_native)
     else:result={'state':'dry_run','tag':tag,'source_commit':source,'expected_catalog_head':head,'catalog':index}
     print(json.dumps(result,indent=2))
 

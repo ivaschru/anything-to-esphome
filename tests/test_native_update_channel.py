@@ -33,6 +33,19 @@ class NativePublicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             channel.native_manifest('lite',self.index['releases']['lite'],self.binary,json.dumps(manifest).encode())
 
+    def test_native_staging_does_not_advertise_the_candidate_in_the_ordinary_index(self):
+        old=self.publish();parent=old['catalog_head'];before=self.index
+        meta,binary,raw=fixture.pair(3,'native-three',4)
+        manifest=json.loads(raw);manifest['native_update']={'format':'qingping-native-update-v1','patches':build.patch_table(ROOT,binary)}
+        raw=json.dumps(manifest).encode();index=channel.next_catalog('lite',meta,binary,raw,before)
+        stage=channel.publish(self.root,'lite',binary,raw,index,parent,self.source,self.root/'stage.json',stage_native=True)
+        self.assertEqual(stage['state'],'staged_native')
+        self.assertEqual(json.loads(channel.read_object(self.root,stage['catalog_head'],'firmware-catalog.json')),before)
+        self.assertEqual(json.loads(channel.read_object(self.root,stage['catalog_head'],'native-lite.json'))['public_version'],3)
+        promoted=channel.publish(self.root,'lite',binary,raw,index,stage['catalog_head'],self.source,self.root/'promote.json')
+        self.assertEqual(promoted['tag_head'],stage['tag_head'])
+        self.assertEqual(json.loads(channel.read_object(self.root,promoted['catalog_head'],'firmware-catalog.json')),index)
+
     def test_next_profile_publication_preserves_other_endpoint_bytes(self):
         self.set_native(); result=self.publish(); parent=result['catalog_head']
         other=b'{"fixture":"unrelated exact profile endpoint"}\n'

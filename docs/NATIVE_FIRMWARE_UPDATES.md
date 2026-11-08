@@ -81,6 +81,13 @@ Native URLs are fixed to
 An image URL is derived locally from its immutable profile/version tag, never
 accepted as an arbitrary manifest-selected destination.
 
+For first-time hardware qualification, `--stage-native` creates that same
+immutable tag/native endpoint but retains the previous ordinary HACS index.
+Only the explicitly installed private qualification firmware can consume the
+new route at this stage. After physical review, `--publish` promotes the same
+unchanged app/tag pair in a separate CAS transaction. Both actions have their
+own consumed intent; lost replies require readback, never an automatic replay.
+
 ## Verification boundary
 
 Run `python -m unittest discover -s tests -p 'test_native_update*.py' -v`, the
