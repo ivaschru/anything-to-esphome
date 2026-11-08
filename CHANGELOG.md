@@ -55,6 +55,10 @@
   byte-parity tests. Keep this pure assembler disconnected from transport:
   a consumed journal/lease, bounded shell-stdin execution and independent
   readback are still required. No command endpoint or device write is enabled.
+- Add the private consumed disabled-commit journal and retained writer lease.
+  Fence unknown history across restart and require three exact whole-scope
+  readbacks plus actual close proof before accepting a terminal result. Keep
+  packet loss non-replayable and pipe-only; transport execution is not enabled.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

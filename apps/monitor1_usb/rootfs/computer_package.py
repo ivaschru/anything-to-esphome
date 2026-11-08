@@ -24,7 +24,7 @@ def package_export(builds, owner, job_id):
     directory, _, _ = owned_intent(builds.parent, job_id, owner)
     # Never export another controller for a consumed installation. Reads and
     # private recovery downloads remain available through their existing paths.
-    if set(os.listdir(directory)) & {"install-intent.json", "browser-stage-intent.json", "browser-stage-complete.json"}:
+    if set(os.listdir(directory)) & {"install-intent.json", "browser-stage-intent.json", "browser-stage-complete.json", "browser-commit-intent.json", "browser-commit-complete.json"}:
         raise PreparationError("usb_computer_after_install")
     if builds.status(owner, job_id)["state"] != "built_not_installed":
         raise PreparationError("usb_plan_build_required")

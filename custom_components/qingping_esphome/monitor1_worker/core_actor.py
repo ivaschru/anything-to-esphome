@@ -82,6 +82,15 @@ class Actor:
             # private Core caller supplies its actual still-current capability.
             return self.companion.browser_stages.assess_disabled(user, data["job_id"], data["expected_plan_sha256"],
                 data["channel_id"], data["channel_nonce"], data["scope"]), "application/json"
+        if operation.startswith("internal-browser-commit-"):
+            stages = self.companion.browser_stages
+            if operation == "internal-browser-commit-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
+                return stages.prepare_commit(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), "application/json"
+            if operation == "internal-browser-commit-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return stages.record_commit(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
+            if operation == "internal-browser-commit-status" and set(data) == {"job_id"}:
+                return stages.commit_status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation.startswith("internal-browser-stage-"):
             stages = self.companion.browser_stages
             if operation == "internal-browser-stage-context" and set(data) == {"job_id", "expected_plan_sha256"}:

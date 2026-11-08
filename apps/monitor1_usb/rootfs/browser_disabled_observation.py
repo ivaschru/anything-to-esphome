@@ -1,6 +1,7 @@
 """Shared strict private disabled-scope DTO; no SDK/device side effects."""
 import hashlib
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -16,10 +17,13 @@ def validate_scope(value, meta, reader):
             'root_mode', 'root_uid', 'disabled_flags', 'source_hashes', 'vendor_hashes', 'stock_process', 'watchdog_process',
             'own_code_running', 'pm_helper_loaded', 'data_available_bytes', 'same_filesystem', 'staged_files', 'commit_nonce'}
     desc = meta['descriptor']
+    nonce = meta['commit_nonce']
+    if nonce is not None and (not isinstance(nonce, str) or not re.fullmatch('[a-f0-9]{32}', nonce)):
+        raise ObservationRefusal
     if (not isinstance(value, dict) or set(value) != keys or value['kind'] != 'browser_disabled_scope' or
             value['target'] != meta['target'] or not isinstance(value['target'], dict) or type(value['target'].get('co2_type')) is not int or
             value['plan_id'] != desc['plan_id'] or value['plan_sha256'] != desc['plan_sha256'] or
-            value['stage_intent_sha256'] != desc['intent_sha256'] or value['commit_nonce'] is not None or
+            value['stage_intent_sha256'] != desc['intent_sha256'] or value['commit_nonce'] != nonce or
             value['install_marker'] != desc['plan_id'] + ' ' + desc['plan_sha256'] or value['staged_files'] != desc['files'] or
             any(type(pin['size']) is not int for pin in value['staged_files'].values()) or
             type(value['root_mode']) is not int or value['root_mode'] != 0o700 or type(value['root_uid']) is not int or value['root_uid'] != 0 or

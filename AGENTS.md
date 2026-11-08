@@ -907,8 +907,8 @@ separate even though the HACS wizard is shared.
   expected predecessor's vendor hashes, both opt-outs and complete fixed
   observation. No caller command/path, rollback, launch or generic shell
   operation exists. Its returned text is NOT a live capability, consumed
-  intent, write/ACK/retry or hardware qualification. Journal/retained lease,
-  finite selected-channel execution and independent readback remain unfinished.
+  intent, write/ACK/retry or hardware qualification. The private consumed journal/retained lease is now present; finite
+  selected-channel execution and actual independent readback remain unfinished.
   Keep set -eu/umask 077 in each eventual owned shell session. Guarded bodies
   exceed a 4KiB OPEN packet. Tango2.6.2 rejects any packet larger than the
   actual negotiated maxPayloadSize; never infer the monitor's current limit
@@ -920,3 +920,27 @@ separate even though the HACS wizard is shared.
   actual public canonical builder vectors, exact byte equality, sh -n only,
   typed injection/refusal/phase cases. Never execute those production paths
   locally or treat syntax/rewritten root fixtures as monitor QA.
+
+
+- browser_commit.py is a private exactly-once metadata journal, not an active
+  device writer. It reuses the terminal owned stage, SDK pure assessment and
+  all six source fingerprints, acquires native-install flock and checks every
+  prior writer before fsyncing its new 0600 intent. Return one metadata packet
+  only after consumption. Losing that packet preserves both lease and durable
+  uncertainty; no retry, automatic rollback or reset follows. Actor shutdown
+  releases only its host FD; unknown/orphan commit history fences all native/
+  browser coordinators and computer exports across restart. A new actor cannot
+  adopt the old lease to record a result. Producer drift refuses old history.
+  Terminal record needs exactly claim/watchdog/start ACKs, three independently
+  collected whole-scope snapshots with the exact successive vendor hashes,
+  invariant original root/stock/watchdog/source/flags/target and acknowledged
+  actual transport closure. Only known nonce/free-space/script transitions may
+  differ. SDK analysis/input hashes and journal proof are not live-handle
+  permission; the future Core coordinator must retain/recheck its original
+  capability and separate channel close ACK before private actor record.
+  internal-browser-commit-* is pipe-only and never initializes ADB; HTTP rejects
+  it before body IO. No public initiator or actual command-stream adapter is
+  enabled. Run test_usb_browser_commit.py for real fsync/flock, lost packet,
+  orphan/partial/changed proof and producer, lease non-adoption, actor guards
+  and redaction, plus both HA USB suites and HTTP-before-body tests. Synthetic
+  scope/SDK fixtures are explicit and never claimed as a monitor commit.

@@ -24,6 +24,23 @@ def encoded(value):
     return (json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n').encode()
 
 
+def verify_source(source, fingerprints):
+    """Exact public source fingerprints under the admitted private SDK root."""
+    for name, digest in fingerprints.items():
+        # Archived public source is ordinarily 0644, unlike private payloads.
+        # Reuse the source closure's no-follow/regular/owner/link/size contract;
+        # requiring private_hash's 0600 here would reject real Git archives.
+        fd = os.open(source / name, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, 'rb') as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or
+                    not 0 < info.st_size <= 8 * 1024**2):
+                raise PreparationError('usb_browser_scope_unverified')
+            body = stream.read(8 * 1024**2 + 1)
+        if len(body) != info.st_size or hashlib.sha256(body).hexdigest() != digest:
+            raise PreparationError('usb_browser_scope_unverified')
+
+
 def checked_input(stages, owner, job_id, expected_sha, channel_id, channel_nonce, scope):
     if (not isinstance(channel_id, str) or not re.fullmatch('[a-f0-9]{32}', channel_id) or
             not isinstance(channel_nonce, str) or not re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', channel_nonce)):
@@ -38,19 +55,7 @@ def checked_input(stages, owner, job_id, expected_sha, channel_id, channel_nonce
     source = source_closure(directory)
     # Required hashes are public reader inputs; verify actual private source
     # bytes independently before either parent or child imports canonical code.
-    for name, digest in reader['source_sha256'].items():
-        # Archived public source is ordinarily 0644, unlike private payloads.
-        # Reuse the source closure's no-follow/regular/owner/link/size contract;
-        # requiring private_hash's 0600 here would reject real Git archives.
-        fd = os.open(source / name, os.O_RDONLY | os.O_NOFOLLOW)
-        with os.fdopen(fd, 'rb') as stream:
-            info = os.fstat(stream.fileno())
-            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or
-                    not 0 < info.st_size <= 8 * 1024**2):
-                raise PreparationError('usb_browser_scope_unverified')
-            body = stream.read(8 * 1024**2 + 1)
-        if len(body) != info.st_size or hashlib.sha256(body).hexdigest() != digest:
-            raise PreparationError('usb_browser_scope_unverified')
+    verify_source(source, reader['source_sha256'])
     raw = policy_input(job_id, expected_sha, channel_id, channel_nonce, scope)
     if len(raw) > MAX_INPUT:
         raise PreparationError('usb_browser_scope_unverified')

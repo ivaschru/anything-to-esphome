@@ -58,12 +58,18 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
-    if not names & {INTENT, COMPLETE}:
+    commit_names = {'browser-commit-intent.json', 'browser-commit-complete.json'}
+    if not names & ({INTENT, COMPLETE} | commit_names):
         return
     from browser_plan import BrowserPlans
     try:
-        if INTENT not in names or BrowserStages(BrowserPlans(installations.plans.builds)).status(owner, directory.name)['state'] != 'staged_disabled_verified':
+        stages = BrowserStages(BrowserPlans(installations.plans.builds))
+        if INTENT not in names or stages.status(owner, directory.name)['state'] != 'staged_disabled_verified':
             raise ValueError
+        if names & commit_names:
+            from browser_commit import BrowserCommits
+            if BrowserCommits(stages).status(owner, directory.name)['state'] != 'committed_disabled_verified':
+                raise ValueError
     except Exception:
         raise PreparationError('usb_browser_stage_previous_unverified') from None
 
@@ -168,6 +174,18 @@ class BrowserStages:
         """
         from browser_disabled_policy import assess
         return assess(self, owner, job_id, expected_sha, channel_id, channel_nonce, scope)
+
+    def prepare_commit(self, owner, job_id, expected_sha, scope, reviewed):
+        from browser_commit import BrowserCommits
+        return BrowserCommits(self).prepare(owner, job_id, expected_sha, scope, reviewed)
+
+    def record_commit(self, owner, job_id, intent_sha256, proof):
+        from browser_commit import BrowserCommits
+        return BrowserCommits(self).record(owner, job_id, intent_sha256, proof)
+
+    def commit_status(self, owner, job_id):
+        from browser_commit import BrowserCommits
+        return BrowserCommits(self).status(owner, job_id)
 
     def _intent(self, owner, job_id):
         directory, original, _ = owned_intent(self.parent, job_id, owner)

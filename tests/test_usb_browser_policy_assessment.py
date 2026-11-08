@@ -73,6 +73,23 @@ class AssessmentTests(unittest.IsolatedAsyncioTestCase):
             'sdk_policy_checked':True, 'commit_admissible_for_review':True, 'state':'factory_commit_admissible_for_review',
             'device_writes':0, 'writer_enabled':False, 'installation_ready':False, 'live_recheck_required':True})
 
+    def test_commit_base_additionally_verifies_all_six_canonical_script_producers(self):
+        with patch.object(sys, 'path', [str(HERE), *sys.path]):
+            import browser_commit
+        contract=json.loads((HERE/'disabled-write-contract.json').read_bytes())
+        for name,digest in contract['source_sha256'].items():
+            path=self.source/name;body=(pure.ROOT/'ports/monitor1'/name).read_bytes()
+            self.assertEqual(hashlib.sha256(body).hexdigest(),digest)
+            path.write_bytes(body);path.chmod(0o644)
+        stages=SimpleNamespace(**vars(self.manager),parent=self.directory.parent)
+        manager=browser_commit.BrowserCommits(stages)
+        directory,context,raw=manager._base(self.owner,self.job,self.sha,self.channel,self.nonce,self.scope)
+        self.assertEqual((directory,context),(self.directory,self.context))
+        self.assertEqual(json.loads(raw)['scope'],self.scope)
+        path=self.source/'commit_disabled_install.py';path.write_bytes(path.read_bytes()+b'\n')
+        with self.assertRaises(Exception):manager._base(self.owner,self.job,self.sha,self.channel,self.nonce,self.scope)
+        self.assertFalse(self.calls,'Read-only source gate never spawns the fake SDK')
+
     def test_fixed_child_stdin_only_clean_environment_rehashes_before_and_after(self):
         with patch.dict(os.environ, {'SUPERVISOR_TOKEN':'private-test-value','ADB_SERVER_SOCKET':'tcp:unsafe'}):
             result = admission.assess(*self.args(), runner=self.runner)
