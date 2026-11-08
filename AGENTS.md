@@ -836,3 +836,13 @@ separate even though the HACS wizard is shared.
   or permission to run remote commands. The browser collector/command adapter
   and private SDK producer join are not connected yet. Run the browser pure
   policy tests, including the original interruption cases under this binding.
+
+- Later browser phases may use NativeChannel.selectForReview in the original
+  picker click. Its opening read checks only fixed root/model/WLAN/boot identity
+  twice; it claims no original-file or absent-installation verification. Normal
+  select remains factory-only. Initial stage admission/prepare still repeats
+  its complete factory/absence/space checks, even on this review transport.
+  Every later phase needs its own fresh fixed collector and independently
+  consumed intent before writes; identity context cannot renew an old session.
+  No public UI uses this reconnect yet. Test existing-root/changed-source
+  refusal, invalid identity, picker activation and no native path/adoption.

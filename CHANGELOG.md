@@ -34,6 +34,9 @@
 - Reuse the disabled vendor-CAS policy with a distinct typed WebUSB binding,
   preserving native transport admission and all nontransport scope checks.
   This pure policy does not expose a collector, command adapter or writer.
+- Add a separate original-click reconnect for later staged-scope review.
+  It reads identity only and leaves the normal factory-selection and initial
+  stage gates unchanged; no later writer or UI route is enabled by that read.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

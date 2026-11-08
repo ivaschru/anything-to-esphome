@@ -18,7 +18,7 @@ function fixture() {
   else if(command.startsWith('read-') && command!=='read-fixed-original-pin') {
    const name=command.slice(5);assert(name in identity);body=name==='boot_id'?state.boot:identity[name];
   } else if(command==='read-fixed-original-pin')body=state.changedPin?'foreign-pin':contract.files[0].expected;
-  else {assert.equal(command,'check-fixed-absent-install');body='';}
+  else {assert.equal(command,'check-fixed-absent-install');body=state.existingInstallation?'present':'';}
   return {readable:new ReadableStream({start(controller){controller.enqueue(new TextEncoder().encode(body+'\n'+marker+'\n'));controller.close();}}),close:async()=>{}};
  }};
  const device={serial:'synthetic-usb',connect:async()=>({readable:{cancel:async()=>{}},writable:{close:async()=>{}}})};
@@ -89,3 +89,23 @@ for(const filesystem of ['tmpfs 10000 4096','ef53 bad 4096','ef53 10000 1','ef53
  try {await f.link.select();await f.link.checkInitialScope();}finally {await f.link.close();}
  contract.files[0].expected='3 1\n'+'a'.repeat(64)+' /data/synthetic-file';
 }
+
+{
+ const f=fixture();f.state.existingInstallation=true;f.state.changedPin=true;
+ const pending=f.link.selectForReview();assert.equal(f.calls[0],'picker');
+ const context=await pending;assert.equal(context.kind,'browser_webusb');assert.equal(context.native_get_devpath,false);
+ assert(!f.calls.some(call=>call.includes('read-fixed-original-pin') || call.includes('check-fixed-absent-install')),
+  'Deferred staged review must not pretend its opening identity checked factory files/absence');
+ assert.throws(()=>f.link.select());assert.throws(()=>f.link.selectForReview());
+ await assert.rejects(f.link.checkStageScope());
+ assert.equal(f.state.closed,1,'Initial staging still repeats and refuses actual changed factory scope');
+ assert(!f.calls.includes('sync:'));assert(!f.calls.includes('tcp:6053'));
+}
+{
+ const f=fixture();f.state.existingInstallation=true;
+ await assert.rejects(f.link.select());assert.equal(f.state.closed,1,'Normal selection keeps its original factory-only admission');
+}
+{
+ const f=fixture();f.state.boot='bad';await assert.rejects(f.link.selectForReview());assert.equal(f.state.closed,1);
+}
+console.log('Staged-review reconnect: original picker, identity-only context, unchanged factory writer gate and no native path/adoption passed');

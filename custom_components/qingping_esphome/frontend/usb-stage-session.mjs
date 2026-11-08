@@ -1,4 +1,4 @@
-/** Fixed initial disabled-root staging; not yet exposed by a channel or HTTP.
+/** Fixed initial disabled-root staging through the private finite channel.
  *
  * The constructing private coordinator must already own the consumed intent
  * and shared writer lease. Backend functions are closures over that actual

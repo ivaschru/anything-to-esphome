@@ -16,13 +16,23 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
-  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;
+  #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
-  select() {
+  select() {return this.#select(false);}
+
+  /** Reconnect only for a later private staged-scope review.
+   * This reads fixed root/model/WLAN/boot identity, without claiming factory
+   * files or absent installation. A later phase MUST perform its own complete
+   * fresh collector before any consumed writer. Initial staging still always
+   * repeats its factory/absence/space guard and cannot use this as a bypass.
+   */
+  selectForReview() {return this.#select(true);}
+
+  #select(review) {
     if(this.#selected || this.#closed) error('usb_selection_consumed');
-    this.#selected=true;
+    this.#selected=true;this.#reviewSelection=review;
     if(!this.#library.manager) error('webusb_unavailable');
     let picked;
     try {picked=this.#library.manager.requestDevice();}
@@ -73,7 +83,11 @@ export class BrowserNativeChannel {
       if(this.#closed) {await this.#cleanup(()=>this.#client.close());error('usb_selection_consumed');}
       const identity=await this.#identity();
       this.#scope=Object.freeze({...identity});
-      await this.checkInitialScope();
+      if(this.#reviewSelection) {
+        // Opening identity is only ephemeral context. Repeat it after the
+        // initial exchange; no cached file/root or writer approval follows.
+        if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope)) error('usb_selection_changed');
+      } else await this.checkInitialScope();
       return this.evidence();
     } catch {
       await this.close();
