@@ -22,8 +22,15 @@ class BrowserRegistry:
         self.stopped = False
 
     def open(self, owner, nonce, data):
-        if self.stopped or not isinstance(data, dict) or set(data) != {"evidence"}:
+        if self.stopped or not isinstance(data, dict) or set(data) not in ({"evidence"}, {"evidence", "purpose"}):
             raise RelayRefusal
+        # A fixed resource class is chosen when registering a NEW selection.
+        # It cannot renew an old capability or grant a writer. Ordinary reads
+        # keep their original ceilings; Full UI needs the two-image RPC budget.
+        purpose = data.get("purpose", "standard")
+        if purpose not in ("standard", "full-ui") or "purpose" in data and purpose != "full-ui":
+            raise RelayRefusal
+        lifetime = 900 if purpose == "full-ui" else 240
         evidence = data["evidence"]
         fields = {"kind", "channel", "serial", "wlan_mac", "boot_id", "co2_type", "stock_version", "native_get_devpath"}
         if (not isinstance(evidence, dict) or set(evidence) != fields or evidence["kind"] != "browser_webusb" or
@@ -42,14 +49,14 @@ class BrowserRegistry:
             self.timer.cancel()
         identity = secrets.token_hex(16)
         self.used.add(evidence["channel"])
-        self.current = {"id": identity, "owner": owner, "nonce": nonce, "deadline": time.monotonic() + 240,
-                        "reported_evidence": dict(evidence), "capability": BrowserChannel()}
-        self.timer = asyncio.create_task(self._expire(identity))
+        self.current = {"id": identity, "owner": owner, "nonce": nonce, "deadline": time.monotonic() + lifetime, "purpose": purpose,
+                        "reported_evidence": dict(evidence), "capability": BrowserChannel(purpose=purpose)}
+        self.timer = asyncio.create_task(self._expire(identity, lifetime))
         return {"channel_id": identity, "state": "registered", "writer_enabled": False}
 
-    async def _expire(self, identity):
+    async def _expire(self, identity, lifetime):
         try:
-            await asyncio.sleep(240)
+            await asyncio.sleep(lifetime)
             if self.current is not None and self.current["id"] == identity:
                 self.current["capability"]._retire()
         except asyncio.CancelledError:

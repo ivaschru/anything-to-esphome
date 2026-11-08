@@ -81,3 +81,33 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.relay.bytes=8*1024**2-1
         self.relay._charge(b'x')
         with self.assertRaises(module.RelayRefusal):self.relay._charge(b'x')
+
+
+class FullUiBudgets(unittest.IsolatedAsyncioTestCase):
+    async def test_fixed_extended_class_is_bounded_and_standard_stays_small(self):
+        channel = SimpleNamespace(close=AsyncMock())
+        for purpose, lifetime, byte_limit, opens in (("standard", 240, 8*1024**2, 16), ("full-ui", 900, 256*1024**2, 1024)):
+            relay = module.BrowserApiRelay(channel, purpose=purpose)
+            port = await relay.start()
+            self.assertIsInstance(port, int)
+            self.assertLessEqual(relay.deadline - __import__('time').monotonic(), lifetime)
+            self.assertGreater(relay.deadline - __import__('time').monotonic(), lifetime - 1)
+            self.assertEqual(relay.open_limit, opens)
+            relay.bytes = byte_limit - 1; relay._charge(b'x')
+            with self.assertRaises(module.RelayRefusal): relay._charge(b'x')
+            await relay.close()
+        with self.assertRaises(module.RelayRefusal): module.BrowserApiRelay(channel, purpose="unbounded")
+
+
+class WaitingRelay(unittest.IsolatedAsyncioTestCase):
+    async def test_positive_no_listener_without_socket_is_read_reconnect_not_unknown_open(self):
+        channel = SimpleNamespace(open_api=AsyncMock(side_effect=module.RelayNotReady()), close=AsyncMock())
+        relay = module.BrowserApiRelay(channel, purpose="full-ui")
+        port = await relay.start(); self.addAsyncCleanup(relay.close)
+        for _ in range(2):
+            reader, writer = await asyncio.open_connection('127.0.0.1', port)
+            self.assertEqual(await asyncio.wait_for(reader.read(), 1), b'')
+            writer.close(); await writer.wait_closed()
+            while relay.active is not None: await asyncio.sleep(0)
+        self.assertFalse(relay.failed); self.assertEqual(channel.open_api.await_count, 2)
+        channel.close.assert_not_awaited()

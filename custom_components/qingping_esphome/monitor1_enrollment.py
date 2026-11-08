@@ -50,6 +50,31 @@ def payload(raw, job_id):
         raise EnrollmentRefusal from None
 
 
+def service_json(raw):
+    """Actual SDK response bytes, bounded strict UTF-8 and unique JSON keys.
+
+    This is the LAN/native-flow verifier's 64KiB read contract, separate from
+    the worker's smaller Full UI parser. Never accept UTF-16 auto-detection,
+    a scalar, duplicate identity fields or replacement-decoded bytes as proof.
+    """
+    try:
+        if isinstance(raw, bytes):
+            if not 0 < len(raw) <= 65536: raise ValueError
+            raw = raw.decode('utf-8', errors='strict')
+        if not isinstance(raw, str) or not 0 < len(raw.encode('utf-8')) <= 65536: raise ValueError
+        def pairs(items):
+            result = {}
+            for key, item in items:
+                if key in result: raise ValueError
+                result[key] = item
+            return result
+        value = json.loads(raw, object_pairs_hook=pairs)
+        if not isinstance(value, dict): raise ValueError
+        return value
+    except Exception:
+        raise EnrollmentRefusal from None
+
+
 def normalized(mac):
     return str(mac).lower().replace(":", "").replace("-", "")
 
@@ -82,7 +107,7 @@ async def verify_lan(data, *, factory=None, sleep=asyncio.sleep):
     if factory is None:
         from aioesphomeapi import APIClient
         factory = APIClient
-    client = factory(data["host"], 6053, "", noise_psk=data["noise_psk"], client_info="Qingping HA enrollment verification")
+    client = factory(data["host"], 6053, "", noise_psk=data["noise_psk"], provide_time=False, expected_name=data["node_name"], client_info="Qingping HA enrollment verification")
     try:
         await asyncio.wait_for(client.connect(login=True, log_errors=False), 12)
         info = await asyncio.wait_for(client.device_info(), 10)
@@ -95,9 +120,9 @@ async def verify_lan(data, *, factory=None, sleep=asyncio.sleep):
         prior = None
         for _ in range(2):
             result = await asyncio.wait_for(client.execute_service(found[0], {}, return_response=True, timeout=15), 16)
-            if result is None or result.success is not True or not isinstance(result.response_data, str) or len(result.response_data) > 65536:
+            if result is None or result.success is not True:
                 raise EnrollmentRefusal
-            body = json.loads(result.response_data)
+            body = service_json(result.response_data)
             generations = body.get("guardian_generations")
             if (body.get("boot_id") != data["boot_id"] or body.get("nonce") != data["native_job"] or
                     body.get("native_sha256") != data["native_sha256"] or body.get("guardian_sha256") != data["guardian_sha256"] or

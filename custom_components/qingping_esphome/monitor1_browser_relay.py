@@ -14,8 +14,23 @@ class RelayRefusal(Exception):
     """No channel/packet/exception content may be logged or returned."""
 
 
+class RelayNotReady(Exception):
+    """Fixed Full UI read positively saw no listener; no USB OPEN was issued.
+
+    This is never a timeout/lost ACK fallback. Only the fixed Full UI channel
+    decoder can raise it before creating a remote stream.
+    """
+
+
 class BrowserApiRelay:
-    def __init__(self, channel):
+    def __init__(self, channel, *, purpose="standard"):
+        if purpose not in ("standard", "full-ui"):
+            raise RelayRefusal
+        # Fixed classes, never caller-selected numbers. The larger class is
+        # only usable by the original Full UI coordinator and live selection.
+        self.lifetime = 900 if purpose == "full-ui" else 240
+        self.byte_limit = 256 * 1024**2 if purpose == "full-ui" else 8 * 1024**2
+        self.open_limit = 1024 if purpose == "full-ui" else 16
         self.channel = channel
         self.server = None
         self.port = None
@@ -37,7 +52,7 @@ class BrowserApiRelay:
         if self.started or self.closed:
             raise RelayRefusal
         self.started = True
-        self.deadline = time.monotonic() + 240
+        self.deadline = time.monotonic() + self.lifetime
         # The kernel chooses and owns the actual loopback listener; there is
         # no release/rebind race, host option, forwarded port or global ADB.
         self.server = await asyncio.start_server(self._accept, '127.0.0.1', 0, limit=65536)
@@ -53,7 +68,7 @@ class BrowserApiRelay:
             pass
 
     def _accept(self, reader, writer):
-        if self.closed or self.failed or self.active is not None or self.opens >= 16 or time.monotonic() >= self.deadline:
+        if self.closed or self.failed or self.active is not None or self.opens >= self.open_limit or time.monotonic() >= self.deadline:
             writer.close()
             return
         # Reserve synchronously, before open_api awaits. A second TCP client
@@ -90,6 +105,12 @@ class BrowserApiRelay:
                 done, _ = await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     task.result()
+        except RelayNotReady:
+            # The local encrypted client sees EOF and may repeat read-only
+            # observation. No device socket/open/write needs replay or cleanup.
+            # A caller cannot use this category after a stream was obtained.
+            if remote is not None:
+                self.failed = True
         except BaseException:
             self.failed = True
         finally:
@@ -122,7 +143,7 @@ class BrowserApiRelay:
         if not isinstance(data, bytes) or not 0 < len(data) <= 65536:
             raise RelayRefusal
         self.bytes += len(data)
-        if self.bytes > 8 * 1024**2:
+        if self.bytes > self.byte_limit:
             raise RelayRefusal
 
     async def close(self):

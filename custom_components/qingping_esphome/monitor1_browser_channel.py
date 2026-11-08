@@ -11,15 +11,16 @@ launch authority. No public request creates those frames or launches code. A dro
 import asyncio
 import base64
 import copy
+import json
 from contextlib import nullcontext
 import re
 import secrets
 
-from .monitor1_browser_relay import RelayRefusal
+from .monitor1_browser_relay import RelayRefusal, RelayNotReady
 from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, validate_context as process_context, validate_observation as process_observation
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
-OPS = {"pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
+OPS = {"full-ui-scope", "pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
        "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
@@ -53,7 +54,12 @@ def guardian_record(value, kind, nonce):
 
 
 class BrowserChannel:
-    def __init__(self):
+    def __init__(self, *, purpose="standard"):
+        if purpose not in ("standard", "full-ui"):
+            raise RelayRefusal
+        self.purpose = purpose
+        self.cipher_bytes = 0
+        self.full_ui_observing = False
         self.queue = asyncio.Queue(maxsize=2)
         self.pending = {}
         self.pending_operations = {}
@@ -95,6 +101,16 @@ class BrowserChannel:
         self.guardian_control = asyncio.Lock()
         self.guardian_api_mode = False
 
+    def _charge_cipher(self, count):
+        # Full UI preflight and trial may use separate owned listeners, but
+        # both spend this ORIGINAL capability's one aggregate byte budget.
+        # API reconnect/close cannot reset it. Ordinary relay policy is unchanged.
+        if self.purpose == "full-ui":
+            self.cipher_bytes += count
+            if self.cipher_bytes > 256 * 1024**2:
+                self._retire()
+                raise RelayRefusal
+
     def _retire(self):
         self.closed = True
         self.failed = True
@@ -108,7 +124,9 @@ class BrowserChannel:
         self.pending_operations.clear()
 
     async def _request(self, operation, data=None):
-        if self.closed or operation not in OPS or len(self.pending) >= 2:
+        if (self.closed or operation not in OPS or len(self.pending) >= 2 or
+                self.purpose == "full-ui" and operation not in {"full-ui-scope", "api-open", "api-read", "api-write", "api-close", "channel-close"} or
+                self.purpose != "full-ui" and operation == "full-ui-scope"):
             raise RelayRefusal
         identity = secrets.token_hex(16)
         future = asyncio.get_running_loop().create_future()
@@ -116,7 +134,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("full-ui-scope", "pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -245,6 +263,31 @@ class BrowserChannel:
         if self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("initial-trial-preparation", {"meta": meta})
+
+    async def observe_full_ui_scope(self, context):
+        """One fixed reader, no path/host/body selector or writer permission."""
+        if self.purpose != "full-ui" or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.full_ui_observing = True
+        return await self._request("full-ui-scope", {"context": context})
+
+    async def open_full_ui_api(self):
+        """Fixed 6053 transport after this original Full UI reader only."""
+        async with self.guardian_control:
+            if self.purpose != "full-ui" or not self.full_ui_observing or self.opened or self.opening or self.pending:
+                raise RelayRefusal
+            self.opening = True
+            try:
+                value = await self._request("api-open")
+                if value is not None:
+                    waiting = {"kind": "browser_full_ui_api_waiting", "socket_open_issued": False, "listener_absence_checked": True}
+                    if type(value) is dict and json.dumps(value, sort_keys=True) == json.dumps(waiting, sort_keys=True):
+                        raise RelayNotReady
+                    self._retire(); raise RelayRefusal
+                self.opened = self.guardian_api_mode = True
+                return BrowserStream(self, guardian=True)
+            finally:
+                self.opening = False
 
     async def observe_bridge_boot(self, context):
         """One fixed observer frame, beside at most one opaque API read.
@@ -675,6 +718,8 @@ class BrowserChannel:
                 self.opening = False
 
     async def open_api(self):
+        if self.purpose != "standard":
+            raise RelayRefusal
         if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:
@@ -724,6 +769,7 @@ class BrowserStream:
             body = base64.b64decode(value, validate=True)
             if len(body) > maximum or base64.b64encode(body).decode() != value:
                 raise ValueError
+            self.channel._charge_cipher(len(body))
             return body
         except asyncio.CancelledError:
             raise
@@ -738,6 +784,7 @@ class BrowserStream:
             raise RelayRefusal
         self.writing = True
         try:
+            self.channel._charge_cipher(len(body))
             async with self.channel.guardian_control if self.guardian else nullcontext():
                 if self.guardian and not self.channel.guardian_api_mode:
                     raise ValueError

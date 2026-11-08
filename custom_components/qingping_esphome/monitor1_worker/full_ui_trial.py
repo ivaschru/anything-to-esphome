@@ -11,7 +11,10 @@ import hashlib
 import re
 import time
 
-from full_ui_review import artifact_status, unique_json
+try:  # Same pure engine in Core's package and the standalone SDK child.
+    from .full_ui_review import artifact_status, unique_json
+except ImportError:
+    from full_ui_review import artifact_status, unique_json
 
 TRIAL_MS = 60000
 KINDS = ("native-program", "guardian-program")

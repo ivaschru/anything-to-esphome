@@ -29,7 +29,7 @@ class FullUiReviewTests(unittest.TestCase):
         async def execute(service, data, **kwargs):
             self.assertIn(service.name, ("full_runtime_status", "full_runtime_inspect_start"))
             self.assertEqual(data, {})
-            return SimpleNamespace(success=True, response_data=json.dumps(self.status if service.name.endswith("_status") else self.capture))
+            return SimpleNamespace(success=True, response_data=json.dumps(self.status if service.name.endswith("_status") else self.capture).encode())
         self.client.execute_service = AsyncMock(side_effect=execute)
 
     def run_review(self):
@@ -78,3 +78,10 @@ class FullUiReviewTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WireJsonTests(unittest.TestCase):
+    def test_bounded_actual_wire_bytes_are_utf8_and_unique(self):
+        self.assertEqual(reviewer.unique_json('{"ok": true, "label": "Русский"}'.encode()), {'ok': True, 'label': 'Русский'})
+        for raw in (b'', b'\xff', b'{"ok":true,"ok":false}', b'x' * 32769, b'[]'):
+            with self.subTest(raw_type=type(raw).__name__), self.assertRaises(Exception): reviewer.unique_json(raw)

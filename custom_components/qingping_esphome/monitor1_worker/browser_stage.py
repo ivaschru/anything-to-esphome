@@ -58,6 +58,15 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
+    if names & {'browser-full-ui-trial-intent.json', 'browser-full-ui-trial-complete.json'}:
+        from browser_full_ui_trial import BrowserFullUiTrials
+        from browser_plan import BrowserPlans
+        try:
+            prior = BrowserFullUiTrials(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if prior.status(owner, directory.name)['state'] != 'browser_full_ui_trial_returned_observed':
+                raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
     if names & {'browser-pm-boot-intent.json', 'browser-pm-boot-complete.json'}:
         from browser_pm_boot_journal import BrowserPmBoot
         from browser_plan import BrowserPlans

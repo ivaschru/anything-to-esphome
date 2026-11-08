@@ -21,21 +21,30 @@ function bytes(value) {
 function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
+  #fullUi=false;#frameLimit=2048;
   #booting=false;#bootObserving=false;#pmming=false;
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
   #staging=false;#committing=false;#ramming=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   #ramComplete=false;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
   #scopeChecking=false;
-  constructor(link) {this.#link=link;}
+  constructor(link,{purpose='standard'}={}) {
+    if(!['standard','full-ui'].includes(purpose)) fail();
+    this.#link=link;this.#fullUi=purpose==='full-ui';
+    // At most 32 MiB of image bytes in 1024-byte RPC chunks, ciphertext
+    // responses and read/write frames. Retain IDs to refuse replays; no data
+    // buffer of this size is allocated. Ordinary channels remain at 2048.
+    this.#frameLimit=this.#fullUi?131072:2048;
+  }
 
   async dispatch(request) {
     if(this.#closed || !request || Object.keys(request).sort().join()!==['id','operation','data'].sort().join() ||
-       typeof request.id!=='string' || !/^[a-f0-9]{32}$/.test(request.id) || this.#seen.has(request.id) || this.#seen.size>=2048) {
+       typeof request.id!=='string' || !/^[a-f0-9]{32}$/.test(request.id) || this.#seen.has(request.id) || this.#seen.size>=this.#frameLimit) {
       await this.close();fail();
     }
     this.#seen.add(request.id);
     let data=null;
     try {
+      if(this.#fullUi && !['full-ui-scope','api-open','api-read','api-write','api-close','channel-close'].includes(request.operation)) fail();
       const guardianApi=this.#guardianUsed && this.#guardianReady && !this.#guardianFinished;
       const apiOperation=['api-open','api-read','api-write','api-close'].includes(request.operation);
       // One pending opaque read may continue beside the fixed scope reader.
@@ -50,7 +59,10 @@ export class BrowserChannelPeer {
       if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
       if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation))fail();
       if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
-      if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
+      if(request.operation==='full-ui-scope') {
+        if(!this.#fullUi || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='context') fail();
+        this.#checking=true;try{data=await this.#link.observeFullUiScope(request.data.context);}finally{this.#checking=false;}
+      } else if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
         try {data=await (request.operation==='scope-check' ? this.#link.checkInitialScope() : this.#link.checkStageScope());}finally {this.#checking=false;}
@@ -187,9 +199,16 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#opening=true;
         try {
-          this.#socket=await (this.#bootObserving?this.#link.openBridgeBootApi():guardianApi?this.#link.openInitialGuardianApi():this.#link.openApi());
-          this.#reader=this.#socket.readable.getReader();
-          this.#writer=this.#socket.writable.getWriter();
+          this.#socket=await (this.#fullUi?this.#link.openFullUiApi():this.#bootObserving?this.#link.openBridgeBootApi():guardianApi?this.#link.openInitialGuardianApi():this.#link.openApi());
+          const waiting={kind:'browser_full_ui_api_waiting',socket_open_issued:false,listener_absence_checked:true};
+          if(this.#fullUi && this.#socket?.kind===waiting.kind) {
+            if(Object.keys(this.#socket).sort().join()!==Object.keys(waiting).sort().join() ||
+               Object.keys(waiting).some(k=>this.#socket[k]!==waiting[k]))fail();
+            data=waiting;this.#socket=undefined;
+          } else {
+            this.#reader=this.#socket.readable.getReader();
+            this.#writer=this.#socket.writable.getWriter();
+          }
         } finally {this.#opening=false;}
       } else if(request.operation==='api-read') {
         if(!this.#reader || this.#reading || this.#closing || !request.data ||

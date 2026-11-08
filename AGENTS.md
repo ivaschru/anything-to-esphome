@@ -664,7 +664,12 @@ separate even though the HACS wizard is shared.
   aioesphomeapi on the original relay loopback, and verify authenticated
   DeviceInfo name/MAC plus unique physical sensor object IDs/keys. Disable
   time provision. Read connections may retry only after actual prior API-close
-  ACK and within the unchanged 16-open/30s connect limits. Reject missing,
+  ACK and within the unchanged 16-open/30s connect limits. Each browser attempt
+  has at most 12s within that original window, including its <=5s fixed scope,
+  bounded socket OPEN and Noise; never reuse the native forward's 2s timeout
+  around this larger prerequisite. Preserve the 50s observation/cleanup ceiling
+  and independent device 60s stop. Run the actual Noise 2.2s pre-OPEN fixture;
+  a known slow scope must not become a fictitious lost socket or writer retry. Reject missing,
   nonfinite, sentinel, invalid-range, stale or display-subdevice values. Every
   physical field needs independently new callbacks and accepted vectors at
   least ten seconds apart; cached rereads never advance a generation. Complete
@@ -830,6 +835,39 @@ separate even though the HACS wizard is shared.
   transfer tests, 16 canonical parity vectors, raw/delivered selected Native
   and pinned Tango512 cases; regenerate/package/bundle. Public PM/UI and
   post-PM Full UI/permanent/enrollment remain separate unfinished work.
+
+- Browser Full UI uses a NEW original-click `full-ui` resource class: fixed
+  900s/256MiB/131072 frames/1024 API opens, versus unchanged ordinary
+  240s/8MiB/2048/16. These are bounded aggregate counters, no large preallocation,
+  deadline renewal or writer authority. Full UI ciphertext is also charged to
+  the original Core capability across separate review/trial relay instances.
+  Only a positive fixed dual-table absent-listener read BEFORE any device socket
+  OPEN permits a typed waiting result and another read connection. A lost OPEN,
+  malformed table/reply, failed close or post-open error still retires the
+  channel. Never reclassify an error message/timeout/CLSE as that waiting DTO.
+  Native/peer/Core refuse earlier writer
+  families in this class. Fixed post-PM reads rehash the original completed PM
+  bytes, profile/source/pair and current selected identity/bridge image twice;
+  same PM-armed boot can only wait, without key/API. Never reuse the old
+  PM-disabled collector after flag effects or fabricate a native forward.
+  Private Full UI review reuses the inner API reader through original-task
+  opaque Noise relay, repeating file scope around actual API-close and requiring
+  actual USB plus separate channel ACK. Standard registration/API paths cannot
+  borrow its larger class. aioesphomeapi service response_data is bytes: bound
+  it and decode strict UTF-8 before duplicate-key JSON validation; preserve
+  native callers and do not replace a real SDK response with a string mock.
+  The separate private RAM trial consumes/fsyncs its own intent under the
+  shared kernel lease BEFORE delivering the exact two private image bodies.
+  Keep live preflight, original remaining budget, pair/hash/producers/boot,
+  unchanged 60s device trial, two native guardian generations and stock return.
+  Positively retire API/USB/channel before terminal record/release. Lost body,
+  ACK/close/reply or a crash never grants replay/lease adoption; cross-writer
+  and computer-export fences include partial/orphan Full UI history. The inner
+  engine's relative/standalone imports change packaging only, not SDK/native
+  behavior. Run Full UI context/journal/actual Noise transfer and raw/delivered
+  scope tests plus both HA USB suites. Synthetic peer lifecycle is not hardware
+  timing/panel/FD qualification; public initiating UI/permanent/enrollment
+  browser joins remain separate work. Do not rebuild frozen firmware.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

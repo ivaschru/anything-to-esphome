@@ -9,7 +9,10 @@ import asyncio
 import re
 import time
 
-from full_ui_trial import FullUiTrialError, exact_artifacts, native_sample, rpc, services_named
+try:
+    from .full_ui_trial import FullUiTrialError, exact_artifacts, native_sample, rpc, services_named
+except ImportError:
+    from full_ui_trial import FullUiTrialError, exact_artifacts, native_sample, rpc, services_named
 
 SERVICES = ("full_runtime_status", "storage_audit", "full_runtime_install_core_release",
             "full_runtime_set_core_boot_mode", "full_runtime_new_session", "full_runtime_start_installed_core")

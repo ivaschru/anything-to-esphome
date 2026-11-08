@@ -22,6 +22,16 @@ def unique_json(raw):
                 raise FullUiReviewError("usb_full_ui_unverified")
             result[key] = value
         return result
+    # aioesphomeapi ExecuteServiceResponse.response_data is bytes. Keep a
+    # bounded strict UTF-8 conversion before JSON parsing; str remains allowed
+    # for the existing local adapters, not as a substitute for wire QA.
+    if isinstance(raw, bytes):
+        if not 0 < len(raw) <= 32768:
+            raise FullUiReviewError("usb_full_ui_unverified")
+        try:
+            raw = raw.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            raise FullUiReviewError("usb_full_ui_unverified") from None
     if not isinstance(raw, str) or not 0 < len(raw.encode()) <= 32768:
         raise FullUiReviewError("usb_full_ui_unverified")
     value = json.loads(raw, object_pairs_hook=pairs)

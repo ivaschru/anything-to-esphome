@@ -30,6 +30,13 @@ class PayloadTests(unittest.TestCase):
         with self.assertRaises(module.EnrollmentRefusal):module.payload(b'{"host":"a","host":"b"}',DATA['job_id'])
 
 
+class ServiceJsonTests(unittest.TestCase):
+    def test_wire_bytes_are_strict_bounded_object_json(self):
+        self.assertEqual(module.service_json(b'{"native_state":1}'), {'native_state': 1})
+        for raw in (b'', b'\xff', b'[]', b'{"nonce":"a","nonce":"b"}', b'x' * 65537):
+            with self.assertRaises(module.EnrollmentRefusal): module.service_json(raw)
+
+
 class NativeAdapterTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.entries=[]
@@ -77,7 +84,7 @@ class NativeAdapterTests(unittest.IsolatedAsyncioTestCase):
                 'native_state':1,'guardian_generations':[n,n]})
         client=SimpleNamespace(connect=AsyncMock(),disconnect=AsyncMock(),device_info=AsyncMock(return_value=SimpleNamespace(name=DATA['node_name'],mac_address=DATA['api_mac'])),
             list_entities_services=AsyncMock(return_value=([],[SimpleNamespace(name='full_native_status')])),execute_service=AsyncMock())
-        client.execute_service.side_effect=[SimpleNamespace(success=True,response_data=json.dumps(s)) for s in statuses]
+        client.execute_service.side_effect=[SimpleNamespace(success=True,response_data=json.dumps(s).encode()) for s in statuses]
         factory=Mock(return_value=client)
         await module.verify_lan(DATA,factory=factory,sleep=AsyncMock())
         self.assertEqual(factory.call_args.args,(DATA['host'],6053,''));client.disconnect.assert_awaited_once()

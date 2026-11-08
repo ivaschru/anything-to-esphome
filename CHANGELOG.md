@@ -1,5 +1,21 @@
 ## Unreleased – browser USB installation work
 
+- Correct the initial browser Noise connection's per-attempt budget to include
+  its complete pre-OPEN device scope. Preserve original 30s connection/50s
+  observation/device 60s ceilings and no-replay behavior. A real Noise fixture
+  with a 2.2s prerequisite reproduces the previous 2s cancellation.
+
+
+- Add a separate bounded Full UI browser resource class, original completed
+  post-PM context, fixed selected identity/bridge reader and private encrypted
+  API review. Compose the separate consumed RAM-trial journal with the existing
+  60s Full UI engine, two native observations, stock return and independent
+  API/USB/channel closure. Preserve no-replay/global fences and private keys.
+  Fix shared Full UI and independent LAN enrollment service-response parsing
+  for actual aioesphomeapi bytes with strict bounded UTF-8. Host/Noise fixtures do not qualify fresh devices or enable the
+  still-unfinished public browser installer/permanent/enrollment workflow.
+
+
 - Join the private browser PM next-boot transition to original actor/selected
   USB, fresh full scope and actual Noise. Add a separate consumed/fsynced PM
   journal and cross-writer/export fence, canonical arm/AFTER text and a fixed

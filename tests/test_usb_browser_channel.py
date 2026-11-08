@@ -517,3 +517,15 @@ class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(relay_module.RelayRefusal): await task
             with self.assertRaises(relay_module.RelayRefusal): self.channel.answer({'id': request['id'], 'ok': True, 'data': first})
             self.assertTrue(self.channel.closed and self.channel.failed)
+
+
+class FullUiAggregateBudget(unittest.IsolatedAsyncioTestCase):
+    async def test_ciphertext_budget_belongs_to_original_capability_not_each_relay(self):
+        channel = channel_module.BrowserChannel(purpose="full-ui")
+        channel.cipher_bytes = 256*1024**2 - 2
+        channel._charge_cipher(1)
+        # Creating another owned stream cannot renew the counter.
+        channel_module.BrowserStream(channel, guardian=True)
+        channel._charge_cipher(1)
+        with self.assertRaises(relay_module.RelayRefusal): channel._charge_cipher(1)
+        self.assertTrue(channel.failed); self.assertTrue(channel.closed)

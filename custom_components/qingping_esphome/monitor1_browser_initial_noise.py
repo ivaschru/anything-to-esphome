@@ -157,7 +157,13 @@ async def observe_initial_noise(context):
                                expected_name=identity['node_name'], provide_time=False,
                                client_info='Qingping initial USB observation')
             try:
-                await asyncio.wait_for(client.connect(login=True, log_errors=False), min(2, left))
+                # Unlike native ADB forwarding, this selected browser OPEN
+                # first repeats a complete fixed scope (up to 5s), then its
+                # bounded socket open and Noise handshake. A 2s outer timeout
+                # can cancel valid prerequisite work before a socket exists.
+                # Keep the original issued_at+30 connect and +50 observation
+                # ceilings; this does not renew any capability/device timer.
+                await asyncio.wait_for(client.connect(login=True, log_errors=False), min(12, left))
                 context.live()
                 relay._live()
                 break

@@ -119,6 +119,7 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.raw_frames, self.protocol, self.peer_writer = [], None, None
         self.remote_reader = self.remote_writer = None
         self.wrong_identity = False
+        self.api_open_delay = 0
         self.subscribed = False
         self.composed_end_at = None
         self.base_answer = self.f.answer
@@ -267,6 +268,7 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         if op not in ('api-open', 'api-read', 'api-write', 'api-close'):
             return await self.base_answer(frame)
         if op == 'api-open':
+            if self.api_open_delay: await asyncio.sleep(self.api_open_delay)
             self.assertIsNone(frame['data'])
             self.remote_reader, self.remote_writer = await asyncio.open_connection(
                 '127.0.0.1', self.server.sockets[0].getsockname()[1])
@@ -288,6 +290,13 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         except Refusal:
             if not self.f.b.cap.closed:
                 raise  # Only an already-retired late read answer is disposable.
+
+    async def test_complete_scope_before_socket_open_can_spend_more_than_two_seconds(self):
+        # The real Native channel repeats a complete fixed scope (up to 5s)
+        # before tcp:6053 OPEN. Model 2.2s of that prerequisite, not a lost ACK.
+        # Production's 30s connect/50s observation and device 60s limit remain.
+        self.api_open_delay = 2.2
+        await self.test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate()
 
     async def test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate(self):
         await self.flow()

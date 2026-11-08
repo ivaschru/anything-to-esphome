@@ -5,19 +5,25 @@ import {BrowserChannelPeer} from './usb-channel-peer.mjs';
  * Two handlers allow a pending read and its write/close to make progress. Poll
  * and answers are each issued once; a lost response closes the selected link.
  */
-export function openBrowserControl(link,rpc) {return openControl(link,rpc,false);}
+export function openBrowserControl(link,rpc) {return openControl(link,rpc,'standard');}
 
 /** Separate original-click selector for later private staged reads. A review
  * opening claims identity only; the requested collector still checks all files.
  */
-export function openBrowserReviewControl(link,rpc) {return openControl(link,rpc,true);}
+export function openBrowserReviewControl(link,rpc) {return openControl(link,rpc,'review');}
 
-async function openControl(link,rpc,review) {
+/** New Full UI selection, fixed resources before the original picker click.
+ * This resource class grants no upload/launch permission. Private Core must
+ * still rehash the exact post-PM job and consume each separate writer intent.
+ */
+export function openBrowserFullUiControl(link,rpc) {return openControl(link,rpc,'full-ui');}
+
+async function openControl(link,rpc,purpose) {
   let registration;
-  const peer=new BrowserChannelPeer(link);
+  const peer=new BrowserChannelPeer(link,{purpose:purpose==='full-ui'?'full-ui':'standard'});
   try {
-    const evidence=await (review?link.selectForReview():link.select());
-    registration=await rpc('browser/open',{evidence});
+    const evidence=await (purpose==='full-ui'?link.selectForFullUiReview():purpose==='review'?link.selectForReview():link.select());
+    registration=await rpc('browser/open',purpose==='full-ui'?{evidence,purpose:'full-ui'}:{evidence});
     if(!registration || Object.keys(registration).sort().join()!==['channel_id','state','writer_enabled'].sort().join() ||
        typeof registration.channel_id!=='string' || !/^[a-f0-9]{32}$/.test(registration.channel_id) ||
        registration.state!=='registered' || registration.writer_enabled!==false) throw Error();

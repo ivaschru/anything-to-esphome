@@ -442,8 +442,8 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
 branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
 described below. The private boot observer also joins original arming history, the full native
-kernel/file scope and fresh authenticated sensor updates. The private PM next-boot join is also connected. Post-PM Full UI/permanent
-startup, HA enrollment and their browser UI composition remain unfinished. An untouched CGS1 has not
+kernel/file scope and fresh authenticated sensor updates. The private PM next-boot join and post-PM Full UI review/RAM trial are also connected.
+Permanent startup, HA enrollment and the public browser UI remain unfinished. An untouched CGS1 has not
 yet been tested; existing working monitors must not be reset to imitate one.
 
 After a private build, a computer USB job has its own **Prepare installation
@@ -578,3 +578,22 @@ read verifies those effects; actual USB close and separate channel ACK precede
 terminal persistence. It never loads the helper now, signals stock or reboots.
 Packet/ACK/close loss preserves uncertainty without replay. Public initiation
 and the later Full UI/enrollment browser stages remain unfinished.
+
+
+The private post-PM Full UI adapter now has a separate original-click selection
+with fixed 900-second, 256-MiB aggregate ciphertext, 131072-frame and 1024-open
+limits. Ordinary channels keep their four-minute/8-MiB limits. These counters
+allocate no image-sized browser buffer and cannot renew a selection or grant a
+writer. Original PM intent/proof, source/profile/pair and two current fixed
+bridge-image observations bind the read-only `status`/`inspect_start` review.
+The PM-armed boot itself reports waiting without opening API or reading a key.
+The private Full UI RAM trial separately consumes/fsyncs its own journal before
+handing its matched private pair to Core's existing fixed 60-second API engine.
+It requires two native guardian observations, physical readiness, stock return,
+closed API, actual USB-close and separate channel ACK before its terminal record.
+Ambiguous body, write, launch or cleanup never replays or adopts another lease.
+Keys and plaintext image bodies stay on the private actor/Core side; selected
+browser frames carry encrypted API bytes. Pure fixtures and real host Noise
+prove software composition only. Permanent/enrollment browser adapters and the
+public initiating wizard still need completion; no pristine-device, timer,
+physical screen/touch or firmware support qualification follows from host tests.
