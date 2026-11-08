@@ -467,3 +467,12 @@ The source branch also contains the bounded single-file guardian transfer
 primitive. It is not connected to a selected channel/Core route yet: private
 RAM job creation, independent remote verification and the guardian lifecycle
 still need their own adapter. Its in-memory SYNC tests perform no device IO.
+
+The next RAM adapter now has pure typed creation/readback command templates.
+They require the original packet and a new matching preparation, retain the
+committed owner nonce, check genuine free memory and bound tmpfs capacity before
+ARM32 multiplication. Only new 0700 jobs and an exclusive empty 0600 guardian
+file are described. These commands are still unwired: the selected-channel
+coordinator, sealed transfer, independent readback and actual device FD/launch
+lifecycle remain unfinished. Text parity and the isolated Linux/root allocation
+fixture do not qualify a physical first installation.

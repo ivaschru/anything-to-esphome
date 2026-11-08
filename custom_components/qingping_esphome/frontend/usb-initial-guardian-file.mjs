@@ -24,11 +24,8 @@ async function cleanup(operation) {
  })]);} finally {clearTimeout(timer);}
 }
 
-export class BrowserInitialGuardianSink {
- #factory;#descriptor;#bytes;#offset=0;#started=false;#finished=false;#busy=false;#closed=false;
- #sync;#closing;#waiters=new Set();#deadline;#expiry;
- constructor(factory,input) {
-  if(fields(factory)!==['openSync','pushV1','closeTransport'].sort().join() || Object.values(factory).some(v=>typeof v!=='function'))fail();
+/** Detached pure metadata check, not consumed-intent or live USB proof. */
+export function initialGuardianDescriptor(input) {
   let descriptor;
   try {descriptor=JSON.parse(JSON.stringify(input));}catch{fail();}
   const expected=['schema_version','job_id','plan_sha256','intent_sha256','channel_id','channel_nonce',
@@ -40,7 +37,15 @@ export class BrowserInitialGuardianSink {
      new Set([descriptor.nonce,descriptor.ram_job_id,descriptor.guardian_job_id]).size!==3 ||
      fields(descriptor.guardian)!==['size','sha256'].sort().join() || !Number.isInteger(descriptor.guardian.size) ||
      descriptor.guardian.size<52 || descriptor.guardian.size>maximum || !hex(descriptor.guardian.sha256,64))fail();
-  this.#factory=Object.freeze({...factory});this.#descriptor=Object.freeze({...descriptor,guardian:Object.freeze(descriptor.guardian)});
+  return Object.freeze({...descriptor,guardian:Object.freeze(descriptor.guardian)});
+}
+
+export class BrowserInitialGuardianSink {
+ #factory;#descriptor;#bytes;#offset=0;#started=false;#finished=false;#busy=false;#closed=false;
+ #sync;#closing;#waiters=new Set();#deadline;#expiry;
+ constructor(factory,input) {
+  if(fields(factory)!==['openSync','pushV1','closeTransport'].sort().join() || Object.values(factory).some(v=>typeof v!=='function'))fail();
+  this.#factory=Object.freeze({...factory});this.#descriptor=initialGuardianDescriptor(input);
   // This is only an additional maximum lifetime. The caller's closures must
   // retain the original selected handle's earlier deadline; never renew it.
   this.#deadline=Date.now()+240000;

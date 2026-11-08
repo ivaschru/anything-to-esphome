@@ -519,6 +519,19 @@ separate even though the HACS wizard is shared.
   the mock/test .so or infer loader authority from a successful build.
   See PM_HELPER_BUILD.md.
 
+- Browser first-trial RAM preparation has pure generated creation/readback
+  commands under `generate_initial_ram_commands.py`. They are not wired to a
+  device writer. Bind the original consumed packet, patched committed scope,
+  source fingerprints and new fresh preparation; never reuse the trial nonce
+  as the old commit nonce. Derive MemFree from the canonical minimum and bound
+  tmpfs multiplication before ARM32 arithmetic. Create only new 0700 jobs and
+  an exclusive empty 0600 guardian file; collisions preserve history. Eventual
+  execution requires the sealed length/SHA RAM stream, not raw shell lines or
+  long OPEN packets. Independent metadata/hash/inode readback and actual FD
+  admission remain required. Run generate_initial_ram_commands.py --check,
+  test_usb_initial_ram_commands.mjs and the Linux/root allocation-tail fixture;
+  syntax/parity/temporary-root tests do not qualify a physical installation.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

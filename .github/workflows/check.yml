@@ -35,6 +35,8 @@ jobs:
       - run: python tools/monitor1-usb/generate_disabled_commands.py --check
       - run: python tools/monitor1-usb/generate_initial_trial_contract.py --check
       - run: node tests/test_usb_initial_trial_scope.mjs
+      - run: python tools/monitor1-usb/generate_initial_ram_commands.py --check
+      - run: node tests/test_usb_initial_ram_commands.mjs
       - run: node tests/test_usb_initial_guardian_file.mjs
       - run: node tests/test_usb_channel_peer.mjs
       - run: node tests/test_usb_file_observation.mjs

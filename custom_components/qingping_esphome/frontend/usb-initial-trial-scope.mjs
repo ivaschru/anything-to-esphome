@@ -24,6 +24,34 @@ function memory(text) {
  return values.MemFree; // No buffers/cache/swap or fabricated MemAvailable.
 }
 
+/** Validate a detached DTO against the original committed root and births.
+ * Only capacity may vary. This is reusable text validation, never a cached
+ * live admission: the eventual writer must obtain fresh reads on its retained
+ * original selected channel while the consumed journal lease remains held.
+ */
+export function validateInitialPreparation(value,meta,committed=undefined) {
+ const expected=['kind','scope','ram_available_bytes','memory_basis','persistent_stores_absent',
+  'ram_processes_absent','api_ota_listeners_free','ram_scope_checked','image_fd_admitted','execution_authority','device_writes'];
+ if(fields(value)!==expected.sort().join() || value.kind!=='browser_initial_trial_preparation' ||
+    value.memory_basis!=='MemFree_lower_bound' || !Number.isSafeInteger(value.ram_available_bytes) ||
+    value.ram_available_bytes<initial.minimum_start_ram || value.ram_available_bytes>2**40 ||
+    ['persistent_stores_absent','ram_processes_absent','api_ota_listeners_free'].some(k=>value[k]!==true) ||
+    ['ram_scope_checked','image_fd_admitted','execution_authority'].some(k=>value[k]!==false) ||
+    value.device_writes!==0 || typeof meta?.commit_nonce!=='string' || !/^[a-f0-9]{32}$/.test(meta.commit_nonce))fail();
+ const check=scope=>{
+  validateDisabledObservation(meta,scope);
+  for(const [path,pin] of Object.entries(disabledContract.patched))
+   if(scope.vendor_hashes.find(pair=>pair[0]===path)?.[1]!==pin.sha256)fail();
+ };
+ check(value.scope);
+ if(committed!==undefined) {
+  check(committed);
+  // validateDisabledObservation has already bound all source/nonce/vendor
+  // values; stableDisabledScope deliberately excludes fluctuating capacity.
+  if(stableDisabledScope(value.scope)!==stableDisabledScope(committed))fail();
+ }
+}
+
 export async function collectInitialTrialPreparation(backend,input) {
  if(fields(backend)!==['read','identity','scope'].sort().join() || Object.values(backend).some(v=>typeof v!=='function'))fail();
  disabledScopeCommands(input);
@@ -48,8 +76,9 @@ export async function collectInitialTrialPreparation(backend,input) {
   const first=await committed(),before=await resources(first);
   const last=await committed(),after=await resources(last);
   if(stableDisabledScope(first)!==stableDisabledScope(last) || await backend.identity(meta.target)!==true)fail();
-  return {kind:'browser_initial_trial_preparation',scope:last,ram_available_bytes:Math.min(before,after),
+  const result={kind:'browser_initial_trial_preparation',scope:last,ram_available_bytes:Math.min(before,after),
    memory_basis:'MemFree_lower_bound',persistent_stores_absent:true,ram_processes_absent:true,api_ota_listeners_free:true,
    ram_scope_checked:false,image_fd_admitted:false,execution_authority:false,device_writes:0};
+  validateInitialPreparation(result,meta,first);return result;
  } catch {fail();}
 }

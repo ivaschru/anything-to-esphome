@@ -1,5 +1,7 @@
 ## Unreleased – browser USB installation work
 
+- Add unwired, typed browser first-trial RAM creation/readback templates with canonical guard parity, conservative memory/ARM32 capacity checks and exclusive private tmpfs allocation. No browser trial launch or hardware qualification is enabled.
+
 - Keep the live WebUSB handle and authorization key in memory; add a bounded
   API-only relay between the selected browser and authenticated Core. Its
   reported identity grants no native USB path or device writer.
