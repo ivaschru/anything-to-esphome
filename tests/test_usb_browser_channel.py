@@ -136,3 +136,98 @@ class RegistryTests(unittest.IsolatedAsyncioTestCase):
         for change in [{'native_get_devpath':True},{'usb_transport':'usb:invented'},{'host':'foreign'},{'co2_type':True}]:
             with self.assertRaises(relay_module.RelayRefusal):self.registry.open('owner','nonce',{'evidence':{**self.evidence,**change}})
         self.assertIsNone(self.registry.current)
+
+
+class InitialRamFramesTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.channel = channel_module.BrowserChannel()
+
+    async def exchange(self, coroutine, operation, answer):
+        task = asyncio.create_task(coroutine)
+        frame = await self.channel.poll()
+        self.assertEqual(frame['operation'], operation)
+        self.channel.answer({'id': frame['id'], 'ok': True, 'data': answer})
+        return await task, frame['data']
+
+    async def probe(self):
+        return await self.exchange(self.channel.probe_initial_ram_stream(), 'ram-stream-check',
+            {'kind': 'browser_fixed_stdin_probe', 'service': 'exec:/bin/sh', 'ready': True,
+             'device_files_changed': False, 'writer_enabled': False})
+
+    async def begin(self):
+        return await self.exchange(self.channel.begin_initial_ram({'synthetic': 'private consumed packet'}), 'ram-prepare',
+            {'state': 'ram_precreated', 'precreated': {'synthetic': 'readback'}, 'writer_enabled': False, 'image_fd_admitted': False})
+
+    async def test_finite_frames_keep_original_channel_for_later_guardian_without_admission(self):
+        await self.probe()
+        _, request = await self.exchange(self.channel.check_initial_trial_preparation({'checked': 'meta'}),
+                                         'initial-trial-preparation', {'synthetic': 'fresh scope'})
+        self.assertEqual(request, {'meta': {'checked': 'meta'}})
+        precreated, packet = await self.begin()
+        self.assertEqual(precreated, {'synthetic': 'readback'})
+        self.assertEqual(packet, {'packet': {'synthetic': 'private consumed packet'}})
+        for offset, body in ((0, b'first'), (5, b'second')):
+            _, request = await self.exchange(self.channel.initial_ram_chunk(offset, body), 'ram-chunk', {'offset': offset + len(body)})
+            self.assertEqual(request, {'offset': offset, 'body': base64.b64encode(body).decode()})
+        proof = {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {}, 'preparation': {},
+                 'transport_closed': False, 'guardian_started': False, 'image_fd_admitted': False,
+                 'execution_authority': False, 'context_only': True}
+        value, _ = await self.exchange(self.channel.finish_initial_ram(), 'ram-complete', proof)
+        self.assertEqual(value, proof)
+        self.assertFalse(self.channel.closed)
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.channel.finish_initial_ram()
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.channel.initial_ram_chunk(11, b'again')
+        await self.exchange(self.channel.close(), 'channel-close', None)
+        self.assertTrue(self.channel.closed)
+        self.assertFalse(self.channel.failed)
+
+    async def test_probe_and_prepared_state_exclude_other_writer_api_or_transport(self):
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.channel.begin_initial_ram({})
+        await self.probe()
+        for operation in (self.channel.open_api, self.channel.check_scope, self.channel.probe_commit_stream, self.channel.probe_initial_ram_stream):
+            with self.assertRaises(relay_module.RelayRefusal):
+                await operation()
+        await self.begin()
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.channel.check_initial_trial_preparation({})
+        for offset, body in ((True, b'x'), (1, b'x'), (0, b''), (0, b'x' * 65537), (0, 'not bytes')):
+            with self.subTest(offset=offset, size=len(body)), self.assertRaises(relay_module.RelayRefusal):
+                await self.channel.initial_ram_chunk(offset, body)
+        self.assertTrue(self.channel.queue.empty(), 'Invalid arguments never create a frame')
+        await self.exchange(self.channel.close(), 'channel-close', None)
+
+    async def test_lost_prepare_and_chunk_ack_retire_without_replay_or_adopting_ids(self):
+        for step in ('prepare', 'chunk'):
+            channel = self.channel = channel_module.BrowserChannel()
+            await self.probe()
+            if step == 'chunk':
+                await self.begin()
+            task = asyncio.create_task(channel.begin_initial_ram({}) if step == 'prepare' else channel.initial_ram_chunk(0, b'body'))
+            frame = await channel.poll()
+            task.cancel()
+            with self.assertRaises(relay_module.RelayRefusal):
+                await task
+            self.assertTrue(channel.closed and channel.failed)
+            with self.assertRaises(relay_module.RelayRefusal):
+                channel.answer({'id': frame['id'], 'ok': True, 'data': None})
+            with self.assertRaises(relay_module.RelayRefusal):
+                await channel.begin_initial_ram({})
+
+    async def test_bad_precreate_chunk_or_readback_response_never_promotes_or_repeats(self):
+        for step in ('prepare', 'chunk', 'complete'):
+            channel = self.channel = channel_module.BrowserChannel()
+            await self.probe()
+            if step != 'prepare':
+                await self.begin()
+            if step == 'prepare':
+                operation, call, answer = 'ram-prepare', channel.begin_initial_ram({}), {'state': 'ram_precreated', 'precreated': {}, 'writer_enabled': 0, 'image_fd_admitted': False}
+            elif step == 'chunk':
+                operation, call, answer = 'ram-chunk', channel.initial_ram_chunk(0, b'body'), {'offset': True}
+            else:
+                operation, call, answer = 'ram-complete', channel.finish_initial_ram(), {'kind': 'browser_initial_ram_ready', 'guardian_started': True}
+            with self.subTest(step=step), self.assertRaises(relay_module.RelayRefusal):
+                await self.exchange(call, operation, answer)
+            self.assertTrue(channel.closed and channel.failed)

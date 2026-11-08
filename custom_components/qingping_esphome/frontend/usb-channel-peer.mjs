@@ -1,4 +1,4 @@
-/** Finite read/API/disabled-stage peer for the private Core control loop.
+/** Finite read/API/disabled-stage/first-trial RAM peer for the private Core control loop.
  * No URL, caller file path, shell, host, port, key or launch selector is accepted.
  * Requests are consumed before IO. HTTP delivery/reply failures must close
  * this peer, not repeat dispatch; its caller owns that authenticated framing.
@@ -22,7 +22,7 @@ function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
-  #staging=false;#committing=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
+  #staging=false;#committing=false;#ramming=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   constructor(link) {this.#link=link;}
 
   async dispatch(request) {
@@ -35,6 +35,7 @@ export class BrowserChannelPeer {
     try {
       if(this.#checking && request.operation!=='channel-close') fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
+      if(this.#ramming && !['ram-chunk','ram-complete','channel-close'].includes(request.operation)) fail();
       if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
@@ -48,6 +49,26 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkInitialTrialPreparation(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='ram-stream-check') {
+        if(request.data!==null || this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {data=await this.#link.probeInitialRamStream();}finally {this.#checking=false;}
+      } else if(request.operation==='ram-prepare') {
+        if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='packet') fail();
+        this.#ramming=true;this.#checking=true;
+        try {data=await this.#link.beginInitialRam(request.data.packet);}finally {this.#checking=false;}
+      } else if(request.operation==='ram-chunk' || request.operation==='ram-complete') {
+        if(!this.#ramming || this.#opening || this.#socket || this.#closing) fail();
+        this.#checking=true;
+        try {
+          if(request.operation==='ram-complete') {if(request.data!==null)fail();data=await this.#link.finishInitialRam();}
+          else {
+            if(!request.data || Object.keys(request.data).sort().join()!==['offset','body'].sort().join() ||
+               !Number.isInteger(request.data.offset) || request.data.offset<0)fail();
+            const chunk=bytes(request.data.body);if(!chunk.length)fail();
+            data=await this.#link.initialRamAppend(request.data.offset,chunk);
+          }
+        }finally {this.#checking=false;}
       } else if(request.operation==='commit-stream-check') {
         if(request.data!==null || this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;

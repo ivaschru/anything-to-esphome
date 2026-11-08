@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Join the RAM session to the original selected WebUSB channel and finite
+  private Core frames. Consume the actor trial packet only after a harmless
+  probe/fresh scope, independently check bytes/producers/inodes and recheck the
+  SDK result afterward. Keep the live handoff bound to the same Core task,
+  worker and reservation; no public initiator, guardian launch or terminal
+  lease release is enabled.
+
 - Compose the unwired RAM session: fresh committed source checks, one sealed
   creation, independent empty-file/root readback, one guardian SYNC and exact
   inode/SHA readback. Preserve unknown outcomes and original transport ownership;

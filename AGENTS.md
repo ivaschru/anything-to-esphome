@@ -520,8 +520,8 @@ separate even though the HACS wizard is shared.
   See PM_HELPER_BUILD.md.
 
 - Browser first-trial RAM preparation has pure generated creation/readback
-  commands under `generate_initial_ram_commands.py`. They are not wired to a
-  device writer. Bind the original consumed packet, patched committed scope,
+  commands under `generate_initial_ram_commands.py`, used only by the private
+  consumed-trial coordinator; there is no public initiating writer route. Bind the original consumed packet, patched committed scope,
   source fingerprints and new fresh preparation; never reuse the trial nonce
   as the old commit nonce. Derive MemFree from the canonical minimum and bound
   tmpfs multiplication before ARM32 arithmetic. Create only new 0700 jobs and
@@ -537,7 +537,7 @@ separate even though the HACS wizard is shared.
   the Linux/root allocation-tail fixture;
   syntax/parity/temporary-root tests do not qualify a physical installation.
   InitialRamCommandStream now describes one sealed creation after the fixed
-  harmless probe; it is still unwired and cannot upload/chmod/launch a guardian.
+  harmless probe; its finite API cannot upload/chmod/launch a guardian.
   Share internal stdin mechanics only through module-owned finite assemblers;
   never expose the helper, an assembler or a shell body via a frame/HTTP API.
   Preserve DisabledCommandStream's brand, three-step order and no-replay state.
@@ -545,11 +545,23 @@ separate even though the HACS wizard is shared.
   512-byte fragmentation/ACK/CLSE tests after shared transport changes.
   BrowserInitialRamSession composes fresh preparation, one sealed creation,
   independent precreate readback, one guardian SYNC and inode/SHA readback.
-  It stays unwired: metadata never acquires the original channel/consumed lease.
+  The original selected NativeChannel/peer supplies only finite private
+  ram-stream-check/prepare/chunk/complete frames. Metadata never acquires a
+  channel or consumed lease.
   Preserve two complete source checks around each RAM observation phase,
   bounded pending-read cancellation and a shared close promise. A positive
   result keeps the transport but grants no chmod/exec, device FD admission,
-  terminal trial proof or completion. Run test_usb_initial_ram_session.mjs.
+  terminal trial proof or completion. The private Core coordinator consumes
+  the original actor journal only after the harmless probe/fresh scope, checks
+  packet bytes/producers before frames and rehashes the original SDK afterward.
+  Success returns only an in-memory handoff bound to the same shielded Core
+  task, still-held reservation, actual child process, owner/page/current channel
+  and original deadline. Copies/JSON/new actors/tasks cannot resume that grant.
+  Keep all private bytes out of normal status; even an acknowledged channel
+  close cannot release the trial's retained lease or create completion. There
+  is no public HTTP/UI initiator, device FD admission or guardian launch here.
+  Run test_usb_initial_ram_session.mjs, test_usb_native_initial_ram.mjs and all
+  test_usb_*.py on both HA SDKs after these frame/owner/actor changes.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

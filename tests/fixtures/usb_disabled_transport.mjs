@@ -33,6 +33,7 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
  }
  function read(command) {
   readCommands.push(command);
+  if(options.customRead){const value=options.customRead(command);if(value!==undefined)return value;}
   if(Object.values(initialTrialContract.reads).includes(command)) {
    if(options.initialRead)return options.initialRead(command);
    return command===initialTrialContract.reads.memory?'MemTotal: 131072 kB\nMemFree: 65536 kB':
@@ -78,6 +79,7 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
       assert.equal(sha(body),framing.sha256);
       const marker=framing.marker;let prefix='';
       if(body.includes('CGS1_FIXED_STDIN_READY'))prefix='CGS1_FIXED_STDIN_READY\n';
+      else if(options.rawCommand)options.rawCommand(body);
       else {
        const phase=phases[effects];assert(phase);const before=observed();
        assert(body.startsWith(disabledCommand({...meta,commit_nonce:effects?nonce:null},before,nonce,phase)));
@@ -91,6 +93,7 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
     }};
    rawSockets.push(socket);return socket;
   }
+  if(service==='sync:' && options.syncSocket)return options.syncSocket();
   assert(service.startsWith('shell:set -e\n'),'No TCP/SYNC/shell-v2 or arbitrary service');
   const marker=service.match(/__CGS1_CHANNEL_OK_[a-f0-9]+__/)[0];
   const command=service.slice('shell:set -e\n'.length,service.lastIndexOf('\nprintf '));
@@ -98,7 +101,8 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
   return {readable:new ReadableStream({start(c){c.enqueue(encoder.encode(body+'\n'+marker+'\n'));c.close();}}),close:async()=>{}};
  }};
  const link=new NativeChannel({manager:{requestDevice:()=>{picked++;return Promise.resolve({serial:meta.target.usb_serial,connect:async()=>({})});}},
-  authenticate:async()=>({}),createClient:()=>client,ephemeralCredentials:()=>({})},contract);
+  authenticate:async()=>({}),createClient:()=>client,ephemeralCredentials:()=>({}),
+  createSyncSocket:socket=>socket,pushV1:request=>{assert(options.pushV1);return options.pushV1(request);}},contract);
  return {link,meta,initial,rawBodies,readCommands,packet(){
   const evidence=link.evidence();
   currentPacket={schema_version:1,job_id:meta.job_id,plan_sha256:meta.descriptor.plan_sha256,intent_sha256:'1'.repeat(64),

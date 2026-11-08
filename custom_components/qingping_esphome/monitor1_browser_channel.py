@@ -4,7 +4,9 @@ The admin adapter joins actual user/page ownership. The browser
 can answer only an outstanding server-created request. It cannot choose a
 command, host, port, key, file or writer. The fixed scope-check reuses only original-file/identity reads. Private Core code
 may additionally issue the finite disabled-root stage sequence after consuming
-its writer intent. No public request creates those frames or launches code. A dropped request/answer retires the channel, never retries.
+its writer intent. First-trial RAM frames likewise require the private
+consumed actor journal and original live capability; they grant no image-FD or
+launch authority. No public request creates those frames or launches code. A dropped request/answer retires the channel, never retries.
 """
 import asyncio
 import base64
@@ -13,7 +15,7 @@ import secrets
 from .monitor1_browser_relay import RelayRefusal
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete"}
 MAX_BYTES = 65536
 
 
@@ -31,6 +33,11 @@ class BrowserChannel:
         self.staging = False
         self.committing = False
         self.commit_probe = False
+        self.ram_probe = False
+        self.ramming = False
+        self.ram_prepared = False
+        self.ram_finished = False
+        self.ram_offset = 0
 
     def _retire(self):
         self.closed = True
@@ -51,7 +58,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -144,12 +151,12 @@ class BrowserChannel:
         compare it with this channel and its separately verified owned plan.
         A cached successful report can never renew a write/launch intent.
         """
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
 
     async def check_stage_scope(self):
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("stage-admission")
 
@@ -159,13 +166,13 @@ class BrowserChannel:
         Its metadata must come from the owned verified stage journal. Returned
         scope remains evidence, never a commit/rollback intent or native USB.
         """
-        if self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("disabled-scope", {"meta": meta})
 
     async def check_initial_trial_preparation(self, meta):
         """Fixed read only; no RAM job, trial intent or image-FD authority."""
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("initial-trial-preparation", {"meta": meta})
 
@@ -176,7 +183,7 @@ class BrowserChannel:
         frame. The selected peer independently admits factory scope and makes
         both opt-outs before its sole ordered nine-file sequence.
         """
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.staging = True
         if await self._request("stage-prepare", {"packet": packet, "stock_files": stock_files}) != {"state": "disabled_root_created"}:
@@ -217,7 +224,7 @@ class BrowserChannel:
         return await self._request("stage-complete")
 
     async def probe_commit_stream(self):
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.commit_probe = True  # Consume even a lost read-only probe ACK.
         expected = {'kind': 'browser_fixed_stdin_probe', 'service': 'exec:/bin/sh', 'ready': True,
@@ -229,7 +236,7 @@ class BrowserChannel:
             raise RelayRefusal
 
     async def begin_commit(self, packet):
-        if not self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.ram_probe or self.ramming or not self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.committing = True  # Before any possibly lost delivery/ACK.
         value = await self._request('commit-prepare', {'packet': packet})
@@ -252,8 +259,67 @@ class BrowserChannel:
             raise RelayRefusal
         return await self._request('commit-complete')
 
+    async def probe_initial_ram_stream(self):
+        """Harmless fixed exec probe before the separate actor consumes intent."""
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.ram_probe = True
+        expected = {'kind': 'browser_fixed_stdin_probe', 'service': 'exec:/bin/sh', 'ready': True,
+                    'device_files_changed': False, 'writer_enabled': False}
+        value = await self._request('ram-stream-check')
+        if (not isinstance(value, dict) or value != expected or value['ready'] is not True or
+                value['device_files_changed'] is not False or value['writer_enabled'] is not False):
+            self._retire()
+            raise RelayRefusal
+
+    async def begin_initial_ram(self, packet):
+        """Private only: caller already retains original consumed trial/lease.
+
+        This transport does not verify an actor journal or supply permission.
+        Finite metadata frames cannot select paths, commands or another handle.
+        """
+        if not self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        self.ramming = True  # Consume before possibly lost RAM creation delivery.
+        value = await self._request('ram-prepare', {'packet': packet})
+        if (not isinstance(value, dict) or set(value) != {'state', 'precreated', 'writer_enabled', 'image_fd_admitted'} or
+                value['state'] != 'ram_precreated' or not isinstance(value['precreated'], dict) or
+                value['writer_enabled'] is not False or value['image_fd_admitted'] is not False):
+            self._retire()
+            raise RelayRefusal
+        self.ram_prepared = True
+        return value['precreated']
+
+    async def initial_ram_chunk(self, offset, body):
+        if (not self.ram_prepared or self.ram_finished or self.pending or type(offset) is not int or offset != self.ram_offset or
+                not isinstance(body, bytes) or not 0 < len(body) <= MAX_BYTES):
+            raise RelayRefusal
+        value = await self._request('ram-chunk', {'offset': offset, 'body': base64.b64encode(body).decode()})
+        if (not isinstance(value, dict) or set(value) != {'offset'} or type(value['offset']) is not int or value['offset'] != offset + len(body)):
+            self._retire()
+            raise RelayRefusal
+        self.ram_offset += len(body)
+
+    async def finish_initial_ram(self):
+        if not self.ram_prepared or self.ram_finished or self.pending:
+            raise RelayRefusal
+        self.ram_finished = True  # Never resend an uncertain final SYNC/readback.
+        value = await self._request('ram-complete')
+        expected = {'kind', 'precreated', 'uploaded', 'preparation', 'transport_closed', 'guardian_started',
+                    'image_fd_admitted', 'execution_authority', 'context_only'}
+        if (not isinstance(value, dict) or set(value) != expected or value['kind'] != 'browser_initial_ram_ready' or
+                any(not isinstance(value[k], dict) for k in ('precreated', 'uploaded', 'preparation')) or
+                any(value[k] is not False for k in ('transport_closed', 'guardian_started', 'image_fd_admitted', 'execution_authority')) or
+                value['context_only'] is not True):
+            self._retire()
+            raise RelayRefusal
+        # The private coordinator must independently validate all exact pins;
+        # this context does not admit an image FD, release the actor's lease or
+        # create a terminal trial record. Keep the original transport alive.
+        return value
+
     async def open_api(self):
-        if self.commit_probe or self.committing or self.staging or self.opened or self.opening:
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:
             raise RelayRefusal
         self.opening = True
         try:

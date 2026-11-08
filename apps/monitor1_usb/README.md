@@ -463,30 +463,30 @@ future RAM write. It retains the shared writer lock and uncertain history after
 loss or restart; status cannot resend it. Its terminal verifier and device
 executor are still missing, so it cannot report a successful trial or unlock a
 consumed one. This internal prerequisite adds no installation button.
-The source branch also contains the bounded single-file guardian transfer
-primitive. It is not connected to a selected channel/Core route yet: private
-RAM job creation, independent remote verification and the guardian lifecycle
-still need their own adapter. Its in-memory SYNC tests perform no device IO.
+The source branch now joins fixed RAM creation, single-file guardian SYNC and
+independent root/file readback through the actual selected WebUSB channel and
+finite private Core frames. It requires the positive harmless exec probe before
+the actor consumes the trial intent, a new matching committed scope, genuine
+MemFree and a bounded tmpfs budget. Only new 0700 jobs and an exclusive empty
+0600 file are created. The sealed creation body is length/SHA-checked before
+shell parsing; it is never streamed as executable partial lines.
 
-The next RAM adapter now has pure typed creation/readback command templates.
-They require the original packet and a new matching preparation, retain the
-committed owner nonce, check genuine free memory and bound tmpfs capacity before
-ARM32 multiplication. Only new 0700 jobs and an exclusive empty 0600 guardian
-file are described. These commands are still unwired: the selected-channel
-coordinator, sealed transfer, independent readback and actual device FD/launch
-lifecycle remain unfinished. Text parity and the isolated Linux/root allocation
-fixture do not qualify a physical first installation.
+Complete source checks bracket both RAM readback phases. File stat/SHA reads
+are bracketed by exact root observations and preserve all original inodes
+through upload. Replaced inodes, changed scope, partial IO or lost ACK retire
+this original channel without retry or cleanup of unknown device effects.
+The private Core coordinator also rechecks the packet bytes/producers and the
+original SDK/commit result. Python JSON bool/int equality grants no evidence.
 
-An independent pure parser now brackets the fixed guardian stat/SHA read with
-two root observations and binds the precreated RAM/root/file inodes through
-upload. Matching bytes at a replaced inode refuse. It returns context only;
-the live selected-channel coordinator and actual device FD admission remain
-separate, and no hardware reads are performed by this parser.
+Success returns an internal live handoff tied to the same shielded Core task,
+still-held operation reservation, actual worker process and owner/page/channel
+with its original deadline. A JSON ID, copied metadata, restarted worker or new
+task cannot adopt that handoff. Its properties return detached metadata; it
+contains no guardian body or encryption key. The actor's consumed journal and
+writer lease remain retained, even if the transport is later closed.
 
-The source now composes those primitives in an unwired RAM session: a fresh
-source check, one sealed creation, independent precreate readback, one guardian
-SYNC and post-transfer inode/SHA readback. Source checks bracket both readback
-phases. Cancellation retires the same owned connection, with no replay or
-cleanup of unknown device effects. A successful session keeps that connection
-for the still-separate guardian lifecycle; it grants no image-FD admission or
-execution and is not yet connected to the public wizard or private channel.
+This stops before chmod/exec, actual device image-FD admission and the bounded
+guardian lifecycle/terminal verifier. No public initiating HTTP/UI control or
+physical first-install qualification follows. These adapters are development
+source and are not part of stable HACS 0.2.10. Protocol/host fixtures execute no
+monitor binary and do not qualify a physical installation.
