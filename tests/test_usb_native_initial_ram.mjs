@@ -7,13 +7,14 @@ import {createNativeChannel} from '../custom_components/qingping_esphome/fronten
 import {initialRamCommands} from '../custom_components/qingping_esphome/frontend/usb-initial-ram-commands.mjs';
 import {initialGuardianLaunchBody} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-frame.mjs';
 import {disabledTransport} from './fixtures/usb_disabled_transport.mjs';
+import {initialProcessFixture} from './fixtures/usb_initial_process_reads.mjs';
 const original=JSON.parse(execFileSync(process.env.PYTHON||'python3',['tests/fixtures/monitor1_browser_initial_ram.py'],{encoding:'utf8',maxBuffer:1024*1024}))[0];
 const empty='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const hash=body=>createHash('sha256').update(body).digest('hex');
 async function selected(options={},Native=undefined) {
  const packet=structuredClone(original.packet),body=new Uint8Array(131089).fill(27);
  packet.context.guardian={size:body.length,sha256:hash(body)};
- let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0;
+ let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture;
  const fixture=disabledTransport({committed:true,unsupported:options.unsupported,
   rawCommand:text=>{
    if(!created){assert.equal(text,commands.create);created++;return;}
@@ -22,6 +23,7 @@ async function selected(options={},Native=undefined) {
    return `CGS1_TRIAL_START_V1 ${nonce} 123 1000\nCGS1_TRIAL_CHILD_V1 ${nonce} 124 456\nCGS1_TRIAL_END_V1 ${nonce} 123 1000 124 456 60000 1 1 1 0 15\n`;
   },
   customRead:command=>{
+   if(processFixture){const value=processFixture.read(command);if(value!==undefined)return value;}
    if(command===commands?.inspect_roots) {
     const inode=uploaded && options.rootReplacement?103:100;
     return `7 ${inode} 700 0\n1021994 16384 4096\n7 101 700 0\n1021994 16384 4096`;
@@ -44,7 +46,9 @@ async function selected(options={},Native=undefined) {
  commands=initialRamCommands(packet,packet.preparation);
  const peer=new BrowserChannelPeer(fixture.link);let id=0;
  return {fixture,packet,body,peer,call:(operation,data=null)=>peer.dispatch({id:(++id).toString(16).padStart(32,'0'),operation,data}),
-  expectGuardian:proof=>{guardianBody=initialGuardianLaunchBody(packet,proof.preparation,proof);},
+  expectGuardian:proof=>{guardianBody=initialGuardianLaunchBody(packet,proof.preparation,proof);processPacket=structuredClone(packet);processRam=structuredClone(proof);},
+  expectProcesses:start=>{processFixture=initialProcessFixture(processPacket,processRam,start,options);},
+  get processReads(){return processFixture?.count||0;},
   get guardianStarts(){return guardianStarts;},get created(){return created;},get syncOpens(){return syncOpens;},get syncClosed(){return syncClosed;}};
 }
 for(const Native of [undefined,createNativeChannel().constructor]) {
@@ -55,14 +59,33 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  final.data.uploaded={...structuredClone(final.data.uploaded),guardian_file_identity:[7,987]};f.packet.guardian_job_id='0'.repeat(32);
  const start=await f.call('guardian-start');assert.equal(start.ok,true);assert.equal(start.data.records_only,true);
  assert.equal(f.guardianStarts,1);assert.equal(f.fixture.closed,0);
+ f.expectProcesses(start.data);
+ const observed=await f.call('guardian-process-observe');assert.equal(observed.ok,true);assert.equal(f.processReads,11);
+ assert.equal(observed.data.kind,'browser_initial_process_observation');assert.equal(observed.data.context_only,true);
+ assert.deepEqual(observed.data.guardian,start.data.start.stamp);assert.equal(observed.data.image_fd_admitted,false);
  const end=await f.call('guardian-finish');assert.equal(end.ok,true);assert.equal(end.data.raw_closed,true);
  assert.equal(end.data.transport_closed,false);assert.equal(end.data.end.child[0],124);
  assert.equal(f.fixture.effects,3);assert.equal(f.guardianStarts,1);assert.equal(f.fixture.closed,0);
  assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
  await assert.rejects(f.call('guardian-start'));assert.equal(f.guardianStarts,1);
 }
-for(const operation of ['guardian-start','guardian-finish']) {
+for(const operation of ['guardian-start','guardian-finish','guardian-process-observe']) {
  const f=await selected();assert.equal((await f.call(operation)).ok,false);assert.equal(f.guardianStarts,0);assert.equal(f.fixture.closed,1);
+}
+for(const options of [{wrongImage:true},{noChild:true},{unreadable:true}]) {
+ const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectProcesses(start.data);
+ assert.equal((await f.call('guardian-process-observe')).ok,false);assert.equal(f.fixture.closed,1);
+ assert.equal(f.guardianStarts,1,'Failed observation never starts another guardian');
+}
+{
+ const f=await selected();await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectProcesses(start.data);
+ for(let i=0;i<32;i++)assert.equal((await f.call('guardian-process-observe')).ok,true);
+ assert.equal(f.processReads,32*11);
+ assert.equal((await f.call('guardian-process-observe')).ok,false);assert.equal(f.processReads,32*11);assert.equal(f.fixture.closed,1);
 }
 for(const bad of ['nonce','arguments','repeat','other-phase','early-finish']) {
  const f=await selected({badGuardianNonce:bad==='nonce'});await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);

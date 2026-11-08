@@ -1,6 +1,7 @@
 import {InitialRamCommandStream,initialRamStreamService} from './usb-initial-ram-stream.mjs';
 import {BrowserInitialRamSession} from './usb-initial-ram-session.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from './usb-initial-guardian-stream.mjs';
+import {initialGuardianProcessReads,initialGuardianProcessObservation} from './usb-initial-process-observation.mjs';
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
 import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
@@ -26,6 +27,7 @@ export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
   #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;#ramProbeUsed=false;#ramUsed=false;#ramStream;#ram;
   #ramPacket;#ramProof;#guardian;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
+  #guardianStarted;#guardianObservations=0;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -339,7 +341,7 @@ export class BrowserNativeChannel {
         open:frame=>{this.evidence();return this.#client.createSocket(initialGuardianStreamService(frame));},
         closeTransport:()=>this.close()});
       const value=await this.#guardian.start(this.#ramPacket,fresh,this.#ramProof);
-      this.evidence();this.#guardianReady=true;return value;
+      this.evidence();this.#guardianStarted=JSON.parse(JSON.stringify(value));this.#guardianReady=true;return value;
     } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
@@ -350,6 +352,27 @@ export class BrowserNativeChannel {
     this.#guardianFinished=true;this.#busy=true; // A lost terminal record never permits another read/launch attempt.
     try {this.evidence();const value=await this.#guardian.finish();this.evidence();return value;}
     catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  /** Fixed read-only subset on this original consumed guardian connection.
+   * No caller stamp/path/command or cached JSON can select the reads. The
+   * budget exceeds the canonical 50s/2s observation cadence, but neither it
+   * nor a successful subset extends the original deadline or proves the full
+   * stock/vendor/intent/RAM/Noise/terminal conditions.
+   */
+  async observeInitialGuardianProcesses() {
+    if(this.#closed || this.#busy || !this.#guardianReady || this.#guardianFinished || this.#guardianObservations>=32) {
+      await this.close().catch(()=>{});error('usb_browser_scope_unverified');
+    }
+    this.#guardianObservations++;this.#busy=true;
+    try {
+      this.evidence();
+      const commands=initialGuardianProcessReads(this.#ramPacket,this.#ramProof,this.#guardianStarted),reads={};
+      for(const [key,command] of Object.entries(commands)) {this.evidence();reads[key]=await this.#read(command);}
+      this.evidence();
+      return initialGuardianProcessObservation(this.#ramPacket,this.#ramProof,this.#guardianStarted,reads);
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
 
@@ -473,7 +496,7 @@ export class BrowserNativeChannel {
     const ram=this.#ram,ramStream=this.#ramStream;
     if(ram || ramStream)void this.#closing.finally(()=>Promise.all([ram?.close(),ramStream?.close()])).catch(()=>{});
     const guardian=this.#guardian;
-    this.#ramPacket=this.#ramProof=undefined;
+    this.#ramPacket=this.#ramProof=this.#guardianStarted=undefined;
     if(guardian)void this.#closing.finally(()=>guardian.close()).catch(()=>{});
     return this.#closing;
   }

@@ -503,16 +503,21 @@ and after END, and returns only an in-memory running object with detached
 reported records. Another task, worker or serialized ID cannot resume it.
 
 These records remain context: independent process/Noise/stock observation and
-the terminal journal verifier are still missing. The seventh pinned trial producer
-prevents older consumed packets from acquiring this new capability.
+the terminal journal verifier are still missing. Eight pinned trial producers
+now include the fixed process contract; older consumed packets cannot acquire
+this new capability.
 
-An additional unwired read-only process subset now derives eleven exact
+An additional read-only process subset now derives eleven exact
 commands from the frozen native helpers. Its pure parser checks kernel child
 ancestry, actual/named image identity and hash, original guardian inode and
 API/OTA socket ownership without rounding uint64 process births. It does not
-open the selected channel, establish observation freshness or replace complete
-stock/vendor/intent/RAM/Noise and terminal checks. Packaged metadata alone
-grants no new permission to a consumed trial.
+choose a channel or establish whole-observation freshness. The original
+selected channel now executes those fixed reads through one finite null-data
+frame. The Core running object retains the same task/actor/RAM capability and
+independently checks the returned binding, stamps and image identities. No
+caller PID/path/command is accepted; the 32-read budget never extends the
+original deadline. Complete stock/vendor/intent/RAM/Noise and terminal checks
+remain separate. Packaged metadata alone grants no new permission to a trial.
 
 Actual device image-FD admission and the complete bounded guardian lifecycle
 remain unfinished. No public initiating HTTP/UI control or

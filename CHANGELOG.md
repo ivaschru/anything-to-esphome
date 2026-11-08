@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Connect the fixed process subset to the original selected WebUSB channel,
+  finite null-data frame and live Core guardian handoff. Retain original RAM/
+  start pins, bound reads and independently validate lossless context in Core
+  and channel. Pin the eighth producer instead of upgrading old consumed
+  packets. Whole stock/Noise/post-stop and terminal proof remain unfinished;
+  no public initiating writer or lease release is enabled.
+
 - Prepare an unwired fixed read-only process observer subset from the frozen
   native helpers: kernel child ancestry, actual executable image identity/hash
   and API/OTA socket ownership. Preserve full uint64 identities and original

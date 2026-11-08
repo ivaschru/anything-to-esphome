@@ -15,6 +15,7 @@ from .monitor1_browser_channel import guardian_record
 from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same
 from .monitor1_browser_initial_review import context
 from .monitor1_browser_relay import RelayRefusal
+from .monitor1_browser_process_observation import BINDING, validate_observation
 
 
 async def _checked(ram):
@@ -64,11 +65,12 @@ def records(value, packet, started=None):
 
 class RunningBrowserGuardian:
     """In-memory continuation only; JSON cannot recreate this task/actor join."""
-    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed')
+    __slots__ = ('_ram', '_started', '_issued_at', '_finished', '_closed', '_busy', '_observations')
 
     def __init__(self, ram, started, issued_at):
         self._ram, self._started, self._issued_at = ram, copy.deepcopy(started), issued_at
         self._finished = self._closed = False
+        self._busy, self._observations = False, 0
 
     def live(self):
         if self._closed:
@@ -87,7 +89,7 @@ class RunningBrowserGuardian:
 
     async def finish_records(self):
         self.live()
-        if self._finished:
+        if self._finished or self._busy:
             raise RelayRefusal
         self._finished = True  # Consume before a possibly lost END/close answer.
         try:
@@ -100,6 +102,34 @@ class RunningBrowserGuardian:
         except BaseException:
             await self.close()
             raise RelayRefusal from None
+
+    async def observe_processes(self):
+        """Join the fixed partial read to this SAME task/actor/RAM binding.
+
+        No cached observer packet can acquire a handle or extend its deadline.
+        Keep SDK verification around start/end, rather than adding heavyweight
+        artifact hashing to every read. live() still checks current producers,
+        actor, reservation, owner/page and original capability before/after IO.
+        """
+        self.live()
+        if self._finished or self._busy or self._observations >= 32:
+            raise RelayRefusal
+        self._busy = True
+        self._observations += 1
+        try:
+            value = await self._ram.capability.observe_initial_guardian_processes()
+            self.live()
+            packet, ram = self._ram.packet, self._ram.proof
+            binding = {k: packet[k] for k in BINDING}
+            validate_observation(value, binding, self._started, packet['context']['committed_scope']['root_identity'][0],
+                                 ram['uploaded']['guardian_file_identity'])
+            self.live()
+            return copy.deepcopy(value)
+        except BaseException:
+            await self.close()
+            raise RelayRefusal from None
+        finally:
+            self._busy = False
 
     async def close(self):
         self._closed = True

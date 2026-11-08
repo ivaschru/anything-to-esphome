@@ -31,7 +31,7 @@ if HAS_HA:
     helper_spec.loader.exec_module(enrollment)
     sys.modules[helper_spec.name] = enrollment
 
-    for stem in ("monitor1_browser_relay", "monitor1_browser_channel", "monitor1_browser_registry", "monitor1_browser_review"):
+    for stem in ("monitor1_browser_relay", "monitor1_browser_process_observation", "monitor1_browser_channel", "monitor1_browser_registry", "monitor1_browser_review"):
         part_spec = importlib.util.spec_from_file_location("qingping_core_contract." + stem, ROOT / "custom_components/qingping_esphome" / (stem + ".py"))
         part = importlib.util.module_from_spec(part_spec)
         sys.modules[part_spec.name] = part

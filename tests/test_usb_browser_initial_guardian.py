@@ -46,6 +46,15 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
                 'end': end, 'raw_closed': True, 'transport_closed': False, 'records_only': True}
         return first, last
 
+    def observation(self):
+        first, _ = self.records()
+        prepared = self.b.prepared
+        return {'kind': 'browser_initial_process_observation', **{k: prepared[k] for k in guardian.BINDING},
+            'guardian': first['start']['stamp'], 'child': first['child']['stamp'], 'guardian_parent': 1,
+            'guardian_image': ['7', '102'], 'child_image': [str(prepared['context']['committed_scope']['root_identity'][0]), '104'],
+            'kernel_child_checked': True, 'process_images_checked': True, 'endpoint_ownership_checked': True,
+            'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
+
     async def pump(self):
         while True:
             frame = await self.b.cap.poll()
@@ -56,6 +65,7 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
             first, last = self.records()
             if op == 'guardian-start': value = first
             elif op == 'guardian-finish': value = last
+            elif op == 'guardian-process-observe': value = self.observation()
             elif op == 'channel-close': value = None
             else: self.fail('No public/generic writer, API or observer exists in this fixture')
             if op == self.expire_phase: self.b.registry.current['deadline'] = 0
@@ -77,6 +87,11 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(running, guardian.RunningBrowserGuardian)
         self.assertEqual(self.b.context_reads, 4)
         running.live()
+        with self.assertRaises(Refusal): await asyncio.create_task(running.observe_processes())
+        observed = await self.run_pumped(running.observe_processes)
+        self.assertTrue(observed['context_only'])
+        observed['guardian_image'][1] = '999'
+        self.assertEqual((await self.run_pumped(running.observe_processes))['guardian_image'], ['7', '102'])
         self.assertGreater(running.issued_at, 0)
         edited = running.reported_start
         edited['start']['stamp'][1] = '1'
@@ -89,6 +104,7 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(value['transport_closed'])
         self.assertEqual(self.b.context_reads, 5)
         with self.assertRaises(Refusal): await running.finish_records()
+        with self.assertRaises(Refusal): await running.observe_processes()
         self.assertEqual(self.b.events.count('guardian-finish'), 1)
         await self.run_pumped(running.close)
         self.assertTrue(self.b.cap.closed)
@@ -177,3 +193,14 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('guardian-finish', self.b.events)
         self.assertIsNotNone(self.b.j.stages.lease_fd)
         await self.run_pumped(running.close)
+
+    async def test_core_process_join_rejects_replaced_binding_even_after_channel_layer(self):
+        ram = await self.b.run_prepare()
+        running = await self.run_pumped(lambda: guardian.start_guardian(ram))
+        value = self.observation()
+        value['guardian_image'][1] = '999'
+        with patch.object(self.b.cap, 'observe_initial_guardian_processes', AsyncMock(return_value=value)):
+            with self.assertRaises(Refusal): await self.run_pumped(running.observe_processes)
+        self.assertTrue(self.b.cap.closed)
+        self.assertIsNotNone(self.b.j.stages.lease_fd)
+        self.assertFalse((self.b.j.directory / fixtures.journals.journal.COMPLETE).exists())

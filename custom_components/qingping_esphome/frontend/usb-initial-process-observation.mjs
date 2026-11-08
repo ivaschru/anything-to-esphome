@@ -1,4 +1,4 @@
-/** Unwired fixed read-only kernel child/image/socket observation subset.
+/** Pure fixed read-only kernel child/image/socket observation subset.
  *
  * All scripts come from frozen native readers. Typed packet/RAM/start context
  * can expand only fixed PIDs and a bound guardian job name, never a caller path

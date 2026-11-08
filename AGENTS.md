@@ -577,7 +577,7 @@ separate even though the HACS wizard is shared.
   exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
   exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
-  sole RAM chmod. Keep all seven trial producers pinned; never adopt an older
+  sole RAM chmod. Keep all eight trial producers pinned; never adopt an older
   consumed packet. InitialGuardianStream consumes once, seals the complete
   body, validates ordered START/CHILD/END and awaits final WRTE ACK plus remote
   close. Preserve uint64 birth ticks as decimal strings. Reported records grant
@@ -587,16 +587,23 @@ separate even though the HACS wizard is shared.
   frame/records/stream Node tests and the pinned Tango512 fragmentation test.
   They execute no guardian/monitor and do not qualify a physical first install.
 
-- The initial process observer is an unwired read-only subset. Generate its
+- The initial process observer is a read-only subset joined to the original
+  selected NativeChannel and RunningBrowserGuardian through a private null
+  guardian-process-observe frame. Use only retained RAM/start metadata; no
+  caller PID/path/command. Preserve the 32-read budget and original deadline.
+  Channel and Core independently join strict DTOs to their own original pins.
+  The eighth producer pins initial-process-contract.json and fences older
+  consumed packets instead of granting them a new capability. Generate its
   exact eleven commands from frozen native child_of/process_image/endpoint
   helpers, never hand-author a new process/path selector. Pure parsing pins
   full uint64 birth strings, live ancestry, named/kernel image identity/hash,
   original guardian inode and API/OTA socket ownership. This supplies no
-  actual channel read, freshness, complete stock/vendor/intent/RAM/Noise proof
+  complete stock/vendor/intent/RAM/Noise proof, whole-observation freshness
   or terminal completion. Packaged metadata alone never upgrades a consumed
   packet's permissions. Run generate_initial_process_contract.py --check and
   test_usb_initial_process_observation.mjs; syntax/vector fixtures execute no
-  production-path script, guardian or monitor program.
+  production-path script, guardian or monitor program. Run the raw/delivered
+  selected-channel integration and both HA USB suites after changing this join.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

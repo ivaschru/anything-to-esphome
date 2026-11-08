@@ -8,7 +8,7 @@ import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/qingping_esphome'
-for name in ('monitor1_browser_relay','monitor1_browser_channel','monitor1_browser_registry'):
+for name in ('monitor1_browser_relay','monitor1_browser_process_observation','monitor1_browser_channel','monitor1_browser_registry'):
     spec=importlib.util.spec_from_file_location('qingping_browser_contract.'+name,ROOT/(name+'.py'))
     module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
 channel_module=sys.modules['qingping_browser_contract.monitor1_browser_channel']
@@ -243,10 +243,14 @@ class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
 
     async def ram_ready(self):
         await self.probe()
-        await self.exchange(self.channel.begin_initial_ram({'nonce': 'a' * 32}), 'ram-prepare',
+        self.process_binding = {'job_id': '1' * 32, 'plan_sha256': '2' * 64, 'intent_sha256': '3' * 64,
+            'channel_id': '4' * 32, 'channel_nonce': '55555555-5555-5555-5555-555555555555', 'nonce': 'a' * 32,
+            'ram_job_id': '6' * 32, 'guardian_job_id': '7' * 32}
+        packet = {**self.process_binding, 'context': {'committed_scope': {'root_identity': [1, 2]}}}
+        await self.exchange(self.channel.begin_initial_ram(packet), 'ram-prepare',
             {'state': 'ram_precreated', 'precreated': {}, 'writer_enabled': False, 'image_fd_admitted': False})
         await self.exchange(self.channel.finish_initial_ram(), 'ram-complete',
-            {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {}, 'preparation': {},
+            {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {'guardian_file_identity': [7, 102]}, 'preparation': {},
              'transport_closed': False, 'guardian_started': False, 'image_fd_admitted': False,
              'execution_authority': False, 'context_only': True})
 
@@ -259,6 +263,67 @@ class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
         last = {'kind': 'browser_initial_guardian_records', 'start': copy.deepcopy(start), 'child': copy.deepcopy(child),
                 'end': copy.deepcopy(end), 'raw_closed': True, 'transport_closed': False, 'records_only': True}
         return first, last
+
+    def observation(self):
+        first, _ = self.records()
+        return {'kind': 'browser_initial_process_observation', **self.process_binding,
+            'guardian': first['start']['stamp'], 'child': first['child']['stamp'], 'guardian_parent': 1,
+            'guardian_image': ['7', '102'], 'child_image': ['1', '104'], 'kernel_child_checked': True,
+            'process_images_checked': True, 'endpoint_ownership_checked': True,
+            'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
+
+    async def test_process_subset_uses_null_frame_original_bindings_and_lossless_ids(self):
+        await self.ram_ready()
+        first, _ = self.records()
+        await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        value, data = await self.exchange(self.channel.observe_initial_guardian_processes(), 'guardian-process-observe', self.observation())
+        self.assertIsNone(data)
+        self.assertEqual(value['guardian'][1], str(2**64 - 1))
+        self.assertTrue(value['context_only'])
+        self.assertFalse(value['image_fd_admitted'])
+        await self.exchange(self.channel.close(), 'channel-close', None)
+
+    async def test_process_subset_refuses_wrong_phase_before_request(self):
+        with self.assertRaises(relay_module.RelayRefusal): await self.channel.observe_initial_guardian_processes()
+        self.assertTrue(self.channel.queue.empty())
+        await self.ram_ready()
+        first, last = self.records()
+        await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        await self.exchange(self.channel.finish_initial_guardian(), 'guardian-finish', last)
+        with self.assertRaises(relay_module.RelayRefusal): await self.channel.observe_initial_guardian_processes()
+        self.assertTrue(self.channel.queue.empty())
+
+    async def test_process_reply_cannot_replace_original_inode_stamp_nonce_or_typed_flags(self):
+        for bad in ('binding', 'stamp', 'inode', 'device', 'parent', 'flag', 'fd', 'extra'):
+            self.channel = channel_module.BrowserChannel()
+            await self.ram_ready()
+            first, _ = self.records()
+            await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+            value = self.observation()
+            if bad == 'binding': value['channel_id'] = 'b' * 32
+            elif bad == 'stamp': value['guardian'][1] = 1
+            elif bad == 'inode': value['guardian_image'][1] = '999'
+            elif bad == 'device': value['child_image'][0] = '9'
+            elif bad == 'parent': value['guardian_parent'] = True
+            elif bad == 'flag': value['process_images_checked'] = 1
+            elif bad == 'fd': value['image_fd_admitted'] = True
+            else: value['command'] = 'not admitted'
+            with self.subTest(bad=bad), self.assertRaises(relay_module.RelayRefusal):
+                await self.exchange(self.channel.observe_initial_guardian_processes(), 'guardian-process-observe', value)
+            self.assertTrue(self.channel.closed and self.channel.failed)
+
+    async def test_cancelled_process_read_retires_old_frame_without_replay(self):
+        await self.ram_ready()
+        first, _ = self.records()
+        await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        task = asyncio.create_task(self.channel.observe_initial_guardian_processes())
+        frame = await self.channel.poll()
+        self.assertEqual(frame['operation'], 'guardian-process-observe')
+        self.assertIsNone(frame['data'])
+        task.cancel()
+        with self.assertRaises(relay_module.RelayRefusal): await task
+        with self.assertRaises(relay_module.RelayRefusal): self.channel.answer({'id': frame['id'], 'ok': True, 'data': self.observation()})
+        self.assertTrue(self.channel.closed and self.channel.failed)
 
     async def test_original_ram_sequence_then_null_start_finish_and_independent_close(self):
         await self.ram_ready()
