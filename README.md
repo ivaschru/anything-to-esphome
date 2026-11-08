@@ -26,13 +26,15 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
-| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 1](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v1)**, profile `lite-434`; native update with integration 0.2.9+. Factory Bluetooth installation is not qualified |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
 | **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
+
+Firmware 5 / `lite` and firmware 4 / `lite-434` check their own release catalog and expose standard ESPHome firmware updates in Home Assistant. Subsequent updates do not require Qingping HACS or Device Builder. [Update contract](docs/NATIVE_FIRMWARE_UPDATES.md).
 
 Stock 4.3.4 and 4.5.8 are tracked separately because verified fan behavior differs;
 these firmware branches are not confirmed PCB revision numbers.
@@ -166,6 +168,16 @@ See [publishing and recovery](docs/FIRMWARE_CHANNEL.md). Old combined releases
 remain immutable; the commands below describing them are historical.
 
 ## Firmware updates in Home Assistant
+
+Starting with **Lite 4.5.8 firmware 5** and **Lite 4.3.4 firmware 4**, the
+monitor itself supplies a standard ESPHome **Firmware** update entity. It works
+with Home Assistant's ordinary ESPHome integration: **Qingping HACS and Device
+Builder are not required** after the initial upgrade. Checks run every six
+hours; installation is explicit and requires USB. Keys, active networks and
+settings stay with the device. See [native updates](docs/NATIVE_FIRMWARE_UPDATES.md)
+for profile boundaries, integrity checks and recovery.
+
+### Earlier firmware: installer-owned update path
 
 The integration now provides one standard **Firmware** update entity per
 verified installer-managed Lite. New releases appear in **Settings → System

@@ -15,6 +15,15 @@ HAS_HA = importlib.util.find_spec("homeassistant") is not None
 
 @unittest.skipUnless(HAS_HA, "Optional Home Assistant SDK not installed")
 class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
+    async def test_native_updater_handoff_retires_only_the_duplicate_offer(self):
+        from custom_components.qingping_esphome.update import QingpingFirmwareUpdate
+        from homeassistant.components.update import UpdateEntityFeature
+        self.record['native_update']=True
+        entity=QingpingFirmwareUpdate(self.manager,SimpleNamespace(data={'lite':self.release}),self.mac)
+        self.assertEqual(entity.latest_version,entity.installed_version)
+        self.assertFalse(entity.version_is_newer('3','2'))
+        self.assertNotIn(UpdateEntityFeature.INSTALL,entity.supported_features)
+        self.assertIs(self.manager.records[self.mac],self.record)
     async def asyncSetUp(self):
         from homeassistant.core import HomeAssistant
         from homeassistant.config_entries import ConfigEntries

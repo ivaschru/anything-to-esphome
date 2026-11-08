@@ -46,6 +46,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 # Historical Store v1 was produced only by the Lite installer.
                 # Missing private/profile fields never gain INSTALL support.
                 if device_release_profile(record) not in {"lite", "lite-434"}: continue
+                # A new server needs only the ordinary ESPHome update entity.
+                # Keep historical installer records, keys and journals intact.
+                if record.get("native_update") is True: continue
                 added.add(mac)
                 entities.append(QingpingFirmwareUpdate(manager, coordinator, mac))
         if entities: async_add_entities(entities)
@@ -110,6 +113,12 @@ class QingpingFirmwareUpdate(UpdateEntity):
             pass
         if ready:
             self._attr_supported_features |= UpdateEntityFeature.INSTALL | UpdateEntityFeature.PROGRESS
+        if record.get("native_update") is True:
+            # Existing entities may already be in a user's registry. Retire
+            # only this duplicate offer in place, without deleting their entity
+            # or touching a registry enabled/disabled preference.
+            self._attr_latest_version = self._attr_installed_version
+            self._attr_supported_features = UpdateEntityFeature.RELEASE_NOTES
         self._attr_extra_state_attributes = {
             "hardware_profile": device_release_profile(record),
             "firmware_build_id": record.get("firmware_version"),
@@ -121,7 +130,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
         # Revisions are profile-local. UI version equality prevents the first
         # catalog from advertising the same firmware bundled with an installer.
         release = self.release
-        return bool(release and release.version != self.record.get("firmware_version")
+        return bool(self.record.get("native_update") is not True and release and release.version != self.record.get("firmware_version")
                     and latest_version != installed_version
                     and release.revision > self.record.get("firmware_revision", 0))
 
@@ -136,6 +145,8 @@ class QingpingFirmwareUpdate(UpdateEntity):
         user = await self.hass.auth.async_get_user(context.user_id) if context and context.user_id else None
         if not user or not user.is_admin:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="firmware_admin_required")
+        if self.record.get("native_update") is True:
+            raise HomeAssistantError("Use the device's native ESPHome firmware update entity")
         release = self.release
         if backup or not release or version not in (None, release.display_version):
             raise HomeAssistantError("This firmware update or backup request is not supported")

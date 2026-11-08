@@ -8,7 +8,7 @@ private YAML is read. Changing this algorithm also changes its own input hash.
 import hashlib
 from pathlib import Path
 
-RECIPE_PATHS = ("tools/pm_policy.py", "tools/build_lite.py", "tools/firmware_source.py",
+RECIPE_PATHS = ("tools/native_update_build.py","tools/pm_policy.py", "tools/build_lite.py", "tools/firmware_source.py",
                 "custom_components/qingping_esphome/image.py", "firmware/releases.json")
 
 

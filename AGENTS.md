@@ -1,5 +1,27 @@
 # Qingping ESPHome
 
+- Canonical `lite` firmware 4 and `lite-434` firmware 3 add device-owned native
+  ESPHome UpdateEntity checks, independent of HACS/Device Builder. See
+  docs/NATIVE_FIRMWARE_UPDATES.md. Keep TLS/certificate verification, fixed
+  immutable profile URLs, USB and strict increasing counters. No auto-install.
+  The streaming personalizer verifies the FULL original SHA/layout/markers
+  before activation and retains current private slots/settings; no key-vault
+  migration. Reference marker bytes stay XOR encoded/volatile. The sole new
+  NVS namespace qf_native contains a value-free consumed attempt journal, never
+  credentials or an erase/reset path. Pending old-boot outcomes block replay.
+  Native and encrypted local OTA share UI admission/progress/error handling.
+  Keep dynamic TLS buffers and a 1 KiB outgoing/16 KiB incoming record limit
+  on this non-PSRAM board; never bypass CA verification on allocation failure.
+  Publish the initial installed state even before a catalog check succeeds.
+  The staged/unpromoted Lite3 and lite-434 v2 tags are immutable failed
+  qualification history, not releases to install or overwrite.
+  Publish native-<profile>.json atomically with the same immutable app pair;
+  every publisher must preserve other native endpoints as well as index maps.
+  Keep existing HACS entities/history in place while suppressing duplicate
+  offers only after authenticated capability readback. No HA installation or
+  restart is implied. Run test_native_update*.py, firmware/HA suites, pinned
+  builds and actual profile-wire checks; retain separate hardware QA evidence.
+
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
@@ -720,3 +742,16 @@ separate even though the HACS wizard is shared.
   run test_usb_file_observation.mjs plus probe/capture regressions and rebuild
   the offline bundle. This compatibility fix grants no browser writer or
   additional hardware qualification.
+
+- Catalog publishers can run from a clean source archive nested below another Git checkout. Always use `git ls-tree --full-tree` for fixed repository-root endpoint paths; default cwd filtering can silently remove the other profile. The nested publisher regression must pass before any catalog CAS.
+
+- Native download treats only IDF -ESP_ERR_HTTP_EAGAIN as a bounded wait on the
+  SAME open stream (two consecutive, 45 s idle, 300 s total). Never reset the
+  original digest, flash position, journal or INSTALL when waiting. FIN/TLS/
+  transform/write failures remain terminal. Preserve value-free phase/read/
+  received diagnostics. Actual 622592-byte timeout motivated this branch;
+  host budget/stream tests and a real device-owned INSTALL must pass before
+  promoting the new Lite 5 / lite-434 4 images. Earlier staged counters stay
+  immutable and unpromoted.
+
+- Lite builder binds the normal staged UI_VERSION/PUBLIC_VERSION to firmware/releases.json; do not edit the shared header solely to advance Lite counters, which would invalidate another hardware profile's source identity. Probe version-zero branches remain unchanged; assert exactly one normal branch.

@@ -108,3 +108,12 @@ without changing the hardware line or requiring a new initial installation.
 The MCU 4.2.x ports currently have core polling/scales/lifecycle gaps beyond
 fan-off; do not confuse a factory display running during a trial with a
 qualified complete ESPHome port.
+
+## Native updater generations
+
+The native-updater feature starts independently at lite / public 4 / revision 5
+and lite-434 / public 3 / revision 6. It does not merge their counters or PM
+policies. Firmware-only tags/catalogs remain independent of the HACS version.
+A one-time upgrade adds the updater to older firmware; later compatible
+updates work through the ordinary ESPHome integration without Qingping HACS.
+See [the device-owned updater](NATIVE_FIRMWARE_UPDATES.md).

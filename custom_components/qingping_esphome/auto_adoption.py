@@ -157,6 +157,7 @@ class AutoAdoption:
                         "ota_password": profile.values["ota_password"],
                         "personalization": profile.values, "firmware_version": profile.version,
                         "firmware_revision": profile.revision, "build": fresh.compilation_time,
+                        "native_update": profile.native_update,
                         "outcome": ("native_verified" if record and record.get("outcome") == "native_verified"
                                     and record.get("firmware_version") == profile.version
                                     and record.get("build") == fresh.compilation_time else "auto_adopted"),
