@@ -52,6 +52,8 @@ class NativeUpdate : public update::UpdateEntity, public PollingComponent {
   std::function<void(bool)> ui_finish_;
   Release available_;
   uint32_t heap_before_{0}, largest_before_{0}, heap_after_{0};
-  uint8_t last_check_{0};
+  uint8_t last_check_{0}, install_phase_{0};
+  int install_code_{0}, install_read_{0};
+  uint32_t install_received_{0};
 };
 }  // namespace esphome::qf_native_update

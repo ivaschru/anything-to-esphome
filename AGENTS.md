@@ -744,3 +744,12 @@ separate even though the HACS wizard is shared.
   additional hardware qualification.
 
 - Catalog publishers can run from a clean source archive nested below another Git checkout. Always use `git ls-tree --full-tree` for fixed repository-root endpoint paths; default cwd filtering can silently remove the other profile. The nested publisher regression must pass before any catalog CAS.
+
+- Native download treats only IDF -ESP_ERR_HTTP_EAGAIN as a bounded wait on the
+  SAME open stream (two consecutive, 45 s idle, 300 s total). Never reset the
+  original digest, flash position, journal or INSTALL when waiting. FIN/TLS/
+  transform/write failures remain terminal. Preserve value-free phase/read/
+  received diagnostics. Actual 622592-byte timeout motivated this branch;
+  host budget/stream tests and a real device-owned INSTALL must pass before
+  promoting the new Lite 5 / lite-434 4 images. Earlier staged counters stay
+  immutable and unpromoted.

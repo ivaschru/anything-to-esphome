@@ -108,3 +108,11 @@ was sent. Keep these historical tags unchanged; they are not qualified releases.
 The next candidates use dynamic TLS buffers, retain 16 KiB incoming record
 support and reduce the outgoing buffer to 1 KiB. Native state is also published
 at setup so installed firmware remains visible during catalog failures.
+
+The downloader continues the SAME verified HTTP stream after IDF's transient
+`-ESP_ERR_HTTP_EAGAIN` (observed after 622592 bytes on the qualification device).
+It permits two consecutive waits, at most 45 seconds idle and 300 seconds total.
+A positive chunk resets only the idle budget; no HTTP request, image hash,
+flash position or INSTALL is replayed. Other errors still abort before activation.
+The diagnostic entity reports bounded phase/read/received numbers without secrets.
+Earlier staged Lite 3/4 and lite-434 2/3 remain unpromoted immutable artifacts.

@@ -1,6 +1,8 @@
 #include "qf_native_update.h"
 #include "verified_stream.h"
 #include "journal.h"
+#include "read_budget.h"
+#include <esp_http_client.h>
 #include "esphome/components/api/api_server.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/md5/md5.h"
@@ -76,7 +78,8 @@ std::string NativeUpdate::diagnostic() const {
   // journal reset/action. This remains useful when a TLS check is refused.
   return "check=" + std::to_string(last_check_) + " heap_before=" + std::to_string(heap_before_) +
          " largest_before=" + std::to_string(largest_before_) + " heap_after=" + std::to_string(heap_after_) +
-         " pending_review=" + std::to_string(blocked_);
+         " pending_review=" + std::to_string(blocked_) +
+         " install_phase=" + std::to_string(install_phase_) + " install_code=" + std::to_string(install_code_) + " read=" + std::to_string(install_read_) + " received=" + std::to_string(install_received_);
 }
 
 bool NativeUpdate::fetch_(Release &out) {
@@ -201,36 +204,56 @@ void NativeUpdate::perform(bool force) {
 }
 
 bool NativeUpdate::flash_(const Release &release, const Values &values) {
+  install_phase_ = 1; install_code_ = 0;
   auto response = request_->get(release.url);
   if (!response) return false;
+  install_phase_ = 2; install_code_ = response->status_code;
   if (response->status_code != 200 || response->content_length != release.size || !usb_()) { response->end(); return false; }
+  install_phase_ = 3; install_code_ = 0;
   const auto *running = esp_ota_get_running_partition(); const auto *target = esp_ota_get_next_update_partition(nullptr);
   // Both stock CGDN1 app slots must be the exact known layout; no bootloader,
   // partition table, stock config or arbitrary flash-range writer exists here.
   if (!running || !target || running == target || target->size != 0x1e0000 || running->size != 0x1e0000 ||
       !((running->address == 0x10000 && target->address == 0x1f0000) ||
         (running->address == 0x1f0000 && target->address == 0x10000)) || attempt_ == UINT32_MAX) { response->end(); return false; }
+  install_phase_ = 4;
   ++attempt_;
   if (!record_(release.revision, 1)) { response->end(); blocked_ = true; return false; }
   blocked_ = true;
   auto backend = ota::make_ota_backend();
-  if (backend->begin(release.size) != ota::OTA_RESPONSE_OK) {
+  install_phase_ = 5; install_code_ = backend->begin(release.size);
+  if (install_code_ != ota::OTA_RESPONSE_OK) {
     response->end(); blocked_ = !record_(release.revision, 2); return false;
   }
+  install_phase_ = 6;
   VerifiedImageStream<sha256::SHA256> stream(release.size, release.patches, values);
   md5::MD5Digest modified; modified.init();
   uint8_t buffer[2048]; uint32_t last = millis(), start = last, progress_at = last;
+  static_assert(ReadWaitBudget::IDF_HTTP_EAGAIN == -ESP_ERR_HTTP_EAGAIN);
+  ReadWaitBudget wait(start);
   size_t received = 0; bool good = true;
   while (received < release.size) {
     int count = response->read(buffer, std::min(sizeof(buffer), size_t(release.size - received)));
+    install_read_ = count; install_received_ = received;
     App.feed_wdt(); yield();
-    if (!usb_() || millis() - start > 300000) { good = false; break; }
+    if (!usb_()) { install_code_ = 610; good = false; break; }
+    if (millis() - start > 300000) { install_code_ = 611; good = false; break; }
+    // A socket timeout with no payload is not EOF in IDF. Resume only this
+    // still-open stream, within bounded idle/total/consecutive limits. Neither
+    // the original SHA nor the personalized image/write position is reset.
+    if (count == -ESP_ERR_HTTP_EAGAIN && wait.can_wait(count, millis())) {
+      ESP_LOGW(TAG, "Waiting for firmware data at %u bytes", uint32_t(received));
+      continue;
+    }
+    if (count > 0) wait.data(millis());
     const auto result = http_request::http_read_loop_result(count, last, request_->get_timeout(), response->is_read_complete());
     if (result == http_request::HttpReadLoopResult::RETRY) continue;
-    if (result != http_request::HttpReadLoopResult::DATA || count > int(sizeof(buffer))) { good = false; break; }
+    if (result != http_request::HttpReadLoopResult::DATA || count > int(sizeof(buffer))) { install_code_ = 620 + int(result); good = false; break; }
+    install_code_ = 601;
     if (!stream.push(buffer, count)) { good = false; break; }
     modified.add(buffer, count);
-    if (backend->write(buffer, count) != ota::OTA_RESPONSE_OK) { good = false; break; }
+    install_code_ = backend->write(buffer, count);
+    if (install_code_ != ota::OTA_RESPONSE_OK) { good = false; break; }
     received += count;
     if (millis() - progress_at > 1000) {
       progress_at = millis(); update_info_.progress = received * 100.0f / release.size; publish_state();
@@ -238,14 +261,18 @@ bool NativeUpdate::flash_(const Release &release, const Values &values) {
     }
   }
   response->end(); mbedtls_platform_zeroize(buffer, sizeof(buffer));
+  install_phase_ = good ? 7 : 6;
   good &= received == release.size && stream.verified(release.sha256.c_str()) && usb_();
   if (!good) {
     backend->abort(); blocked_ = !record_(release.revision, 2); return false;
   }
+  install_phase_ = 8;
   modified.calculate(); char md5[33]; modified.get_hex(md5); backend->set_update_md5(md5);
   // ONLY end() activates the inactive app. A lost/failed activation leaves the
   // durable pending record intact; never auto-retry, roll back, erase or reset.
-  if (backend->end() != ota::OTA_RESPONSE_OK) { backend->abort(); return false; }
+  install_phase_ = 9; install_code_ = backend->end();
+  if (install_code_ != ota::OTA_RESPONSE_OK) { backend->abort(); return false; }
+  install_phase_ = 10;
   return true;
 }
 }  // namespace esphome::qf_native_update
