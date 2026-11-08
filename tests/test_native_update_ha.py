@@ -32,10 +32,12 @@ class NativeHAContracts(unittest.IsolatedAsyncioTestCase):
 
     async def test_real_ha_registers_update_install_as_admin_only(self):
         from homeassistant.components.update.services import async_setup_services
-        from homeassistant.components.update.const import DATA_COMPONENT, UpdateService
+        from homeassistant.components.update.const import DATA_COMPONENT
         component=Mock()
         async_setup_services(SimpleNamespace(data={DATA_COMPONENT:component}))
-        install=[call for call in component.async_register_entity_service.call_args_list if call.args[0]==UpdateService.INSTALL]
+        # 2026.10 uses the literal service name, 2026.11 a StrEnum. Equality
+        # to the wire service string checks both actual SDK registrations.
+        install=[call for call in component.async_register_entity_service.call_args_list if call.args[0]=='install']
         self.assertEqual(len(install),1);self.assertIs(install[0].kwargs['admin_only'],True)
 
 if __name__=='__main__':unittest.main()
