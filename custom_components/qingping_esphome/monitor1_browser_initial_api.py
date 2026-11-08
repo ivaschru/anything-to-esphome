@@ -52,6 +52,7 @@ def _payload(result, packet):
     if (set(value) != {'kind', *BINDING, 'node_name', 'api_mac', 'noise_psk'} or
             value['kind'] != 'browser_initial_api_context' or
             not same({k: value[k] for k in BINDING}, {k: packet[k] for k in BINDING}) or
+            not same({k: value[k] for k in ('node_name', 'api_mac')}, packet['context']['api_identity']) or
             any(not isinstance(value[k], str) for k in ('node_name', 'api_mac', 'noise_psk')) or
             not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', value['node_name']) or
             not re.fullmatch(r'[a-f0-9]{2}(?::[a-f0-9]{2}){5}', value['api_mac']) or

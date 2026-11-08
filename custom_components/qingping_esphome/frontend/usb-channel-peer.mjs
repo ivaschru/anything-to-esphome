@@ -36,8 +36,8 @@ export class BrowserChannelPeer {
     try {
       if(this.#checking && request.operation!=='channel-close') fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
-      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','channel-close'].includes(request.operation)) fail();
-      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','channel-close'].includes(request.operation))fail();
+      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation)) fail();
+      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation))fail();
       if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
@@ -71,7 +71,7 @@ export class BrowserChannelPeer {
             data=await this.#link.initialRamAppend(request.data.offset,chunk);
           }
         }finally {this.#checking=false;}
-      } else if(['guardian-start','guardian-finish','guardian-process-observe'].includes(request.operation)) {
+      } else if(['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe'].includes(request.operation)) {
         if(request.data!==null || !this.#ramComplete || this.#opening || this.#socket || this.#closing)fail();
         this.#checking=true;
         try {
@@ -83,7 +83,7 @@ export class BrowserChannelPeer {
             data=await this.#link.finishInitialGuardian();
           } else {
             if(!this.#guardianReady || this.#guardianFinished)fail();
-            data=await this.#link.observeInitialGuardianProcesses();
+            data=await (request.operation==='guardian-scope-observe'?this.#link.observeInitialGuardianScope():this.#link.observeInitialGuardianProcesses());
           }
         }finally {this.#checking=false;}
       } else if(request.operation==='commit-stream-check') {

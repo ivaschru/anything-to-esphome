@@ -16,9 +16,10 @@ import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, validate_context as process_context, validate_observation as process_observation
+from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, SCOPE_WINDOW
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe"}
 MAX_BYTES = 65536
 
 
@@ -76,6 +77,7 @@ class BrowserChannel:
         self.guardian_finished = False
         self.guardian_observations = 0
         self.process_binding = self.process_root = self.process_guardian = None
+        self.guardian_scope_basis = self.guardian_ram_root = None
 
     def _retire(self):
         self.closed = True
@@ -96,7 +98,8 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20):
+            timeout = SCOPE_WINDOW if operation == 'guardian-scope-observe' else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -335,6 +338,10 @@ class BrowserChannel:
             scope = context.get('committed_scope') if isinstance(context, dict) else None
             root = scope.get('root_identity') if isinstance(scope, dict) else None
             self.process_root = copy.deepcopy(root[0]) if isinstance(root, list) and len(root) == 2 else None
+            try:
+                self.guardian_scope_basis = scope_basis(packet)
+            except RelayRefusal:
+                self.guardian_scope_basis = None  # Partial metadata grants no whole-scope operation.
         return value['precreated']
 
     async def initial_ram_chunk(self, offset, body):
@@ -365,6 +372,7 @@ class BrowserChannel:
         # create a terminal trial record. Keep the original transport alive.
         self.ram_verified = True
         self.process_guardian = copy.deepcopy(value['uploaded'].get('guardian_file_identity'))
+        self.guardian_ram_root = copy.deepcopy(value['uploaded'].get('ram_root_identity'))
         return value
 
     def _guardian_record(self, value, kind):
@@ -431,6 +439,22 @@ class BrowserChannel:
             self._retire()
             raise
         return value  # Partial context only; no freshness/stock/Noise/terminal claim.
+
+    async def observe_initial_guardian_scope(self):
+        """Null-data complete fixed reader, sharing the original read budget."""
+        if (self.guardian_ready is None or self.guardian_finished or self.pending or
+                self.guardian_observations >= 32 or self.guardian_scope_basis is None):
+            raise RelayRefusal
+        process_context(self.process_binding, self.guardian_ready, self.process_root, self.process_guardian)
+        self.guardian_observations += 1
+        value = await self._request('guardian-scope-observe')
+        try:
+            guardian_scope(value, self.process_binding, self.guardian_ready, self.process_guardian,
+                           self.guardian_ram_root, self.guardian_scope_basis)
+        except RelayRefusal:
+            self._retire()
+            raise
+        return value  # No Noise sample, image FD, stop/reap or terminal lease release.
 
     async def open_api(self):
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:

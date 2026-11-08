@@ -2,6 +2,7 @@ import {InitialRamCommandStream,initialRamStreamService} from './usb-initial-ram
 import {BrowserInitialRamSession} from './usb-initial-ram-session.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from './usb-initial-guardian-stream.mjs';
 import {initialGuardianProcessReads,initialGuardianProcessObservation} from './usb-initial-process-observation.mjs';
+import {collectInitialGuardianScope} from './usb-initial-scope-observation.mjs';
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
 import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
@@ -372,6 +373,29 @@ export class BrowserNativeChannel {
       for(const [key,command] of Object.entries(commands)) {this.evidence();reads[key]=await this.#read(command);}
       this.evidence();
       return initialGuardianProcessObservation(this.#ramPacket,this.#ramProof,this.#guardianStarted,reads);
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+
+  /** Whole fixed kernel/stock/vendor/intent/RAM read on the same handle.
+   * This shares the subset's budget, never opens API or grants terminal proof.
+   * The five-second bound is checked after IO, independently in Core as well;
+   * it is not a device timer or a promise that a syscall can be interrupted.
+   */
+  async observeInitialGuardianScope() {
+    if(this.#closed || this.#busy || !this.#guardianReady || this.#guardianFinished || this.#guardianObservations>=32) {
+      await this.close().catch(()=>{});error('usb_browser_scope_unverified');
+    }
+    this.#guardianObservations++;this.#busy=true;
+    const began=performance.now();
+    try {
+      this.evidence();
+      const value=await collectInitialGuardianScope({read:async command=>{
+        this.evidence();if(performance.now()-began>5000)error('usb_browser_scope_unverified');
+        const text=await this.#read(command);this.evidence();return text;
+      }},this.#ramPacket,this.#ramProof,this.#guardianStarted);
+      this.evidence();if(performance.now()-began>5000)error('usb_browser_scope_unverified');
+      return value;
     } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }

@@ -6,6 +6,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/qingping_esphome'
 for name in ('monitor1_browser_relay','monitor1_browser_process_observation','monitor1_browser_channel','monitor1_browser_registry'):
@@ -246,11 +247,12 @@ class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
         self.process_binding = {'job_id': '1' * 32, 'plan_sha256': '2' * 64, 'intent_sha256': '3' * 64,
             'channel_id': '4' * 32, 'channel_nonce': '55555555-5555-5555-5555-555555555555', 'nonce': 'a' * 32,
             'ram_job_id': '6' * 32, 'guardian_job_id': '7' * 32}
-        packet = {**self.process_binding, 'context': {'committed_scope': {'root_identity': [1, 2]}}}
+        packet = {**self.process_binding, 'context': {'committed_scope': {
+            'root_identity': [1, 2], 'stock_process': [10, 1000], 'watchdog_process': [11, 1001]}}}
         await self.exchange(self.channel.begin_initial_ram(packet), 'ram-prepare',
             {'state': 'ram_precreated', 'precreated': {}, 'writer_enabled': False, 'image_fd_admitted': False})
         await self.exchange(self.channel.finish_initial_ram(), 'ram-complete',
-            {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {'guardian_file_identity': [7, 102]}, 'preparation': {},
+            {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {'guardian_file_identity': [7, 102], 'ram_root_identity': [7, 100]}, 'preparation': {},
              'transport_closed': False, 'guardian_started': False, 'image_fd_admitted': False,
              'execution_authority': False, 'context_only': True})
 
@@ -271,6 +273,56 @@ class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
             'guardian_image': ['7', '102'], 'child_image': ['1', '104'], 'kernel_child_checked': True,
             'process_images_checked': True, 'endpoint_ownership_checked': True,
             'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
+
+    def scope_observation(self):
+        return {'kind': 'browser_initial_scope_observation', **self.process_binding, 'process': self.observation(),
+            'root_identity': [1, 2], 'ram_root_identity': [7, 100], 'stock_process': [10, '1000'],
+            'watchdog_process': [11, '1001'], 'prefs_layout': 'prefs_file', 'memory_free_bytes': 64 * 1024**2,
+            'memory_total_bytes': 128 * 1024**2,
+            'kernel_scope_checked': True, 'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
+
+    async def test_complete_scope_uses_null_frame_and_independent_original_root_birth_join(self):
+        await self.ram_ready()
+        first, _ = self.records()
+        await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        value, data = await self.exchange(self.channel.observe_initial_guardian_scope(), 'guardian-scope-observe', self.scope_observation())
+        self.assertIsNone(data)
+        self.assertTrue(value['kernel_scope_checked'])
+        self.assertEqual(value['process']['guardian'][1], str(2**64 - 1))
+        bad = self.scope_observation()
+        bad['stock_process'][1] = '999'
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.exchange(self.channel.observe_initial_guardian_scope(), 'guardian-scope-observe', bad)
+        self.assertTrue(self.channel.closed and self.channel.failed)
+
+    async def test_complete_scope_dto_rejects_impossible_memory_and_process_aliases(self):
+        await self.ram_ready()
+        first, _ = self.records()
+        validate = sys.modules['qingping_browser_contract.monitor1_browser_process_observation'].validate_scope
+        for delta in ({'memory_total_bytes': 1024}, {'memory_free_bytes': True}, {'memory_total_bytes': 2**40 + 1},
+                      {'kernel_scope_checked': 1}, {'ram_root_identity': [True, 100]}):
+            with self.subTest(fields=list(delta)), self.assertRaises(relay_module.RelayRefusal):
+                validate({**self.scope_observation(), **delta}, self.process_binding, first, [7, 102], [7, 100],
+                         self.channel.guardian_scope_basis)
+        value = self.scope_observation()
+        value['process']['guardian'][0] = 10
+        aliased = copy.deepcopy(first)
+        aliased['start']['stamp'][0] = 10
+        with self.assertRaises(relay_module.RelayRefusal):
+            validate(value, self.process_binding, aliased, [7, 102], [7, 100], self.channel.guardian_scope_basis)
+
+    async def test_complete_scope_timeout_retires_original_wait_and_rejects_late_answer(self):
+        await self.ram_ready()
+        first, _ = self.records()
+        await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        with patch.object(channel_module, 'SCOPE_WINDOW', .001):
+            task = asyncio.create_task(self.channel.observe_initial_guardian_scope())
+            frame = await self.channel.poll()
+            self.assertEqual(frame['operation'], 'guardian-scope-observe')
+            with self.assertRaises(relay_module.RelayRefusal): await task
+        with self.assertRaises(relay_module.RelayRefusal):
+            self.channel.answer({'id': frame['id'], 'ok': True, 'data': self.scope_observation()})
+        self.assertTrue(self.channel.closed and self.channel.failed)
 
     async def test_process_subset_uses_null_frame_original_bindings_and_lossless_ids(self):
         await self.ram_ready()

@@ -31,7 +31,7 @@ FIELDS['commit_nonce'] = '6b14947f19e44c6c99b5ae57c81752a4'  # Canonical builder
 FIELDS.update({'staged_' + str(i): 'QP_BROWSER_RAM_FIELD_STAGED_' + str(i) for i in range(len(commit.staging.STAGED))})
 FIELDS.update({'vendor_' + str(i): 'QP_BROWSER_RAM_FIELD_VENDOR_' + str(i) for i in range(len(commit.preflight.FILES))})
 PRODUCERS = ['browser_initial_journal.py', 'browser_initial_observation.py', 'browser_initial_trial.py',
-             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json', 'initial-process-contract.json', 'browser_initial_api.py']
+             'browser_initial_trial_job.py', 'initial-trial-contract.json', 'initial-ram-contract.json', 'initial-guardian-contract.json', 'initial-process-contract.json', 'browser_initial_api.py', 'initial-scope-contract.json']
 
 
 def split_fields(text):

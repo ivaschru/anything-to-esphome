@@ -30,6 +30,7 @@ for vector in baseline['vectors']:
     context = {'schema_version': 1, 'job_id': meta['job_id'], 'plan_sha256': scope['plan_sha256'],
                'source_commit': generator.specification()['source_commit'], 'commit_intent_sha256': '2' * 64,
                'commit_proof_sha256': '3' * 64, 'candidate_sha256': '4' * 64, 'guardian': guardian,
+               'api_identity': {'node_name': 'qingping-fixture', 'api_mac': '02:00:00:00:00:01'},
                'meta': meta, 'committed_scope': scope, 'context_only': True, 'guardian_artifact_checked': True,
                'image_fd_admitted': False, 'hardware_contacted': False, 'device_writes': 0,
                'writer_enabled': False, 'installation_ready': False, 'live_recheck_required': True}

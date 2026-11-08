@@ -21,7 +21,7 @@ HEX = re.compile('[a-f0-9]{64}')
 def context(result, data):
     value = document(result)
     fields = {'schema_version', 'job_id', 'plan_sha256', 'source_commit', 'commit_intent_sha256',
-              'commit_proof_sha256', 'candidate_sha256', 'guardian', 'meta', 'committed_scope', 'context_only',
+              'commit_proof_sha256', 'candidate_sha256', 'guardian', 'api_identity', 'meta', 'committed_scope', 'context_only',
               'guardian_artifact_checked', 'image_fd_admitted', 'hardware_contacted', 'device_writes',
               'writer_enabled', 'installation_ready', 'live_recheck_required'}
     if (set(value) != fields or type(value['schema_version']) is not int or value['schema_version'] != 1 or
@@ -32,6 +32,13 @@ def context(result, data):
             type(value['device_writes']) is not int or value['device_writes'] != 0 or
             any(not isinstance(value[k], str) or not HEX.fullmatch(value[k]) for k in
                 ('commit_intent_sha256', 'commit_proof_sha256', 'candidate_sha256'))):
+        raise RelayRefusal
+    identity = value['api_identity']
+    if (not isinstance(identity, dict) or set(identity) != {'node_name', 'api_mac'} or
+            any(not isinstance(v, str) for v in identity.values()) or
+            not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', identity['node_name']) or
+            not re.fullmatch(r'[a-f0-9]{2}(?::[a-f0-9]{2}){5}', identity['api_mac']) or
+            identity['api_mac'] == '00:00:00:00:00:00' or int(identity['api_mac'][:2], 16) & 1):
         raise RelayRefusal
     guardian = value['guardian']
     if (not isinstance(guardian, dict) or set(guardian) != {'size', 'sha256'} or type(guardian['size']) is not int or

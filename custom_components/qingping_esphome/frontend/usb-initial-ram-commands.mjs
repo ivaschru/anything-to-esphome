@@ -18,7 +18,7 @@ export function initialRamCommands(input,fresh) {
  const packetFields=['schema_version','job_id','plan_sha256','intent_sha256','channel_id','channel_nonce',
   'nonce','ram_job_id','guardian_job_id','context','preparation','producer_sha256'];
  const contextFields=['schema_version','job_id','plan_sha256','source_commit','commit_intent_sha256',
-  'commit_proof_sha256','candidate_sha256','guardian','meta','committed_scope','context_only',
+  'commit_proof_sha256','candidate_sha256','guardian','api_identity','meta','committed_scope','context_only',
   'guardian_artifact_checked','image_fd_admitted','hardware_contacted','device_writes','writer_enabled',
   'installation_ready','live_recheck_required'];
  if(fields(input)!==packetFields.sort().join() || fields(input.context)!==contextFields.sort().join())fail();
@@ -37,6 +37,10 @@ export function initialRamCommands(input,fresh) {
     c.device_writes!==0 || c.meta?.job_id!==packet.job_id || c.meta?.descriptor?.plan_sha256!==packet.plan_sha256 ||
     fields(packet.producer_sha256)!==[...ram.producer_files].sort().join() ||
     Object.values(packet.producer_sha256).some(v=>!hex(v)))fail();
+ if(fields(c.api_identity)!==['node_name','api_mac'].sort().join() ||
+    typeof c.api_identity.node_name!=='string' || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(c.api_identity.node_name) ||
+    typeof c.api_identity.api_mac!=='string' || !/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/.test(c.api_identity.api_mac) ||
+    c.api_identity.api_mac==='00:00:00:00:00:00' || (parseInt(c.api_identity.api_mac.slice(0,2),16)&1))fail();
  const descriptor=initialGuardianDescriptor(Object.fromEntries(
   ['schema_version','job_id','plan_sha256','intent_sha256','channel_id','channel_nonce',
    'nonce','ram_job_id','guardian_job_id'].map(k=>[k,packet[k]]).concat([['guardian',c.guardian]])));

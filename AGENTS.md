@@ -572,12 +572,12 @@ separate even though the HACS wizard is shared.
   before SDK/browser IO and rehashes its exact SDK/commit/guardian around start
   and after END. Keep the same task/reservation/actor/capability throughout;
   detached JSON, another task or worker cannot continue it. Its running object
-  reports context only. Independent process/stock/Noise observation and terminal
-  journal verification are still missing; no public initiator or lease release
+  reports context only. Complete fixed live scope is joined separately below;
+  Noise observation and terminal journal verification are still missing; no public initiator or lease release
   exists. Run test_usb_browser_initial_guardian.py with both HA SDKs. Generate
   exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
-  sole RAM chmod. Keep all nine trial producers pinned; never adopt an older
+  sole RAM chmod. Keep all ten trial producers pinned; never adopt an older
   consumed packet. InitialGuardianStream consumes once, seals the complete
   body, validates ordered START/CHILD/END and awaits final WRTE ACK plus remote
   close. Preserve uint64 birth ticks as decimal strings. Reported records grant
@@ -618,6 +618,24 @@ separate even though the HACS wizard is shared.
   Noise wire generations and independent stop/close proof remain required.
   Run test_usb_browser_initial_api.py and both actual HA USB suites; retain
   HTTP-before-body rejection for every internal operation/MIME.
+
+- Complete initial scope uses generated frozen live_scope commands and only
+  the original retained packet/RAM/START through guardian-scope-observe with
+  null data. The plan-verified non-secret api_identity fixes node.prefs before
+  packet consumption; it must also match the private Core key context. No
+  frame selects a filename. Preserve all 54/56/57 ordered reads for the three
+  positive RAM layouts, stock births/ancestry/maps, vendor/staged byte pins,
+  original NAND/RAM roots, both flags, absent stores, conservative running
+  MemFree, creator intent/commit marker, identity and final child recheck.
+  Unknown layout/history and failed reads refuse. Browser and Core measure
+  their own five-second window, sharing the existing 32-read budget without
+  extending the device timer or original channel lifetime. Keep the tenth
+  initial-scope-contract.json producer pinned. Its DTO remains context only:
+  Noise generations, device image-FD admission, stop/post-stop and independent
+  close/terminal journal proof are separate. Run the generator --check,
+  test_usb_initial_scope_observation.mjs, raw/delivered selected NativeChannel
+  tests and both HA USB suites. Native vectors and immediate synthetic END
+  records do not qualify real timing, a monitor trial or first installation.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

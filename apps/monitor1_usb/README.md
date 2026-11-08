@@ -502,8 +502,8 @@ before SDK/browser IO, rechecks the same SDK/plan/commit/guardian around start
 and after END, and returns only an in-memory running object with detached
 reported records. Another task, worker or serialized ID cannot resume it.
 
-These records remain context: independent process/Noise/stock observation and
-the terminal journal verifier are still missing. Nine pinned trial producers
+These records remain context: authenticated Noise, post-stop stock-return and
+the terminal journal verifier are still missing. Ten pinned trial producers
 now include the fixed process contract; older consumed packets cannot acquire
 this new capability.
 
@@ -527,6 +527,19 @@ never receive it. Another task or restarted actor cannot adopt the read, and
 a lost answer does not permit a retry. This step opens no socket and supplies
 no authenticated wire samples. Complete live scope, the original USB relay,
 fresh Noise generations and independent stop/close proof remain unfinished.
+
+The complete fixed live-scope read is now connected separately through a null
+guardian-scope-observe frame on the same original channel. The plan-verified
+non-secret API identity fixes the only permitted node.prefs filename before
+packet consumption and must match the private key context. Generated native
+readers provide 54, 56 or 57 reads for an empty RAM job, empty prefs or that
+single prefs file. They join stock ancestry/maps, vendor/staged bytes, original
+roots/flags, absent stores, running MemFree, exact creator intent and commit
+marker, RAM contents, identity and a closing kernel-child read. Unknown layout
+or failed reads refuse. Browser and Core independently bound the whole read
+window to five seconds and share the original 32-read budget. No key reaches
+the browser. This still supplies no Noise samples, FD admission or terminal
+stop/return/close proof. Synthetic fixtures do not establish device timing.
 
 Actual device image-FD admission and the complete bounded guardian lifecycle
 remain unfinished. No public initiating HTTP/UI control or

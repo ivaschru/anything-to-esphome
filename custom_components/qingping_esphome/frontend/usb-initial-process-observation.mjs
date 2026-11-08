@@ -63,6 +63,9 @@ function process(value,stamp,path,parent=null) {
  const p=Number(decimal(tokens[1],1n,2147483647n)),birth=decimal(tokens[19]);
  if(birth!==stamp[1] || parent!==null && p!==parent)fail();return [stamp[0],p,birth];
 }
+// Shared pure stat parser for the complete fixed stock scope. Exporting text
+// validation does not select a PID, open a transport or issue a command.
+export {process as initialProcessText};
 function child(value,expected) {
  const reply=lines(value);
  if(reply.length!==1)fail();

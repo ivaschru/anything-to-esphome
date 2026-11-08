@@ -15,7 +15,7 @@ from .monitor1_browser_channel import guardian_record
 from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same
 from .monitor1_browser_initial_review import context
 from .monitor1_browser_relay import RelayRefusal
-from .monitor1_browser_process_observation import BINDING, validate_observation
+from .monitor1_browser_process_observation import BINDING, validate_observation, scope_basis, validate_scope, SCOPE_WINDOW
 
 
 async def _checked(ram):
@@ -125,6 +125,34 @@ class RunningBrowserGuardian:
             validate_observation(value, binding, self._started, packet['context']['committed_scope']['root_identity'][0],
                                  ram['uploaded']['guardian_file_identity'])
             self.live()
+            return copy.deepcopy(value)
+        except BaseException:
+            await self.close()
+            raise RelayRefusal from None
+        finally:
+            self._busy = False
+
+    async def observe_scope(self):
+        """Join complete fixed scope to the same original running continuation.
+
+        Core measures its own read window; reported JSON cannot extend it.
+        This checks context only and does not open the separate API relay or
+        qualify authenticated samples, device FD admission or terminal proof.
+        """
+        self.live()
+        if self._finished or self._busy or self._observations >= 32:
+            raise RelayRefusal
+        self._busy, self._observations = True, self._observations + 1
+        began = time.monotonic()
+        try:
+            value = await self._ram.capability.observe_initial_guardian_scope()
+            self.live()
+            packet, ram = self._ram.packet, self._ram.proof
+            validate_scope(value, {k: packet[k] for k in BINDING}, self._started,
+                           ram['uploaded']['guardian_file_identity'], ram['uploaded']['ram_root_identity'], scope_basis(packet))
+            self.live()
+            if time.monotonic() - began > SCOPE_WINDOW:
+                raise RelayRefusal
             return copy.deepcopy(value)
         except BaseException:
             await self.close()

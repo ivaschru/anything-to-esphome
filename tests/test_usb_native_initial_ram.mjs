@@ -14,8 +14,14 @@ const hash=body=>createHash('sha256').update(body).digest('hex');
 async function selected(options={},Native=undefined) {
  const packet=structuredClone(original.packet),body=new Uint8Array(131089).fill(27);
  packet.context.guardian={size:body.length,sha256:hash(body)};
- let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture;
+ let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture,scopeFixture,scopeReads=0;
+ const scopeRead=command=>{
+  if(!scopeFixture)return undefined;
+  const keys=Object.keys(scopeFixture.commands),key=keys[scopeReads%keys.length];assert.equal(command,scopeFixture.commands[key]);scopeReads++;
+  return options.unknownPrefs && key==='prefs_entries'?'unknown.prefs':scopeFixture.reads[key];
+ };
  const fixture=disabledTransport({committed:true,unsupported:options.unsupported,
+  identityRead:scopeRead,
   rawCommand:text=>{
    if(!created){assert.equal(text,commands.create);created++;return;}
    assert.equal(text,guardianBody);guardianStarts++;
@@ -23,6 +29,7 @@ async function selected(options={},Native=undefined) {
    return `CGS1_TRIAL_START_V1 ${nonce} 123 1000\nCGS1_TRIAL_CHILD_V1 ${nonce} 124 456\nCGS1_TRIAL_END_V1 ${nonce} 123 1000 124 456 60000 1 1 1 0 15\n`;
   },
   customRead:command=>{
+   if(scopeFixture)return scopeRead(command);
    if(processFixture){const value=processFixture.read(command);if(value!==undefined)return value;}
    if(command===commands?.inspect_roots) {
     const inode=uploaded && options.rootReplacement?103:100;
@@ -48,6 +55,9 @@ async function selected(options={},Native=undefined) {
  return {fixture,packet,body,peer,call:(operation,data=null)=>peer.dispatch({id:(++id).toString(16).padStart(32,'0'),operation,data}),
   expectGuardian:proof=>{guardianBody=initialGuardianLaunchBody(packet,proof.preparation,proof);processPacket=structuredClone(packet);processRam=structuredClone(proof);},
   expectProcesses:start=>{processFixture=initialProcessFixture(processPacket,processRam,start,options);},
+  expectScope:start=>{scopeFixture=JSON.parse(execFileSync(process.env.PYTHON||'python3',['tests/fixtures/monitor1_browser_initial_scope.py','--stdin'],{
+   input:JSON.stringify({packet:processPacket,ram:processRam,started:start,layout:'prefs_file'}),encoding:'utf8',maxBuffer:1024*1024}));},
+  get scopeReads(){return scopeReads;},
   get processReads(){return processFixture?.count||0;},
   get guardianStarts(){return guardianStarts;},get created(){return created;},get syncOpens(){return syncOpens;},get syncClosed(){return syncClosed;}};
 }
@@ -63,14 +73,23 @@ for(const Native of [undefined,createNativeChannel().constructor]) {
  const observed=await f.call('guardian-process-observe');assert.equal(observed.ok,true);assert.equal(f.processReads,11);
  assert.equal(observed.data.kind,'browser_initial_process_observation');assert.equal(observed.data.context_only,true);
  assert.deepEqual(observed.data.guardian,start.data.start.stamp);assert.equal(observed.data.image_fd_admitted,false);
+ f.expectScope(start.data);
+ const scope=await f.call('guardian-scope-observe');assert.equal(scope.ok,true);assert.equal(f.scopeReads,57);
+ assert.equal(scope.data.kernel_scope_checked,true);assert.equal(scope.data.prefs_layout,'prefs_file');
  const end=await f.call('guardian-finish');assert.equal(end.ok,true);assert.equal(end.data.raw_closed,true);
  assert.equal(end.data.transport_closed,false);assert.equal(end.data.end.child[0],124);
  assert.equal(f.fixture.effects,3);assert.equal(f.guardianStarts,1);assert.equal(f.fixture.closed,0);
  assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
  await assert.rejects(f.call('guardian-start'));assert.equal(f.guardianStarts,1);
 }
-for(const operation of ['guardian-start','guardian-finish','guardian-process-observe']) {
+for(const operation of ['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe']) {
  const f=await selected();assert.equal((await f.call(operation)).ok,false);assert.equal(f.guardianStarts,0);assert.equal(f.fixture.closed,1);
+}
+{
+ const f=await selected({unknownPrefs:true});await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ assert.equal((await f.call('guardian-scope-observe')).ok,false);assert.equal(f.fixture.closed,1);assert.equal(f.guardianStarts,1);
 }
 for(const options of [{wrongImage:true},{noChild:true},{unreadable:true}]) {
  const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
@@ -85,7 +104,20 @@ for(const options of [{wrongImage:true},{noChild:true},{unreadable:true}]) {
  const start=await f.call('guardian-start');f.expectProcesses(start.data);
  for(let i=0;i<32;i++)assert.equal((await f.call('guardian-process-observe')).ok,true);
  assert.equal(f.processReads,32*11);
- assert.equal((await f.call('guardian-process-observe')).ok,false);assert.equal(f.processReads,32*11);assert.equal(f.fixture.closed,1);
+ f.expectScope(start.data);
+ assert.equal((await f.call('guardian-scope-observe')).ok,false);assert.equal(f.scopeReads,0);
+ assert.equal(f.processReads,32*11);assert.equal(f.fixture.closed,1);
+}
+{
+ const f=await selected();await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ const originalPerformance=globalThis.performance;
+ try {
+  globalThis.performance={now:()=>f.scopeReads?6000:0};
+  assert.equal((await f.call('guardian-scope-observe')).ok,false);
+  assert.equal(f.scopeReads,1,'Expired scope window cannot issue another read');assert.equal(f.fixture.closed,1);
+ } finally {globalThis.performance=originalPerformance;}
 }
 for(const bad of ['nonce','arguments','repeat','other-phase','early-finish']) {
  const f=await selected({badGuardianNonce:bad==='nonce'});await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);

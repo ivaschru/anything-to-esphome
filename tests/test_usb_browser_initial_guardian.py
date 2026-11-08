@@ -9,8 +9,9 @@ import copy
 import importlib.util
 import json
 import sys
+from types import SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import test_usb_browser_initial_ram as fixtures
 
@@ -55,6 +56,14 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
             'kernel_child_checked': True, 'process_images_checked': True, 'endpoint_ownership_checked': True,
             'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
 
+    def scope_observation(self):
+        packet = self.b.prepared
+        basis = guardian.scope_basis(packet)
+        return {'kind': 'browser_initial_scope_observation', **{k: packet[k] for k in guardian.BINDING},
+            'process': self.observation(), **basis, 'ram_root_identity': [7, 100],
+            'prefs_layout': 'empty', 'memory_free_bytes': 64 * 1024**2, 'memory_total_bytes': 128 * 1024**2, 'kernel_scope_checked': True,
+            'image_fd_admitted': False, 'execution_authority': False, 'context_only': True}
+
     async def pump(self):
         while True:
             frame = await self.b.cap.poll()
@@ -66,6 +75,7 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
             if op == 'guardian-start': value = first
             elif op == 'guardian-finish': value = last
             elif op == 'guardian-process-observe': value = self.observation()
+            elif op == 'guardian-scope-observe': value = self.scope_observation()
             elif op == 'channel-close': value = None
             else: self.fail('No public/generic writer, API or observer exists in this fixture')
             if op == self.expire_phase: self.b.registry.current['deadline'] = 0
@@ -92,6 +102,9 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(observed['context_only'])
         observed['guardian_image'][1] = '999'
         self.assertEqual((await self.run_pumped(running.observe_processes))['guardian_image'], ['7', '102'])
+        scope = await self.run_pumped(running.observe_scope)
+        self.assertTrue(scope['kernel_scope_checked'])
+        self.assertEqual(scope['ram_root_identity'], [7, 100])
         self.assertGreater(running.issued_at, 0)
         edited = running.reported_start
         edited['start']['stamp'][1] = '1'
@@ -105,6 +118,7 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.b.context_reads, 5)
         with self.assertRaises(Refusal): await running.finish_records()
         with self.assertRaises(Refusal): await running.observe_processes()
+        with self.assertRaises(Refusal): await running.observe_scope()
         self.assertEqual(self.b.events.count('guardian-finish'), 1)
         await self.run_pumped(running.close)
         self.assertTrue(self.b.cap.closed)
@@ -201,6 +215,25 @@ class InitialGuardianJoinTests(unittest.IsolatedAsyncioTestCase):
         value['guardian_image'][1] = '999'
         with patch.object(self.b.cap, 'observe_initial_guardian_processes', AsyncMock(return_value=value)):
             with self.assertRaises(Refusal): await self.run_pumped(running.observe_processes)
+        self.assertTrue(self.b.cap.closed)
+        self.assertIsNotNone(self.b.j.stages.lease_fd)
+        self.assertFalse((self.b.j.directory / fixtures.journals.journal.COMPLETE).exists())
+
+    async def test_complete_scope_replaced_ram_root_refuses_even_after_channel_layer(self):
+        ram = await self.b.run_prepare()
+        running = await self.run_pumped(lambda: guardian.start_guardian(ram))
+        value = self.scope_observation()
+        value['ram_root_identity'][1] = 999
+        with patch.object(self.b.cap, 'observe_initial_guardian_scope', AsyncMock(return_value=value)):
+            with self.assertRaises(Refusal): await self.run_pumped(running.observe_scope)
+        self.assertTrue(self.b.cap.closed)
+        self.assertIsNotNone(self.b.j.stages.lease_fd)
+
+    async def test_core_measures_its_own_scope_window_without_trusting_reported_time(self):
+        ram = await self.b.run_prepare()
+        running = await self.run_pumped(lambda: guardian.start_guardian(ram))
+        with patch.object(guardian, 'time', SimpleNamespace(monotonic=Mock(side_effect=[0, 6]))):
+            with self.assertRaises(Refusal): await self.run_pumped(running.observe_scope)
         self.assertTrue(self.b.cap.closed)
         self.assertIsNotNone(self.b.j.stages.lease_fd)
         self.assertFalse((self.b.j.directory / fixtures.journals.journal.COMPLETE).exists())

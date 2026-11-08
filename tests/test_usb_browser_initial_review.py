@@ -34,6 +34,7 @@ class InitialReviewTests(unittest.IsolatedAsyncioTestCase):
         self.context = {'schema_version':1, 'job_id':f.data['job_id'], 'plan_sha256':f.data['expected_plan_sha256'],
             'source_commit':review.SOURCE, 'commit_intent_sha256':'1'*64, 'commit_proof_sha256':'2'*64,
             'candidate_sha256':'3'*64, 'guardian':{'size':1000,'sha256':'4'*64}, 'meta':self.meta,
+            'api_identity':{'node_name':'qingping-fixture','api_mac':'02:00:00:00:00:01'},
             'committed_scope':copy.deepcopy(self.scope), 'context_only':True, 'guardian_artifact_checked':True,
             'image_fd_admitted':False, 'hardware_contacted':False, 'device_writes':0, 'writer_enabled':False,
             'installation_ready':False, 'live_recheck_required':True}

@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Join the complete fixed stock/vendor/creator-intent/RAM scope to the original
+  browser guardian. Derive all three bounded preference-layout branches from
+  frozen native readers, bind the non-secret API identity before consumption,
+  and independently join results/window in Core. Keep the tenth producer,
+  original read budget and context-only result. No Noise samples, terminal
+  release, public initiating writer or hardware qualification follows.
+
 - Add a separate private actor/Core Noise context for the original consumed
   browser trial. Rehash the original profile/plan under its retained lease,
   consume Core's read once and fence old packets with the ninth producer.

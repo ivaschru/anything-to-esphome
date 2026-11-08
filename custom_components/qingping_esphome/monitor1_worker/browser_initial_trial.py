@@ -66,7 +66,12 @@ def checked(stages, owner, job_id, expected_sha):
     raw = encoded(value)
     if len(raw) > MAX_INPUT:
         invalid()
-    result = {**value, 'meta': {**context['meta'], 'commit_nonce': intent['nonce']}, 'committed_scope': committed_scope,
+    # The already verified plan/profile binds the non-secret API identity.
+    # Keep it separate from the key-bearing pipe package and SDK artifact
+    # input. This fixes the sole permitted RAM preference filename before
+    # the consumed packet reaches the browser; a later frame cannot select it.
+    result = {**value, 'api_identity': plan['api_identity'],
+              'meta': {**context['meta'], 'commit_nonce': intent['nonce']}, 'committed_scope': committed_scope,
               'context_only': True, 'guardian_artifact_checked': False, 'image_fd_admitted': False,
               'hardware_contacted': False, 'device_writes': 0, 'writer_enabled': False,
               'installation_ready': False, 'live_recheck_required': True}
