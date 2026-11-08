@@ -12,6 +12,7 @@ import re
 from .monitor1_browser_stage import document, ROLES, SOURCE
 from .monitor1_browser_disabled_review import validate_scope
 from .monitor1_browser_relay import RelayRefusal
+from .monitor1_worker.browser_initial_observation import validate_preparation as check_preparation, ObservationRefusal
 
 ROOT = Path(__file__).parent / 'monitor1_worker'
 HEX = re.compile('[a-f0-9]{64}')
@@ -63,22 +64,11 @@ def context(result, data):
     return value, reader
 
 
-def validate_preparation(value, meta, reader):
-    fields = {'kind', 'scope', 'ram_available_bytes', 'memory_basis', 'persistent_stores_absent',
-              'ram_processes_absent', 'api_ota_listeners_free', 'ram_scope_checked', 'image_fd_admitted',
-              'execution_authority', 'device_writes'}
-    minimum = json.loads((ROOT / 'initial-trial-contract.json').read_bytes())['minimum_start_ram']
-    if (not isinstance(value, dict) or set(value) != fields or value['kind'] != 'browser_initial_trial_preparation' or
-            value['memory_basis'] != 'MemFree_lower_bound' or type(value['ram_available_bytes']) is not int or
-            not minimum <= value['ram_available_bytes'] <= 2**40 or
-            any(value[k] is not True for k in ('persistent_stores_absent', 'ram_processes_absent', 'api_ota_listeners_free')) or
-            any(value[k] is not False for k in ('ram_scope_checked', 'image_fd_admitted', 'execution_authority')) or
-            type(value['device_writes']) is not int or value['device_writes'] != 0):
-        raise RelayRefusal
-    validate_scope(value['scope'], meta, reader)
-    vendors = dict(value['scope']['vendor_hashes'])
-    if any(vendors.get(path) != pin['sha256'] for path, pin in reader['patched'].items()):
-        raise RelayRefusal
+def validate_preparation(value, meta, reader, committed=None):
+    try:
+        check_preparation(value, meta, reader, committed)
+    except ObservationRefusal:
+        raise RelayRefusal from None
 
 
 async def review(service, owner, nonce, data):
@@ -101,13 +91,7 @@ async def review(service, owner, nonce, data):
         checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
         live()
         observed = await registry.initial_trial_preparation(owner, nonce, data['channel_id'], checked['meta'])
-        validate_preparation(observed, checked['meta'], reader)
-        # Retain the original committed root/inode and stock/watchdog births.
-        # Only measured free capacity may vary during this read. Matching file
-        # bytes in a recreated directory do not authorize adopting a new root.
-        stable = lambda scope: {k: v for k, v in scope.items() if k != 'data_available_bytes'}
-        if stable(observed['scope']) != stable(checked['committed_scope']):
-            raise RelayRefusal
+        validate_preparation(observed, checked['meta'], reader, checked['committed_scope'])
         live()
         # Rehash the same terminal proof/candidate/artifact after device IO.
         # A changed file or expired registry does not renew this observation.

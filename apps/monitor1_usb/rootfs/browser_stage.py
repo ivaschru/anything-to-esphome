@@ -58,6 +58,11 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
+    if names & {'browser-initial-trial-intent.json', 'browser-initial-trial-complete.json'}:
+        # The private trial packet is consumed before RAM writes, but its
+        # terminal guardian/API/return verifier is not connected yet. Neither
+        # a released crash FD nor a file named complete permits another writer.
+        raise PreparationError('usb_browser_stage_previous_unverified')
     commit_names = {'browser-commit-intent.json', 'browser-commit-complete.json'}
     if not names & ({INTENT, COMPLETE} | commit_names):
         return
@@ -186,6 +191,14 @@ class BrowserStages:
     def commit_status(self, owner, job_id):
         from browser_commit import BrowserCommits
         return BrowserCommits(self).status(owner, job_id)
+
+    def prepare_initial_trial(self, owner, job_id, expected_sha, scope, reviewed):
+        from browser_initial_journal import BrowserInitialTrials
+        return BrowserInitialTrials(self).prepare(owner, job_id, expected_sha, scope, reviewed)
+
+    def initial_trial_status(self, owner, job_id):
+        from browser_initial_journal import BrowserInitialTrials
+        return BrowserInitialTrials(self).status(owner, job_id)
 
     def _intent(self, owner, job_id):
         directory, original, _ = owned_intent(self.parent, job_id, owner)

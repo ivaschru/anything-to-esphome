@@ -17,6 +17,7 @@ from preparation import PreparationError, USER, private_directory, unique_json
 from server import Companion, Refusal
 from ha_enrollment import HaEnrollments, MIME as ENROLLMENT_MIME
 from browser_stage import MIME as BROWSER_STAGE_MIME
+from browser_initial_journal import MIME as BROWSER_INITIAL_MIME
 
 MAX_REQUEST = 24 * 1024**2
 MAX_RESPONSE = 64 * 1024**2
@@ -82,6 +83,13 @@ class Actor:
             # allocate/upload/launch, adopt native receipts or initialize ADB.
             from browser_initial_trial import context
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation.startswith("internal-browser-initial-trial-"):
+            stages = self.companion.browser_stages
+            if operation == "internal-browser-initial-trial-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
+                return stages.prepare_initial_trial(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), BROWSER_INITIAL_MIME
+            if operation == "internal-browser-initial-trial-status" and set(data) == {"job_id"}:
+                return stages.initial_trial_status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation == "internal-browser-disabled-assess" and set(data) == {"job_id", "expected_plan_sha256", "channel_id", "channel_nonce", "scope"}:
             # Pure SDK analysis is pipe-only and never starts native ADB. The
             # private Core caller supplies its actual still-current capability.

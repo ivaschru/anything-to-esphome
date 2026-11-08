@@ -74,6 +74,12 @@
   checks and conservative free RAM. Preserve the original committed root and
   process births, recheck the guardian/proof after IO and require owned close.
   This observation creates no RAM job, trial intent or execution permission.
+- Add the private first-trial consumed journal and one guardian packet under
+  the retained shared writer lease. Rehash original context after private body
+  reading, fence unknown/orphan history across restart and refuse controller
+  exports. Status is redacted and cannot restart an SDK or adopt a lease.
+  Device execution and terminal guardian/API/return verification remain absent;
+  no completion, installed state or public browser launch is enabled.
 - The public browser installation route and untouched-device qualification remain unfinished.
   These changes remain on the development branch; no hardware support or
   firmware version changes.

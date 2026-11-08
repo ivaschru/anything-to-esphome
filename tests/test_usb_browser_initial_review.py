@@ -11,6 +11,11 @@ from unittest.mock import AsyncMock
 import test_usb_browser_disabled_review as fixtures
 
 sys.modules.setdefault('qingping_browser_contract.monitor1_browser_disabled_review', fixtures.review)
+observation_name='qingping_browser_contract.monitor1_worker.browser_initial_observation'
+observation_spec=importlib.util.spec_from_file_location(observation_name,
+    fixtures.fixtures.ROOT / 'monitor1_worker/browser_initial_observation.py')
+observation=importlib.util.module_from_spec(observation_spec);sys.modules[observation_name]=observation
+observation_spec.loader.exec_module(observation)
 spec = importlib.util.spec_from_file_location('qingping_browser_contract.monitor1_browser_initial_review',
     fixtures.fixtures.ROOT / 'monitor1_browser_initial_review.py')
 review = importlib.util.module_from_spec(spec);spec.loader.exec_module(review)

@@ -1011,3 +1011,24 @@ separate even though the HACS wizard is shared.
   and delivered-bundle test_usb_initial_trial_scope.mjs and actual async registry
   test_usb_browser_initial_review.py, all USB/Node tests and source/package
   checks. An emulated collector is not a monitor trial or hardware admission.
+
+- browser_initial_journal is the consumed host packet half of that future
+  trial, with no public initiator or device/RAM execution. Under the shared
+  native-install flock recheck the terminal browser commit, exact SDK guardian
+  and strict shared preparation DTO/original scope; fsync one 0600 O_EXCL intent
+  before reading/delivering the private guardian bytes. Return only one opaque
+  internal pipe packet with distinct typed trial/RAM/guardian nonces. Rehash
+  the context after reading. Packet loss, artifact drift or actor exit keeps
+  durable unknown history and no replay; native/browser writers and computer
+  exports fence even orphan trial history after restart. A status never starts
+  another SDK, exposes the body or adopts a lease. No terminal verifier/record
+  API exists yet: a file named complete must refuse, never release a fence or
+  claim a stopped/installed result. Preserve image_fd_admitted=false. A future
+  original-capability coordinator still needs fixed RAM transfer, unchanged
+  timed guardian, actual image admission, authenticated API/stop/return proof
+  and independent close before any completion path is implemented. HTTP denies
+  every internal operation before body IO and rejects its private MIME. Run
+  test_usb_browser_initial_journal.py for real fsync/flock/lost packet/orphan/
+  changed producer/body/restart/actor/export cases, shared preparation/HTTP
+  regressions and both HA USB suites. All programs/SDK/device data in these
+  fixtures are explicitly synthetic; no RAM write or monitor QA follows.

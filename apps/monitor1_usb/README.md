@@ -458,3 +458,8 @@ scope, absent persistent stores/RAM processes, free API/OTA ports and genuine
 free RAM twice, preserving the original root/process identities. It rechecks
 the guardian/proof afterward and closes the owned channel. It creates no RAM
 job or trial intent and exposes no public browser launch control.
+The separate private journal can now consume one guardian packet before any
+future RAM write. It retains the shared writer lock and uncertain history after
+loss or restart; status cannot resend it. Its terminal verifier and device
+executor are still missing, so it cannot report a successful trial or unlock a
+consumed one. This internal prerequisite adds no installation button.
