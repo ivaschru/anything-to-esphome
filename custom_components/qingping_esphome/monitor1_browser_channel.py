@@ -19,7 +19,7 @@ from .monitor1_browser_relay import RelayRefusal
 from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, validate_context as process_context, validate_observation as process_observation
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
-OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
+OPS = {"boot-observe", "api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
        "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
@@ -67,6 +67,8 @@ class BrowserChannel:
         self.staging = False
         self.committing = False
         self.commit_probe = False
+        self.boot_observing = False
+        self.boot_observations = 0
         self.boot_probe = False
         self.booting = False
         self.boot_next = 0
@@ -112,7 +114,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("boot-observe", "scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -209,14 +211,14 @@ class BrowserChannel:
         compare it with this channel and its separately verified owned plan.
         A cached successful report can never renew a write/launch intent.
         """
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("scope-check")
 
     async def check_stage_scope(self):
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -228,7 +230,7 @@ class BrowserChannel:
         Its metadata must come from the owned verified stage journal. Returned
         scope remains evidence, never a commit/rollback intent or native USB.
         """
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -236,20 +238,50 @@ class BrowserChannel:
 
     async def check_initial_trial_preparation(self, meta):
         """Fixed read only; no RAM job, trial intent or image-FD authority."""
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("initial-trial-preparation", {"meta": meta})
 
+    async def observe_bridge_boot(self, context):
+        """One fixed observer frame, beside at most one opaque API read.
+
+        The coordinator independently validates its typed result. This mode
+        reserves the channel against all writer families without a write intent.
+        Process identities can only be compared, never adopted for signalling.
+        """
+        async with self.guardian_control:
+            if (self.boot_probe or self.ram_probe or self.commit_probe or self.staging or self.committing or self.ramming or
+                    self.opening or self.boot_observations >= 32 or
+                    any(op != 'api-read' for op in self.pending_operations.values())):
+                raise RelayRefusal
+            self.boot_observing = True
+            self.boot_observations += 1
+            return await self._request('boot-observe', {'context': context})
+
+    async def open_boot_observer_api(self):
+        """Only the fixed current observer may open the original API stream."""
+        async with self.guardian_control:
+            if not self.boot_observing or self.opened or self.opening or self.pending:
+                raise RelayRefusal
+            self.opening = True
+            try:
+                if await self._request('api-open') is not None:
+                    self._retire(); raise RelayRefusal
+                self.opened = self.guardian_api_mode = True
+                return BrowserStream(self, guardian=True)
+            finally:
+                self.opening = False
+
     async def check_bridge_boot_preparation(self, meta, marker):
         """Fresh fixed stopped scope; no writer or native receipt adoption."""
-        if self.booting or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.boot_observing or self.booting or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("bridge-boot-preparation", {"meta": meta, "trial_marker": marker})
 
     async def probe_bridge_boot_stream(self):
-        if self.boot_probe or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+        if self.boot_observing or self.boot_probe or self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         self.boot_probe = True
         value = await self._request("bridge-boot-stream-check")
@@ -289,7 +321,7 @@ class BrowserChannel:
         frame. The selected peer independently admits factory scope and makes
         both opt-outs before its sole ordered nine-file sequence.
         """
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -332,7 +364,7 @@ class BrowserChannel:
         return await self._request("stage-complete")
 
     async def probe_commit_stream(self):
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -346,7 +378,7 @@ class BrowserChannel:
             raise RelayRefusal
 
     async def begin_commit(self, packet):
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or not self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -373,7 +405,7 @@ class BrowserChannel:
 
     async def probe_initial_ram_stream(self):
         """Harmless fixed exec probe before the separate actor consumes intent."""
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -392,7 +424,7 @@ class BrowserChannel:
         This transport does not verify an actor journal or supply permission.
         Finite metadata frames cannot select paths, commands or another handle.
         """
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if not self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
@@ -607,7 +639,7 @@ class BrowserChannel:
                 self.opening = False
 
     async def open_api(self):
-        if self.boot_probe:
+        if self.boot_probe or self.boot_observing:
             raise RelayRefusal
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:
             raise RelayRefusal

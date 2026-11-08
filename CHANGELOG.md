@@ -1,5 +1,14 @@
 ## Unreleased – browser USB installation work
 
+- Connect the private read-only browser boot observer to original completed
+  arming history, canonical 64-read kernel/file scope and the selected USB
+  channel. Distinguish same-boot waiting from a distinct live runtime. Join
+  the real Core Noise client and fresh physical wire generations; independently
+  await API/USB/channel cleanup. Keys stay on a private Core pipe. Add canonical
+  parity, raw/delivered Native, actual actor/registry/Noise and failure tests.
+  No public writer, PM/Full UI/enrollment UI or fresh-device qualification follows.
+
+
 - Connect private browser bridge next-boot arming end to end: harmless probe,
   fresh stopped scope, separate consumed actor intent, canonical sealed flag
   transition, explicit armed readback, actual USB close, separate channel ACK

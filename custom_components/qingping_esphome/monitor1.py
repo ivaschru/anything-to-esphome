@@ -27,7 +27,8 @@ INTERNAL_MIME = "application/vnd.qingping.internal-ha-enrollment+json"
 BROWSER_STAGE_MIME = "application/vnd.qingping.internal-browser-stage+json"
 BROWSER_INITIAL_MIME = "application/vnd.qingping.internal-browser-trial+json"
 BROWSER_INITIAL_API_MIME = "application/vnd.qingping.internal-browser-initial-api+json"
-INTERNAL_MIMES = {INTERNAL_MIME, BROWSER_STAGE_MIME, BROWSER_INITIAL_MIME, BROWSER_INITIAL_API_MIME}
+BROWSER_BOOT_API_MIME = "application/vnd.qingping.internal-browser-boot-api+json"
+INTERNAL_MIMES = {BROWSER_BOOT_API_MIME, INTERNAL_MIME, BROWSER_STAGE_MIME, BROWSER_INITIAL_MIME, BROWSER_INITIAL_API_MIME}
 MIMES = {*INTERNAL_MIMES,"application/json", "application/x-tar",
          "application/vnd.qingping.private-profile+json",
          "application/vnd.qingping.private-computer-bundle+tar"}

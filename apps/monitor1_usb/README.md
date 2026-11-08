@@ -441,8 +441,9 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 
 Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
 branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
-described below. Later boot observation/PM, Full UI/permanent startup, HA enrollment
-and their browser UI composition remain unfinished. An untouched CGS1 has not
+described below. The private boot observer also joins original arming history, the full native
+kernel/file scope and fresh authenticated sensor updates. PM, Full UI/permanent
+startup, HA enrollment and their browser UI composition remain unfinished. An untouched CGS1 has not
 yet been tested; existing working monitors must not be reset to imitate one.
 
 After a private build, a computer USB job has its own **Prepare installation
@@ -553,3 +554,14 @@ replies never repeat a write or auto-roll back. The historical result is armed
 for the next ordinary boot, with installed/activated/readiness false. No reboot
 or process launch occurs here. Real host/transport tests use synthetic device
 replies; physical first-install and the later boot observer remain separate.
+
+
+The private post-boot adapter never performs a reboot. With the original boot
+still current, it rechecks the armed state and reports waiting without opening
+API. A fresh selected connection after a normal boot checks the canonical 64
+read operations, actual executable images and process births/parents. The Core
+Noise client then requires exact identity and two fresh physical wire vectors,
+including stock-response age, at least ten seconds apart. API-close, final
+scope/freshness, actual USB close and separate channel ACK are independent.
+Its read result does not install, activate or grant a subsequent writer. The
+host tests emulate the monitor; physical first-install qualification is pending.

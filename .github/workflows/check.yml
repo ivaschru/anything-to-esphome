@@ -40,6 +40,9 @@ jobs:
       - run: node tests/test_usb_bridge_armed_scope.mjs
       - run: node tests/test_usb_bridge_boot_session.mjs
       - run: node tests/test_usb_native_bridge_boot.mjs
+      - run: node tests/test_usb_bridge_observer.mjs
+      - run: node tests/test_usb_native_boot_observer.mjs
+      - run: python tools/monitor1-usb/generate_bridge_observer_contract.py --check
       - run: python tools/monitor1-usb/generate_initial_trial_contract.py --check
       - run: node tests/test_usb_initial_trial_scope.mjs
       - run: python tools/monitor1-usb/generate_initial_ram_commands.py --check

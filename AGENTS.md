@@ -722,9 +722,8 @@ separate even though the HACS wizard is shared.
   an older consumed packet. Run all USB tests on both HA SDKs plus raw/delivered
   Native integration and bundle/package/generator checks. The composition test
   uses real encrypted responder/loopback/framing/actor fsync/flock with synthetic
-  USB/scope/clock; it is not physical timer/FD/sensor/first-install QA. Browser
-  next-boot/observer/PM, Full UI/permanent/enrollment and public UI are still
-  separate unfinished adapters. Do not rebuild frozen firmware for this join.
+  USB/scope/clock; it is not physical timer/FD/sensor/first-install QA. The private next-boot/observer joins are described below. PM, Full UI/
+  permanent/enrollment and public UI remain separate unfinished adapters. Do not rebuild frozen firmware for this join.
 
 - usb-bridge-boot-commands is pure next-boot text; its private execution join
   is described below. Generate
@@ -788,6 +787,26 @@ separate even though the HACS wizard is shared.
   fixtures cover the join with synthetic device replies only. Run the full
   USB suites, all Node tests and package/generator checks after these changes;
   no hardware/first-install qualification follows from those tests.
+
+- The private browser boot observer is read-only and independent of arming.
+  Rehash the original completed arming intent/proof and source closure; no
+  writer lease or native receipt is reconstructed. Same-boot idle arming uses
+  the strict armed collector and cannot open API. A distinct selected boot
+  needs all 64 generated verify_bridge_boot_adb reads, exact kernel images,
+  process births/parents, stock/maps/vendor/root/flags and closing reads.
+  Never pass a command/path/PID selector over frames. Native and Core retain
+  their original owner/page/actor/task/deadlines and compare the same frame
+  across wire observation; only measured free RAM may vary. Only owned opaque
+  relay tasks may carry bytes, with original API-close ACK before reconnect.
+  Noise keys use the dedicated private pipe MIME, never browser frames/HTTP/
+  subprocess argv/logs/storage. Require exact DeviceInfo/physical entities,
+  two fresh vectors at least ten seconds apart including a new stock-age
+  message, final sample freshness and independent API/USB/channel closure.
+  Historical arming, a successful handshake or synthetic tests never imply
+  installed/readiness or new writer permission. Rebuild/package after changes;
+  run generate_bridge_observer_contract.py --check, raw/delivered Native tests
+  and real HA Noise/Core/registry/actor cases. Public PM/Full UI/enrollment/UI
+  adapters and physical fresh installation remain separate unfinished work.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
