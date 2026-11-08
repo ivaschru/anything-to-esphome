@@ -42,7 +42,7 @@ class ActorApiTests(unittest.TestCase):
                   for p in self.f.directory.rglob('*') if p.is_file()}
         sdk_calls = len(self.f.f.calls)
         value = json.loads(self.read())
-        self.assertEqual(set(value), {'kind', *actor_api.BINDING, 'node_name', 'api_mac', 'noise_psk'})
+        self.assertEqual(set(value), {'kind', 'transport', *actor_api.BINDING, 'node_name', 'api_mac', 'noise_psk'})
         self.assertEqual(value['noise_psk'], self.profile['api_encryption_key'])
         self.assertEqual(value['node_name'], self.profile['node_name'])
         self.assertEqual({k: value[k] for k in actor_api.BINDING}, self.request)
@@ -113,7 +113,7 @@ class ActorApiTests(unittest.TestCase):
         raw = json.dumps(value).encode()
         duplicate = raw[:-1] + b',"noise_psk":"duplicate"}'
         with self.assertRaises(joins.Refusal): core_api._payload(result(duplicate), self.packet)
-        for delta in ({'noise_psk': 'A' * 43}, {'noise_psk': 'A' * 44}, {'noise_psk': 1},
+        for delta in ({'transport': 'another-network'}, {'noise_psk': 'A' * 43}, {'noise_psk': 'A' * 44}, {'noise_psk': 1},
                       {'api_mac': '01:00:00:00:00:01'}, {'api_mac': '00:00:00:00:00:00'},
                       {'node_name': '../not-a-node'}, {'host': 'not permitted'}, {'channel_id': True}):
             with self.subTest(fields=list(delta)), self.assertRaises(joins.Refusal):

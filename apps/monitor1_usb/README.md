@@ -546,3 +546,16 @@ remain unfinished. No public initiating HTTP/UI control or
 physical first-install qualification follows. These adapters are development
 source and are not part of stable HACS 0.2.10. Protocol/host fixtures execute no
 monitor binary and do not qualify a physical installation.
+
+The private original guardian API transport now composes the same selected
+WebUSB handle with a Core-owned loopback relay. It takes no host/port/key from
+browser frames. Every open repeats full fixed scope; one opaque pending read
+can coexist with scope observation, while control IO stays serialized. Only
+this listener's actual serve/pump tasks can delegate opaque IO under the
+original actor/reservation/packet. The observation deadline is bounded by the
+original guardian issue plus 50 seconds and the original channel deadline.
+Normal API-close ACK preserves USB for the later END/return read; lost ACK or
+actor replacement retires the channel without replay. This is still private
+source work: encrypted Noise authentication, fresh physical wire generations,
+post-stop return and terminal journal verification remain unfinished. The
+loopback echo tests prove transport composition only, not monitor qualification.

@@ -24,6 +24,7 @@ export class BrowserChannelPeer {
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
   #staging=false;#committing=false;#ramming=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   #ramComplete=false;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
+  #scopeChecking=false;
   constructor(link) {this.#link=link;}
 
   async dispatch(request) {
@@ -34,10 +35,16 @@ export class BrowserChannelPeer {
     this.#seen.add(request.id);
     let data=null;
     try {
-      if(this.#checking && request.operation!=='channel-close') fail();
+      const guardianApi=this.#guardianUsed && this.#guardianReady && !this.#guardianFinished;
+      const apiOperation=['api-open','api-read','api-write','api-close'].includes(request.operation);
+      // One pending opaque read may continue beside the fixed scope reader.
+      // Writes/close are serialized in Core; another phase cannot borrow this
+      // exception. The original two-handler budget is unchanged.
+      if(this.#checking && request.operation!=='channel-close' &&
+         !(this.#scopeChecking && guardianApi && this.#socket && request.operation==='api-read')) fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
-      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation)) fail();
-      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation))fail();
+      if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
+      if(this.#guardianUsed && !['guardian-finish','guardian-process-observe','guardian-scope-observe','channel-close'].includes(request.operation) && !(guardianApi && apiOperation))fail();
       if(this.#committing && !['commit-step','commit-complete','channel-close'].includes(request.operation)) fail();
       if(['scope-check','stage-admission'].includes(request.operation) && request.data===null) {
         if(this.#opening || this.#socket || this.#closing) fail();
@@ -72,8 +79,11 @@ export class BrowserChannelPeer {
           }
         }finally {this.#checking=false;}
       } else if(['guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe'].includes(request.operation)) {
-        if(request.data!==null || !this.#ramComplete || this.#opening || this.#socket || this.#closing)fail();
+        const concurrentScope=request.operation==='guardian-scope-observe' && guardianApi && !this.#writing;
+        if(request.data!==null || !this.#ramComplete || this.#opening || this.#closing ||
+           this.#socket && !concurrentScope || request.operation==='guardian-scope-observe' && this.#writing)fail();
         this.#checking=true;
+        this.#scopeChecking=request.operation==='guardian-scope-observe';
         try {
           if(request.operation==='guardian-start') {
             if(this.#guardianUsed)fail();this.#guardianUsed=true;
@@ -85,7 +95,7 @@ export class BrowserChannelPeer {
             if(!this.#guardianReady || this.#guardianFinished)fail();
             data=await (request.operation==='guardian-scope-observe'?this.#link.observeInitialGuardianScope():this.#link.observeInitialGuardianProcesses());
           }
-        }finally {this.#checking=false;}
+        }finally {this.#checking=false;this.#scopeChecking=false;}
       } else if(request.operation==='commit-stream-check') {
         if(request.data!==null || this.#opening || this.#socket || this.#closing) fail();
         this.#checking=true;
@@ -129,7 +139,7 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing) fail();
         this.#opening=true;
         try {
-          this.#socket=await this.#link.openApi();
+          this.#socket=await (guardianApi?this.#link.openInitialGuardianApi():this.#link.openApi());
           this.#reader=this.#socket.readable.getReader();
           this.#writer=this.#socket.writable.getWriter();
         } finally {this.#opening=false;}

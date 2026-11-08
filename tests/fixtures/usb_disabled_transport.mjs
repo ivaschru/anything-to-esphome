@@ -94,11 +94,13 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
    rawSockets.push(socket);return socket;
   }
   if(service==='sync:' && options.syncSocket)return options.syncSocket();
+  if(service==='tcp:6053' && options.apiSocket)return options.apiSocket();
   assert(service.startsWith('shell:set -e\n'),'No TCP/SYNC/shell-v2 or arbitrary service');
   const marker=service.match(/__CGS1_CHANNEL_OK_[a-f0-9]+__/)[0];
   const command=service.slice('shell:set -e\n'.length,service.lastIndexOf('\nprintf '));
   const step=contract.identity.find(v=>v.command===command),supplied=step?options.identityRead?.(command):undefined;
   const body=supplied!==undefined?supplied:step?identity[step.name]:read(command);
+  if(options.beforeReadReply)await options.beforeReadReply(command);
   return {readable:new ReadableStream({start(c){c.enqueue(encoder.encode(body+'\n'+marker+'\n'));c.close();}}),close:async()=>{}};
  }};
  const link=new NativeChannel({manager:{requestDevice:()=>{picked++;return Promise.resolve({serial:meta.target.usb_serial,connect:async()=>({})});}},

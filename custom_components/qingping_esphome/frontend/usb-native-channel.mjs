@@ -347,7 +347,7 @@ export class BrowserNativeChannel {
     finally {this.#busy=false;}
   }
   async finishInitialGuardian() {
-    if(this.#closed || this.#busy || !this.#guardianReady || this.#guardianFinished) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || !this.#guardianReady || this.#guardianFinished) {
       await this.close().catch(()=>{});error('usb_browser_scope_unverified');
     }
     this.#guardianFinished=true;this.#busy=true; // A lost terminal record never permits another read/launch attempt.
@@ -461,6 +461,22 @@ export class BrowserNativeChannel {
 
   async openApi() {
     if(this.#ramProbeUsed || this.#busy || this.#stageUsed || this.#commitProbeUsed || this.#apiUsed || this.#closed || this.#apiCount>=16) error('usb_selection_consumed');
+    return this.#openApiSocket();
+  }
+
+  /** Private guardian phase only. A fresh complete fixed read precedes this
+   * original handle's sole tcp:6053 open. No cached DTO, host, port or key can
+   * choose a socket; normal close must be acknowledged before another read
+   * connection or terminal guardian record. No device writer is replayed.
+   */
+  async openInitialGuardianApi() {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || !this.#guardianReady || this.#guardianFinished || this.#apiCount>=16) error('usb_selection_consumed');
+    await this.observeInitialGuardianScope();
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#guardianFinished) error('usb_selection_consumed');
+    return this.#openApiSocket();
+  }
+
+  async #openApiSocket() {
     this.#apiUsed=true;this.#apiCount++; // Consume before a possibly lost ACK.
     try {
       this.evidence();

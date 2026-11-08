@@ -66,7 +66,7 @@ def package(stages, owner, request):
             invalid()
         # Returning only these fields keeps Wi-Fi/OTA/friendly name and the
         # remainder of the profile outside this narrowly scoped pipe message.
-        result = encoded({'kind': 'browser_initial_api_context', **binding,
+        result = encoded({'kind': 'browser_initial_api_context', 'transport': 'original_guardian_webusb', **binding,
                           'node_name': profile['node_name'], 'api_mac': profile['api_mac'],
                           'noise_psk': profile['api_encryption_key']})
         if (len(result) > 4096 or stages.lease_fd != lease or stages.lease_job != request['job_id'] or

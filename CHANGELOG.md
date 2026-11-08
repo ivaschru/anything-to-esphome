@@ -1,5 +1,14 @@
 ## Unreleased – browser USB installation work
 
+- Join the original guardian's fixed API stream to a private Core loopback
+  relay. Repeat complete scope before opening, allow one opaque pending read
+  beside scope observation, serialize control IO and keep all original budgets.
+  Bind the relay to the original task/actor/key context and its shorter 50s
+  observation window. Await real API-close ACK while preserving USB for END;
+  lost ACK or actor replacement never reconnects or releases the journal.
+  Fix accepted-connection shutdown ordering for Python 3.14. Host byte-pump
+  tests do not establish Noise samples, terminal proof or hardware readiness.
+
 - Join the complete fixed stock/vendor/creator-intent/RAM scope to the original
   browser guardian. Derive all three bounded preference-layout branches from
   frozen native readers, bind the non-secret API identity before consumption,

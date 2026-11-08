@@ -35,7 +35,7 @@ class InitialApiContext:
 
     def live(self):
         self._running.live()
-        if self._noise_psk is None or self._running._finished:
+        if self._noise_psk is None or self._running._finished or self._running._api_context is not self:
             raise RelayRefusal
 
     @property
@@ -49,8 +49,8 @@ class InitialApiContext:
 
 def _payload(result, packet):
     value = document(result, mime=MIME, limit=4096)
-    if (set(value) != {'kind', *BINDING, 'node_name', 'api_mac', 'noise_psk'} or
-            value['kind'] != 'browser_initial_api_context' or
+    if (set(value) != {'kind', 'transport', *BINDING, 'node_name', 'api_mac', 'noise_psk'} or
+            value['kind'] != 'browser_initial_api_context' or value['transport'] != 'original_guardian_webusb' or
             not same({k: value[k] for k in BINDING}, {k: packet[k] for k in BINDING}) or
             not same({k: value[k] for k in ('node_name', 'api_mac')}, packet['context']['api_identity']) or
             any(not isinstance(value[k], str) for k in ('node_name', 'api_mac', 'noise_psk')) or
@@ -89,7 +89,9 @@ async def read_initial_api_context(running):
         value = _payload(await ram._service.exchange(ram.owner, ram.nonce,
             'internal-browser-initial-trial-api', request), ram.packet)
         running.live()
-        return InitialApiContext(running, value)
+        result = InitialApiContext(running, value)
+        running._api_context = result
+        return result
     except BaseException:
         await running.close()
         raise RelayRefusal from None

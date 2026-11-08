@@ -637,6 +637,26 @@ separate even though the HACS wizard is shared.
   tests and both HA USB suites. Native vectors and immediate synthetic END
   records do not qualify real timing, a monitor trial or first installation.
 
+- Original guardian API transport is private and retains the same selected
+  channel, actor, reservation, consumed packet and independent device timer.
+  Generic API open remains forbidden in RAM/guardian phases. Native repeats
+  complete fixed scope before tcp:6053. At most one opaque API-read may coexist
+  with a scope read; writes/open/close serialize and share the existing frame
+  and 32-read budgets. Positive API-close ACK is distinct from USB/channel close.
+  InitialGuardianApiRelay consumes the original private key context once,
+  delegates opaque IO only to its actual serve/pump tasks, and pins the shorter
+  original issued_at+50/registry deadline without renewal. A late open, lost
+  ACK or replaced actor retires the original channel, preserving uncertainty.
+  Normal API teardown keeps USB for later END/return observations. Shared cleanup
+  must join actual API-close ACK before a context-only result. Close owned
+  accepted TCP transports before Server.wait_closed on Python3.14. Keep keys out
+  of browser frames and all HTTP/status/SDK inputs. Rehash the ninth producer's
+  transport declaration; older consumed packets acquire no new IO. Run
+  test_usb_browser_initial_relay.py, framing/raw/delivered NativeChannel tests,
+  both HA USB suites and package checks. This opaque loopback fixture is not a
+  Noise handshake, authenticated wire generation, terminal proof or physical QA;
+  no public initiating writer or terminal journal release is enabled.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

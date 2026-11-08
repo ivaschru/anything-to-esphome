@@ -24,6 +24,10 @@ class BrowserApiRelay:
         self.failed = False
         self.active = None
         self.tasks = set()
+        # Exact owned pumps are tracked for the private original-guardian
+        # adapter. This is not a task/transport adoption hook: ordinary relay
+        # behavior and all budgets remain unchanged.
+        self.pumps = set()
         self.opens = 0
         self.bytes = 0
         self.deadline = None
@@ -82,6 +86,7 @@ class BrowserApiRelay:
                         writer.write(data)
                         await writer.drain()
                 pumps = [asyncio.create_task(upstream()), asyncio.create_task(downstream())]
+                self.pumps.update(pumps)
                 done, _ = await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     task.result()
@@ -92,6 +97,7 @@ class BrowserApiRelay:
                 if not task.done():
                     task.cancel()  # Only these owned host byte-pump tasks.
             await asyncio.gather(*pumps, return_exceptions=True)
+            self.pumps.difference_update(pumps)
             if remote is not None:
                 try:
                     await asyncio.wait_for(remote.close(), 2)
@@ -127,9 +133,13 @@ class BrowserApiRelay:
             self.timer.cancel()
         if self.server is not None:
             self.server.close()
-            await self.server.wait_closed()
         if self.active is not None:
             self.active.close()
+        # Python 3.14 Server.wait_closed also waits for accepted transports.
+        # Close the owned active connection FIRST, otherwise an idle read can
+        # hold API cleanup until its timeout and turn a normal close into loss.
+        if self.server is not None:
+            await self.server.wait_closed()
         # Closing the channel cancels its own USB/stream IO only; no monitor
         # process, boot flag or device state is signalled or retried here.
         try:

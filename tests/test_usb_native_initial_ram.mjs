@@ -15,13 +15,24 @@ async function selected(options={},Native=undefined) {
  const packet=structuredClone(original.packet),body=new Uint8Array(131089).fill(27);
  packet.context.guardian={size:body.length,sha256:hash(body)};
  let commands,created=0,uploaded=false,syncOpens=0,syncClosed=0,guardianBody,guardianStarts=0,processPacket,processRam,processFixture,scopeFixture,scopeReads=0;
+ let apiOpening=false,apiOpens=0,apiCloses=0,apiController,apiCancelled=false,scopeGate,scopeEntered,releaseScope;
+ const apiWrites=[];
  const scopeRead=command=>{
   if(!scopeFixture)return undefined;
   const keys=Object.keys(scopeFixture.commands),key=keys[scopeReads%keys.length];assert.equal(command,scopeFixture.commands[key]);scopeReads++;
   return options.unknownPrefs && key==='prefs_entries'?'unknown.prefs':scopeFixture.reads[key];
  };
  const fixture=disabledTransport({committed:true,unsupported:options.unsupported,
-  identityRead:scopeRead,
+  identityRead:command=>apiOpening && scopeReads && scopeReads%57===0?undefined:scopeRead(command),
+  beforeReadReply:async command=>{
+   if(scopeGate && command===scopeFixture?.commands.process_scan){scopeEntered();await scopeGate;scopeGate=undefined;}
+  },
+  apiSocket:()=>{
+   apiOpens++;if(options.apiOpenLoss)throw Error('Synthetic API open ACK loss');
+   return {readable:new ReadableStream({start(c){apiController=c;},cancel(){apiCancelled=true;}}),
+    writable:new WritableStream({write(bytes){assert(bytes instanceof Uint8Array);apiWrites.push(Array.from(bytes));}}),
+    close:async()=>{apiCloses++;if(!apiCancelled){apiCancelled=true;apiController.close();}if(options.apiCloseLoss)throw Error('Synthetic API close ACK loss');}};
+  },
   rawCommand:text=>{
    if(!created){assert.equal(text,commands.create);created++;return;}
    assert.equal(text,guardianBody);guardianStarts++;
@@ -52,14 +63,50 @@ async function selected(options={},Native=undefined) {
  packet.channel_nonce=fixture.link.evidence().channel;
  commands=initialRamCommands(packet,packet.preparation);
  const peer=new BrowserChannelPeer(fixture.link);let id=0;
- return {fixture,packet,body,peer,call:(operation,data=null)=>peer.dispatch({id:(++id).toString(16).padStart(32,'0'),operation,data}),
+ return {fixture,packet,body,peer,call:async(operation,data=null)=>{
+   if(operation==='api-open')apiOpening=true;
+   try{return await peer.dispatch({id:(++id).toString(16).padStart(32,'0'),operation,data});}
+   finally{if(operation==='api-open')apiOpening=false;}
+  },
   expectGuardian:proof=>{guardianBody=initialGuardianLaunchBody(packet,proof.preparation,proof);processPacket=structuredClone(packet);processRam=structuredClone(proof);},
   expectProcesses:start=>{processFixture=initialProcessFixture(processPacket,processRam,start,options);},
   expectScope:start=>{scopeFixture=JSON.parse(execFileSync(process.env.PYTHON||'python3',['tests/fixtures/monitor1_browser_initial_scope.py','--stdin'],{
    input:JSON.stringify({packet:processPacket,ram:processRam,started:start,layout:'prefs_file'}),encoding:'utf8',maxBuffer:1024*1024}));},
   get scopeReads(){return scopeReads;},
+  pauseScope:()=>{
+   scopeGate=new Promise(resolve=>{releaseScope=resolve;});
+   return new Promise(resolve=>{scopeEntered=resolve;});
+  },releaseScope:()=>releaseScope(),feedApi:bytes=>apiController.enqueue(new Uint8Array(bytes)),
+  get apiOpens(){return apiOpens;},get apiCloses(){return apiCloses;},apiWrites,
   get processReads(){return processFixture?.count||0;},
   get guardianStarts(){return guardianStarts;},get created(){return created;},get syncOpens(){return syncOpens;},get syncClosed(){return syncClosed;}};
+}
+for(const Native of [undefined,createNativeChannel().constructor]) {
+ const f=await selected({},Native);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ assert.equal((await f.call('api-open')).ok,true);assert.equal(f.apiOpens,1);assert.equal(f.scopeReads,57);
+ const first=f.call('api-read',{max_bytes:64}),entered=f.pauseScope();
+ const scope=f.call('guardian-scope-observe');await entered;
+ f.feedApi([7,8]);assert.equal((await first).data,btoa(String.fromCharCode(7,8)));
+ const second=f.call('api-read',{max_bytes:64});f.feedApi([9]);assert.equal((await second).data,btoa(String.fromCharCode(9)));
+ f.releaseScope();assert.equal((await scope).ok,true);assert.equal(f.scopeReads,114);
+ assert.equal((await f.call('api-write',btoa('opaque synthetic bytes'))).ok,true);assert.equal(f.apiWrites.length,1);
+ const pending=f.call('api-read',{max_bytes:64});
+ assert.equal((await f.call('api-close')).ok,true);assert.equal((await pending).data,'');
+ assert.equal(f.apiCloses,1);assert.equal(f.fixture.closed,0,'API close preserves the original guardian transport');
+ assert.equal((await f.call('guardian-finish')).ok,true);assert.equal(f.guardianStarts,1);
+ assert.equal((await f.call('channel-close')).ok,true);assert.equal(f.fixture.closed,1);
+}
+for(const options of [{apiOpenLoss:true},{apiCloseLoss:true}]) {
+ const f=await selected(options);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);
+ const ready=await f.call('ram-complete');f.expectGuardian(ready.data);
+ const start=await f.call('guardian-start');f.expectScope(start.data);
+ const opened=await f.call('api-open');
+ if(options.apiOpenLoss)assert.equal(opened.ok,false);
+ else {assert.equal(opened.ok,true);assert.equal((await f.call('api-close')).ok,false);}
+ assert.equal(f.apiOpens,1);assert.equal(f.fixture.closed,1);assert.equal(f.guardianStarts,1);
+ await assert.rejects(f.call('api-open'));assert.equal(f.apiOpens,1,'Unknown ACK is never retried');
 }
 for(const Native of [undefined,createNativeChannel().constructor]) {
  const f=await selected({},Native);await f.call('ram-stream-check');await f.call('ram-prepare',{packet:f.packet});await send(f);

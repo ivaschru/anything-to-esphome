@@ -11,6 +11,7 @@ launch authority. No public request creates those frames or launches code. A dro
 import asyncio
 import base64
 import copy
+from contextlib import nullcontext
 import re
 import secrets
 
@@ -55,6 +56,7 @@ class BrowserChannel:
     def __init__(self):
         self.queue = asyncio.Queue(maxsize=2)
         self.pending = {}
+        self.pending_operations = {}
         self.abandoned_reads = set()
         self.retired_reads = set()
         self.closed = False
@@ -78,6 +80,8 @@ class BrowserChannel:
         self.guardian_observations = 0
         self.process_binding = self.process_root = self.process_guardian = None
         self.guardian_scope_basis = self.guardian_ram_root = None
+        self.guardian_control = asyncio.Lock()
+        self.guardian_api_mode = False
 
     def _retire(self):
         self.closed = True
@@ -89,6 +93,7 @@ class BrowserChannel:
                 else:
                     future.set_exception(RelayRefusal())
         self.pending.clear()
+        self.pending_operations.clear()
 
     async def _request(self, operation, data=None):
         if self.closed or operation not in OPS or len(self.pending) >= 2:
@@ -96,6 +101,7 @@ class BrowserChannel:
         identity = secrets.token_hex(16)
         future = asyncio.get_running_loop().create_future()
         self.pending[identity] = (future, False)
+        self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
             timeout = SCOPE_WINDOW if operation == 'guardian-scope-observe' else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
@@ -131,6 +137,7 @@ class BrowserChannel:
         finally:
             if identity not in self.abandoned_reads:
                 self.pending.pop(identity, None)
+                self.pending_operations.pop(identity, None)
 
     async def poll(self):
         """Transport delivery once, not a writer or retry/status endpoint."""
@@ -173,10 +180,12 @@ class BrowserChannel:
         if body["id"] in self.abandoned_reads:
             self.abandoned_reads.remove(body["id"])
             self.pending.pop(body["id"], None)
+            self.pending_operations.pop(body["id"], None)
 
     def _retire_reads_after_close_ack(self):
         for identity in list(self.abandoned_reads):
             future, _ = self.pending.pop(identity)
+            self.pending_operations.pop(identity, None)
             if not future.done():
                 future.set_result(None)
             self.retired_reads.add(identity)
@@ -406,7 +415,7 @@ class BrowserChannel:
         return value
 
     async def finish_initial_guardian(self):
-        if self.guardian_ready is None or self.guardian_finished or self.pending:
+        if self.guardian_ready is None or self.guardian_finished or self.pending or self.opened or self.opening:
             raise RelayRefusal
         self.guardian_finished = True  # A lost END/close is never permission to replay.
         value = await self._request('guardian-finish')
@@ -441,20 +450,52 @@ class BrowserChannel:
         return value  # Partial context only; no freshness/stock/Noise/terminal claim.
 
     async def observe_initial_guardian_scope(self):
-        """Null-data complete fixed reader, sharing the original read budget."""
-        if (self.guardian_ready is None or self.guardian_finished or self.pending or
+        """One fixed scope beside at most one opaque API read, never a write.
+
+        The control lock serializes guardian API write/close/open against the
+        scope reader. The two-frame budget is unchanged; a pending API read
+        alone may coexist. The window includes waiting for that lock.
+        """
+        if (self.guardian_ready is None or self.guardian_finished or
                 self.guardian_observations >= 32 or self.guardian_scope_basis is None):
             raise RelayRefusal
         process_context(self.process_binding, self.guardian_ready, self.process_root, self.process_guardian)
         self.guardian_observations += 1
-        value = await self._request('guardian-scope-observe')
         try:
-            guardian_scope(value, self.process_binding, self.guardian_ready, self.process_guardian,
-                           self.guardian_ram_root, self.guardian_scope_basis)
-        except RelayRefusal:
+            async with asyncio.timeout(SCOPE_WINDOW), self.guardian_control:
+                if self.pending and (not self.guardian_api_mode or not self.opened or
+                        set(self.pending_operations) != set(self.pending) or
+                        any(op != 'api-read' for op in self.pending_operations.values()) or len(self.pending) != 1):
+                    raise RelayRefusal
+                value = await self._request('guardian-scope-observe')
+                guardian_scope(value, self.process_binding, self.guardian_ready, self.process_guardian,
+                               self.guardian_ram_root, self.guardian_scope_basis)
+        except BaseException:
             self._retire()
-            raise
+            raise RelayRefusal from None
         return value  # No Noise sample, image FD, stop/reap or terminal lease release.
+
+    async def open_initial_guardian_api(self):
+        """Private original guardian read connection, with no host/key selector.
+
+        Native repeats full live scope before its fixed tcp:6053 open, spending
+        the same read budget. Another connection requires the previous actual
+        API-close ACK. This is not an install/launch replay or public action.
+        """
+        async with self.guardian_control:
+            if (self.guardian_ready is None or self.guardian_finished or self.opened or self.opening or
+                    self.pending or self.guardian_observations >= 32 or self.guardian_scope_basis is None):
+                raise RelayRefusal
+            self.guardian_observations += 1
+            self.opening = True
+            try:
+                if await self._request('api-open') is not None:
+                    self._retire()
+                    raise RelayRefusal
+                self.opened = self.guardian_api_mode = True
+                return BrowserStream(self, guardian=True)
+            finally:
+                self.opening = False
 
     async def open_api(self):
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:
@@ -479,14 +520,16 @@ class BrowserChannel:
                 raise RelayRefusal
             self._retire_reads_after_close_ack()
             self.closed = True
+            self.opened = self.guardian_api_mode = False
         except BaseException:
             self._retire()
             raise RelayRefusal from None
 
 
 class BrowserStream:
-    def __init__(self, channel):
+    def __init__(self, channel, *, guardian=False):
         self.channel = channel
+        self.guardian = guardian  # Chosen only by the two fixed private open methods.
         self.closed = False
         self.reading = False
         self.writing = False
@@ -516,8 +559,11 @@ class BrowserStream:
             raise RelayRefusal
         self.writing = True
         try:
-            if await self.channel._request("api-write", base64.b64encode(body).decode()) is not None:
-                raise ValueError
+            async with self.channel.guardian_control if self.guardian else nullcontext():
+                if self.guardian and not self.channel.guardian_api_mode:
+                    raise ValueError
+                if await self.channel._request("api-write", base64.b64encode(body).decode()) is not None:
+                    raise ValueError
         except BaseException:
             self.channel._retire()
             raise RelayRefusal from None
@@ -534,10 +580,11 @@ class BrowserStream:
             raise RelayRefusal
         self.closed = True
         try:
-            if await self.channel._request("api-close") is not None:
-                raise ValueError
-            self.channel._retire_reads_after_close_ack()
-            self.channel.opened = False
+            async with self.channel.guardian_control if self.guardian else nullcontext():
+                if await self.channel._request("api-close") is not None:
+                    raise ValueError
+                self.channel._retire_reads_after_close_ack()
+                self.channel.opened = self.channel.guardian_api_mode = False
         except BaseException:
             self.channel._retire()
             raise RelayRefusal from None

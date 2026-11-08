@@ -37,6 +37,22 @@ class RelayTests(unittest.IsolatedAsyncioTestCase):
         self.channel.open_api.assert_awaited_once()
         writer.close();other.close();await writer.wait_closed();await other.wait_closed()
 
+    async def test_close_retires_active_tcp_before_waiting_for_server_close(self):
+        # Python3.14 waits for accepted connections in Server.wait_closed.
+        # An idle pending USB read must not hold this normal close hostage.
+        reader, writer = await asyncio.open_connection('127.0.0.1', self.port)
+        writer.write(b'x')
+        await writer.drain()
+        self.assertEqual(await asyncio.wait_for(reader.readexactly(1), 1), b'x')
+        await asyncio.wait_for(self.relay.close(), 1)
+        self.assertFalse(self.relay.failed)
+        self.remote.close.assert_awaited_once()
+        self.channel.close.assert_awaited_once()
+        self.assertIsNone(self.relay.active)
+        self.assertEqual(await reader.read(), b'')
+        writer.close()
+        await writer.wait_closed()
+
     async def test_lost_open_ack_retires_channel_and_never_retries(self):
         self.channel.open_api.side_effect=TimeoutError('synthetic private transport error')
         reader,writer=await asyncio.open_connection('127.0.0.1',self.port)
