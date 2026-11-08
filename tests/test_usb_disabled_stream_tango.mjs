@@ -18,6 +18,15 @@ assert.equal(manifest.version,'2.6.2');
 const {Adb,AdbDaemonTransport,AdbCommand}=await import(pathToFileURL(path.join(root,'node_modules/@yume-chan/adb/esm/index.js')));
 const loaded=spawnSync('python3',['tests/fixtures/monitor1_browser_commands.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
 assert.equal(loaded.status,0,loaded.stderr);const vectors=JSON.parse(loaded.stdout).slice(0,3);
+const ramLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_initial_ram.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
+assert.equal(ramLoaded.status,0,ramLoaded.stderr);const ram=JSON.parse(ramLoaded.stdout)[0];
+const {InitialRamCommandStream,initialRamStreamService}=await import('../custom_components/qingping_esphome/frontend/usb-initial-ram-stream.mjs');
+for(const scenario of [
+ {Stream:DisabledCommandStream,service:disabledStreamService,operations:vectors,
+  execute:(stream,v)=>stream.execute(v.meta,v.scope,v.nonce,v.phase),bodies:vectors.map(v=>v.expected)},
+ {Stream:InitialRamCommandStream,service:initialRamStreamService,operations:[ram],
+  execute:(stream,v)=>stream.create(v.packet,v.preparation),bodies:[ram.expected.create]}
+]) {
 const encoder=new TextEncoder(),decoder=new TextDecoder(),maximum=512;
 let incoming,wireClosed=false,retired=0;
 const states=new Map(),opens=[],writes=[];
@@ -34,7 +43,7 @@ function outgoing(packet) {
  if(packet.command===AdbCommand.Open) {
   const service=decoder.decode(packet.payload).slice(0,-1);
   const framing={size:Number(service.match(/count=([0-9]+)/)[1]),sha256:service.match(/[a-f0-9]{64}/)[0],marker:service.match(/__CGS1_FIXED_OK_[a-f0-9]{32}__/)[0]};
-  assert.equal(service,disabledStreamService(framing),'Only the complete tiny sealed-receive bootstrap is in OPEN');
+  assert.equal(service,scenario.service(framing),'Only the complete tiny sealed-receive bootstrap is in OPEN');
   const state={local:packet.arg0,remote:packet.arg0+100,body:'',output:[],closeSent:false,framing};
   states.set(state.local,state);opens.push(state);
   reply(AdbCommand.Okay,state.remote,state.local);return;
@@ -67,12 +76,14 @@ const connection={
 const transport=new AdbDaemonTransport({serial:'synthetic-only',connection,version:0x01000000,banner:'device::features=',
  features:[],maxPayloadSize:maximum,initialDelayedAckBytes:0,readTimeLimit:0});
 const client=new Adb(transport);
-const stream=new DisabledCommandStream({live:()=>!wireClosed,open:framing=>client.createSocket(disabledStreamService(framing)),
+const stream=new scenario.Stream({live:()=>!wireClosed,open:framing=>client.createSocket(scenario.service(framing)),
  closeTransport:async()=>{retired++;await client.close();}});
 await stream.probe();
-for(const v of vectors)await stream.execute(v.meta,v.scope,v.nonce,v.phase);
-assert.equal(opens.length,4);assert(opens.every(state=>state.closed),'Every fixed shell waited for its own remote CLSE');
-assert(opens[2].body.startsWith(vectors[1].expected));assert(opens[2].body.length>4096);
-assert(writes.length>100);assert(writes.every(length=>length<=maximum));assert(writes.some(length=>length===maximum));
+for(const v of scenario.operations)await scenario.execute(stream,v);
+assert.equal(opens.length,scenario.operations.length+1);assert(opens.every(state=>state.closed),'Every fixed shell waited for its own remote CLSE');
+scenario.bodies.forEach((body,i)=>assert.equal(opens[i+1].body,body));
+assert(opens.some(state=>state.body.length>4096));
+assert(writes.length>=Math.ceil(opens.reduce((n,state)=>n+state.body.length,0)/maximum));assert(writes.every(length=>length<=maximum));assert(writes.some(length=>length===maximum));
 await stream.close();assert.equal(retired,1);
-console.log('Actual Tango2.6.2: fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');
+}
+console.log('Actual Tango2.6.2: disabled and initial RAM fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');

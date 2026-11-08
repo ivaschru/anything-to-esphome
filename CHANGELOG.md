@@ -1,5 +1,15 @@
 ## Unreleased – browser USB installation work
 
+- Compose the unwired RAM session: fresh committed source checks, one sealed
+  creation, independent empty-file/root readback, one guardian SYNC and exact
+  inode/SHA readback. Preserve unknown outcomes and original transport ownership;
+  no guardian start, image-FD admission or public writer is enabled.
+
+- Reuse the sealed stdin lifecycle behind finite disabled-commit and initial
+  RAM-creation wrappers. The new wrapper consumes one typed creation, requires
+  a positive harmless exec probe and retires lost/late IO without replay. It
+  remains unwired; no guardian execution or browser installer is enabled.
+
 - Add independent context-only RAM readback parsing: exact root/file metadata, SHA and precreate-to-upload inode continuity; no image-FD or launch authority.
 
 - Add unwired, typed browser first-trial RAM creation/readback templates with canonical guard parity, conservative memory/ARM32 capacity checks and exclusive private tmpfs allocation. No browser trial launch or hardware qualification is enabled.

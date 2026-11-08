@@ -482,3 +482,11 @@ two root observations and binds the precreated RAM/root/file inodes through
 upload. Matching bytes at a replaced inode refuse. It returns context only;
 the live selected-channel coordinator and actual device FD admission remain
 separate, and no hardware reads are performed by this parser.
+
+The source now composes those primitives in an unwired RAM session: a fresh
+source check, one sealed creation, independent precreate readback, one guardian
+SYNC and post-transfer inode/SHA readback. Source checks bracket both readback
+phases. Cancellation retires the same owned connection, with no replay or
+cleanup of unknown device effects. A successful session keeps that connection
+for the still-separate guardian lifecycle; it grants no image-FD admission or
+execution and is not yet connected to the public wizard or private channel.

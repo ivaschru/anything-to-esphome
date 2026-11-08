@@ -536,6 +536,20 @@ separate even though the HACS wizard is shared.
   test_usb_initial_ram_commands.mjs, test_usb_initial_ram_observation.mjs and
   the Linux/root allocation-tail fixture;
   syntax/parity/temporary-root tests do not qualify a physical installation.
+  InitialRamCommandStream now describes one sealed creation after the fixed
+  harmless probe; it is still unwired and cannot upload/chmod/launch a guardian.
+  Share internal stdin mechanics only through module-owned finite assemblers;
+  never expose the helper, an assembler or a shell body via a frame/HTTP API.
+  Preserve DisabledCommandStream's brand, three-step order and no-replay state.
+  Rebuild the offline bundle and run both wrappers plus actual pinned Tango
+  512-byte fragmentation/ACK/CLSE tests after shared transport changes.
+  BrowserInitialRamSession composes fresh preparation, one sealed creation,
+  independent precreate readback, one guardian SYNC and inode/SHA readback.
+  It stays unwired: metadata never acquires the original channel/consumed lease.
+  Preserve two complete source checks around each RAM observation phase,
+  bounded pending-read cancellation and a shared close promise. A positive
+  result keeps the transport but grants no chmod/exec, device FD admission,
+  terminal trial proof or completion. Run test_usb_initial_ram_session.mjs.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
