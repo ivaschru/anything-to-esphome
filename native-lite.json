@@ -1,0 +1,54 @@
+{
+  "format": "qingping-native-update-v1",
+  "hardware": "0001",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      19254,
+      4
+    ],
+    [
+      269962,
+      8
+    ],
+    [
+      271350,
+      7
+    ],
+    [
+      271414,
+      6
+    ],
+    [
+      271478,
+      5
+    ],
+    [
+      271511,
+      3
+    ],
+    [
+      271575,
+      2
+    ],
+    [
+      271608,
+      1
+    ],
+    [
+      271643,
+      0
+    ]
+  ],
+  "profile": "lite",
+  "public_version": 3,
+  "revision": 4,
+  "sha256": "bc1afc632b571985f289d0ebfd1336237419c5d7dd35e5644e465f3c1390d346",
+  "size": 1689232,
+  "source_stock_version": "4.5.8",
+  "summary": "Lite 4.5.8 / HW0001 firmware 3. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v3/lite-template.bin"
+}
