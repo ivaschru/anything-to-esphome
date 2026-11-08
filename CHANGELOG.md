@@ -1,5 +1,13 @@
 ## Unreleased – browser USB installation work
 
+- Join the guardian transport to the original selected WebUSB channel's own
+  completed RAM session. Finite private start/finish frames take no replacement
+  packet or command. Recheck fresh source scope before one launch delivery;
+  preserve consumed phases, original deadline and independent close ACK.
+  Python validates lossless reported records without adopting processes or
+  releasing a lease. Core launch/observer/terminal proof and public UI remain
+  unfinished. Host emulators execute no guardian or monitor program.
+
 - Derive the frozen guardian's exact forty-field ABI and guarded RAM launch
   text from its original source. Add a uint64-safe ordered stdout parser and
   one-shot sealed-stdin transport with bounded ACK/close cleanup. These remain

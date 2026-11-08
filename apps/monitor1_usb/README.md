@@ -490,9 +490,15 @@ arguments and guarded launch text from the unchanged native implementation.
 It repeats the original file inode/SHA around the sole RAM chmod and sends the
 complete sealed body once. Its bounded stdout transport validates ordered
 START/CHILD/END, lossless process birth ticks, the final marker and actual raw
-close. These reported records remain context: the transport is not yet joined
-to the original selected-channel/Core handoff, independent process/Noise
-observation or terminal journal verifier. The seventh pinned trial producer
+close. The transport now continues only the actual selected channel's own
+completed RAM session through finite private start/finish frames with null
+data. It retains detached packet/readback metadata and repeats fresh scope
+checks before one launch delivery. Python verifies the original nonce and
+reported record sequence; unknown delivery never replays a phase.
+
+These reported records remain context: the private Core task/actor handoff,
+independent process/Noise observation and terminal journal verifier are still
+missing. The seventh pinned trial producer
 prevents older consumed packets from acquiring this new capability.
 
 Actual device image-FD admission and the complete bounded guardian lifecycle

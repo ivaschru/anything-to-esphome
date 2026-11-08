@@ -563,8 +563,14 @@ separate even though the HACS wizard is shared.
   Run test_usb_initial_ram_session.mjs, test_usb_native_initial_ram.mjs and all
   test_usb_*.py on both HA SDKs after these frame/owner/actor changes.
 
-- The browser guardian ABI/text/stdout transport is still unwired to that
-  live RAM handoff. Generate its exact forty arguments and guarded text from
+- The browser guardian ABI/text/stdout transport now joins the original
+  selected channel's own completed RAM session through finite private
+  guardian-start/guardian-finish frames with null data. Retain detached actual
+  packet/proof inside that instance; never accept a replacement JSON handoff.
+  Python keeps its own consumed phase/nonce and lossless reported records.
+  The private Core task/actor coordinator, independent process/stock/Noise
+  observer and terminal journal verifier are still missing; no public initiator
+  or lease release exists. Generate exact forty arguments and guarded text from
   frozen source53, including original file inode/SHA before and after the
   sole RAM chmod. Keep all seven trial producers pinned; never adopt an older
   consumed packet. InitialGuardianStream consumes once, seals the complete

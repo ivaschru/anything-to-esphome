@@ -1,6 +1,7 @@
 """Real asyncio framing/loopback with a synthetic browser; no USB or HA."""
 import asyncio
 import base64
+import copy
 import importlib.util
 from pathlib import Path
 import sys
@@ -211,6 +212,7 @@ class InitialRamFramesTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(relay_module.RelayRefusal):
                 await task
             self.assertTrue(channel.closed and channel.failed)
+
             with self.assertRaises(relay_module.RelayRefusal):
                 channel.answer({'id': frame['id'], 'ok': True, 'data': None})
             with self.assertRaises(relay_module.RelayRefusal):
@@ -231,3 +233,101 @@ class InitialRamFramesTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(step=step), self.assertRaises(relay_module.RelayRefusal):
                 await self.exchange(call, operation, answer)
             self.assertTrue(channel.closed and channel.failed)
+
+
+class GuardianFramesTests(unittest.IsolatedAsyncioTestCase):
+    """Real finite request state, synthetic records only; no device execution."""
+    asyncSetUp = InitialRamFramesTests.asyncSetUp
+    exchange = InitialRamFramesTests.exchange
+    probe = InitialRamFramesTests.probe
+
+    async def ram_ready(self):
+        await self.probe()
+        await self.exchange(self.channel.begin_initial_ram({'nonce': 'a' * 32}), 'ram-prepare',
+            {'state': 'ram_precreated', 'precreated': {}, 'writer_enabled': False, 'image_fd_admitted': False})
+        await self.exchange(self.channel.finish_initial_ram(), 'ram-complete',
+            {'kind': 'browser_initial_ram_ready', 'precreated': {}, 'uploaded': {}, 'preparation': {},
+             'transport_closed': False, 'guardian_started': False, 'image_fd_admitted': False,
+             'execution_authority': False, 'context_only': True})
+
+    def records(self):
+        start = {'kind': 'start', 'nonce': 'a' * 32, 'stamp': [123, str(2**64 - 1)]}
+        child = {'kind': 'child', 'nonce': 'a' * 32, 'stamp': [124, '456']}
+        first = {'kind': 'browser_initial_guardian_started_record', 'start': start, 'child': child, 'records_only': True}
+        end = {'kind': 'end', 'nonce': 'a' * 32, 'guardian': start['stamp'], 'child': child['stamp'],
+               'elapsed_ms': 60000, 'reaped': True, 'protection_ack': True, 'term_sent': True, 'forced': False, 'wait_status': 15}
+        last = {'kind': 'browser_initial_guardian_records', 'start': copy.deepcopy(start), 'child': copy.deepcopy(child),
+                'end': copy.deepcopy(end), 'raw_closed': True, 'transport_closed': False, 'records_only': True}
+        return first, last
+
+    async def test_original_ram_sequence_then_null_start_finish_and_independent_close(self):
+        await self.ram_ready()
+        first, last = self.records()
+        value, data = await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+        self.assertIsNone(data)
+        value['start']['stamp'][1] = '999'  # Retained reference must be detached.
+        value['child']['nonce'] = 'b' * 32
+        value, data = await self.exchange(self.channel.finish_initial_guardian(), 'guardian-finish', last)
+        self.assertIsNone(data)
+        self.assertEqual(value, last)
+        self.assertFalse(self.channel.closed)
+        for action in (self.channel.start_initial_guardian, self.channel.finish_initial_guardian, self.channel.open_api):
+            with self.assertRaises(relay_module.RelayRefusal):
+                await action()
+        await self.exchange(self.channel.close(), 'channel-close', None)
+
+    async def test_no_start_before_original_ram_proof_or_end_before_start(self):
+        for action in (self.channel.start_initial_guardian, self.channel.finish_initial_guardian):
+            with self.assertRaises(relay_module.RelayRefusal):
+                await action()
+        self.assertTrue(self.channel.queue.empty())
+        await self.ram_ready()
+        with self.assertRaises(relay_module.RelayRefusal):
+            await self.channel.finish_initial_guardian()
+        self.assertTrue(self.channel.queue.empty())
+
+    async def test_bad_start_nonce_stamp_or_scalar_retires_without_replay(self):
+        for bad in ('nonce', 'number_birth', 'overflow', 'pid_bool', 'same_pid', 'records_bool', 'extra'):
+            self.channel = channel_module.BrowserChannel()
+            await self.ram_ready()
+            first, _ = self.records()
+            if bad == 'nonce': first['start']['nonce'] = 'b' * 32
+            elif bad == 'number_birth': first['start']['stamp'][1] = 12345
+            elif bad == 'overflow': first['start']['stamp'][1] = str(2**64)
+            elif bad == 'pid_bool': first['start']['stamp'][0] = True
+            elif bad == 'same_pid': first['child']['stamp'][0] = 123
+            elif bad == 'records_bool': first['records_only'] = 1
+            else: first['command'] = 'not admitted'
+            with self.subTest(bad=bad), self.assertRaises(relay_module.RelayRefusal):
+                await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+            self.assertTrue(self.channel.closed and self.channel.failed)
+
+    async def test_end_must_match_original_records_exact_stamps_and_flags(self):
+        for bad in ('birth', 'child', 'duration', 'flag', 'wait_bool', 'close', 'transport'):
+            self.channel = channel_module.BrowserChannel()
+            await self.ram_ready()
+            first, last = self.records()
+            await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+            if bad == 'birth': last['end']['guardian'][1] = '1'
+            elif bad == 'child': last['child']['stamp'][1] = '1'
+            elif bad == 'duration': last['end']['elapsed_ms'] = 59999
+            elif bad == 'flag': last['end']['reaped'] = 1
+            elif bad == 'wait_bool': last['end']['wait_status'] = False
+            elif bad == 'close': last['raw_closed'] = 1
+            else: last['transport_closed'] = True
+            with self.subTest(bad=bad), self.assertRaises(relay_module.RelayRefusal):
+                await self.exchange(self.channel.finish_initial_guardian(), 'guardian-finish', last)
+            self.assertTrue(self.channel.closed and self.channel.failed)
+
+    async def test_cancelled_start_or_end_ack_never_replays(self):
+        for phase in ('start', 'finish'):
+            self.channel = channel_module.BrowserChannel()
+            await self.ram_ready()
+            first, _ = self.records()
+            if phase == 'finish': await self.exchange(self.channel.start_initial_guardian(), 'guardian-start', first)
+            task = asyncio.create_task(getattr(self.channel, phase + '_initial_guardian')())
+            request = await self.channel.poll()
+            task.cancel()
+            with self.assertRaises(relay_module.RelayRefusal): await task
+            with self.assertRaises(relay_module.RelayRefusal): self.channel.answer({'id': request['id'], 'ok': True, 'data': first})
+            self.assertTrue(self.channel.closed and self.channel.failed)

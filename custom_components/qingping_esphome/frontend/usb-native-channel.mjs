@@ -1,5 +1,6 @@
 import {InitialRamCommandStream,initialRamStreamService} from './usb-initial-ram-stream.mjs';
 import {BrowserInitialRamSession} from './usb-initial-ram-session.mjs';
+import {InitialGuardianStream,initialGuardianStreamService} from './usb-initial-guardian-stream.mjs';
 import {collectDisabledScope} from "./usb-disabled-scope.mjs";
 import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
@@ -24,6 +25,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
   #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;#ramProbeUsed=false;#ramUsed=false;#ramStream;#ram;
+  #ramPacket;#ramProof;#guardian;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
   constructor(library,contract) {this.#library=library;this.#contract=contract;}
 
   /** Picker must run in the original click, before any network/async work. */
@@ -286,6 +288,10 @@ export class BrowserNativeChannel {
     if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed || this.#commitUsed || this.#commitProbeUsed || this.#ramUsed || !this.#ramProbeUsed || !this.#ramStream) error('usb_selection_consumed');
     this.#ramUsed=true;this.#busy=true; // Before the first possible RAM creation ACK.
     try {
+      // Preserve only the metadata delivered under the original consumed Core
+      // intent. A caller's later mutation cannot replace the eventual launch
+      // binding; no guardian body or key belongs in this retained handoff.
+      packet=JSON.parse(JSON.stringify(packet));
       const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
         wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
       const bound=packet?.context?.meta?.target;
@@ -297,7 +303,7 @@ export class BrowserNativeChannel {
           if(this.#closed) {await this.#cleanup(()=>socket.close());error('usb_selection_consumed');}
           try {return this.#library.createSyncSocket(socket);}catch {await this.#cleanup(()=>socket.close());throw Error();}
         },5000),pushV1:options=>this.#library.pushV1(options)},this.#ramStream,packet);
-      return await this.#ram.prepare();
+      const prepared=await this.#ram.prepare();this.#ramPacket=packet;return prepared;
     } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
     finally {this.#busy=false;}
   }
@@ -309,7 +315,43 @@ export class BrowserNativeChannel {
     finally {this.#busy=false;}
   }
   initialRamAppend(offset,bytes) {return this.#ramCall('append',offset,bytes);}
-  finishInitialRam() {return this.#ramCall('finish');}
+  async finishInitialRam() {
+    const value=await this.#ramCall('finish');
+    // Keep a detached private result of this actual session. A later frame
+    // takes no packet/proof argument and cannot substitute a JSON handoff.
+    this.#ramProof=JSON.parse(JSON.stringify(value));return value;
+  }
+
+  /** Private one-shot continuation of THIS completed RAM session only.
+   * The Core caller still needs the original live task/actor/lease. These
+   * finite transport methods supply no public initiator, observer or terminal
+   * journal result. The device guardian alone owns its child and stop timer.
+   */
+  async startInitialGuardian() {
+    if(this.#closed || this.#busy || !this.#ramProof || !this.#ramPacket || this.#guardianUsed) {
+      await this.close().catch(()=>{});error('usb_browser_scope_unverified');
+    }
+    this.#guardianUsed=true;this.#busy=true; // Before fresh reads or possible launch delivery.
+    try {
+      this.evidence();
+      const fresh=await this.#initialPreparation(this.#ramPacket.context.meta);
+      this.#guardian=new InitialGuardianStream({live:()=>{this.evidence();return true;},
+        open:frame=>{this.evidence();return this.#client.createSocket(initialGuardianStreamService(frame));},
+        closeTransport:()=>this.close()});
+      const value=await this.#guardian.start(this.#ramPacket,fresh,this.#ramProof);
+      this.evidence();this.#guardianReady=true;return value;
+    } catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
+  async finishInitialGuardian() {
+    if(this.#closed || this.#busy || !this.#guardianReady || this.#guardianFinished) {
+      await this.close().catch(()=>{});error('usb_browser_scope_unverified');
+    }
+    this.#guardianFinished=true;this.#busy=true; // A lost terminal record never permits another read/launch attempt.
+    try {this.evidence();const value=await this.#guardian.finish();this.evidence();return value;}
+    catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
+  }
 
   /** Private finite stage entry, never a shell/filename callback from a frame.
    * The Core coordinator must consume its owner/plan/channel intent FIRST.
@@ -430,6 +472,9 @@ export class BrowserNativeChannel {
     if(commit || stream)void this.#closing.finally(()=>Promise.all([commit?.close(),stream?.close()])).catch(()=>{});
     const ram=this.#ram,ramStream=this.#ramStream;
     if(ram || ramStream)void this.#closing.finally(()=>Promise.all([ram?.close(),ramStream?.close()])).catch(()=>{});
+    const guardian=this.#guardian;
+    this.#ramPacket=this.#ramProof=undefined;
+    if(guardian)void this.#closing.finally(()=>guardian.close()).catch(()=>{});
     return this.#closing;
   }
 }

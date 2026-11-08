@@ -10,12 +10,14 @@ launch authority. No public request creates those frames or launches code. A dro
 """
 import asyncio
 import base64
+import copy
+import re
 import secrets
 
 from .monitor1_browser_relay import RelayRefusal
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish"}
 MAX_BYTES = 65536
 
 
@@ -38,6 +40,11 @@ class BrowserChannel:
         self.ram_prepared = False
         self.ram_finished = False
         self.ram_offset = 0
+        self.ram_verified = False
+        self.trial_nonce = None
+        self.guardian_used = False
+        self.guardian_ready = None
+        self.guardian_finished = False
 
     def _retire(self):
         self.closed = True
@@ -58,7 +65,7 @@ class BrowserChannel:
         self.pending[identity] = (future, False)
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete") else 20):
+            async with asyncio.timeout(90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish") else 20):
                 result = await asyncio.shield(future)
             return result
         except asyncio.CancelledError:
@@ -288,6 +295,7 @@ class BrowserChannel:
             self._retire()
             raise RelayRefusal
         self.ram_prepared = True
+        self.trial_nonce = packet.get('nonce') if isinstance(packet, dict) else None
         return value['precreated']
 
     async def initial_ram_chunk(self, offset, body):
@@ -316,7 +324,81 @@ class BrowserChannel:
         # The private coordinator must independently validate all exact pins;
         # this context does not admit an image FD, release the actor's lease or
         # create a terminal trial record. Keep the original transport alive.
+        self.ram_verified = True
         return value
+
+    def _guardian_record(self, value, kind):
+        """Strict reported context only; never process adoption/stop proof.
+
+        Keep uint64 birth ticks as decimal strings, including values above
+        JavaScript's exact integer range. A later Core verifier must still
+        independently join actual processes, authenticated wire and stock.
+        """
+        fields = {'kind', 'nonce', 'stamp'} if kind in ('start', 'child') else {
+            'kind', 'nonce', 'guardian', 'child', 'elapsed_ms', 'reaped', 'protection_ack', 'term_sent', 'forced', 'wait_status'}
+        if (not isinstance(value, dict) or set(value) != fields or value['kind'] != kind or value['nonce'] != self.trial_nonce):
+            raise RelayRefusal
+
+        def stamp(pair):
+            return (isinstance(pair, list) and len(pair) == 2 and type(pair[0]) is int and 2 <= pair[0] <= 2147483647 and
+                    isinstance(pair[1], str) and re.fullmatch('[1-9][0-9]{0,19}', pair[1]) and 1 <= int(pair[1]) < 2**64)
+
+        if kind in ('start', 'child'):
+            if not stamp(value['stamp']):
+                raise RelayRefusal
+        elif (not stamp(value['guardian']) or not stamp(value['child']) or value['guardian'][0] == value['child'][0] or
+              type(value['elapsed_ms']) is not int or not 60000 <= value['elapsed_ms'] <= 71000 or
+              any(value[k] is not True for k in ('reaped', 'protection_ack', 'term_sent')) or value['forced'] is not False or
+              type(value['wait_status']) is not int or value['wait_status'] not in (0, 15)):
+            raise RelayRefusal
+
+    async def start_initial_guardian(self):
+        """Private finite continuation; no packet/path/command enters a frame.
+
+        Only the original consumed RAM capability may call this. The selected
+        peer retains its own actual RAM proof and repeats fresh reads. The
+        future Core coordinator must also retain its task/actor/kernel lease;
+        this channel method itself grants none of that authority.
+        """
+        if (not self.ram_verified or self.guardian_used or self.pending or not isinstance(self.trial_nonce, str) or
+                not re.fullmatch('[a-f0-9]{32}', self.trial_nonce)):
+            raise RelayRefusal
+        self.guardian_used = True  # Before any potentially lost launch delivery.
+        value = await self._request('guardian-start')
+        try:
+            if (not isinstance(value, dict) or set(value) != {'kind', 'start', 'child', 'records_only'} or
+                    value['kind'] != 'browser_initial_guardian_started_record' or value['records_only'] is not True):
+                raise RelayRefusal
+            self._guardian_record(value['start'], 'start')
+            self._guardian_record(value['child'], 'child')
+            if value['start']['stamp'][0] == value['child']['stamp'][0]:
+                raise RelayRefusal
+        except RelayRefusal:
+            self._retire()
+            raise
+        self.guardian_ready = copy.deepcopy(value)
+        return value
+
+    async def finish_initial_guardian(self):
+        if self.guardian_ready is None or self.guardian_finished or self.pending:
+            raise RelayRefusal
+        self.guardian_finished = True  # A lost END/close is never permission to replay.
+        value = await self._request('guardian-finish')
+        try:
+            if (not isinstance(value, dict) or set(value) != {'kind', 'start', 'child', 'end', 'raw_closed', 'transport_closed', 'records_only'} or
+                    value['kind'] != 'browser_initial_guardian_records' or value['raw_closed'] is not True or
+                    value['transport_closed'] is not False or value['records_only'] is not True or
+                    value['start'] != self.guardian_ready['start'] or value['child'] != self.guardian_ready['child']):
+                raise RelayRefusal
+            self._guardian_record(value['start'], 'start')
+            self._guardian_record(value['child'], 'child')
+            self._guardian_record(value['end'], 'end')
+            if value['end']['guardian'] != value['start']['stamp'] or value['end']['child'] != value['child']['stamp']:
+                raise RelayRefusal
+        except RelayRefusal:
+            self._retire()
+            raise
+        return value  # No terminal journal write, lease release or installed status.
 
     async def open_api(self):
         if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening:

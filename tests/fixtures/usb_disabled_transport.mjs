@@ -79,7 +79,7 @@ export function disabledTransport(options={},NativeChannel=BrowserNativeChannel)
       assert.equal(sha(body),framing.sha256);
       const marker=framing.marker;let prefix='';
       if(body.includes('CGS1_FIXED_STDIN_READY'))prefix='CGS1_FIXED_STDIN_READY\n';
-      else if(options.rawCommand)options.rawCommand(body);
+      else if(options.rawCommand)prefix=options.rawCommand(body)??'';
       else {
        const phase=phases[effects];assert(phase);const before=observed();
        assert(body.startsWith(disabledCommand({...meta,commit_nonce:effects?nonce:null},before,nonce,phase)));
