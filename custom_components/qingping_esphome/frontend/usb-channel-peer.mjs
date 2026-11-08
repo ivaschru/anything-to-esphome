@@ -21,7 +21,7 @@ function bytes(value) {
 function base64(value) {return btoa(String.fromCharCode(...value));}
 
 export class BrowserChannelPeer {
-  #booting=false;#bootObserving=false;
+  #booting=false;#bootObserving=false;#pmming=false;
   #link;#seen=new Set();#socket;#reader;#writer;#buffer=new Uint8Array();
   #staging=false;#committing=false;#ramming=false;#cleanupPromise;#checking=false;#opening=false;#reading=false;#writing=false;#closing=false;#closed=false;
   #ramComplete=false;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
@@ -43,7 +43,8 @@ export class BrowserChannelPeer {
       // exception. The original two-handler budget is unchanged.
       if(this.#checking && request.operation!=='channel-close' &&
          !(this.#scopeChecking && (guardianApi || this.#bootObserving) && this.#socket && request.operation==='api-read')) fail();
-      if(this.#bootObserving && !['boot-observe','channel-close','api-open','api-read','api-write','api-close'].includes(request.operation))fail();
+      if(this.#bootObserving && !['pm-stream-check','pm-prepare','pm-step','pm-complete','boot-observe','channel-close','api-open','api-read','api-write','api-close'].includes(request.operation))fail();
+      if(this.#pmming && !['pm-prepare','pm-step','pm-complete','boot-observe','channel-close'].includes(request.operation))fail();
       if(this.#booting && !['bridge-boot-preparation','bridge-boot-prepare','bridge-boot-step','bridge-boot-complete','channel-close'].includes(request.operation))fail();
       if(this.#staging && !['stage-file-begin','stage-chunk','stage-file-finish','stage-complete','channel-close'].includes(request.operation)) fail();
       if(this.#ramming && !['ram-chunk','ram-complete','guardian-start','guardian-finish','guardian-process-observe','guardian-scope-observe','guardian-return-observe','guardian-return-close','channel-close'].includes(request.operation) && !(guardianApi && apiOperation)) fail();
@@ -57,6 +58,19 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='pm-stream-check') {
+        if(request.data!==null || !this.#bootObserving || this.#pmming || this.#opening || this.#socket || this.#closing)fail();
+        this.#pmming=true;this.#checking=true;
+        try{data=await this.#link.probePmBootStream();}finally{this.#checking=false;}
+      } else if(request.operation==='pm-prepare') {
+        if(!this.#pmming || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='packet')fail();
+        this.#checking=true;try{data=await this.#link.beginPmBoot(request.data.packet);}finally{this.#checking=false;}
+      } else if(request.operation==='pm-step') {
+        if(!this.#pmming || this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='phase')fail();
+        this.#checking=true;try{data=await this.#link.pmBootStep(request.data.phase);}finally{this.#checking=false;}
+      } else if(request.operation==='pm-complete') {
+        if(!this.#pmming || request.data!==null || this.#opening || this.#socket || this.#closing)fail();
+        this.#checking=true;try{data=await this.#link.completePmBoot();}finally{this.#checking=false;}
       } else if(request.operation==='boot-observe') {
         if(this.#opening || this.#closing || this.#writing || !request.data || Object.keys(request.data).join()!=='context')fail();
         this.#bootObserving=true;this.#checking=true;this.#scopeChecking=true;

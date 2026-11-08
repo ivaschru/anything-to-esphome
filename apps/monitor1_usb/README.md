@@ -442,7 +442,7 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
 branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
 described below. The private boot observer also joins original arming history, the full native
-kernel/file scope and fresh authenticated sensor updates. PM, Full UI/permanent
+kernel/file scope and fresh authenticated sensor updates. The private PM next-boot join is also connected. Post-PM Full UI/permanent
 startup, HA enrollment and their browser UI composition remain unfinished. An untouched CGS1 has not
 yet been tested; existing working monitors must not be reset to imitate one.
 
@@ -565,3 +565,16 @@ including stock-response age, at least ten seconds apart. API-close, final
 scope/freshness, actual USB close and separate channel ACK are independent.
 Its read result does not install, activate or grant a subsequent writer. The
 host tests emulate the monitor; physical first-install qualification is pending.
+
+
+The private PM2.5-extension adapter first repeats the full current scope and
+real Noise observation. A separate harmless full-size stdin probe tests the
+64KiB receive/hash/shell-argument path before any PM intent; old transports
+retain their 32KiB ceiling. The actor then durably consumes one distinct PM
+attempt under its original shared kernel lease. Only the existing canonical
+next-boot command runs: it inhibits loading for the rest of THIS boot, backs up
+the verified opt-out, clears it and records AFTER-effects. A separate fixed
+read verifies those effects; actual USB close and separate channel ACK precede
+terminal persistence. It never loads the helper now, signals stock or reboots.
+Packet/ACK/close loss preserves uncertainty without replay. Public initiation
+and the later Full UI/enrollment browser stages remain unfinished.

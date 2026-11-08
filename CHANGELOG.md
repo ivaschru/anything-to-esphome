@@ -1,5 +1,14 @@
 ## Unreleased – browser USB installation work
 
+- Join the private browser PM next-boot transition to original actor/selected
+  USB, fresh full scope and actual Noise. Add a separate consumed/fsynced PM
+  journal and cross-writer/export fence, canonical arm/AFTER text and a fixed
+  64KiB sealed stream with a full-size harmless pre-intent probe. Old streams
+  keep their 32KiB bound. Preserve this-boot inhibition, backup-before-unlink,
+  exact AFTER read and both closes before terminal record/release. No helper
+  load/reboot/retry/public installer or physical fresh-device QA is implied.
+
+
 - Connect the private read-only browser boot observer to original completed
   arming history, canonical 64-read kernel/file scope and the selected USB
   channel. Distinguish same-boot waiting from a distinct live runtime. Join

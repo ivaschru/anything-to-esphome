@@ -19,7 +19,7 @@ from .monitor1_browser_relay import RelayRefusal
 from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, validate_context as process_context, validate_observation as process_observation
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
-OPS = {"boot-observe", "api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
+OPS = {"pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
        "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
@@ -67,6 +67,8 @@ class BrowserChannel:
         self.staging = False
         self.committing = False
         self.commit_probe = False
+        self.pm_probe = self.pming = self.pm_finished = False
+        self.pm_next = 0
         self.boot_observing = False
         self.boot_observations = 0
         self.boot_probe = False
@@ -114,7 +116,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("boot-observe", "scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("pm-stream-check", "pm-prepare", "pm-step", "pm-complete", "boot-observe", "scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "bridge-boot-stream-check", "bridge-boot-prepare", "bridge-boot-step", "bridge-boot-complete", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -253,7 +255,7 @@ class BrowserChannel:
         """
         async with self.guardian_control:
             if (self.boot_probe or self.ram_probe or self.commit_probe or self.staging or self.committing or self.ramming or
-                    self.opening or self.boot_observations >= 32 or
+                    self.opening or self.pm_next > 0 or self.boot_observations >= 32 or
                     any(op != 'api-read' for op in self.pending_operations.values())):
                 raise RelayRefusal
             self.boot_observing = True
@@ -263,7 +265,7 @@ class BrowserChannel:
     async def open_boot_observer_api(self):
         """Only the fixed current observer may open the original API stream."""
         async with self.guardian_control:
-            if not self.boot_observing or self.opened or self.opening or self.pending:
+            if self.pm_probe or not self.boot_observing or self.opened or self.opening or self.pending:
                 raise RelayRefusal
             self.opening = True
             try:
@@ -273,6 +275,40 @@ class BrowserChannel:
                 return BrowserStream(self, guardian=True)
             finally:
                 self.opening = False
+
+    async def probe_pm_boot_stream(self):
+        if not self.boot_observing or self.pm_probe or self.pending or self.opened or self.opening:
+            raise RelayRefusal
+        self.pm_probe = True
+        value = await self._request('pm-stream-check')
+        expected = {'kind': 'browser_pm_fixed_stdin_probe', 'service': 'exec:/bin/sh', 'ready': True,
+                    'device_files_changed': False, 'writer_enabled': False,
+                    'maximum_body_bytes': 65536, 'probe_body_bytes': 65536}
+        # Strict JSON types, not Python's True == 1 / False == 0 equality.
+        if value != expected or any(type(value.get(k)) is not type(v) for k, v in expected.items()):
+            self._retire(); raise RelayRefusal
+
+    async def begin_pm_boot(self, packet):
+        if not self.pm_probe or self.pming or self.pending or self.opened or self.opening:
+            raise RelayRefusal
+        self.pming = True
+        value = await self._request('pm-prepare', {'packet': packet})
+        if not isinstance(value, dict) or set(value) != {'state', 'writer_enabled'} or value['state'] != 'pm_boot_scope_rechecked' or value['writer_enabled'] is not False:
+            self._retire(); raise RelayRefusal
+
+    async def pm_boot_step(self, phase):
+        if not self.pming or self.pm_finished or self.pending or self.opened or self.opening or self.pm_next >= 2 or phase != ('arm', 'complete')[self.pm_next]:
+            raise RelayRefusal
+        self.pm_next += 1
+        value = await self._request('pm-step', {'phase': phase})
+        if not isinstance(value, dict) or set(value) != {'phase', 'completed'} or value['phase'] != phase or value['completed'] is not True:
+            self._retire(); raise RelayRefusal
+
+    async def finish_pm_boot(self):
+        if not self.pming or self.pm_finished or self.pm_next != 2 or self.pending or self.opened or self.opening:
+            raise RelayRefusal
+        self.pm_finished = True
+        return await self._request('pm-complete')  # Private coordinator validates complete proof, then separate close ACK.
 
     async def check_bridge_boot_preparation(self, meta, marker):
         """Fresh fixed stopped scope; no writer or native receipt adoption."""

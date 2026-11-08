@@ -15,7 +15,7 @@ FILES = (
     "browser_payload.py", "browser_plan.py", "browser_plan_job.py", "browser_stage.py", "browser_commit.py", "browser_disabled_commit_policy.py",
     "browser_disabled_observation.py", "browser_disabled_policy.py", "browser_disabled_policy_job.py",
     "browser_initial_trial.py", "browser_initial_trial_job.py", "initial-trial-contract.json", "initial-ram-contract.json", "initial-guardian-contract.json", "initial-process-contract.json", "initial-scope-contract.json",
-    "browser_initial_observation.py", "browser_initial_journal.py", "browser_initial_api.py", "browser_bridge_boot.py", "browser_bridge_boot_journal.py", "browser_bridge_boot_observation.py", "browser_boot_context.py", "bridge-observer-contract.json",
+    "browser_initial_observation.py", "browser_initial_journal.py", "browser_initial_api.py", "browser_bridge_boot.py", "browser_bridge_boot_journal.py", "browser_bridge_boot_observation.py", "browser_boot_context.py", "bridge-observer-contract.json", "browser_pm_boot_journal.py", "browser_pm_boot_observation.py", "pm-next-boot-contract.json",
     "ha_enrollment.py", "ha_enrollment_usb.py",
     "backup_export.py", "build_worker.py", "computer_install.py", "computer_package.py",
     "full_ui_review.py", "full_ui_usb.py", "full_ui_trial.py", "full_ui_trial_usb.py", "full_ui_installation.py", "install_plan.py", "installation.py",

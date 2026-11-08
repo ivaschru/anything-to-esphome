@@ -808,6 +808,29 @@ separate even though the HACS wizard is shared.
   and real HA Noise/Core/registry/actor cases. Public PM/Full UI/enrollment/UI
   adapters and physical fresh installation remain separate unfinished work.
 
+- The private browser PM next-boot adapter retains the original live Core
+  task/actor/registry through full current scope and real Noise generations.
+  Close API positively, then run the separate harmless FULL 65536-byte stdin/
+  hash/shell-argument probe before consuming any PM intent. Short hello cannot
+  qualify the larger body; its distinct typed probe result is required. PM's
+  trusted module alone uses 64KiB, old wrappers retain 32KiB. Preserve tiny
+  OPEN, exact complete-body verification, WRTE ACK/remoteCLSE, finite phases
+  and no PTY/retry. Recheck original remaining budget after probe/scope and
+  before Root consumption. Root uses its separate PM O_EXCL/fsynced intent,
+  original shared kernel lease and global writer/export fence. A packet/ACK
+  loss, crash-released FD or changed producer never permits replay/adoption.
+  Rehash plan/profile/source/pair and exact current boot/process/read/Noise
+  context, then execute ONLY the canonical pm_extension_guard arm and AFTER
+  read. Preserve attempted-in-this-boot inhibition BEFORE backing up/removing
+  the persistent PM opt-out. No stock signal, current helper load, reboot or
+  automatic rollback. After effects use the explicit canonical AFTER reader,
+  never a fictitious currently-disabled snapshot. Actual USB-close and a
+  separate channel ACK precede immutable terminal record/release. Armed next
+  boot is not installed/running/readiness. Run PM journal/flock/real-Noise
+  transfer tests, 16 canonical parity vectors, raw/delivered selected Native
+  and pinned Tango512 cases; regenerate/package/bundle. Public PM/UI and
+  post-PM Full UI/permanent/enrollment remain separate unfinished work.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

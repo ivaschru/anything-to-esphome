@@ -1,8 +1,10 @@
 /** Shared internal sealed-stdin transport mechanics for finite wrappers.
  *
- * Only the fixed disabled/RAM/bridge-boot wrappers construct this with
+ * Only the fixed disabled/RAM/bridge-boot/PM wrappers construct this with
  * their module-owned pure assembler. No peer/frame exports this helper or
  * accepts an assembler, shell body, service, path, timeout or retry selector.
+ * The PM wrapper alone selects the fixed 64KiB ceiling; old wrappers keep
+ * 32KiB. This limit never comes from HTTP/frame/packet input.
  * Original live capability/deadline and independently consumed journal remain
  * the callers' responsibility. A completed stdout marker is not readback.
  */
@@ -16,9 +18,10 @@ const encoder=new TextEncoder();
  * a rename could turn a truncated destination into a different valid path.
  * The full body stays in bounded RAM; no NAND/RAM script file is created.
  */
-export function fixedStdinService(frame) {
+export function fixedStdinService(frame,maximum=32768) {
+ if(![32768,65536].includes(maximum))fail();
  if(!frame || Object.keys(frame).sort().join()!==['size','sha256','marker'].sort().join() ||
-    !Number.isInteger(frame.size) || frame.size<1 || frame.size>32768 ||
+    !Number.isInteger(frame.size) || frame.size<1 || frame.size>maximum ||
     typeof frame.sha256!=='string' || !/^[a-f0-9]{64}$/.test(frame.sha256) ||
     typeof frame.marker!=='string' || !/^__CGS1_FIXED_OK_[a-f0-9]{32}__$/.test(frame.marker))fail();
  const bootstrap="set -eu\numask 077\n"+
@@ -32,11 +35,12 @@ export function fixedStdinService(frame) {
 }
 
 export class FixedStdinLifecycle {
- #backend;#active;#closing;#waiters=new Set();#closed=false;#busy=false;#probeUsed=false;#ready=false;#assemble;
- constructor(backend,assemble) {
+ #backend;#active;#closing;#waiters=new Set();#closed=false;#busy=false;#probeUsed=false;#ready=false;#assemble;#maximum;
+ constructor(backend,assemble,maximum=32768) {
+  if(![32768,65536].includes(maximum))fail();
   if(!backend || Object.keys(backend).sort().join()!==['open','live','closeTransport'].sort().join() ||
      Object.values(backend).some(v=>typeof v!=='function') || typeof assemble!=='function')fail();
-  this.#backend=Object.freeze({...backend});this.#assemble=assemble;
+  this.#backend=Object.freeze({...backend});this.#assemble=assemble;this.#maximum=maximum;
  }
  #live() {if(this.#closed || this.#backend.live()!==true)fail();}
  async #bounded(operation,deadline) {
@@ -74,14 +78,14 @@ export class FixedStdinLifecycle {
  }
  async #run(body,expected,limit) {
   this.#live();
-  if(typeof body!=='string' || !body.length || body.length>32768 || body.endsWith('\n') || /[^\x01-\x7f]/.test(body))fail();
+  if(typeof body!=='string' || !body.length || body.length>this.#maximum || body.endsWith('\n') || /[^\x01-\x7f]/.test(body))fail();
   const deadline=Date.now()+limit;
   const marker='__CGS1_FIXED_OK_'+crypto.randomUUID().replaceAll('-','')+'__';
   const payload=encoder.encode(body);
   let resource;
   try {
    const digest=Array.from(new Uint8Array(await this.#bounded(()=>crypto.subtle.digest('SHA-256',payload),deadline)),v=>v.toString(16).padStart(2,'0')).join('');
-   const framing=Object.freeze({size:payload.length,sha256:digest,marker}),expectedService=fixedStdinService(framing);
+   const framing=Object.freeze({size:payload.length,sha256:digest,marker}),expectedService=fixedStdinService(framing,this.#maximum);
    const socket=await this.#bounded(async()=>{
     const value=await this.#backend.open(framing); // Fixed typed bootstrap only, never caller shell text.
     try {this.#live();}catch {await this.#cleanup({socket:value}).catch(()=>{});fail();}
@@ -132,7 +136,16 @@ export class FixedStdinLifecycle {
   if(this.#busy || this.#probeUsed || this.#closed) {await this.close().catch(()=>{});fail();}
   this.#probeUsed=true;this.#busy=true;
   try {
-   await this.#run("set -eu\numask 077\nprintf '%s\\n' '"+ready+"'",ready+'\n',5000);
+   let body="set -eu\numask 077\nprintf '%s\\n' '"+ready+"'";
+   if(this.#maximum===65536) {
+    // Positively test the actual large stdin/hash/one-argument shell path
+    // BEFORE any PM intent. Padding is an inert comment, not a file/device
+    // write. A small hello alone cannot establish the larger argument bound.
+    let padding='',left=this.#maximum-body.length;
+    while(left>0) {const size=Math.min(120,left);padding+=size===1?'\n':'#'+'x'.repeat(size-2)+'\n';left-=size;}
+    body=padding+body;
+   }
+   await this.#run(body,ready+'\n',this.#maximum===65536?15000:5000);
    this.#live();this.#ready=true;
    return {kind:'browser_fixed_stdin_probe',service,ready:true,device_files_changed:false,writer_enabled:false};
   } finally {this.#busy=false;}

@@ -84,6 +84,15 @@ class Actor:
             # allocate/upload/launch, adopt native receipts or initialize ADB.
             from browser_initial_trial import context
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation.startswith("internal-browser-pm-boot-"):
+            stages = self.companion.browser_stages
+            if operation == "internal-browser-pm-boot-prepare" and set(data) == {"job_id", "expected_plan_sha256", "scope", "experimental_reviewed"}:
+                return stages.prepare_pm_boot(user, data["job_id"], data["expected_plan_sha256"], data["scope"], data["experimental_reviewed"]), "application/json"
+            if operation == "internal-browser-pm-boot-record" and set(data) == {"job_id", "intent_sha256", "proof"}:
+                return stages.record_pm_boot(user, data["job_id"], data["intent_sha256"], data["proof"]), "application/json"
+            if operation == "internal-browser-pm-boot-status" and set(data) == {"job_id"}:
+                return stages.pm_boot_status(user, data["job_id"]), "application/json"
+            raise Refusal("usb_request_invalid")
         if operation == "internal-browser-boot-observer-api" and set(data) == {"job_id", "plan_sha256", "arming_intent_sha256", "arming_proof_sha256"}:
             from browser_boot_context import api_package, MIME
             return api_package(self.companion.browser_stages, user, data), MIME

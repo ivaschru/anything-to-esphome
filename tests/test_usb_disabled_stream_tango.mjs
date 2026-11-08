@@ -11,6 +11,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {DisabledCommandStream,disabledStreamService} from '../custom_components/qingping_esphome/frontend/usb-disabled-stream.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-stream.mjs';
+import {PmBootCommandStream,pmBootStreamService} from '../custom_components/qingping_esphome/frontend/usb-pm-boot-stream.mjs';
 import {BridgeBootCommandStream,bridgeBootStreamService} from '../custom_components/qingping_esphome/frontend/usb-bridge-boot-session.mjs';
 import {initialGuardianLaunchBody} from '../custom_components/qingping_esphome/frontend/usb-initial-guardian-frame.mjs';
 const args=process.argv.slice(2);
@@ -27,8 +28,12 @@ const guardianLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_guard
 assert.equal(guardianLoaded.status,0,guardianLoaded.stderr);const guardian=JSON.parse(guardianLoaded.stdout)[0];
 const bootLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_boot_commands.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:1024*1024,timeout:15000});
 assert.equal(bootLoaded.status,0,bootLoaded.stderr);const boot=JSON.parse(bootLoaded.stdout).slice(0,4);
+const pmLoaded=spawnSync('python3',['tests/fixtures/monitor1_browser_pm_commands.py'],{encoding:'utf8',env:{PATH:process.env.PATH},maxBuffer:8*1024**2,timeout:15000});
+assert.equal(pmLoaded.status,0,pmLoaded.stderr);const pm=JSON.parse(pmLoaded.stdout).slice(0,2);
 const {InitialRamCommandStream,initialRamStreamService}=await import('../custom_components/qingping_esphome/frontend/usb-initial-ram-stream.mjs');
 for(const scenario of [
+ {Stream:PmBootCommandStream,service:pmBootStreamService,operations:pm,
+  execute:(stream,v)=>stream.execute(v.context,v.scope,v.nonce,v.phase),bodies:pm.map(v=>v.expected.replace(/\n$/,''))},
  {Stream:BridgeBootCommandStream,service:bridgeBootStreamService,operations:boot,
   execute:(stream,v)=>stream.execute(v.meta,v.scope,v.nonce,v.phase),bodies:boot.map(v=>v.expected.replace(/\n$/,''))},
  {Stream:DisabledCommandStream,service:disabledStreamService,operations:vectors,
@@ -106,4 +111,4 @@ assert(opens.some(state=>state.body.length>4096));
 assert(writes.length>=Math.ceil(opens.reduce((n,state)=>n+state.body.length,0)/maximum));assert(writes.every(length=>length<=maximum));assert(writes.some(length=>length===maximum));
 await stream.close();assert.equal(retired,1);
 }
-console.log('Actual Tango2.6.2: bridge-boot, disabled, initial RAM and guardian fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');
+console.log('Actual Tango2.6.2: PM64KiB, bridge-boot, disabled, initial RAM and guardian fixed OPEN, 512-byte WRTE/ACK flow and owned remote CLSE passed; no hardware/shell execution');

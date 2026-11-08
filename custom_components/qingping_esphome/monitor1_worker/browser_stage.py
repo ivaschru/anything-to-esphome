@@ -58,6 +58,15 @@ def fence_browser_stage(installations, directory, owner):
     remain available, but no native/browser writer may renew unknown effects.
     """
     names = set(os.listdir(directory))
+    if names & {'browser-pm-boot-intent.json', 'browser-pm-boot-complete.json'}:
+        from browser_pm_boot_journal import BrowserPmBoot
+        from browser_plan import BrowserPlans
+        try:
+            previous = BrowserPmBoot(BrowserStages(BrowserPlans(installations.plans.builds)))
+            if previous.status(owner, directory.name)['state'] != 'browser_pm_next_boot_armed_waiting_reboot':
+                raise ValueError
+        except Exception:
+            raise PreparationError('usb_browser_stage_previous_unverified') from None
     if names & {'browser-bridge-boot-intent.json', 'browser-bridge-boot-complete.json'}:
         from browser_bridge_boot_journal import BrowserBridgeBoot
         from browser_plan import BrowserPlans
@@ -214,6 +223,18 @@ class BrowserStages:
     def record_initial_trial(self, owner, job_id, intent_sha256, proof):
         from browser_initial_journal import BrowserInitialTrials
         return BrowserInitialTrials(self).record(owner, job_id, intent_sha256, proof)
+
+    def prepare_pm_boot(self, owner, job, sha, selected, reviewed):
+        from browser_pm_boot_journal import BrowserPmBoot
+        return BrowserPmBoot(self).prepare(owner, job, sha, selected, reviewed)
+
+    def record_pm_boot(self, owner, job, digest, proof):
+        from browser_pm_boot_journal import BrowserPmBoot
+        return BrowserPmBoot(self).record(owner, job, digest, proof)
+
+    def pm_boot_status(self, owner, job):
+        from browser_pm_boot_journal import BrowserPmBoot
+        return BrowserPmBoot(self).status(owner, job)
 
     def bridge_boot_context(self, owner, job_id, expected_sha):
         from browser_bridge_boot import context

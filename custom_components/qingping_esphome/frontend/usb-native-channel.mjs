@@ -1,3 +1,5 @@
+import {PmBootCommandStream,pmBootStreamService} from './usb-pm-boot-stream.mjs';
+import {BrowserPmBootSession} from './usb-pm-boot-session.mjs';
 import {bridgeBootCompletion} from './usb-bridge-boot-commands.mjs';
 import {collectBridgeRuntimeScope,validateBridgeObserverContext} from './usb-bridge-observer.mjs';
 import {BridgeBootCommandStream,BrowserBridgeBootSession,bridgeBootStreamService} from './usb-bridge-boot-session.mjs';
@@ -30,6 +32,7 @@ const macPattern=/^[a-f0-9]{2}(?::[a-f0-9]{2}){5}$/;
 export class BrowserNativeChannel {
   #library;#contract;#selected=false;#closed=false;#device;#connection;#client;
   #closing;#nonce;#serial;#scope;#deadline;#expiry;#api;#apiUsed=false;#apiCount=0;#busy=false;#stage;#stageUsed=false;#reviewSelection=false;#commitProbeUsed=false;#commitUsed=false;#commitStream;#commit;#ramProbeUsed=false;#ramUsed=false;#ramStream;#ram;
+  #pmProbeUsed=false;#pmUsed=false;#pmStarted=false;#pmStream;#pmSession;
   #bootObserverUsed=false;#bootObserverContext;#bootObserverScope;
   #bootProbeUsed=false;#bootUsed=false;#bootStream;#bootSession;
   #ramPacket;#ramProof;#guardian;#guardianUsed=false;#guardianReady=false;#guardianFinished=false;
@@ -235,12 +238,16 @@ export class BrowserNativeChannel {
 
   /** Repeatable read in one original selected boot, never a writer resume. */
   async observeBridgeBoot(context) {
-    if(this.#closed || this.#busy || this.#bootProbeUsed || this.#ramProbeUsed || this.#stageUsed || this.#commitProbeUsed ||
+    if(this.#closed || this.#busy || this.#pmStarted || this.#bootProbeUsed || this.#ramProbeUsed || this.#stageUsed || this.#commitProbeUsed ||
        this.#apiUsed && !this.#api || this.#guardianUsed)error('usb_busy');
     validateBridgeObserverContext(context);
     if(this.#bootObserverUsed && JSON.stringify(context)!==JSON.stringify(this.#bootObserverContext))error('usb_selection_consumed');
     this.#bootObserverUsed=true;this.#bootObserverContext=JSON.parse(JSON.stringify(context));this.#busy=true;
-    try {
+    try {return await this.#collectBootObservation(context);}
+    catch {await this.close().catch(()=>{});error('usb_channel_unverified');}finally {this.#busy=false;}
+  }
+
+  async #collectBootObservation(context) {
       this.evidence();const meta=context.arming.context.meta,selected=await this.#identity();
       if(JSON.stringify(selected)!==JSON.stringify(this.#scope))error('usb_selection_changed');
       const target={...meta.target,boot_id:selected.boot_id};
@@ -264,11 +271,10 @@ export class BrowserNativeChannel {
       const stable=v=>JSON.stringify({...v,memory_free_bytes:undefined});
       if(this.#bootObserverScope && stable(value)!==stable(this.#bootObserverScope))error('usb_selection_changed');
       this.#bootObserverScope=JSON.parse(JSON.stringify(value));return value;
-    }catch {await this.close().catch(()=>{});error('usb_channel_unverified');}finally {this.#busy=false;}
   }
 
   async openBridgeBootApi() {
-    if(!this.#bootObserverUsed || this.#bootObserverScope?.kind!=='browser_bridge_boot_runtime_scope' ||
+    if(this.#pmProbeUsed || !this.#bootObserverUsed || this.#bootObserverScope?.kind!=='browser_bridge_boot_runtime_scope' ||
        this.#busy || this.#api || this.#apiUsed || this.#closed || this.#apiCount>=16)error('usb_selection_consumed');
     await this.observeBridgeBoot(this.#bootObserverContext);
     return this.#openApiSocket();
@@ -278,6 +284,42 @@ export class BrowserNativeChannel {
    * Only the known initial-trial.intent hash/size is admitted in the root;
    * no caller path/allowlist or new write capability crosses this read frame.
    */
+  async probePmBootStream() {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#pmProbeUsed || !this.#bootObserverUsed ||
+       this.#bootObserverScope?.kind!=='browser_bridge_boot_runtime_scope' || this.#deadline-Date.now()<65000)error('usb_selection_consumed');
+    this.#pmProbeUsed=true;this.#busy=true;
+    try {
+      this.evidence();this.#pmStream=new PmBootCommandStream({live:()=>{try{this.evidence();return true;}catch{return false;}},
+       open:frame=>{this.evidence();return this.#client.createSocket(pmBootStreamService(frame));},closeTransport:()=>this.close()});
+      return await this.#pmStream.probe();
+    }catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
+  }
+
+  async beginPmBoot(packet) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || !this.#pmProbeUsed || this.#pmUsed || !this.#pmStream ||
+       packet?.channel_nonce!==this.#nonce || this.#deadline-Date.now()<60000)error('usb_selection_consumed');
+    this.#pmUsed=true;this.#busy=true;
+    try {
+      if(JSON.stringify(packet.context)!==JSON.stringify(this.#bootObserverContext))error('usb_selection_changed');
+      this.#pmSession=new BrowserPmBootSession({scope:context=>this.#collectBootObservation(context),
+       identity:async target=>{this.evidence();const now=await this.#identity();return JSON.stringify(now)===JSON.stringify(this.#scope) &&
+        target.usb_serial===this.#serial && target.boot_id===now.boot_id && target.wlan_mac===now.wlan_mac && target.co2_type===Number(now.co2_type);},
+       closeTransport:()=>this.close()},this.#pmStream,packet);
+      return await this.#pmSession.prepare();
+    }catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
+  }
+
+  async pmBootStep(phase) {
+    if(this.#closed || this.#busy || !this.#pmSession)error('usb_selection_consumed');
+    this.#busy=true;this.#pmStarted=true;
+    try{return await this.#pmSession.step(phase);}catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
+  }
+
+  async completePmBoot() {
+    if(this.#closed || this.#busy || !this.#pmSession)error('usb_selection_consumed');this.#busy=true;
+    try{return await this.#pmSession.finish();}catch{await this.close().catch(()=>{});error('usb_channel_unverified');}finally{this.#busy=false;}
+  }
+
   async checkBridgeBootPreparation(meta,marker) {
     if(this.#bootObserverUsed)error('usb_busy');
     if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed ||
@@ -717,6 +759,8 @@ export class BrowserNativeChannel {
     if(stage)void this.#closing.finally(()=>stage.close()).catch(()=>{});
     const commit=this.#commit,stream=this.#commitStream;
     if(commit || stream)void this.#closing.finally(()=>Promise.all([commit?.close(),stream?.close()])).catch(()=>{});
+    const pm=this.#pmSession,pmStream=this.#pmStream;
+    if(pm || pmStream)void this.#closing.finally(()=>Promise.all([pm?.close(),pmStream?.close()])).catch(()=>{});
     const boot=this.#bootSession,bootStream=this.#bootStream;
     if(boot || bootStream)void this.#closing.finally(()=>Promise.all([boot?.close(),bootStream?.close()])).catch(()=>{});
     const ram=this.#ram,ramStream=this.#ramStream;
