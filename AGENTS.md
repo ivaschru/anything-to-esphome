@@ -943,6 +943,11 @@ separate even though the HACS wizard is shared.
   This only retires the owned client; independent browser API-close and
   USB/channel ACK gates remain unchanged. Run the real unconnected-client
   contract and actual Noise observer/PM tests in46.3 and supported HA SDKs.
+  Accelerated Noise fixtures must await complete actual SDK callback vectors
+  before advancing their virtual clock again. A fixed10ms sleep is no delivery
+  proof and races under CI load. Keep the delayed real-frame regression; never
+  relax production wire freshness, scope budgets or the device stop timer to
+  compensate for a synthetic clock outrunning its encrypted TCP pipeline.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

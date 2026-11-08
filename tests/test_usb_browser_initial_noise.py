@@ -130,7 +130,35 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.remote_reader = self.remote_writer = None
         self.wrong_identity = False
         self.api_open_delay = 0
+        self.api_read_delay = 0
         self.subscribed = False
+        self.subscription_seen = asyncio.Event()
+        self.wire_changed = asyncio.Event()
+        self.wire_samples = None
+        self.wire_callbacks = {name: 0 for name in module.REQUIRED}
+        fixture = self
+
+        class ObservedWireSamples(module._WireSamples):
+            """Observe actual SDK callbacks without replacing their validation.
+
+            The synthetic clock must not outrun the real encrypted TCP/frame
+            pipeline. Count only callbacks delivered to the production reader;
+            sending bytes or sleeping briefly does not prove their reception.
+            """
+            def __init__(self, entities):
+                super().__init__(entities)
+                fixture.wire_samples = self
+
+            def received(self, state):
+                super().received(state)
+                name = self.names.get(state.key)
+                if type(state).__name__ == 'SensorState' and name in fixture.wire_callbacks:
+                    fixture.wire_callbacks[name] += 1
+                    fixture.wire_changed.set()
+
+        wire_patch = patch.object(module, '_WireSamples', ObservedWireSamples)
+        wire_patch.start()
+        self.addCleanup(wire_patch.stop)
         self.composed_end_at = None
         self.base_answer = self.f.answer
         self.base_exchange = self.f.f.exchange
@@ -232,6 +260,7 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
                     await self.send(19, p.ListEntitiesDoneResponse())
                 elif kind == 20:
                     self.subscribed = True
+                    self.subscription_seen.set()
                     await self.vector()
                 elif kind == 7:
                     await self.send(8, p.PingResponse())
@@ -260,12 +289,29 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
             await self.send(25, p.SensorStateResponse(key=i + 1, state=value))
 
     async def fast_wait(self, seconds):
-        self.clock += seconds
-        if self.subscribed:
+        if self.wire_samples is None:
+            # Connection retry precedes subscription. Do not manufacture any
+            # sensor callbacks or hide a missing real encrypted connection.
+            self.clock += seconds
+            await asyncio.sleep(.01)
+            return
+        async with asyncio.timeout(3):
+            await self.subscription_seen.wait()
+            await self.await_wire({name: 1 for name in module.REQUIRED})
+            self.clock += seconds
+            expected = {name: count + 1 for name, count in self.wire_callbacks.items()}
             await self.vector()
-        # Only test observation time is accelerated; real asyncio/Noise/USB
-        # framing and the original relay deadline continue using the real clock.
-        await asyncio.sleep(.01)
+            await self.await_wire(expected)
+        # Only test observation time advances. Actual Noise, loopback, finite
+        # frames, production callbacks and the relay deadline use real asyncio.
+        # The next virtual tick is allowed only after this full vector arrived.
+
+    async def await_wire(self, expected):
+        while True:
+            self.wire_changed.clear()
+            if all(self.wire_callbacks[name] >= count for name, count in expected.items()):
+                return
+            await self.wire_changed.wait()
 
     async def answer(self, frame):
         op = frame['operation']
@@ -285,6 +331,8 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
             value = None
         elif op == 'api-read':
             self.assertEqual(frame['data'], {'max_bytes': 65536})
+            if self.api_read_delay:
+                await asyncio.sleep(self.api_read_delay)
             value = base64.b64encode(await self.remote_reader.read(65536)).decode()
         elif op == 'api-write':
             self.remote_writer.write(base64.b64decode(frame['data'], validate=True))
@@ -306,6 +354,14 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         # before tcp:6053 OPEN. Model 2.2s of that prerequisite, not a lost ACK.
         # Production's 30s connect/50s observation and device 60s limit remain.
         self.api_open_delay = 2.2
+        await self.test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate()
+
+    async def test_delayed_real_noise_callbacks_do_not_race_the_accelerated_test_clock(self):
+        # Six old fixed10ms sleeps could elapse before one real read delivered
+        # its encrypted vector. That reproduced a last wire age of25.5s at END
+        # and the correct production refusal. Wait for actual callbacks instead
+        # of weakening the20s freshness gate or changing the device60s timer.
+        self.api_read_delay = .06
         await self.test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate()
 
     async def test_real_sdk_noise_generations_use_original_relay_and_leave_end_usb_separate(self):
