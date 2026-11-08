@@ -1,6 +1,0 @@
-#!/bin/sh
-# Pin the ARM Linux ABI and oldest glibc offered by the tested stock system.
-# The compiler and cache live only on the build computer; nothing is installed
-# on the monitor by invoking this wrapper.
-base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "$base/.venv/bin/python" "$base/zig_driver.py" cc "$@"

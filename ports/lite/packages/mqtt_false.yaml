@@ -1,3 +1,0 @@
-# mqtt_messages "false" (the default): no MQTT client. The message queue and screen stay in
-# the build but nothing feeds them. See mqtt_true.yaml.
-{}
