@@ -71,6 +71,21 @@ function process(text,pid,executable) {
 }
 
 export async function collectDisabledScope(backend,input) {
+ return await collect(backend,input,undefined);
+}
+
+/** Read the one known native trial marker after an exact stopped journal.
+ * This is a separate fixed reader, not a caller-provided file allowlist. A
+ * marker hash is a comparator only: no lease, retry, writer or native receipt.
+ */
+export async function collectStoppedTrialScope(backend,input,marker) {
+ if(!marker || Object.keys(marker).sort().join()!=='sha256,size' ||
+    !Number.isSafeInteger(marker.size) || marker.size<1 || marker.size>4096 ||
+    typeof marker.sha256!=='string' || !/^[a-f0-9]{64}$/.test(marker.sha256))fail();
+ return await collect(backend,input,JSON.parse(JSON.stringify(marker)));
+}
+
+async function collect(backend,input,marker) {
  if(!backend || Object.keys(backend).sort().join()!==['read','identity'].sort().join() || Object.values(backend).some(v=>typeof v!=='function'))fail();
  const commands=disabledScopeCommands(input),meta=JSON.parse(JSON.stringify(input));
  const read=command=>backend.read(command);
@@ -82,6 +97,14 @@ export async function collectDisabledScope(backend,input) {
   const result=[positive(value[0]),positive(value[1])];
   const names=[...STAGE_ROLES.map(([,leaf])=>leaf),'install.intent','disabled','pm-helper.disabled'];
   if(meta.commit_nonce!==null)names.push('.commit-disabled.lock');
+  if(marker) {
+   if(meta.commit_nonce===null)fail();
+   names.push('initial-trial.intent');
+   const path=base+'/initial-trial.intent';
+   const command=`test ! -L ${path}\ntest -f ${path}\nstat -c '%s %a %u %h' ${path}\nsha256sum ${path}`;
+   const rows=(await read(command)).split('\n');
+   if(rows.length!==2 || rows[0]!==`${marker.size} 600 0 1` || !digestLineMatches(rows[1],marker.sha256,path))fail();
+  }
   if(!same((await read(commands.entries)).split('\n').sort(),names.sort()) ||
      !same((await read(commands.sideEntries)).split('\n').sort(),['complete','intent']) ||
      commands.lockEntries && await read(commands.lockEntries)!=='owner' ||

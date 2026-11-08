@@ -740,6 +740,20 @@ separate even though the HACS wizard is shared.
   canonical parity vectors plus refusals in test_usb_bridge_boot_commands.mjs.
   sh -n is syntax-only; never execute production paths on a host/device fixture.
 
+- Browser next-boot preparation now positively reads the one ORIGINAL
+  initial-trial.intent left by the stopped guardian. Private actor context
+  rehashes exact stopped intent/complete bytes and all nine arming sources;
+  returns only its derived marker hash/size, never key/program/native receipt.
+  It performs no SDK/ADB IO and acquires no lease. The separate fixed stopped
+  collector admits only that exact marker, verifies it in both root passes,
+  and otherwise retains the ordinary disabled collector's strict allowlist.
+  No generic extra-file exception or ignored history. Core joins original
+  context before/after the current selected read and closes its owned channel;
+  review is not consumed arming authority. Root/marker/stock/producer drift,
+  expiry or lost close cannot qualify it. Run test_usb_browser_bridge_boot_*.py
+  and test_usb_bridge_boot_scope.mjs (raw/delivered selected peer), rebuild the
+  offline bundle/package, and preserve all existing scope/USB regressions.
+
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach

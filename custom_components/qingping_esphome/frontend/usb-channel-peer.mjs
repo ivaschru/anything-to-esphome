@@ -54,6 +54,11 @@ export class BrowserChannelPeer {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;
         try {data=await this.#link.checkDisabledScope(request.data.meta);}finally {this.#checking=false;}
+      } else if(request.operation==='bridge-boot-preparation') {
+        if(this.#opening || this.#socket || this.#closing || !request.data ||
+           Object.keys(request.data).sort().join()!=='meta,trial_marker')fail();
+        this.#checking=true;
+        try {data=await this.#link.checkBridgeBootPreparation(request.data.meta,request.data.trial_marker);}finally {this.#checking=false;}
       } else if(request.operation==='initial-trial-preparation') {
         if(this.#opening || this.#socket || this.#closing || !request.data || Object.keys(request.data).join()!=='meta') fail();
         this.#checking=true;

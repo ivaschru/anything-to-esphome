@@ -84,6 +84,8 @@ class Actor:
             # allocate/upload/launch, adopt native receipts or initialize ADB.
             from browser_initial_trial import context
             return context(self.companion.browser_stages, user, data["job_id"], data["expected_plan_sha256"]), "application/json"
+        if operation == "internal-browser-bridge-boot-context" and set(data) == {"job_id", "expected_plan_sha256"}:
+            return self.companion.browser_stages.bridge_boot_context(user, data["job_id"], data["expected_plan_sha256"]), "application/json"
         if operation.startswith("internal-browser-initial-trial-"):
             stages = self.companion.browser_stages
             if operation == "internal-browser-initial-trial-api" and set(data) == {"job_id", "plan_sha256", "intent_sha256", "channel_id", "channel_nonce", "nonce", "ram_job_id", "guardian_job_id"}:

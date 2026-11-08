@@ -531,3 +531,12 @@ and byte count. Nineteen refusal cases and syntax-only parsing pass. This
 module is not connected to a selected transport, stopped journal or consumed
 arming intent. Its generated text/metadata alone enables no button or writer;
 independent fresh reads and actual close proofs are still required.
+
+The private next-boot preparation now reads the exact stopped browser journal
+and all nine arming source pins. It derives the size/SHA of the original
+`initial-trial.intent` that remains on the monitor. A separate fixed selected
+collector verifies that known file in both root passes, plus the original
+stock/vendor/root/flags/resources. Unknown extra files still refuse. Core
+rechecks the private context after USB IO and awaits owned channel closure.
+This read grants no arming intent/lease or native trial receipt; the separate
+consumed flag transition and its terminal proof remain to be connected.

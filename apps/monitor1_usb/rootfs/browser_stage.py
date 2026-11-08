@@ -206,6 +206,10 @@ class BrowserStages:
         from browser_initial_journal import BrowserInitialTrials
         return BrowserInitialTrials(self).record(owner, job_id, intent_sha256, proof)
 
+    def bridge_boot_context(self, owner, job_id, expected_sha):
+        from browser_bridge_boot import context
+        return context(self, owner, job_id, expected_sha)
+
     def initial_trial_status(self, owner, job_id):
         from browser_initial_journal import BrowserInitialTrials
         return BrowserInitialTrials(self).status(owner, job_id)

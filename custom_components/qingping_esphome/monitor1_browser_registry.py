@@ -173,6 +173,25 @@ class BrowserRegistry:
             capability._retire()
             raise RelayRefusal from None
 
+    async def bridge_boot_preparation(self, owner, nonce, identity, meta, marker):
+        """Read original stopped scope using only this current selected handle."""
+        capability, current = self.capability(owner, nonce, identity), self.current
+        evidence = current['reported_evidence']
+        target = {'kind': 'browser_webusb', 'usb_serial': evidence['serial'], **{key: evidence[key] for key in
+            ('wlan_mac', 'boot_id', 'co2_type', 'stock_version')}}
+        if (not isinstance(meta, dict) or meta.get('target') != target or
+                not isinstance(meta.get('target'), dict) or type(meta['target'].get('co2_type')) is not int):
+            raise RelayRefusal
+        try:
+            observed = await capability.check_bridge_boot_preparation(meta, marker)
+            if (self.current is not current or self.capability(owner, nonce, identity) is not capability or
+                    capability.closed or capability.failed):
+                raise RelayRefusal
+            return observed
+        except BaseException:
+            capability._retire()
+            raise RelayRefusal from None
+
     async def dispatch(self, owner, nonce, operation, data):
         if operation == "open":
             return self.open(owner, nonce, data)

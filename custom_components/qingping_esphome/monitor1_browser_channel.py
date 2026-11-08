@@ -20,7 +20,7 @@ from .monitor1_browser_process_observation import BINDING as PROCESS_BINDING, va
 from .monitor1_browser_process_observation import scope_basis, validate_scope as guardian_scope, validate_return as guardian_return, SCOPE_WINDOW
 
 OPS = {"api-open", "api-read", "api-write", "api-close", "channel-close", "scope-check", "stage-admission",
-       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
+       "stage-prepare", "stage-file-begin", "stage-chunk", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "commit-stream-check", "commit-prepare", "commit-step", "commit-complete", "ram-stream-check", "ram-prepare", "ram-chunk", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe", "guardian-scope-observe", "guardian-return-observe", "guardian-return-close"}
 MAX_BYTES = 65536
 
 
@@ -108,7 +108,7 @@ class BrowserChannel:
         self.pending_operations[identity] = operation
         try:
             self.queue.put_nowait({"id": identity, "operation": operation, "data": data})
-            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
+            timeout = SCOPE_WINDOW if operation in ('guardian-scope-observe', 'guardian-return-observe') else (90 if operation in ("scope-check", "stage-admission", "stage-prepare", "stage-file-finish", "stage-complete", "disabled-scope", "initial-trial-preparation", "bridge-boot-preparation", "commit-prepare", "commit-step", "commit-complete", "ram-prepare", "ram-complete", "guardian-start", "guardian-finish", "guardian-process-observe") else 20)
             async with asyncio.timeout(timeout):
                 result = await asyncio.shield(future)
             return result
@@ -229,6 +229,12 @@ class BrowserChannel:
         if self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
             raise RelayRefusal
         return await self._request("initial-trial-preparation", {"meta": meta})
+
+    async def check_bridge_boot_preparation(self, meta, marker):
+        """Fresh fixed stopped scope; no writer or native receipt adoption."""
+        if self.ram_probe or self.ramming or self.commit_probe or self.committing or self.staging or self.opened or self.opening or self.pending:
+            raise RelayRefusal
+        return await self._request("bridge-boot-preparation", {"meta": meta, "trial_marker": marker})
 
     async def begin_stage(self, packet, stock_files):
         """Private Core entry after its retained lease/consumed plan intent.

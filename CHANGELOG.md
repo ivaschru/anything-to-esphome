@@ -1,5 +1,12 @@
 ## Unreleased – browser USB installation work
 
+- Join private browser arming-basis reads to the exact stopped trial history
+  and a fresh selected USB scope. Positively verify the one original persistent
+  trial marker in both root passes, preserving the ordinary collector's unknown
+  file refusal. Recheck context after IO and require owned close; no arming
+  intent, flag write, native receipt or public installer is enabled by a review.
+
+
 - Derive pure browser next-boot before/arm/after/completion text from the
   unchanged native builder, preserving recovery-before-unlink and correlated
   AFTER-effects bytes. Add exact canonical parity/refusal and syntax-only

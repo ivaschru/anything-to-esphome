@@ -3,7 +3,7 @@ import {BrowserInitialRamSession} from './usb-initial-ram-session.mjs';
 import {InitialGuardianStream,initialGuardianStreamService} from './usb-initial-guardian-stream.mjs';
 import {initialGuardianProcessReads,initialGuardianProcessObservation} from './usb-initial-process-observation.mjs';
 import {collectInitialGuardianScope,collectInitialGuardianReturn} from './usb-initial-scope-observation.mjs';
-import {collectDisabledScope} from "./usb-disabled-scope.mjs";
+import {collectDisabledScope,collectStoppedTrialScope} from "./usb-disabled-scope.mjs";
 import {collectInitialTrialPreparation} from "./usb-initial-trial-scope.mjs";
 import {DisabledCommandStream,disabledStreamService} from "./usb-disabled-stream.mjs";
 import {BrowserDisabledCommitSession} from "./usb-disabled-session.mjs";
@@ -196,14 +196,15 @@ export class BrowserNativeChannel {
     finally {this.#busy=false;}
   }
 
-  async #disabledScope(meta) {
+  async #disabledScope(meta,marker=undefined) {
       const evidence=this.evidence(),target={kind:'browser_webusb',usb_serial:evidence.serial,
         wlan_mac:evidence.wlan_mac,boot_id:evidence.boot_id,co2_type:evidence.co2_type,stock_version:evidence.stock_version};
       if(!meta?.target || Object.keys(meta.target).sort().join()!==Object.keys(target).sort().join() ||
          Object.keys(target).some(key=>meta.target[key]!==target[key])) error('usb_channel_unverified');
-      return await collectDisabledScope({read:command=>this.#read(command),identity:async()=>{
+      const collect=marker===undefined?collectDisabledScope:collectStoppedTrialScope;
+      return await collect({read:command=>this.#read(command),identity:async()=>{
         this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
-      }},meta);
+      }},meta,marker);
   }
 
   /** Preparation-only read through this original selected handle. No RAM job
@@ -221,6 +222,26 @@ export class BrowserNativeChannel {
       scope:input=>this.#disabledScope(input),identity:async()=>{
         this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
       }},meta);
+  }
+
+  /** Fresh stopped-trial read on this new selected handle, never cached proof.
+   * Only the known initial-trial.intent hash/size is admitted in the root;
+   * no caller path/allowlist or new write capability crosses this read frame.
+   */
+  async checkBridgeBootPreparation(meta,marker) {
+    if(this.#closed || this.#busy || this.#api || this.#apiUsed || this.#stageUsed ||
+       this.#commitProbeUsed || this.#ramProbeUsed || this.#ramUsed)error('usb_busy');
+    this.#busy=true;
+    try {
+      const pin=JSON.parse(JSON.stringify(marker));
+      const value=await collectInitialTrialPreparation({read:command=>this.#read(command),
+        scope:input=>this.#disabledScope(input,pin),identity:async()=>{
+          this.evidence();return JSON.stringify(await this.#identity())===JSON.stringify(this.#scope);
+        }},meta);
+      return {kind:'browser_bridge_boot_preparation',preparation:value,trial_marker:pin,
+        trial_marker_checked:true,context_only:true};
+    }catch {await this.close().catch(()=>{});error('usb_browser_scope_unverified');}
+    finally {this.#busy=false;}
   }
 
   /** Read-only raw-stdin capability probe before any commit intent. No PTY,
