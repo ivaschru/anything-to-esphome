@@ -1,5 +1,22 @@
 # Qingping ESPHome
 
+- Canonical `lite` firmware 3 and `lite-434` firmware 2 add device-owned native
+  ESPHome UpdateEntity checks, independent of HACS/Device Builder. See
+  docs/NATIVE_FIRMWARE_UPDATES.md. Keep TLS/certificate verification, fixed
+  immutable profile URLs, USB and strict increasing counters. No auto-install.
+  The streaming personalizer verifies the FULL original SHA/layout/markers
+  before activation and retains current private slots/settings; no key-vault
+  migration. Reference marker bytes stay XOR encoded/volatile. The sole new
+  NVS namespace qf_native contains a value-free consumed attempt journal, never
+  credentials or an erase/reset path. Pending old-boot outcomes block replay.
+  Native and encrypted local OTA share UI admission/progress/error handling.
+  Publish native-<profile>.json atomically with the same immutable app pair;
+  every publisher must preserve other native endpoints as well as index maps.
+  Keep existing HACS entities/history in place while suppressing duplicate
+  offers only after authenticated capability readback. No HA installation or
+  restart is implied. Run test_native_update*.py, firmware/HA suites, pinned
+  builds and actual profile-wire checks; retain separate hardware QA evidence.
+
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.

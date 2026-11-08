@@ -15,6 +15,7 @@ import json
 import shutil
 import subprocess
 import sys
+from native_update_build import patch_table, marker_header
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("template_image", ROOT / "custom_components/qingping_esphome/image.py")
@@ -23,6 +24,7 @@ spec.loader.exec_module(image)
 
 
 def main():
+    release = json.loads((ROOT / "firmware/lite434-release.json").read_text())["lite-434"]
     work = ROOT / ".build/lite434-source"
     shutil.copytree(ROOT / "ports/lite", work, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("__pycache__", ".esphome", "secrets.yaml"))
@@ -30,8 +32,8 @@ def main():
     # staged replacements are part of this profile's own source digest.
     shutil.copyfile(ROOT / "ports/lite-434/cgdn1_pm.h", work / "components/cgdn1_pm/cgdn1_pm.h")
     ui = work / "components/cgdn1_ui/cgdn1_ui.h"
-    ui.write_text(ui.read_text().replace("2026.11.07-ui25-quiet2", "2026.11.08-ui25-434v1")
-                  .replace("PUBLIC_VERSION = 2;", "PUBLIC_VERSION = 1;"))
+    ui.write_text(ui.read_text().replace("2026.11.08-ui25-native3", release["version"])
+                  .replace("PUBLIC_VERSION = 3;", f"PUBLIC_VERSION = {release["public_version"]};"))
     exporter = work / "components/cgdn1_ui/update_profile.h"
     wire = exporter.read_text()
     assert wire.count('body["profile"] = "lite";') == 1
@@ -40,7 +42,6 @@ def main():
                         'if (source_stock_version != "4.3.4") return;')
     exporter.write_text(wire)
     values = {key: value.decode() for key, value in image.SLOTS.items() if key != "noise_psk"}
-    release = json.loads((ROOT / "firmware/lite434-release.json").read_text())["lite-434"]
     values["api_key"] = base64.b64encode(image.SLOTS["noise_psk"]).decode()
     values["wifi_ssid"] = values.pop("ssid")
     # A C++ optimizer can fold strlen("literal") into its ORIGINAL length.
@@ -74,6 +75,8 @@ def main():
     text = base_config.read_text()
     assert text.count('  - platform: esphome\n    password:') == 1
     base_config.write_text(text.replace('  - platform: esphome\n    password:', '  - platform: esphome\n    id: template_ota\n    password:'))
+    if (work / "components/qf_native_update/slot_markers.h").read_text() != marker_header(ROOT):
+        raise ValueError("Native marker decoder differs from image contract")
     config = f'''# Public placeholders only. Never boot or install this unpersonalized image.
 substitutions:
   name: {json.dumps(values['name'])}
@@ -108,6 +111,32 @@ esphome:
             access_point.set_password(qf_template::read(qf_template::ap_password));
             id(template_wifi).set_ap(access_point);
             id(template_ota).set_auth_password(qf_template::read(qf_template::ota_password));
+            id(native_firmware).set_credentials(qf_template::read(qf_template::ota_password), qf_template::read(qf_template::source_stock_version), qf_template::active_display_feed);
+            id(native_firmware).set_ui(
+              []() {{ return id(local_ui).firmware_update_ready(); }},
+              []() {{ id(led_ota) = true; id(local_ui).ota_begin(); id(led_refresh).execute(); }},
+              [](float percent) {{ id(local_ui).ota_progress(percent); }},
+              [](bool success) {{ if (success) id(local_ui).ota_end(); else {{ id(led_ota) = false; id(local_ui).ota_error(); id(led_refresh).execute(); }} }});
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [qf_native_update]
+http_request:
+  id: firmware_http
+  verify_ssl: true
+  follow_redirects: false
+  timeout: 15s
+update:
+  - platform: qf_native_update
+    id: native_firmware
+    name: "Firmware"
+    entity_category: config
+    http_request_id: firmware_http
+    profile: lite-434
+    revision: {release["revision"]}
+    public_version: {release["public_version"]}
+    update_interval: 6h
 wifi:
   id: template_wifi
   ap:
@@ -122,7 +151,7 @@ api:
       then:
         - api.respond:
             data: !lambda |-
-              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]}, qf_template::read(qf_template::source_stock_version), qf_template::active_display_feed);
+              qf_update_profile::respond(root, challenge, qf_template::read(qf_template::ota_password), cgdn1_ui::UI_VERSION, {release["revision"]}, {release["public_version"]}, qf_template::read(qf_template::source_stock_version), qf_template::active_display_feed, true);
               static_assert(cgdn1_ui::PUBLIC_VERSION == {release["public_version"]});
 esp32:
   framework:
@@ -154,6 +183,7 @@ esp32:
         "esphome": "2026.9.1", "size": len(binary), "sha256": digest,
         "release_source_sha256": source_digest(ROOT),
         "slots": counts, "format": "esp32-app-fixed-slots-v1",
+        "native_update": {"format": "qingping-native-update-v1", "patches": patch_table(ROOT, binary)},
     }, indent=2) + "\n")
     print("Public template validated:", len(binary), "bytes, sha256", digest)
 

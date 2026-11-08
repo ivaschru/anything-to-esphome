@@ -61,6 +61,7 @@ class DeviceProfile:
     public_version: int | None = None
     source_stock_version: str = "4.5.8"
     profile: str = "lite"
+    native_update: bool = False
 
 
 def decode_profile(response, key, mac, name, challenge, *, public_versions=None, hardware_versions=None):
@@ -99,6 +100,8 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None,
                 or type(data.get("revision")) is not int
                 or data["revision"] < 2 or data["revision"] != versions[data["version"]]): raise ValueError
         values = data["personalization"]
+        native = data.get("native_update", False)
+        if type(native) is not bool: raise ValueError
         public = data.get("public_version")
         if public is not None and (type(public) is not int or not 1 <= public <= 2**53-1): raise ValueError
         keys = {"ssid", "wifi_password", "ap_ssid", "ap_password", "ota_password"}
@@ -109,7 +112,7 @@ def decode_profile(response, key, mac, name, challenge, *, public_versions=None,
         _text(name, len(SLOTS["name"]), minimum=len(SLOTS["name"]))
         for k in keys:
             _text(values[k], len(SLOTS[k]), minimum=8 if k == "ap_password" else 1 if k in {"ssid", "ap_ssid", "ota_password"} else 0)
-        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public, data["source_stock_version"], wire_profile)
+        return DeviceProfile(mac_normalize(mac), name, data["version"], data["revision"], {**values, "name": name}, public, data["source_stock_version"], wire_profile, native)
     except Exception:
         # InvalidTag, SDK/JSON errors and malformed untrusted data must never
         # turn private plaintext/response bytes into diagnostics or HA state.

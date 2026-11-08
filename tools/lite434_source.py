@@ -5,7 +5,7 @@ framed into the hash, so a polling-only image cannot pass a quiet-image pin.
 """
 import hashlib
 from pathlib import Path
-RECIPE_PATHS = ("tools/build_lite434.py", "tools/lite434_source.py", "firmware/lite434-release.json",
+RECIPE_PATHS = ("tools/native_update_build.py","tools/build_lite434.py", "tools/lite434_source.py", "firmware/lite434-release.json",
                 "custom_components/qingping_esphome/image.py")
 POLICY = "lite-434-polling-only-v1"
 def source_digest(root):

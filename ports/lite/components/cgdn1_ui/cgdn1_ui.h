@@ -46,9 +46,9 @@ static constexpr unsigned PUBLIC_VERSION = 0;
 static constexpr const char *UI_VERSION = "2026.11.04-ui26-gpio23";
 static constexpr unsigned PUBLIC_VERSION = 0;
 #else
-static constexpr const char *UI_VERSION = "2026.11.07-ui25-quiet2";
+static constexpr const char *UI_VERSION = "2026.11.08-ui25-native3";
 // Product version is independent from the exact diagnostic UI/build identity.
-static constexpr unsigned PUBLIC_VERSION = 2;
+static constexpr unsigned PUBLIC_VERSION = 3;
 #endif
 struct Readings {
   float co2{NAN}, temperature{NAN}, humidity{NAN}, pm1{NAN}, pm25{NAN}, pm10{NAN};
@@ -187,6 +187,10 @@ class Cgdn1Ui : public Component {
   }
 #endif
   bool updating() const { return ota_; }
+  // A native firmware update may not interrupt an active credential editor or
+  // connection trial. The same OTA screen/LED callbacks are used for both OTA
+  // transports; no raw credential/UI draft leaves this boundary.
+  bool firmware_update_ready() const { return !ota_ && !wifi_.trial_active() && model_.screen != Screen::PASSWORD; }
   bool pages_ready() const { return pages_ready_; }
   cgdn1_led::Sensor led_sensor() const { return shown_sensor_; }
   float led_value() const { return shown_value_; }

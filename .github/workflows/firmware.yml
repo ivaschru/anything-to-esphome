@@ -37,6 +37,7 @@ jobs:
             python tools/prepare_release_template.py
           fi
       - run: python -m unittest discover -s tests -p 'test_firmware*.py' -v
+      - run: python -m unittest discover -s tests -p 'test_native_update*.py' -v
       - name: Prepare the exact profile publication
         env:
           PROFILE: ${{ inputs.profile }}

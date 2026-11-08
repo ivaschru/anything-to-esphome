@@ -473,3 +473,19 @@
 - Однократная OTA-команда с приватным журналом и проверкой native API
 - Общие исходники CGS1 S8/SCD40; Monitor 2 остаётся unverified
 - Новый мастер ещё требует полного испытания установки на реальном приборе
+## Firmware: Lite 3 / Lite 4.3.4 2; integration source changes
+
+- Add native ESPHome firmware updates without Qingping HACS or Device Builder:
+  profile-specific HTTPS checks every six hours and standard HA UpdateEntity.
+  Installation remains explicit, USB-only and APP-only, preserving the active
+  device identity, keys, networks and existing settings inside the device.
+- Authenticate the complete original app before activation, personalize fixed
+  slots in a bounded stream and retain a value-free consumed attempt journal.
+  Keep independent counters and preserve both native manifest endpoints across
+  Lite/Monitor 1 catalog publications. No integration release is required to
+  publish a subsequent compatible firmware version.
+- Add source-side HACS handoff for authenticated native-updater devices to
+  avoid duplicate firmware offers. This code change does not install/restart HA.
+- PM policies are unchanged: 4.5.8 retains guarded quiet operation; 4.3.4
+  remains polling-only and does not promise fan shutdown.
+

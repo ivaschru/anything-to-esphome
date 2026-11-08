@@ -309,6 +309,7 @@ class FirmwareUpdates:
                           template_sha256=attempt["template_sha256"], image_sha256=attempt["image_sha256"],
                           build=info.compilation_time, peer=private_ipv4(client.connected_address),
                           outcome="native_verified")
+            if attempt.get("native_update") is True: record["native_update"] = True
             if attempt.get("profile") == "lite-434":
                 record["profile"] = "lite-434"
             if attempt.get("public_version") is not None:
@@ -382,6 +383,7 @@ class FirmwareUpdates:
             attempt = {"id": secrets.token_hex(16), "at": datetime.now(timezone.utc).isoformat(),
                        "version": release.version, "revision": release.revision, "profile": release.profile, "state": "consumed",
                        "public_version": release.public_version,
+                       "native_update": json.loads(metadata).get("native_update", {}).get("format") == "qingping-native-update-v1",
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
                        "settings_before": {name: snapshot[name] for name in SETTINGS if name in snapshot}}
             record["update_attempt"] = attempt
