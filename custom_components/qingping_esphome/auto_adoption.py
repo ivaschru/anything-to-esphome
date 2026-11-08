@@ -130,8 +130,12 @@ class AutoAdoption:
             versions = ({**dict(release.adoption_versions), release.version: release.revision}
                         if release and release.supports_install(self.manager.updates.integration_version)
                         else {})
+            hardware_release = (getattr(catalog, "data", None) or {}).get("lite-434")
+            hardware_versions = ({**dict(hardware_release.adoption_versions), hardware_release.version: hardware_release.revision}
+                                 if hardware_release and hardware_release.supports_install(self.manager.updates.integration_version) else {})
             profile = decode_profile(response.response_data, key, mac, fresh.name, challenge,
-                                     public_versions=versions)
+                                     public_versions=versions, hardware_versions=hardware_versions)
+            if profile.profile == "lite-434": release = hardware_release
             if (release and profile.version == release.version
                     and release.public_version is not None and profile.public_version != release.public_version):
                 return False
@@ -147,12 +151,13 @@ class AutoAdoption:
                     or not force and self.manager.updates.lock.locked()): return False
             current = self.manager.records.get(mac)
             if current is not record or current and pending(current): return False
-            imported = {**(record or {}), "schema_version": 3, "profile": "lite", "hardware": "0001",
+            imported = {**(record or {}), "schema_version": 3, "profile": profile.profile, "hardware": "0001",
                         "source_stock_version": profile.source_stock_version, "origin": "device_profile_v1",
                         "name": profile.name, "peer": peer, "noise_key": key,
                         "ota_password": profile.values["ota_password"],
                         "personalization": profile.values, "firmware_version": profile.version,
                         "firmware_revision": profile.revision, "build": fresh.compilation_time,
+                        "native_update": profile.native_update,
                         "outcome": ("native_verified" if record and record.get("outcome") == "native_verified"
                                     and record.get("firmware_version") == profile.version
                                     and record.get("build") == fresh.compilation_time else "auto_adopted"),

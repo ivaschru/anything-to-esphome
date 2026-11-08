@@ -43,6 +43,13 @@ def sealed(challenge, *, changes=None, key=KEY, mac=MAC):
 
 @unittest.skipIf(AESGCM is None, "cryptography required")
 class ProfileTests(unittest.TestCase):
+    def test_native_capability_is_authenticated_and_boolean(self):
+        challenge=secrets.token_hex(16)
+        self.assertFalse(profile.decode_profile(sealed(challenge),KEY,MAC,NAME,challenge).native_update)
+        self.assertTrue(profile.decode_profile(sealed(challenge,changes={"native_update":True}),KEY,MAC,NAME,challenge).native_update)
+        for value in (1,"true",{},None):
+            with self.assertRaises(profile.ProfileError):
+                profile.decode_profile(sealed(challenge,changes={"native_update":value}),KEY,MAC,NAME,challenge)
     def test_roundtrip_is_private_and_preserves_exact_values(self):
         challenge = secrets.token_hex(16)
         response = sealed(challenge)

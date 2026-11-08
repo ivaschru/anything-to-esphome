@@ -18,20 +18,27 @@ Choose computer WebUSB or the HA server's USB; a separate Supervisor app is
 not required. Server tools currently support official Alpine3.24 HA Core
 on x86-64/ARM64. Initial tool preparation downloads verified dependencies
 privately and needs internet and 6 GiB free. Existing standalone app data stays
-in place. First installation on an untouched CGS1 and full native UI installation
-remain unverified/unfinished; this packaging change does not qualify them.
+in place. The experimental computer browser wizard now connects all eight
+steps through Full UI and native HA enrollment. First installation on an
+untouched CGS1 remains physically unverified; software tests do not qualify it.
 
 See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 ([Russian walkthrough](apps/monitor1_usb/README.ru.md)).
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **Beta**, Bluetooth → local MQTT/HTTP |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); private local build, no automatic installer |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
 | **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
+
+Firmware 5 / `lite` and firmware 4 / `lite-434` check their own release catalog and expose standard ESPHome firmware updates in Home Assistant. Subsequent updates do not require Qingping HACS or Device Builder. [Update contract](docs/NATIVE_FIRMWARE_UPDATES.md).
+
+Stock 4.3.4 and 4.5.8 are tracked separately because verified fan behavior differs;
+these firmware branches are not confirmed PCB revision numbers.
 
 Images are not interchangeable. Stock 4.2.1 needs its own MCU backend; the
 4.5.8 image does not support it. Status checked on 6 November 2026. Monitor 1
@@ -162,6 +169,16 @@ See [publishing and recovery](docs/FIRMWARE_CHANNEL.md). Old combined releases
 remain immutable; the commands below describing them are historical.
 
 ## Firmware updates in Home Assistant
+
+Starting with **Lite 4.5.8 firmware 5** and **Lite 4.3.4 firmware 4**, the
+monitor itself supplies a standard ESPHome **Firmware** update entity. It works
+with Home Assistant's ordinary ESPHome integration: **Qingping HACS and Device
+Builder are not required** after the initial upgrade. Checks run every six
+hours; installation is explicit and requires USB. Keys, active networks and
+settings stay with the device. See [native updates](docs/NATIVE_FIRMWARE_UPDATES.md)
+for profile boundaries, integrity checks and recovery.
+
+### Earlier firmware: installer-owned update path
 
 The integration now provides one standard **Firmware** update entity per
 verified installer-managed Lite. New releases appear in **Settings → System
@@ -296,13 +313,38 @@ communication. PM OFF stops polling and marks PM readings unavailable; it does
 not stop the fan. HACS updates the installer only: devices already running
 ESPHome are not reflashed automatically.
 
+### Lite 4.3.4 firmware 1
+
+Original stock **4.3.4 / HW0001** now has its own `lite-434` release line and
+[firmware 1](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v1).
+It retains the direct-I²C sensors, full local UI, HA API and encrypted OTA.
+**PM OFF stops PM polling only; it does not stop the fan.** GPIO13 stays HIGH;
+no quiet-mode claim, rail pulses or guessed commands are part of this release.
+
+Integration **0.2.9+** selects this release for existing managed ESPHome devices
+whose authenticated original provenance is 4.3.4/HW0001. A legacy public 2
+remains labelled 2 until the actual profile-specific version 1 is installed;
+the internal OTA order advances from revision 3 to 4. Stock 4.5.8 devices keep
+their own Lite 2 line. New firmware-only versions do not require a HACS release.
+
+This first 4.3.4 artifact passed the pinned ESPHome build, actual PM component
+lifecycle tests, sealed-profile interoperability and HA routing tests. It was
+not installed during publication. Prior direct-I²C measurement qualification
+does not qualify a new factory Bluetooth installation route; that route remains
+blocked. Native installation requires USB and the user's standard HA Update
+command. Public templates contain placeholders and must never be booted without
+local personalization. See [the profile](ports/lite-434/README.md).
+
 ### Lite firmware 2
 
 The direct-I2C profile adds guarded quiet PM operation and the reviewed OLED
 interface: native outline/classic digits, clock/date layouts, shared local/HA
 settings, slide transitions, blackout night mode and two-step slot confirmation.
-Faults fall back to HIGH to preserve measurements, so a failed quiet guard can
-restart the fan. [Port details and exact limits](ports/lite/README.md).
+Fan shutdown is verified on tested stock-4.5.8 units. On the tested unit originally
+running stock 4.3.4, measurements work but the fan remains running with PM OFF,
+even without a quiet-guard fault; fan shutdown for this branch remains unresolved.
+Faults can also fall back to HIGH to preserve measurements and restart the fan.
+[Port details and exact limits](ports/lite/README.md).
 Original stock 4.3.4/4.5.8 provenance and optional existing HA display feed are
 preserved by native updates. Factory Bluetooth admission remains 4.5.8/HW0001;
 external-MCU Lite uses a separate, unqualified profile. Integration 0.2.1 is

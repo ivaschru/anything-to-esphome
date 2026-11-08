@@ -9,6 +9,29 @@ separately consumed coordinator and does not expose private actor operations.
 Pristine CGS1 hardware qualification remains outstanding; no readiness flag,
 Monitor 2 support, BLE support or physical result follows from host tests.
 
+- Canonical `lite` firmware 5 and `lite-434` firmware 4 add device-owned native
+  ESPHome UpdateEntity checks, independent of HACS/Device Builder. This is a
+  required contract for these qualified profiles, not an optional HACS path. See
+  docs/NATIVE_FIRMWARE_UPDATES.md. Keep TLS/certificate verification, fixed
+  immutable profile URLs, USB and strict increasing counters. No auto-install.
+  The streaming personalizer verifies the FULL original SHA/layout/markers
+  before activation and retains current private slots/settings; no key-vault
+  migration. Reference marker bytes stay XOR encoded/volatile. The sole new
+  NVS namespace qf_native contains a value-free consumed attempt journal, never
+  credentials or an erase/reset path. Pending old-boot outcomes block replay.
+  Native and encrypted local OTA share UI admission/progress/error handling.
+  Keep dynamic TLS buffers and a 1 KiB outgoing/16 KiB incoming record limit
+  on this non-PSRAM board; never bypass CA verification on allocation failure.
+  Publish the initial installed state even before a catalog check succeeds.
+  The staged/unpromoted Lite 3/4 and lite-434 2/3 tags are immutable
+  qualification history, not releases to install or overwrite.
+  Publish native-<profile>.json atomically with the same immutable app pair;
+  every publisher must preserve other native endpoints as well as index maps.
+  Keep existing HACS entities/history in place while suppressing duplicate
+  offers only after authenticated capability readback. No HA installation or
+  restart is implied. Run test_native_update*.py, firmware/HA suites, pinned
+  builds and actual profile-wire checks; retain separate hardware QA evidence.
+
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
 separate even though the HACS wizard is shared.
@@ -1445,3 +1468,45 @@ separate even though the HACS wizard is shared.
   test_usb_initial_guardian_sync_v1.mjs, plus existing stage SYNC/Node tests.
   The shared daemon fixture records only bytes and never opens a named path
   or executes a program. Do not rebuild firmware or claim hardware QA from it.
+
+- Lite original stock 4.3.4 / HW0001 has the independent `lite-434` release
+  line. Public 1 / internal revision 4 is polling-only: GPIO13 remains HIGH,
+  PM OFF invalidates/stops PM readings and does not promise fan shutdown.
+  `ports/lite-434/cgdn1_pm.h` is an explicit build overlay; do not modify the
+  immutable shared Lite 2 inputs merely to introduce another hardware line.
+  Build with `python tools/build_lite434.py` in the pinned SDK and run
+  `python tools/check_lite434_wire.py`, test_firmware434.py and the HA updater
+  tests. Publisher: `tools/publish_firmware.py --profile lite-434` (preview;
+  `--publish` consumes the independent atomic publication intent).
+  Metadata/source pins belong to firmware/lite434-release.json and
+  tools/lite434_source.py. Integration 0.2.9+ supports native updates/adoption,
+  not a new factory BLE route. Keep factory admission at its qualified scope.
+  The catalog extension `hardware_releases` keeps old readers' `releases.lite`
+  intact. Every publisher must preserve both maps and `runtime_releases`.
+  Route old public Lite records using authenticated original stock/HW values;
+  do not rename their installed version/counter before successful OTA. Source
+  4.5.8, MCU and unknown profiles must never receive the 4.3.4 image. Snapshot,
+  USB, exact identity, private settings, one-use intent and encrypted app-only
+  transfer guards remain identical. This is a stock-generation discriminator,
+  not a newly established PCB revision number.
+
+- Browser USB source checks accept the exact one- or two-space text delimiter
+  emitted by sha256sum. Digest, full fixed path, stat fields and line count
+  remain exact; never trim arbitrary output into a valid pin. Use the shared
+  usb-file-observation.mjs parser for initial and post-capture verification,
+  run test_usb_file_observation.mjs plus probe/capture regressions and rebuild
+  the offline bundle. This compatibility fix grants no browser writer or
+  additional hardware qualification.
+
+- Catalog publishers can run from a clean source archive nested below another Git checkout. Always use `git ls-tree --full-tree` for fixed repository-root endpoint paths; default cwd filtering can silently remove the other profile. The nested publisher regression must pass before any catalog CAS.
+
+- Native download treats only IDF -ESP_ERR_HTTP_EAGAIN as a bounded wait on the
+  SAME open stream (two consecutive, 45 s idle, 300 s total). Never reset the
+  original digest, flash position, journal or INSTALL when waiting. FIN/TLS/
+  transform/write failures remain terminal. Preserve value-free phase/read/
+  received diagnostics. Actual 622592-byte timeout motivated this branch;
+  host budget/stream tests and a real device-owned INSTALL must pass before
+  promoting the new Lite 5 / lite-434 4 images. Earlier staged counters stay
+  immutable and unpromoted.
+
+- Lite builder binds the normal staged UI_VERSION/PUBLIC_VERSION to firmware/releases.json; do not edit the shared header solely to advance Lite counters, which would invalidate another hardware profile's source identity. Probe version-zero branches remain unchanged; assert exactly one normal branch.

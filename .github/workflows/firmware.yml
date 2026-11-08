@@ -5,7 +5,7 @@ on:
       profile:
         description: Qualified hardware profile from the selected source revision
         type: choice
-        options: [lite]
+        options: [lite, lite-434]
         required: true
       publish:
         description: Publish the exact verified public pair (false only prepares a preview)
@@ -27,8 +27,17 @@ jobs:
       - run: pip install -r ports/lite/requirements.txt
       # Reuse an unchanged qualified pair. Changed firmware uses the ordinary
       # public-placeholder build; no private image, key or device is an input.
-      - run: python tools/prepare_release_template.py
+      - name: Prepare the selected public template
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ "$PROFILE" = lite-434 ]; then
+            python tools/build_lite434.py
+          else
+            python tools/prepare_release_template.py
+          fi
       - run: python -m unittest discover -s tests -p 'test_firmware*.py' -v
+      - run: python -m unittest discover -s tests -p 'test_native_update*.py' -v
       - name: Prepare the exact profile publication
         env:
           PROFILE: ${{ inputs.profile }}
@@ -47,6 +56,6 @@ jobs:
         with:
           name: firmware-${{ inputs.profile }}
           path: |
-            custom_components/qingping_esphome/firmware/lite-template.bin
-            custom_components/qingping_esphome/firmware/lite-template.json
+            custom_components/qingping_esphome/firmware/*-template.bin
+            custom_components/qingping_esphome/firmware/*-template.json
             .build/firmware-publication/**/intent.json

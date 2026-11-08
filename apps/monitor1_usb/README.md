@@ -439,7 +439,7 @@ key. First installation on an untouched physical CGS1 remains unqualified.
 
 ### Browser USB preparation in the development branch
 
-Stable HACS 0.2.10 does not yet offer a browser first-install button. The source
+HACS0.2.11 adds the experimental browser first-install buttons. The source
 branch has the private stage → disabled commit → bounded bridge trial → next-boot arming pipeline
 described below. The private boot observer also joins original arming history, the full native
 kernel/file scope and fresh authenticated sensor updates. The private PM next-boot join and post-PM Full UI review/RAM trial are also connected.
@@ -601,7 +601,7 @@ physical screen/touch or firmware support qualification follows from host tests.
 ### Integrated experimental browser walkthrough
 
 The source wizard now offers eight separately consumed computer-WebUSB steps
-inside the single HACS package. Stable0.2.10 predates these new buttons. Fresh
+inside the single HACS0.2.11 package. Stable0.2.10 predates these new buttons. Fresh
 CGS1 hardware qualification is still outstanding; this is stated beside the
 available experimental controls rather than disabling owner testing.
 

@@ -1,10 +1,10 @@
 {
   "lite": {
-    "version": "2026.11.07-ui25-quiet2",
-    "revision": 3,
+    "version": "2026.11.08-ui25-native5",
+    "revision": 6,
     "backend": "esp32-noise-app-v1",
     "minimum_integration": "0.2.1",
-    "summary": "Air Monitor Lite CGDN1 direct-I2C firmware 2. PM OFF uses guarded quiet operation while CO2/temperature/humidity continue.",
-    "public_version": 2
+    "summary": "Lite 4.5.8 / HW0001 firmware 5. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration. Bounded continuation after transient HTTP read timeout.",
+    "public_version": 5
   }
 }

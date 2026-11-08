@@ -199,7 +199,9 @@ def publish(root, values, package, previous_head, previous, source, intent):
         if any(channel.remote_ref(root, ref) != head for ref, head in targets.items()):
             raise RuntimeError("Catalog points to a missing runtime release")
         return {"state": "already_published", "catalog_head": previous_head, "refs": targets}
-    head = channel.commit(root, {"firmware-catalog.json": encoded(index)}, previous_head,
+    files = channel.native_catalog_files(root, previous_head)
+    files["firmware-catalog.json"] = encoded(index)
+    head = channel.commit(root, files, previous_head,
                           "Index Monitor 1 runtime releases")
     receipt = {"state": "consumed_before_atomic_push", "source_commit": source,
                "expected_catalog_head": previous_head, "catalog_head": head, "refs": targets}

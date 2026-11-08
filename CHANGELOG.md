@@ -1,273 +1,48 @@
-## Unreleased – browser USB installation work
+## 0.2.11 – experimental browser USB installation
 
-- Connect the experimental eight-step computer WebUSB wizard inside the HACS
-  package through finite authenticated Core actions. Preserve original-click
-  selection, independent consumed steps, same-task guardian continuation,
-  separate screen/startup confirmations, EN/RU form retention and explicit
-  power-off/on instructions. Status never starts or repeats work.
-- Add separate permanent-start and HA-enrollment browser journals. Reuse the
-  unchanged Full UI activation engine and HA's native ESPHome flow after
-  independent USB/Noise/LAN checks and positive transport closure. Keys stay
-  on the private actor/Core pipe; lost replies reconcile history/entries only.
-- Match the parent frame-ID ceiling to an actually accepted Full UI resource
-  class, keeping ordinary IDs and two-frame concurrency bounded. Add the fixed
-  wlan0 address reader; no caller host, arbitrary command or LAN scanning.
-- This enables experimental software testing, not pristine-device hardware
-  qualification, Monitor 2 or a Monitor 1 Bluetooth proxy.
+- Connect the Monitor 1 computer WebUSB installer inside the single HACS
+  package: disabled staging and commit, guarded60-second bridge trial,
+  bridge/PM next-boot preparation, Full UI trial, separate permanent startup
+  and standard Home Assistant ESPHome enrollment. Server USB and the
+  alternative computer ADB installer retain their existing guarded engines.
+- Offer eight explicit steps, fresh original-click USB selection, EN/RU
+  progress, separate screen/touch and permanent-start confirmations, and
+  clear power-off/on instructions. Preserve forms when changing language.
+- Keep keys/private images on the actor/Core pipe. Verify exact original
+  source/profile/boot/pair, fresh encrypted readings and independent
+  API/USB/channel closure. Check capacity before permanent intent; enrollment
+  independently verifies LAN before HA's native user/encryption_key flow.
+- Preserve consumed attempts and recovery files. Lost replies only reconcile
+  history/entries; no automatic reboot, repeat, rollback, LAN scan or overwrite.
+- Fix actual SDK byte-response parsing, the browser Noise pre-OPEN timing
+  budget and the parent frame-ID ceiling for separately selected Full UI.
+- This is an available experimental software path. First installation on an
+  untouched CGS1 remains physically unverified; no Monitor2 or CGS1 Bluetooth
+  proxy support is claimed. Lite/native-update changes from main are preserved.
 
-- Correct the initial browser Noise connection's per-attempt budget to include
-  its complete pre-OPEN device scope. Preserve original 30s connection/50s
-  observation/device 60s ceilings and no-replay behavior. A real Noise fixture
-  with a 2.2s prerequisite reproduces the previous 2s cancellation.
+## 0.2.10
 
+- Fix Monitor 1 browser USB discovery and original-file capture rejecting
+  normal BusyBox/GNU sha256sum output with two spaces before the filename.
+  Keep exact file paths, SHA-256 values, sizes, link counts and line counts.
+- Preserve the separate Lite 4.3.4 support from 0.2.9 and existing firmware
+  releases. No new browser write route, device update or hardware support
+  follows from this installer compatibility fix.
 
-- Add a separate bounded Full UI browser resource class, original completed
-  post-PM context, fixed selected identity/bridge reader and private encrypted
-  API review. Compose the separate consumed RAM-trial journal with the existing
-  60s Full UI engine, two native observations, stock return and independent
-  API/USB/channel closure. Preserve no-replay/global fences and private keys.
-  Fix shared Full UI and independent LAN enrollment service-response parsing
-  for actual aioesphomeapi bytes with strict bounded UTF-8. Host/Noise fixtures do not qualify fresh devices. The finite public
-  browser workflow is composed separately below these guarded primitives.
+## 0.2.9
 
-
-- Join the private browser PM next-boot transition to original actor/selected
-  USB, fresh full scope and actual Noise. Add a separate consumed/fsynced PM
-  journal and cross-writer/export fence, canonical arm/AFTER text and a fixed
-  64KiB sealed stream with a full-size harmless pre-intent probe. Old streams
-  keep their 32KiB bound. Preserve this-boot inhibition, backup-before-unlink,
-  exact AFTER read and both closes before terminal record/release. No helper
-  load/reboot/retry/public installer or physical fresh-device QA is implied.
-
-
-- Connect the private read-only browser boot observer to original completed
-  arming history, canonical 64-read kernel/file scope and the selected USB
-  channel. Distinguish same-boot waiting from a distinct live runtime. Join
-  the real Core Noise client and fresh physical wire generations; independently
-  await API/USB/channel cleanup. Keys stay on a private Core pipe. Add canonical
-  parity, raw/delivered Native, actual actor/registry/Noise and failure tests.
-  No public writer, PM/Full UI/enrollment UI or fresh-device qualification follows.
-
-
-- Connect private browser bridge next-boot arming end to end: harmless probe,
-  fresh stopped scope, separate consumed actor intent, canonical sealed flag
-  transition, explicit armed readback, actual USB close, separate channel ACK
-  and immutable terminal record. Preserve task/actor/deadline and no replay;
-  retain recovery/PM opt-out and all unknown history. Add real host actor/flock,
-  raw/delivered selected-channel and pinned Tango512 transport tests. No reboot,
-  running-install/readiness claim, public UI or fresh-device QA is enabled.
-
-
-- Join private browser arming-basis reads to the exact stopped trial history
-  and a fresh selected USB scope. Positively verify the one original persistent
-  trial marker in both root passes, preserving the ordinary collector's unknown
-  file refusal. Recheck context after IO and require owned close; no arming
-  intent, flag write, native receipt or public installer is enabled by a review.
-
-
-- Derive pure browser next-boot before/arm/after/completion text from the
-  unchanged native builder, preserving recovery-before-unlink and correlated
-  AFTER-effects bytes. Add exact canonical parity/refusal and syntax-only
-  checks. No browser writer, live scope/journal/lease join, reboot or hardware
-  qualification is enabled by this generated contract.
-
-
-- Complete the private original-task bounded guardian composition through
-  authenticated Noise, END/reap, double-pass return, actual USB close,
-  independent channel-close ACK and immutable actor terminal record. Require
-  the original retained lease and strict proof before fsync/release; lost
-  replies permit historical status only. Unknown/changed history remains
-  fenced, without retry, activation or installed/readiness claims. Add real
-  Noise/actor/fsync/flock composition and forged-proof/closure-loss tests with
-  synthetic device replies and clock; no physical first-install QA follows.
-  Align English/Russian development instructions around the current pipeline.
-  Browser next-boot/PM/Full UI/enrollment/UI and fresh-device QA remain open.
-
-
-- Join the original guardian's post-stop fixed scope to its selected USB
-  channel and private Core continuation. Use strict positive absence of own
-  programs and two independent full read passes; preserve roots, stock births,
-  original intent/RAM and known byte pins. Core joins its own END time to the
-  original authenticated wire result and API-close ACK, rejecting immediate
-  reported stops and stale samples. Actual USB/channel close, terminal journal
-  verification and public browser installation remain unfinished. All timing
-  acceleration and synthetic replies belong only to host tests.
-
-- Add the private Core Noise observer over that original guardian relay.
-  Verify authenticated name/MAC, unique physical entities and independently
-  fresh wire generations with ten-second separation, alongside full scope
-  reads. Preserve connect/observation ceilings and independent acknowledged
-  API cleanup. Real HA SDK tests use an encrypted synthetic responder through
-  the actual relay/finite frames; no physical trial, stop/return/USB-close
-  evidence, terminal journal release or public browser installer is claimed.
-
-- Join the original guardian's fixed API stream to a private Core loopback
-  relay. Repeat complete scope before opening, allow one opaque pending read
-  beside scope observation, serialize control IO and keep all original budgets.
-  Bind the relay to the original task/actor/key context and its shorter 50s
-  observation window. Await real API-close ACK while preserving USB for END;
-  lost ACK or actor replacement never reconnects or releases the journal.
-  Fix accepted-connection shutdown ordering for Python 3.14. Host byte-pump
-  tests do not establish Noise samples, terminal proof or hardware readiness.
-
-- Join the complete fixed stock/vendor/creator-intent/RAM scope to the original
-  browser guardian. Derive all three bounded preference-layout branches from
-  frozen native readers, bind the non-secret API identity before consumption,
-  and independently join results/window in Core. Keep the tenth producer,
-  original read budget and context-only result. No Noise samples, terminal
-  release, public initiating writer or hardware qualification follows.
-
-- Add a separate private actor/Core Noise context for the original consumed
-  browser trial. Rehash the original profile/plan under its retained lease,
-  consume Core's read once and fence old packets with the ninth producer.
-  No key enters browser frames, SDK input, status or HTTP. This read opens no
-  socket; authenticated wire observation and terminal trial proof remain open.
-
-- Connect the fixed process subset to the original selected WebUSB channel,
-  finite null-data frame and live Core guardian handoff. Retain original RAM/
-  start pins, bound reads and independently validate lossless context in Core
-  and channel. Pin the eighth producer instead of upgrading old consumed
-  packets. Whole stock/Noise/post-stop and terminal proof remain unfinished;
-  no public initiating writer or lease release is enabled.
-
-- Prepare an unwired fixed read-only process observer subset from the frozen
-  native helpers: kernel child ancestry, actual executable image identity/hash
-  and API/OTA socket ownership. Preserve full uint64 identities and original
-  RAM bindings. Exact eleven-command parity and malformed/replaced evidence
-  refusals are host-only checks; actual channel/SDK observation, stock/Noise
-  proof and terminal completion remain unfinished.
-
-- Bind the private Core guardian continuation to the original RAM task,
-  actor, reservation and retained writer lease. Consume before SDK/browser IO,
-  recheck the exact artifact around one start and after END, and preserve
-  lossless detached records. Lost ACK, drift or actor replacement cannot
-  replay or release the trial. Independent process/Noise/stock observations
-  and terminal completion remain unfinished; no public initiator is enabled.
-
-- Join the guardian transport to the original selected WebUSB channel's own
-  completed RAM session. Finite private start/finish frames take no replacement
-  packet or command. Recheck fresh source scope before one launch delivery;
-  preserve consumed phases, original deadline and independent close ACK.
-  Python validates lossless reported records without adopting processes or
-  releasing a lease. Core launch/observer/terminal proof and public UI remain
-  unfinished. Host emulators execute no guardian or monitor program.
-
-- Derive the frozen guardian's exact forty-field ABI and guarded RAM launch
-  text from its original source. Add a uint64-safe ordered stdout parser and
-  one-shot sealed-stdin transport with bounded ACK/close cleanup. These remain
-  unwired to the selected-channel/Core launch lifecycle; reported records do
-  not prove image admission, authenticated runtime health or terminal stop.
-  The new seventh trial producer fences older consumed packets. Native source
-  and firmware are unchanged; no public browser installer is enabled.
-
-- Join the RAM session to the original selected WebUSB channel and finite
-  private Core frames. Consume the actor trial packet only after a harmless
-  probe/fresh scope, independently check bytes/producers/inodes and recheck the
-  SDK result afterward. Keep the live handoff bound to the same Core task,
-  worker and reservation; no public initiator, guardian launch or terminal
-  lease release is enabled.
-
-- Compose the unwired RAM session: fresh committed source checks, one sealed
-  creation, independent empty-file/root readback, one guardian SYNC and exact
-  inode/SHA readback. Preserve unknown outcomes and original transport ownership;
-  no guardian start, image-FD admission or public writer is enabled.
-
-- Reuse the sealed stdin lifecycle behind finite disabled-commit and initial
-  RAM-creation wrappers. The new wrapper consumes one typed creation, requires
-  a positive harmless exec probe and retires lost/late IO without replay. It
-  remains unwired; no guardian execution or browser installer is enabled.
-
-- Add independent context-only RAM readback parsing: exact root/file metadata, SHA and precreate-to-upload inode continuity; no image-FD or launch authority.
-
-- Add unwired, typed browser first-trial RAM creation/readback templates with canonical guard parity, conservative memory/ARM32 capacity checks and exclusive private tmpfs allocation. No browser trial launch or hardware qualification is enabled.
-
-- Keep the live WebUSB handle and authorization key in memory; add a bounded
-  API-only relay between the selected browser and authenticated Core. Its
-  reported identity grants no native USB path or device writer.
-- Prepare a separate computer USB payload from verified originals and the
-  exact completed private build. Preserve source/profile/producer hashes and
-  one-use preparation history; the wizard restores status without replaying
-  work or enabling the server USB installer for a browser job.
-- Recheck the selected browser monitor against its private plan through a
-  fresh original-click USB handle and fixed source/identity reads. Retire the
-  channel on changed scope or uncertain cleanup; no cached writer permission.
-- Add an unwired fixed nine-file SYNC-v1 sink with hash-before-send,
-  private modes and no-retry cleanup. Verify its actual pinned Tango encoder
-  against an in-memory old-daemon responder. It is not a device writer route.
-- Prepare the private staging journal/one-time packet and fixed read-only
-  ext4 admission. These are not connected to a writer endpoint. Retain the
-  shared writer lock until verified completion, fence uncertain history across
-  all native writers, and isolate packet bodies on the private worker pipe.
-- Compose the isolated disabled-root stage engine with both opt-outs,
-  independent remote file verification and AFTER-effects/USB-close gates.
-  Keep browser metadata outside the frozen guardian's exact payload tree.
-  This engine is not yet connected to an installation endpoint.
-- Accept both exact one- and two-space sha256sum delimiters during fixed-file
-  USB checks, including initial browser discovery and capture. Keep digest,
-  full path, metadata and line count exact.
-- Join the private stage packet to the actual selected NativeChannel and
-  finite Core/browser frames. Rehash all payloads before the first stage
-  frame, then require remote file verification, AFTER-effects and independent
-  USB/channel close acknowledgements before recording completion. Unknown
-  outcomes never replay or release the retained writer lease.
-- Retire stage buffers and timers after the original transport close, without
-  recursive cleanup or treating another close caller as a fresh success.
-- Reuse the disabled vendor-CAS policy with a distinct typed WebUSB binding,
-  preserving native transport admission and all nontransport scope checks.
-  This pure policy does not expose a collector, command adapter or writer.
-- Add a separate original-click reconnect for later staged-scope review.
-  It reads identity only and leaves the normal factory-selection and initial
-  stage gates unchanged; no later writer or UI route is enabled by that read.
-- Read the exact disabled staged scope through the selected browser channel: async
-  source/root/marker/process/space checks and independent closing observations,
-  with only known script variants and no writer or process control.
-- Join terminal owned-stage metadata to a fresh browser collector through the
-  private Core registry, with strict observation validation and close ACK.
-  The redacted result remains unqualified by the SDK policy and enables no
-  writer. Add a distinct original-click control helper for later staged reads.
-- Assess that private observation in the job's existing isolated SDK with
-  source fingerprints and exact stdin/result hashes. Run only pure constructor
-  checks, rehash the original inputs afterward and retain the live registry's
-  original deadline and close ACK. A positive assessment enables no writer;
-  known partial scripts require a separate decision. No ADB/tool download,
-  device write, new intent, credential inheritance or retry is added.
-- Generate the three fixed disabled-commit script bodies from the unchanged
-  canonical guard/replacement builder, with only typed value leaves and exact
-  byte-parity tests. Keep this pure assembler disconnected from transport:
-  a consumed journal/lease, bounded shell-stdin execution and independent
-  readback are still required. No command endpoint or device write is enabled.
-- Add the private consumed disabled-commit journal and retained writer lease.
-  Fence unknown history across restart and require three exact whole-scope
-  readbacks plus actual close proof before accepting a terminal result. Keep
-  packet loss non-replayable and pipe-only; transport execution is not enabled.
-- Connect the private consumed commit to the selected browser transport and
-  finite phase frames, with a harmless raw-stdin probe, fresh scope before/after
-  each step, original capability/deadline guards and independent close proof.
-- Receive complete command bodies as bounded RAM data and verify length/SHA
-  before parsing any shell. Truncated input never executes a shorter path;
-  no script file, arbitrary command route or PTY fallback is introduced.
-- Prepare the first browser trial's separate guardian artifact through a
-  private read-only SDK check, bound to the original completed commit, plan,
-  candidate and frozen sources. Preserve image-FD admission as unverified;
-  this prerequisite neither allocates RAM nor uploads/launches a program.
-- Read the selected browser monitor's first-trial prerequisites through fixed
-  private frames: two complete committed scopes, positive store/process/socket
-  checks and conservative free RAM. Preserve the original committed root and
-  process births, recheck the guardian/proof after IO and require owned close.
-  This observation creates no RAM job, trial intent or execution permission.
-- Add the private first-trial consumed journal and one guardian packet under
-  the retained shared writer lease. Rehash original context after private body
-  reading, fence unknown/orphan history across restart and refuse controller
-  exports. Status is redacted and cannot restart an SDK or adopt a lease.
-  Device execution and terminal guardian/API/return verification remain absent;
-  no completion, installed state or public browser launch is enabled.
-- Prepare an unwired one-file RAM guardian SYNC-v1 primitive with a fixed bound
-  path, whole-body hash before open, ordered bounded chunks, private mode and
-  no retry. Verify its actual pinned encoder against an in-memory peer. This
-  does not create RAM jobs, verify remote files, launch or expose a writer.
-- The public browser installation route and untouched-device qualification remain unfinished.
-  These changes remain on the development branch; no hardware support or
-  firmware version changes.
+- Support the separate Lite original-stock 4.3.4 / HW0001 firmware line
+  `lite-434`, starting at public version 1. Standard HA updates and sealed
+  automatic adoption preserve exact stock provenance, private credentials,
+  forward internal OTA order and all existing install guards.
+- Version 1 stops PM polling only; fan shutdown is explicitly unsupported.
+  The sensor rail remains HIGH. The existing 4.5.8 Lite 2 release is unchanged.
+- Publish independent immutable firmware assets through the backward-compatible
+  `hardware_releases` catalog extension. Firmware-only updates remain separate
+  from HACS releases. Factory Bluetooth admission for 4.3.4 stays disabled.
+- Pinned SDK build, actual PM lifecycle, sealed C++/Python interoperability,
+  HA routing and atomic Git publication tests are software evidence; this
+  release is not a newly performed hardware installation.
 
 ## 0.2.8
 

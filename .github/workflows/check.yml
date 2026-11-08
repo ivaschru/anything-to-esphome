@@ -70,6 +70,7 @@ jobs:
       - run: node tests/test_usb_browser_plan.mjs
       - run: node tests/test_usb_browser_workflow.mjs
       - run: node tests/test_usb_browser_control.mjs
+
       - run: node tests/test_usb_companion.mjs
       - run: node tests/test_monitor1_core_frontend.mjs
       - run: node tests/test_monitor1_core_child.mjs
@@ -97,6 +98,18 @@ jobs:
       # never an installation or publication of a personalised device image.
       - run: python tools/build_lite.py
       - run: python tools/check_profile_wire.py
+  lite434-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r ports/lite/requirements.txt
+      # Independent polling-only source identity and actual staged exporter.
+      # Neither a compile nor crypto fixtures send any command to a device.
+      - run: python tools/build_lite434.py
+      - run: python tools/check_lite434_wire.py
   ha-contract:
     runs-on: ubuntu-latest
     strategy:
