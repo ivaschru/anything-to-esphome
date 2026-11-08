@@ -107,6 +107,36 @@ class GenerationTests(unittest.TestCase):
 HAS_API = importlib.util.find_spec('aioesphomeapi') is not None
 
 
+def install_wire_delivery_fixture(fixture, reader_module):
+    """Bind virtual ticks to callbacks in this fixture's actual reader module.
+
+    Boot/PM import the production sample class into their own module. Patch
+    that exact use site, not just the initial observer's name. The shared
+    encrypted peer stays protocol-only and needs no fixture-specific events.
+    """
+    fixture.wire_changed = asyncio.Event()
+    fixture.wire_samples = None
+    fixture.wire_callbacks = {name: 0 for name in module.REQUIRED}
+
+    class ObservedWireSamples(reader_module._WireSamples):
+        def __init__(self, entities):
+            super().__init__(entities)
+            fixture.wire_samples = self
+
+        def received(self, state):
+            # Sending bytes or waiting briefly is not reception evidence. Keep
+            # the actual SDK callback and all production validation intact.
+            super().received(state)
+            name = self.names.get(state.key)
+            if type(state).__name__ == 'SensorState' and name in fixture.wire_callbacks:
+                fixture.wire_callbacks[name] += 1
+                fixture.wire_changed.set()
+
+    wire_patch = patch.object(reader_module, '_WireSamples', ObservedWireSamples)
+    wire_patch.start()
+    fixture.addCleanup(wire_patch.stop)
+
+
 @unittest.skipUnless(HAS_API, 'Actual aioesphomeapi SDK required')
 class SdkDisconnectContractTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_sdk_public_force_disconnect_without_socket_or_graceful_request(self):
@@ -132,33 +162,7 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.api_open_delay = 0
         self.api_read_delay = 0
         self.subscribed = False
-        self.subscription_seen = asyncio.Event()
-        self.wire_changed = asyncio.Event()
-        self.wire_samples = None
-        self.wire_callbacks = {name: 0 for name in module.REQUIRED}
-        fixture = self
-
-        class ObservedWireSamples(module._WireSamples):
-            """Observe actual SDK callbacks without replacing their validation.
-
-            The synthetic clock must not outrun the real encrypted TCP/frame
-            pipeline. Count only callbacks delivered to the production reader;
-            sending bytes or sleeping briefly does not prove their reception.
-            """
-            def __init__(self, entities):
-                super().__init__(entities)
-                fixture.wire_samples = self
-
-            def received(self, state):
-                super().received(state)
-                name = self.names.get(state.key)
-                if type(state).__name__ == 'SensorState' and name in fixture.wire_callbacks:
-                    fixture.wire_callbacks[name] += 1
-                    fixture.wire_changed.set()
-
-        wire_patch = patch.object(module, '_WireSamples', ObservedWireSamples)
-        wire_patch.start()
-        self.addCleanup(wire_patch.stop)
+        install_wire_delivery_fixture(self, module)
         self.composed_end_at = None
         self.base_answer = self.f.answer
         self.base_exchange = self.f.f.exchange
@@ -260,7 +264,6 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
                     await self.send(19, p.ListEntitiesDoneResponse())
                 elif kind == 20:
                     self.subscribed = True
-                    self.subscription_seen.set()
                     await self.vector()
                 elif kind == 7:
                     await self.send(8, p.PingResponse())
@@ -296,7 +299,8 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.01)
             return
         async with asyncio.timeout(3):
-            await self.subscription_seen.wait()
+            # The first full callback vector itself proves subscription; do
+            # not add a new initialization contract to the reusable peer.
             await self.await_wire({name: 1 for name in module.REQUIRED})
             self.clock += seconds
             expected = {name: count + 1 for name, count in self.wire_callbacks.items()}

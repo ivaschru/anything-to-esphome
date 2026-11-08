@@ -948,6 +948,9 @@ separate even though the HACS wizard is shared.
   proof and races under CI load. Keep the delayed real-frame regression; never
   relax production wire freshness, scope budgets or the device stop timer to
   compensate for a synthetic clock outrunning its encrypted TCP pipeline.
+  Keep the reusable Noise peer protocol-only. Install its callback barrier
+  at each reader's actual import/use site and run initial, boot-observer and
+  PM-transfer suites together; aliases alone do not initialize fixture state.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

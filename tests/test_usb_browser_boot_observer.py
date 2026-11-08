@@ -140,8 +140,13 @@ class EncryptedBootObserverTests(BootObserverTests):
     accept = noise.EncryptedObserverTests.accept
     stop_server = noise.EncryptedObserverTests.stop_server
     fast_wait = noise.EncryptedObserverTests.fast_wait
+    await_wire = noise.EncryptedObserverTests.await_wire
 
     async def start_peer(self):
+        # The boot reader imports _WireSamples at its own use site. Install
+        # the same callback barrier there, so PM's inherited fixture also
+        # waits for real delivery rather than inheriting initial-only state.
+        noise.install_wire_delivery_fixture(self, module)
         self.peer_writers, self.peer_tasks, self.peer_errors = [], set(), []
         self.raw_frames, self.protocol, self.peer_writer = [], None, None
         self.wrong_identity = False; self.subscribed = False
