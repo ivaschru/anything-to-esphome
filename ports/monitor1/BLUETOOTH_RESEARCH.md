@@ -465,6 +465,26 @@ external one-use receipts and a verified restoration plan. The parser and
 ownership-classifier CI uses synthetic values only and never invokes a TTY
 or socket probe. This file is experimental research, not a CGS1 BLE backend.
 
+### Declared product interfaces are not a PCB wiring map
+
+The manufacturer's [CGS1 specifications](https://www.qingping.co/air-monitor/specifications)
+list 2.4GHz Wi-Fi, and its [CGS2 specifications](https://www.qingping.co/air-monitor-2/specifications)
+list Wi-Fi without declaring Bluetooth. The current [comparison](https://www.qingping.co/comparison-air-monitor)
+explicitly includes Bluetooth 5.0 for Lite while listing Wi-Fi for Monitor 2.
+These pages were read directly on 9 November 2026. They establish the supported
+product interfaces; they do not identify every circuit inside a combo chip or
+prove whether unused Bluetooth pins were routed on a particular PCB revision.
+Do not transfer the tested CGS1's RTL8723DS observation to an unexamined CGS2.
+
+Conversely, a combo chip and included Linux Bluetooth code do not establish a
+working product radio. The tested CGS1's installed stack already answered the
+three management reads and contains the H4/H5 implementation/registration paths.
+A claim that its entire Bluetooth stack was removed is inconsistent with that
+evidence. Installing a driver blindly is not the next qualified action: a
+matching transport, board power/reset path and initialization must be identified.
+The separate controller firmware, kernel transport and userspace initialization
+are different requirements. None can create missing physical PCB connections.
+
 ### Installed kernel capture and cached driver state – 9 November 2026
 
 Software investigation continued after the two negative serial exchanges. A
