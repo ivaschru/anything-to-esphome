@@ -670,3 +670,109 @@ pairs were unchanged, with more than 45 MiB free on `/data`. No HCI attach,
 driver unbind, reboot or new durable native release occurred. Software-only
 investigation can continue; the BT-function bit being enabled does not by
 itself supply the missing HCI transport or justify guessing board GPIOs.
+
+
+### Bluetooth mailbox and a qualified internal UART loopback
+
+Further separately journaled S8 experiments on 9 November 2026 obtained two
+positive observations without opening the case:
+
+- The existing Wi-Fi firmware mailbox completed one fixed BT RF/0 register
+  READ request with status 1, Wi-Fi acknowledgement and Bluetooth
+  acknowledgement. The response sequence advanced from 117 to 118. The
+  returned RF value was zero; the positive observation is the validated
+  acknowledgement/status/sequence, not an inference from that zero.
+- Internal loopback on UART1 returned all eight fixed transmitted bytes.
+  The FIQ receive counter advanced from 0 to 8, and all eight bytes arrived
+  through the raw TTY. This qualifies the tested local receive mechanism,
+  independently of an external Bluetooth connection.
+
+The mailbox test used the existing `H2C_BT_MP_OPER` / READ_REG path after
+checking the installed code, callbacks, allocations and idle mailbox state.
+It did not issue a BT register-write opcode or firmware download. This was
+an **active Wi-Fi firmware exchange**, with ordinary mailbox hardware IO;
+it must not be described as a passive file read or zero hardware writes.
+The temporary low-power exclusion and wait state were released, the bounded
+worker was reaped, and the existing proc selector was unchanged. A firmware
+mailbox acknowledgement is not a usable HCI/GATT transport.
+
+The UART experiments independently checked the live FIQ instance, running
+DT, UART1 mapping and enabled clocks at 24 MHz. The observed controls were
+LCR=3, MCR=0 and, in the later cycle, IER=5. One earlier RTS/H5 attempt
+received no bytes. A later cycle used an independent restoration process
+for the bounded internal-loopback condition, MCR `0 → 0x12 → 0`, and then
+separate external RTS conditions, MCR `0 → 2 → 0`. Each fixed byte waited
+for the UART holding register to be ready; no FIFO assumption was required.
+
+After the successful internal echo, a direct fixed H5 SYNC request and then
+an H4 Read Local Version request each received **zero bytes**. The receive
+counter stayed at 8 during both external queries. The internal request echo
+was explicitly rejected as an H5/H4 controller response. These results rule
+out a completely broken local receive mechanism as the explanation for
+those empty attempts; they do not prove external pad routing or PCB traces.
+
+Every attempted MCR change and temporary raw TTY setting was restored and
+its independent guard reaped. No baud, interrupt-enable, FIFO-control,
+clock, GPIO or pinmux setting was changed, and no driver was detached.
+The unchanged full UI/guardian pair, six settings and four fresh sensor
+streams were restored on the same Linux boot. Both durable pairs remained
+unchanged; more than 45 MiB remained free on `/data`. One older inactive RAM
+pair per cycle was retired only after exact backup/hash checks, preserving
+its receipts and the current pair. No new durable native release was made.
+
+The FIQ module parameters were also checked against the installed code:
+`console_enable` and `debug_enable` use ordinary boolean setters bound to
+initial globals, rather than the current instance fields. Changing them is
+not an established way to release the UART. These experiments still provide
+no responding HCI controller, exclusive production transport or BLE proxy.
+
+
+### Actual pad mux and a separate even-parity H5 attempt
+
+A subsequent fixed, read-only S8 observation checked the **installed** old
+Rockchip packed-pin decoder, its RK312x control data and five exact running
+DT properties. Two reads of the derived `GPIO1B_IOMUX` word returned `0x50a8`:
+the two UART1 transfer pads B1/B2 and RTS B3 were already function 2; CTS B0
+was GPIO/function 0. This is the actual SoC mux setting, not PCB continuity.
+The prior stock GPIO inventory labels GPIO40/B0 `fts_irq_gpio` (touch IRQ).
+That older ownership observation is not a fresh ownership grant: CTS was
+not switched, and no pad or GPIO was changed. A first reader refused before
+any MMIO because its exact-compatible literal incorrectly said `rk3128`
+instead of the captured `rk312x`; only that literal was corrected for a new,
+separately journaled attempt, after checking all five expected properties.
+
+The [Realtek H5 reference implementation](https://github.com/lwfinger/rtl8723bs_bt/blob/master/hciattach_rtk.c)
+sets even parity in `rtk_init_h5` before synchronization. That family reference
+is not assumed to be the installed DS tool's ABI. It revealed a missing test
+condition: the preceding H5 attempts retained the FIQ console's 8N1 framing.
+
+A new fixed H5 SYNC attempt therefore used 8E1: LCR `3 → 27 → 3`, with RTS
+MCR `0 → 2 → 0`. The exact pad-mux condition was checked again; the transmitter
+had to be idle before changing framing. The independent guard owned both
+control-register changes and restored them on completion or loss of its
+parent. Ten synthetic guard scenarios, including timeout, parent EOF,
+refused busy/foreign state and a lost readiness recipient, passed with
+ASan/UBSan before the on-device attempt.
+
+**The 8E1 query also received zero bytes.** All eight fixed bytes were written
+after holding-register readiness checks; the FIQ receive counter stayed at 8.
+LCR, MCR and termios were restored and the guard reaped. There was no divisor,
+baud, CTS, pinmux, GPIO, interrupt-enable or driver-ownership change, no HCI
+attach and no firmware download. The unchanged UI/guardian pair, six settings
+and four fresh streams were restored on the same Linux boot; durable pairs
+were preserved. These finite negative attempts do not establish every
+possible controller mode/rate or prove that the board lacks a UART trace.
+They leave an unresolved external UART/controller-state boundary, not a
+working BLE proxy or a demonstrated missing-driver problem.
+
+
+The first UI-return attempt after the parity test was refused by the existing
+DRM-owner admission **before guardian creation or hardware acquisition**.
+The stock application and diagnostic API remained available. Subsequent
+read-only inventories were clean; the earlier transient owner was not
+identified and the admission was not weakened. A separate recovery restored
+the previously verified immutable bridge, then staged a fresh scope with the
+unchanged native/guardian pair and passed the normal captures. The consumed
+failed launch was not replayed. Final UI/settings/fresh-stream restoration
+was verified on the same boot, without a Linux reboot. Private research
+images and recovery evidence are not firmware-release artifacts.

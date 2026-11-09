@@ -1032,6 +1032,28 @@ separate even though the HACS wizard is shared.
   ordinary driver metadata changes, not hardware register writes. This is
   not a generic register endpoint or a proxy. EFUSE's 0x6B power path is not
   whole-controller power; no reset/EFUSE/GPIO/UART operation was executed.
+  Later one-shot firmware-mailbox RF/0 READ completed with status1, Wi-Fi ACK,
+  BT ACK and a fresh sequence. This is active H2C hardware IO, not a passive
+  getter or zero hardware writes; RF value0 alone proves nothing. Keep it
+  separate from HCI transport. The temporary low-power exclusion/wait were
+  released, worker reaped and proc selector unchanged. A further UART1
+  internal-loopback condition returned exact8/8 via FIQ/TTY, counter0→8.
+  Separate direct H5 SYNC and H4 version queries with RTS still returned0RX.
+  MCR/raw termios were restored and independent guards reaped after every
+  condition. Loopback qualifies local RX only, not external pads/PCB/BT.
+  No baud/IER/FIFO/clock/GPIO/pinmux changes or detach were performed. An
+  installed-code audit also binds FIQ module parameters to initial globals;
+  they do not establish a live UART handover. No proxy flag follows.
+  A subsequent read-only actual pad-mux snapshot gave GPIO1B_IOMUX0x50a8:
+  transferB1/B2 and RTSB3 already UART1, CTSB0 GPIO. The prior stock GPIO
+  inventory labels GPIO40/B0 as touch IRQ; never treat the missing CTS mux
+  as permission to steal it. The first exact-family literal refused before
+  MMIO; corrected rk312x bytes were checked against all five prior properties.
+  Reference Realtek H5 uses even parity. A separate guarded 8E1 SYNC
+  (LCR3→27→3, MCR0→2→0) also gave0RX/counter8→8. Both control words and
+  termios restored, guard reaped; no divisor/baud/CTS/pinmux/GPIO/IER/detach.
+  Its10 synthetic guard scenarios passed first. Preserve the distinction
+  between this tested framing and unqualified other rates/controller states.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
