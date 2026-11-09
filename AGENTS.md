@@ -1011,6 +1011,12 @@ separate even though the HACS wizard is shared.
   and from a raw full-tree dump or physical wiring proof. UART0/1 both include
   CTS/RTS despite UART0's sensor role; do not identify BT from flow-control
   groups alone. The separate recovery DTB's BT node is not PCB qualification.
+  Subsequent fixed read positively qualified ordinary Realtek adapter/HalData
+  vmalloc allocations and found cached BT-exists=true. Exact kernel text,
+  allocation bases/guard pages and repeated pointer/value checks preceded the
+  result; no IO mapping/getter/kernel write was used. This supersedes only
+  the earlier unavailable-field gap, not HCI/power/PCB qualification. Keep
+  normal profiles/proxy unsupported and retain separate consumed receipts.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed

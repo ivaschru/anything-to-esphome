@@ -576,3 +576,27 @@ getter call. After its single encrypted diagnostic update, the unchanged
 native UI/guardian pair, six settings and four fresh sensor streams were
 restored on the same Linux boot; both durable pairs were retained. These
 observations still do not establish a responding HCI controller or BLE proxy.
+
+### The previously unavailable BT-exists cache was read
+
+A separate subsequent S8 cycle positively identified both adapter and HalData
+as ordinary Realtek `vmalloc` allocations. It checked the actual installed
+`read_kmem`/`vread` instructions, root-owned procfs allocation metadata, exact
+allocation bases, lengths and final guard pages before reading the two fixed
+scalar fields. Allocation identities, both pointers and the returned bit were
+checked again afterward. No arbitrary address, IO mapping, kernel write,
+driver getter, GPIO or UART operation was admitted.
+
+The read completed: **the Wi-Fi driver's cached BT-exists field is true**.
+Both objects were outside the direct RAM map, explaining the earlier reader's
+deliberate refusal. The diagnostic read 1,389 bytes of verified kernel memory
+and 13,156 bytes of allocation metadata, and reaped its bounded worker.
+This is the driver's cached view, not a responding HCI controller, measured BT
+power, PCB continuity or proof that software alone can enable the radio.
+Together with the loaded stack and existing firmware/tools, it contradicts
+the simple diagnosis that installing missing Bluetooth drivers is sufficient.
+
+The original UI pair, six settings and four fresh sensor streams were again
+restored on the same Linux boot. Both durable pairs were unchanged. No HCI
+attachment or working proxy resulted from this read; power/reset routing and
+a usable UART path remain unresolved.
