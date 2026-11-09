@@ -1,6 +1,6 @@
 # Bluetooth on CGS1: evidence and remaining blockers
 
-Source review updated on 7 November 2026; hardware observations below remain
+Source review updated on 9 November 2026; hardware observations below remain
 from 6 November. A CGS1 Bluetooth proxy is **not implemented
 or enabled**. Loading a Wi-Fi module, finding Bluetooth firmware on disk, or
 compiling a scanner is not proof of a working Home Assistant proxy.
@@ -208,6 +208,58 @@ but no controller has been attached and no GPIO has been changed. The
 revision-specific UART and BT power route still need verification before
 any live attach, driver or power action.
 
+### Offline kernel checks establish compiled H4/H5 support
+
+On 9 November, software-only inspection went beyond diagnostic strings in the
+saved normal-boot `kernel.img` from the same 0267 archive. The image is
+16,575,852 bytes, SHA-256
+`2a061e5bc97a8fc5be48a4e7e657bc248e43501632ae90e5821bcb2c5d420ed5`.
+Its `KRNL` header declares an uncompressed 16,575,840-byte kernel payload;
+the remaining container bytes are an eight-byte header and four-byte trailer.
+No kernel or vendor program was executed.
+
+The reviewed pure kallsyms parser from
+[`marin-m/vmlinux-to-elf` at `6aa8039a`](https://github.com/marin-m/vmlinux-to-elf/tree/6aa8039ae67ccc7f49d019d6b18d016f0cc4af80)
+recovered 95,641 symbols. A separate local decoder independently checked all
+names/types/addresses, all 374 name markers and the token-table bounds;
+deliberately invalid count, token-index and marker inputs were refused.
+The external GPL-3.0-or-later tool and vendor-derived symbol tables stay
+outside this product's source and release assets.
+
+Static ARM instruction decoding then verified these actual call edges:
+
+- `hci_uart_init` calls `tty_register_ldisc`, `h4_init`, `h5_init` and
+  `rtk_btcoex_init`.
+- `h4_init` and `h5_init` each call `hci_uart_register_proto`.
+- Their literal-pool pointers resolve to protocol descriptors with IDs 0
+  and 2 respectively. All six callbacks in each descriptor match that
+  protocol's open/close/flush/receive/enqueue/dequeue symbols.
+
+This cross-check matters: `_stext` starts after the payload's boot header,
+so treating `_stext` as the payload base decodes unrelated instructions.
+The accepted mapping was checked against both branch targets and descriptor
+pointers, rather than inferred from a plausible disassembly alone.
+
+The saved rootfs also contains a 55,968-byte ARM32 `rtk_hciattach`, SHA-256
+`1eee42abd998b845dbdc040b4fe6b35f5c3f2f72b47db1c8ada6982e13b42332`,
+with Realtek H5 initialization diagnostics and an RTL8723DS firmware/config
+entry. Both `rtl8723d_config` and `rtl8723ds_config` pass bounded structural
+record parsing. File presence and strings do not select the correct helper,
+baud rate, flow control, tty or board power pin; no helper was run.
+
+**Conclusion:** this saved kernel contains an H4/H5 registration path, not
+merely Bluetooth-related strings. It does not prove that initialization
+succeeded, that the installed 0287 kernel is identical, or that a controller
+is connected to an available UART. No embedded kernel configuration was
+recovered, and no live device operation was performed.
+
+Software tests can therefore remove specific uncertainties before physical
+tracing. Existing UART/DT/pinmux ownership inventories should be reused, not
+repeated as a new experiment. An exact installed-kernel comparison or matching
+board-source evidence would be useful additional software evidence. A raw
+TTY attach, rfkill write or vendor `--help` execution is not a read-only test
+and does not follow from this result.
+
 ## A real Linux software candidate
 
 [yuzi-co/btproxy](https://github.com/yuzi-co/btproxy/tree/9d65f68756dbeb03561b6d2914a9c4f30c78356d)
@@ -263,7 +315,10 @@ proxy and is not a deployment alternative for this monitor.
 ## What would permit the next hardware step
 
 First establish the **exact board revision, BT UART and BT_REG_ON wiring**
-from a matching schematic or physical board tracing. Confirm that the route
+from revision-matched evidence. Software analysis can contribute a matching
+board description, actual driver configuration and ownership evidence;
+a matching schematic or physical board tracing may still be needed where
+software cannot resolve the route. Confirm that the route
 does not overlap the sensor ports or live FIQ console. Then review the
 matching vendor H5/firmware configuration and define a bounded attach/restore
 procedure before touching the running device.
@@ -279,6 +334,8 @@ switch backed only by a boolean or passive scan would misrepresent support.
 For now, keep the CGS1 proxy unavailable. The concrete blocker is the
 revision-specific physical controller route, followed by target-kernel and
 backend lifecycle qualification. If no matching public schematic can be
-obtained, the next evidence is exact-revision PCB photography and continuity
-tracing with the board unpowered, not a trial attachment to a live sensor
-UART. This is not a claim that no CGS1 board could ever support Bluetooth.
+obtained and software evidence cannot resolve the route, exact-revision PCB
+photography and continuity tracing with the board unpowered remain options.
+Do not replace missing evidence with a trial attachment to a live sensor
+UART. This is not a claim that software investigation is exhausted or that
+no CGS1 board could ever support Bluetooth.

@@ -964,6 +964,13 @@ separate even though the HACS wizard is shared.
   build as CGS1 firmware. Chip pinout never substitutes for PCB continuity.
   Do not accept generated pin maps as wiring proof: the reviewed RTL8723DS-CG
   datasheet assigns pin24 to PCM_CLK/GPIO3, not a presumed UART RTS.
+  Offline 0267 kernel analysis now verifies H4/H5 registration call paths and
+  descriptor callbacks, beyond strings. Keep that scope distinct from the
+  installed 0287 kernel and successful controller initialization. Reuse
+  existing UART/pinmux inventories. Software investigation is permitted;
+  requiring proven routing before attach does not mean only physical tracing
+  can supply new evidence. Never publish vendor images, full symbol tables
+  or the external GPL parser as part of the MIT product/release.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
