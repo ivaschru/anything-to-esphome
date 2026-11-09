@@ -260,6 +260,59 @@ board-source evidence would be useful additional software evidence. A raw
 TTY attach, rfkill write or vendor `--help` execution is not a read-only test
 and does not follow from this result.
 
+### Installed-kernel management API verified
+
+On 9 November, a fixed software probe was actually run on one S8 CGS1 with
+stock 4.1.8_0287. The running kernel accepted HCI CONTROL binding and all three
+global management reads: version, supported commands and controller indices.
+It returned API version 1 / revision 3, 38 commands, 21 events and **zero
+registered controllers**. Three requests received three matching successful
+responses. The socket was closed; no UART, GPIO, rfkill, controller command,
+scan, module loading or controller-firmware download was used.
+
+The original native UI/guardian pair, preferences and fresh sensor values were
+independently verified after restoration. This is installed-kernel CONTROL
+API evidence, beyond the archive analysis above. It is not an advertisement,
+GATT, MONITOR/L2CAP qualification or a working proxy, and zero registered
+controllers does not prove that Bluetooth hardware is absent.
+
+The generic, non-default helper is
+[`bluetooth_kernel_probe.h`](bluetooth_kernel_probe.h). It refuses an absent
+base module, has only the three fixed global READ opcodes, validates lengths,
+uses a 1.2-second deadline and caches one attempt per process. Its caller must
+perform the existing exact appliance/quiet-stock admission first. It is not
+enabled in ordinary profiles and supplies no proxy switch. The portable parser
+test uses synthetic frames only and opens no host Bluetooth socket in CI.
+The ABI basis is the original Linux v3.10
+[`mgmt.h`](https://github.com/torvalds/linux/blob/v3.10/include/net/bluetooth/mgmt.h)
+and
+[`hci_sock.c`](https://github.com/torvalds/linux/blob/v3.10/net/bluetooth/hci_sock.c).
+
+The first upload attempt failed locally because its uploader used an older
+`aioesphomeapi` without `NoiseHandshake`; no image was transferred in that
+attempt. The corrected process used the existing isolated CGS1 SDK and tested
+the exact Noise constructor with synthetic data before another device mutation.
+The shared Python environment was not upgraded. Keep uploader dependency
+checks before changing device mode; never repeat an uncertain upload blindly.
+
+### Storage during experiments
+
+An OTA update stages one `program.ota.new`, validates it and renames it over
+`program`; it does not create an archive of every bridge build. Interrupted
+staging is separate from historical durable native/guardian pairs. Audit those
+pairs before experiments, protect the working version and a deliberately kept
+previous version, verify local backups, then use only the guarded exact-inode
+cleanup for independently identified obsolete files. Preserve preferences,
+logs and evidence. Do not equate a build directory on the development computer
+with files actually installed on a monitor.
+
+In this maintenance cycle, four obsolete program files from two audited older
+pairs were removed and both retained pairs' hashes/inodes were unchanged. The
+post-cleanup filesystem measurement was about 46.4 MiB available. Returning to
+the original UI used a fresh RAM session, with no new durable release and no
+additional Linux reboot. This is one device's measured result, not a universal
+capacity guarantee or permission to delete an unaudited file.
+
 ## A real Linux software candidate
 
 [yuzi-co/btproxy](https://github.com/yuzi-co/btproxy/tree/9d65f68756dbeb03561b6d2914a9c4f30c78356d)
@@ -289,7 +342,9 @@ falls back to active scanning when advertisement-monitor registration returns
 UnknownCommand. A newer advertisement-monitor API is therefore not by itself
 a reason to reject all older kernels. Rockchip's `release-3.10` reference
 sources contain HCI control/monitor sockets and the basic management commands;
-they have not been matched to the exact CGS1 kernel binary/configuration.
+the complete source/configuration has not been matched byte-for-byte to CGS1.
+The three CONTROL queries above have now been verified on an installed kernel;
+MONITOR, actual HCI transport, scanning and active GATT remain separate checks.
 
 ### Candidate integration boundaries
 

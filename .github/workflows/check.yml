@@ -81,6 +81,13 @@ jobs:
           mkdir -p .build
           c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/test_mcu421.cpp -o .build/test_mcu421
           .build/test_mcu421
+      - name: CGS1 MGMT response parser (no live Bluetooth)
+        # The Linux test exercises byte parsing only. It never invokes the
+        # socket probe, scans, powers an adapter or requires device privileges.
+        run: |
+          mkdir -p .build
+          c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/test_monitor1_bluetooth_kernel_probe.cpp -o .build/test_monitor1_bluetooth_kernel_probe
+          .build/test_monitor1_bluetooth_kernel_probe
   hassfest:
     runs-on: ubuntu-latest
     steps:

@@ -971,6 +971,14 @@ separate even though the HACS wizard is shared.
   requiring proven routing before attach does not mean only physical tracing
   can supply new evidence. Never publish vendor images, full symbol tables
   or the external GPL parser as part of the MIT product/release.
+  bluetooth_kernel_probe.h is an opt-in software diagnostic, not a proxy:
+  exactly three global MGMT READs, loaded-stack precondition, bounded IO and
+  one cached attempt. Its caller needs the existing appliance/quiet-stock
+  admission. Synthetic C++ parser CI must never invoke the host socket probe.
+  One installed 0287 device passed CONTROL queries (v1/rev3, controllers0);
+  this does not qualify UART/radio/MONITOR/GATT or enable ordinary profiles.
+  Validate the uploader's actual NoiseHandshake dependency before switching
+  device mode; do not upgrade a shared environment to hide a local mismatch.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
