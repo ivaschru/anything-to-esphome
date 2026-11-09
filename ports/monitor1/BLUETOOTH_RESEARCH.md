@@ -600,3 +600,34 @@ The original UI pair, six settings and four fresh sensor streams were again
 restored on the same Linux boot. Both durable pairs were unchanged. No HCI
 attachment or working proxy resulted from this read; power/reset routing and
 a usable UART path remain unresolved.
+
+### Why a routine driver unbind is not yet a qualified handover
+
+A subsequent offline check used the captured **installed** kernel, rather
+than relying only on reference C sources. Actual ARM instructions in
+`platform_driver_register` identify the descriptor's remove field and install
+the remove wrapper only when it is non-null. Both FIQ platform-driver
+descriptors have a null remove callback; the separate BT rfkill driver has a
+real remove callback. This does not provide a verified cleanup of FIQ UART,
+interrupts, clocks and TTY state. No live unbind was attempted. A null callback
+does not prove that every future handover implementation is impossible, but
+ordinary sysfs unbind is not an established reversible transfer of ownership.
+
+The installed `bluetooth_platdata_parse_dt` also gets its RTS, power, reset
+and wake GPIOs from named DT properties and pinctrl states. Its literal
+property references and GPIO-helper calls were checked. Those names do not
+reveal CGS1 board GPIO numbers; the complete running-tree inventory above
+does not contain the required BT properties.
+
+The [Realtek RTL8723DS-CG datasheet, Rev. 0.92](https://dl.radxa.com/rockpis/docs/hw/datasheets/RTL8723DS-CG_DataSheet_0.92_20170804.pdf)
+assigns SDIO/GSPI to WLAN and HS-UART to Bluetooth (Host Interface, section 2).
+Section 7.5 describes H4/H5 over UART, with a default rate of 115200 baud.
+Section 6.8 describes `BT_DIS#` on chip pin 43: pulling it low can disable BT
+and its UART interface. This is a **chip pin**, not Rockchip GPIO number 43.
+The document does not establish an alternate HCI path over the working Wi-Fi
+SDIO link, or how that enable pin is connected on a particular CGS1 PCB.
+
+The next active experiment therefore needs actual board connectivity and a
+verified recovery mechanism, not a guessed GPIO or repetition of the prior
+negative exchanges. These additional checks changed no monitor, HA or network
+state and did not create a BLE proxy.

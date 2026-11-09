@@ -1017,6 +1017,12 @@ separate even though the HACS wizard is shared.
   result; no IO mapping/getter/kernel write was used. This supersedes only
   the earlier unavailable-field gap, not HCI/power/PCB qualification. Keep
   normal profiles/proxy unsupported and retain separate consumed receipts.
+  Actual captured-kernel descriptor/registration audit also confirms null
+  remove callbacks on both FIQ platform drivers. Ordinary sysfs unbind is not
+  a verified cleanup/handover; do not infer that every custom route is impossible.
+  Installed BT-power parsing requires DT GPIO/pinctrl properties absent from
+  the complete running tree. Datasheet SDIO/GSPI WLAN versus HS-UART BT is not
+  an alternate HCI transport; BT_DIS# chip pin43 is not a Rockchip GPIO number.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
