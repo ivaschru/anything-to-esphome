@@ -996,6 +996,14 @@ separate even though the HACS wizard is shared.
   successful TTY open or these negative exchanges. CI tests parsers/classifiers
   only, never live metadata or IO; caller appliance/quiet-stock admission and
   external one-use receipts are still mandatory before an authorized probe.
+  Later exact installed-kernel capture independently matched 95,641 symbols and
+  actual FIQ/H4/H5 code; archive 0267 hashes differ. A fixed live read found both
+  console flags true at that later snapshot, not proof of earlier TX. Cached
+  Wi-Fi coex read found disabled=true/no BT rfkill; BT-exists remained unavailable
+  because the adapter is outside direct RAM. These are not absent-hardware or
+  power proofs. The proc display getter calls LeaveLowPower: do not use it as
+  a passive read. Do not widen kmem bounds into IO to follow an unchecked
+  pointer, publish vendor images/tables, enable a proxy, or replay old intents.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed

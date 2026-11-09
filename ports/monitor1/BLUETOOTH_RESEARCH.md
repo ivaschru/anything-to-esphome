@@ -464,3 +464,48 @@ do not authorize repeating a consumed device intent after an update. Retain
 external one-use receipts and a verified restoration plan. The parser and
 ownership-classifier CI uses synthetic values only and never invokes a TTY
 or socket probe. This file is experimental research, not a CGS1 BLE backend.
+
+### Installed kernel capture and cached driver state – 9 November 2026
+
+Software investigation continued after the two negative serial exchanges. A
+separate opt-in diagnostic read the exact installed S8 kernel partition only
+through its verified kernel alias, with a bounded worker and no flash writes,
+ioctls, mount or executable download on the appliance. The 16,575,852-byte
+KRNL container has SHA-256
+`358731f6e1de2b8d8c214c047fa179290dd24f4967eacfb55dd6eb8b19a7c118`; its
+payload is `8db4c811d43358ba3a71a5761497ee46a50d5f1d66376f6031699c78f4b0b099`.
+Both differ from the previously inspected factory 0267 archive. The full
+container was streamed over the authenticated Noise connection to private
+local storage and its full hash checked before parsing. Vendor images and
+full recovered symbol tables are not distributed here.
+
+An independent decoder checked all 95,641 symbols, 374 markers, token bounds
+and deliberately corrupted count/token/marker controls in that exact image.
+H4/H5 registration call paths and descriptors were also checked against it.
+The installed FIQ open/write and RK debug getc/putc implementations match the
+corresponding archived instructions; this closes that specific code-matching
+gap, without proving a controller route or physical UART rate.
+
+A further fixed read-only diagnostic matched the current image, live symbols,
+FIQ text and ops pointer before following its stable RAM pointer chain. It
+read 159 bytes through the existing `/dev/kmem` opened `O_RDONLY`: both initial
+and runtime `console_enable` were true. No kernel-memory write, MMIO, UART
+operation or replacement device node was used. This is a snapshot at that
+time, not proof of the flag during either earlier exchange. It does not
+establish physical transmission or remove the FIQ BREAK-sequence blocker.
+
+The Wi-Fi coexistence proc display is not a passive status endpoint: its
+installed call path invokes `LeaveLowPower`. Instead, a separate fixed probe
+read only verified cached RAM fields. Its successful 475-byte snapshot found
+coexistence bound, `cached_bt_disabled=true`, and no registered BT rfkill
+instance. No driver getter, power change, MMIO or serial operation was called.
+These cached values **do not prove missing hardware or physical BT power**.
+The adapter pointer was outside the verified direct RAM map, so the separate
+BT-exists field was explicitly unavailable rather than guessed. Indirect
+allocation validation remains a separate step; ordinary mappings and IO
+mappings must not be treated as interchangeable.
+
+These are opt-in research observations on one S8 unit. They add no default
+profile, generic kernel-memory endpoint, HCI attach, advertisement forwarding,
+active GATT support or proxy switch. A safe production transport and actual
+controller/backend lifecycle still require qualification.
