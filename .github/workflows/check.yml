@@ -88,6 +88,13 @@ jobs:
           mkdir -p .build
           c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/test_monitor1_bluetooth_kernel_probe.cpp -o .build/test_monitor1_bluetooth_kernel_probe
           .build/test_monitor1_bluetooth_kernel_probe
+      - name: CGS1 FIQ packet and ownership classifiers (no hardware)
+        # Parse synthetic response bytes and PID/FD identities only. Never
+        # invoke metadata(), passive(), sync() or h4_version() on the runner.
+        run: |
+          mkdir -p .build
+          c++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/test_monitor1_bluetooth_fiq_probe.cpp -o .build/test_monitor1_bluetooth_fiq_probe
+          .build/test_monitor1_bluetooth_fiq_probe
   hassfest:
     runs-on: ubuntu-latest
     steps:

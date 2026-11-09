@@ -955,7 +955,8 @@ separate even though the HACS wizard is shared.
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
   probes. Require revision-specific UART/BT_REG_ON wiring first; don't attach
-  to an apparently free tty or reuse the FIQ console. A real host tracker/GATT
+  to an apparently free tty or use the FIQ console as a production transport.
+  A real host tracker/GATT
   backend and lifecycle proof are also needed before exposing a proxy toggle.
   The pinned third-party btproxy ARMv7/Noise build is only a candidate: no
   target HCI/runtime proof. Its default recovery can power-cycle the adapter;
@@ -979,6 +980,22 @@ separate even though the HACS wizard is shared.
   this does not qualify UART/radio/MONITOR/GATT or enable ordinary profiles.
   Validate the uploader's actual NoiseHandshake dependency before switching
   device mode; do not upgrade a shared environment to hide a local mismatch.
+  Separate explicitly authorized S8 experiments found stock0287 masks ttyFIQ0
+  to /dev/null and retains its real node as .bak. A strict metadata probe first
+  refused the sole PID1 init console-input FD. After that independent identity
+  review, a finite exception allowed passive IO and the two fixed H5 SYNC/H4
+  Read Local Version probes, each in its own journaled cycle. Both received
+  zero bytes; returned write counts are not proof of physical transmission.
+  Keep the exception restricted to exactly PID1/init/fd0/console and no second
+  owner; a shell/getty/direct FIQ FD refuses. Original termios and UI/settings
+  were restored without a Linux reboot or new durable native release. The
+  non-default bluetooth_fiq_probe.h exposes no arbitrary packet/path/speed.
+  It is research, not routing or proxy qualification. FIQ RX has a debugger
+  BREAK magic sequence; arbitrary BLE payloads are unsafe on that unchanged
+  console path. Do not attach HCI or relax GPIO/driver/baud boundaries from a
+  successful TTY open or these negative exchanges. CI tests parsers/classifiers
+  only, never live metadata or IO; caller appliance/quiet-stock admission and
+  external one-use receipts are still mandatory before an authorized probe.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed

@@ -1,7 +1,7 @@
 # Bluetooth on CGS1: evidence and remaining blockers
 
-Source review updated on 9 November 2026; hardware observations below remain
-from 6 November. A CGS1 Bluetooth proxy is **not implemented
+Source review and the bounded S8 experiments below were updated on
+9 November 2026; the earlier two-device inventories are from 6 November. A CGS1 Bluetooth proxy is **not implemented
 or enabled**. Loading a Wi-Fi module, finding Bluetooth firmware on disk, or
 compiling a scanner is not proof of a working Home Assistant proxy.
 
@@ -394,3 +394,73 @@ photography and continuity tracing with the board unpowered remain options.
 Do not replace missing evidence with a trial attachment to a live sensor
 UART. This is not a claim that software investigation is exhausted or that
 no CGS1 board could ever support Bluetooth.
+
+
+### Existing FIQ TTY: bounded S8 experiments, no controller response
+
+A saved launcher from the tested stock0287 device explains an important
+filename trap: without its serial flag, stock renames `/dev/ttyFIQ0` to
+`/dev/ttyFIQ0.bak` and creates the normal name as character device1:3,
+`/dev/null`. The script hash is
+`533cac6f65b3ccf8d3404216c688877ad03a8b03af64edaade9bd6dc3aad1c35`.
+The original private backup is retained, not distributed. A live metadata
+read independently confirmed the masking and the actual backup node's
+sysfs major/minor, root ownership, `fiq_debugger` driver and serial-id1.
+Opening the normal name would therefore not test the UART at all.
+
+The first experiment refused before opening anything because its conservative
+ownership scan found one console input owner. A separate bounded metadata
+observation identified exactly PID1 `init`, fd0 through `/dev/console`, with
+no direct FIQ FD or second input owner. This led to a specifically reviewed
+exception for the finite experiment, not a declaration that the UART is free.
+A shell, getty, direct FIQ owner, other PID/FD or second owner still refuses.
+No process arguments, environment or console contents were exported.
+
+With the owner's explicit permission for relatively safe experiments on that
+S8 device, two separate finite cycles then tested the existing real FIQ TTY:
+
+- A passive observation received zero bytes. One H5 SYNC write returned8;
+  the bounded observation received zero bytes and no SYNC RESPONSE.
+- After a fresh passive observation, one H4 Read Local Version command
+  (`0x1001`) write returned4; zero bytes and no matching completion arrived.
+  The H5 command was not replayed merely to unlock this separate check.
+
+Both workers exited and were reaped; original termios settings were restored
+and independently compared. Neither baud/c_cflag nor modem control was
+changed. There was no normal ttyS1 open, driver detach, GPIO/rfkill write,
+controller reset, scan, firmware download or kernel/DT edit. Each cycle
+restored the unchanged native UI/guardian pair and settings, verified fresh
+sensor values and kept the same Linux boot. Current and previous durable
+program pairs were preserved; temporary UI materialization used RAM.
+
+**Interpretation:** the existing TTY can be opened through its actual node,
+but neither fixed exchange established a responding Bluetooth controller.
+The reference FIQ write implementation can return the requested count while
+silently dropping output when its internal console flag is disabled. A write
+return value is consequently not proof of physical UART transmission. These
+negative results cannot distinguish missing wiring, disabled BT power,
+transport/physical-baud mismatch or a dropped write, and cannot prove that
+Bluetooth hardware is absent. The software baud description was115200;
+that is not an independently measured physical rate.
+
+There is also a production blocker even if a future test obtains a response:
+Rockchip's FIQ RX code recognizes the `fiq` byte sequence as debugger BREAK.
+Arbitrary Bluetooth payloads therefore cannot safely be forwarded through
+this unmodified console path. The fixed test packets contain neither this
+sequence nor a newline. No arbitrary-payload transport, HCI attachment,
+advertisement forwarding, GATT backend or proxy toggle follows from them.
+
+The reviewed reference code is pinned to
+[Rockchip kernel6c04d006, fiq_debugger.c](https://github.com/rockchip-linux/kernel/blob/6c04d006ae881944d32c19e68b992d0bd5ab4fde/drivers/staging/android/fiq_debugger/fiq_debugger.c)
+and
+[rk_fiq_debugger.c](https://github.com/rockchip-linux/kernel/blob/6c04d006ae881944d32c19e68b992d0bd5ab4fde/arch/arm/mach-rockchip/rk_fiq_debugger.c).
+It explains mechanisms; it is not a byte-identical installed0287 kernel proof.
+
+[`bluetooth_fiq_probe.h`](bluetooth_fiq_probe.h) records this non-default,
+finite diagnostic. It accepts no caller-supplied path, packet, speed or GPIO.
+The caller must first enforce the appliance and quiet-stock admission; the
+normal profiles do not include it. Its cached attempts are per process and
+do not authorize repeating a consumed device intent after an update. Retain
+external one-use receipts and a verified restoration plan. The parser and
+ownership-classifier CI uses synthetic values only and never invokes a TTY
+or socket probe. This file is experimental research, not a CGS1 BLE backend.
