@@ -17,8 +17,9 @@ reads CO2 through a kernel interface, so its UART ownership differs. On both,
 the active FIQ debugger uses serial-id 1. An existing or apparently idle tty
 does not establish that the Bluetooth pins are wired to it.
 
-The inspected device tree has no wireless-bluetooth node. It does contain
-Wi-Fi and serial nodes; neither supplies a verified BT_REG_ON mapping.
+The bounded running-tree inventory found no top-level `wireless-bluetooth`
+node. It did not perform a complete recursive search of every nested DT node.
+It contains Wi-Fi and serial nodes; neither supplies a verified BT_REG_ON mapping.
 Stock's commented `rkrtkbt ttyS0` line is generic BSP configuration, not a
 Qingping board schematic. The archive-0267 wrapper's ARM control flow attempts
 an rfkill0 write before inspecting its first argument, as detailed below.
@@ -28,6 +29,16 @@ the only rfkill entry observed on the running devices identifies as WLAN.
 The full UI and both guardians were restored after the SCD40 inventory.
 No UART attachment, GPIO/rfkill write, driver load, device-tree edit or
 Bluetooth firmware download to the controller was performed.
+
+The saved S8 inventory from 3 November also explicitly contains `bluetooth`,
+`hci_uart` and `rtk_btusb` under `/sys/module`, `/usr/sbin/rtk_hciattach`, and
+`/lib/firmware/rtlbt/rtl8723ds_fw` plus `rtl8723ds_config`. These are installed
+kernel-component/file-presence observations, not proof of a loadable `.ko`,
+controller firmware download or successful initialization. The later live MGMT
+and exact installed-kernel checks below establish additional stack evidence.
+Do not describe the whole stack as missing, or promise that installing a driver
+alone will activate the chip. A fresh recursive running-DT inspection, selected
+BT properties and boot-log review remain distinct missing observations.
 
 ## External sources and their limits
 
