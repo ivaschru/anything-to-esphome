@@ -388,7 +388,10 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(self.key, json.dumps(self.f.frames))
         self.assertNotIn(base64.b64decode(self.key), b''.join(self.raw_frames))
         self.f.assert_fenced()
-        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: self.f.running.issued_at + 60)):
+        # Use a strictly positive END even when floating-point addition rounds
+        # across an exponent boundary; the production sixty-second gate stays.
+        ended_at = math.nextafter(self.f.running.issued_at + 60.0, math.inf)
+        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: ended_at)):
             await self.f.running.finish_records()
             returned = await self.f.running.observe_return()
         self.assertTrue(returned['own_programs_absent'])
@@ -478,13 +481,36 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(frame['operation'] == 'guardian-return-observe' for frame in self.f.frames))
         self.f.assert_fenced()
 
-    async def stopped_returned(self):
+    async def stopped_returned(self, *, synthetic_issued_at=None):
         await self.flow()
         with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait):
             await module.observe_initial_noise(self.f.context)
-        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: self.f.running.issued_at + 60)):
+        if synthetic_issued_at is not None:
+            # Move only this fixture's observation-clock origin. The real
+            # encrypted callbacks, identities, counts, relay and actor remain
+            # intact, and the last wire message retains its relative age.
+            running = self.f.running
+            wire = running._wire_observation
+            wire_elapsed = wire._last_sample_at - running.issued_at
+            running._issued_at = synthetic_issued_at
+            wire._last_sample_at = synthetic_issued_at + wire_elapsed
+        # A rounded ``(issued_at + 60) - issued_at`` can be strictly below
+        # sixty across an exponent boundary. Move the positive fixture's END
+        # one representable instant forward; do not relax production's minimum
+        # stop duration or its independent maximum wire-message age.
+        ended_at = math.nextafter(self.f.running.issued_at + 60.0, math.inf)
+        with patch.object(fixtures.fixtures.joins.guardian, 'time', SimpleNamespace(monotonic=lambda: ended_at)):
             await self.f.running.finish_records()
             await self.f.running.observe_return()
+
+    async def test_positive_return_clock_crossing_float_binade_stays_after_minimum_stop(self):
+        # Adding sixty to this representable origin rounds across a floating
+        # point exponent boundary. The subtraction is one ULP below sixty;
+        # a positive fixture must not ask production to accept an early END.
+        origin = 7.999999999999991
+        self.assertLess((origin + 60.0) - origin, 60.0)
+        await self.stopped_returned(synthetic_issued_at=origin)
+        self.assertGreaterEqual(self.f.running._end_observed_at - origin, 60.0)
 
     async def test_lost_terminal_response_preserves_verified_history_and_never_repeats_record(self):
         await self.stopped_returned()

@@ -951,6 +951,13 @@ separate even though the HACS wizard is shared.
   Keep the reusable Noise peer protocol-only. Install its callback barrier
   at each reader's actual import/use site and run initial, boot-observer and
   PM-transfer suites together; aliases alone do not initialize fixture state.
+  Positive stop/return clock fixtures must use the next representable instant
+  after issued_at+60: floating-point addition across an exponent boundary can
+  otherwise subtract to 59.99999999999999. Keep the real 60-second minimum,
+  wire-age maximum and independent device timer unchanged. The regression
+  shifts only a synthetic clock origin after real Noise callbacks, preserving
+  identities, callback counts and relative wire age. Immediate/stale END
+  rejection tests must continue to pass; never fix this by rounding production.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
