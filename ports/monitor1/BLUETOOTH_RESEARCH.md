@@ -540,3 +540,39 @@ These are opt-in research observations on one S8 unit. They add no default
 profile, generic kernel-memory endpoint, HCI attach, advertisement forwarding,
 active GATT support or proxy switch. A safe production transport and actual
 controller/backend lifecycle still require qualification.
+
+### Complete running-tree binding inventory – 9 November 2026
+
+A later, separately journaled S8 diagnostic traversed the **running 0287
+device tree**, including every nested node. It recorded all 594 node names and
+3,937 property names, reading 1,108 hardware-binding values (`compatible`,
+status, register addresses, aliases, phandles, pinctrl and GPIO/BT/UART
+properties). It deliberately omitted the other 2,829 values, including
+boot arguments, MAC addresses and serial numbers. This is a complete traversal
+of names and selected binding values, not a raw dump of every property value.
+The bounded 255,083-byte snapshot was read over 167 authenticated pages and
+verified against its full SHA-256 before analysis.
+
+No Bluetooth-related node/property name or `compatible` value was found,
+including nested nodes below serial controllers. All three serial controllers
+are `okay`, with no child nodes; their aliases map serial0/1/2 to
+`serial@20060000`, `serial@20064000` and `serial@20068000`. UART0 and UART1
+include transfer, CTS and RTS pinctrl groups; UART2 includes transfer only.
+The existing functional evidence identifies UART0 with CO₂, UART2 with PM and
+UART1 with the FIQ debugger. A rule that sensor UARTs necessarily use only
+TX/RX would therefore misclassify this device's existing configuration.
+
+The saved normal 0267 DTB also has 594 nodes and no explicit BT node; its
+recovery DTB has an explicit `wireless-bluetooth` node. Neither archive is a
+PCB continuity test. **Absence from the running tree does not prove that the
+Bluetooth UART or enable pins were left physically disconnected.** Conversely,
+the recovery node does not establish working board pins for the installed
+revision. An arbitrary GPIO or UART probe must not be derived from either
+observation.
+
+The collector used a bounded child, root/procfs identity checks and no-follow
+descendant opens. It performed no UART, GPIO, MMIO, kernel write or driver
+getter call. After its single encrypted diagnostic update, the unchanged
+native UI/guardian pair, six settings and four fresh sensor streams were
+restored on the same Linux boot; both durable pairs were retained. These
+observations still do not establish a responding HCI controller or BLE proxy.

@@ -1004,6 +1004,13 @@ separate even though the HACS wizard is shared.
   power proofs. The proc display getter calls LeaveLowPower: do not use it as
   a passive read. Do not widen kmem bounds into IO to follow an unchecked
   pointer, publish vendor images/tables, enable a proxy, or replay old intents.
+  The later complete running0287 binding traversal covered594nodes and3937
+  property names, reading1108selected binding values and explicitly excluding
+  2829others. No BT node/property/compatible hit or serial child was found.
+  Keep this stronger coverage distinct from the earlier top-level inventory,
+  and from a raw full-tree dump or physical wiring proof. UART0/1 both include
+  CTS/RTS despite UART0's sensor role; do not identify BT from flow-control
+  groups alone. The separate recovery DTB's BT node is not PCB qualification.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
