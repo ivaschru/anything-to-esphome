@@ -627,7 +627,46 @@ and its UART interface. This is a **chip pin**, not Rockchip GPIO number 43.
 The document does not establish an alternate HCI path over the working Wi-Fi
 SDIO link, or how that enable pin is connected on a particular CGS1 PCB.
 
-The next active experiment therefore needs actual board connectivity and a
-verified recovery mechanism, not a guessed GPIO or repetition of the prior
-negative exchanges. These additional checks changed no monitor, HA or network
-state and did not create a BLE proxy.
+Those offline checks did not qualify a new UART/power operation or create a
+BLE proxy. They do not preclude a different software observation with a
+separately verified read path and recovery mechanism, as tested below.
+
+### A live chip-function register read succeeded without opening the case
+
+A later, separately journaled S8 experiment read the fixed Realtek
+`MULTI_FUNC_CTRL` register through the existing Wi-Fi driver's proc read
+interface. The captured installed ARM code in `read_chip_version_8723d`
+reads address `0x68` and copies bit 18 into its cached Bluetooth-function
+flag; its Wi-Fi flag comes from bit 2. The
+[published Realtek HAL source](https://github.com/lwfinger/rtl8723ds/blob/1a8f8b155709fb223cb9002098edc6995b1df22c/hal/rtl8723d/rtl8723d_hal_init.c)
+provides the symbolic `REG_MULTI_FUNC_CTRL` / `BT_FUNC_EN` names. Reference
+source alone was not used to assume the installed driver's ABI.
+
+**The live value was `0xb205c80c`: both BT-function bit 18 and Wi-Fi-function
+bit 2 are set.** The separate initialization cache contained `MultiFunc=3`,
+also representing both functions. These are stronger observations than the
+previous BT-exists cache, but still do not establish a responding HCI
+controller, external pin voltage, UART connectivity or a working proxy.
+They also show why the coexistence cache's `disabled=true` must not be
+interpreted as a measurement that the chip's BT-function bit is off.
+
+The private diagnostic verified the installed getter/setter and SDIO read
+instructions, ordinary allocation bounds and the actual SDIO callback before
+issuing the single register read. It accepted only the proc selector's
+original disabled sentinel, selected exactly `0x68` / width 4, then restored
+and independently re-read that sentinel. The two proc writes changed only
+the driver's debug address/width globals. They performed **zero hardware
+register writes, UART operations or GPIO operations**. The bounded worker
+was reaped and selector restoration was verified.
+
+This was a hardware SDIO read, not a purely cached RAM snapshot. Conversely,
+the `0x6B` path in `Hal_BT_EfusePowerSwitch` controls BT EFUSE access and must
+not be relabeled a measurement of the whole Bluetooth controller's power.
+No EFUSE, power-switch or WLAN MCU-reset routine was executed.
+
+The original full UI/guardian pair, six settings and fresh CO2, temperature,
+humidity and tVOC streams were restored on the same Linux boot. Both durable
+pairs were unchanged, with more than 45 MiB free on `/data`. No HCI attach,
+driver unbind, reboot or new durable native release occurred. Software-only
+investigation can continue; the BT-function bit being enabled does not by
+itself supply the missing HCI transport or justify guessing board GPIOs.

@@ -1023,6 +1023,15 @@ separate even though the HACS wizard is shared.
   Installed BT-power parsing requires DT GPIO/pinctrl properties absent from
   the complete running tree. Datasheet SDIO/GSPI WLAN versus HS-UART BT is not
   an alternate HCI transport; BT_DIS# chip pin43 is not a Rockchip GPIO number.
+  A later exact-kernel fixed SDIO read returned MULTI_FUNC_CTRL=0xb205c80c:
+  BT_FUNC_EN bit18 and WLAN bit2 are set; the boot cache is MultiFunc3.
+  Keep this distinct from the coex disabled cache and from HCI/pin voltage/
+  UART qualification. The private one-shot restored the original disabled
+  proc debug selector, reaped its worker and restored the unchanged full UI,
+  six settings and fresh4 on the same boot. Its two proc selector writes are
+  ordinary driver metadata changes, not hardware register writes. This is
+  not a generic register endpoint or a proxy. EFUSE's 0x6B power path is not
+  whole-controller power; no reset/EFUSE/GPIO/UART operation was executed.
 
 - Monitor 1 power/offline Wi-Fi/recovery now have portable source and host
   tests. Power is read-only kernel capacity/voltage/status, never a guessed
