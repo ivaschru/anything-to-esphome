@@ -95,7 +95,18 @@ def reuse(root, opener=urllib.request.urlopen):
             os.fsync(stream.fileno())
 
 
-def reuse_current(root, opener=urllib.request.urlopen):
+def profile_source(root, profile):
+    """Choose an independent source/recipe closure; never infer by model."""
+    if profile == "lite":
+        return source_digest, RECIPE_PATHS, ("ports/lite",), "firmware/releases.json", "tools/build_lite.py"
+    if profile != "lite-434":
+        raise ValueError("Unsupported public template profile")
+    spec = importlib.util.spec_from_file_location("qf_release_434_source", root / "tools/lite434_source.py")
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    return module.source_digest, module.RECIPE_PATHS, ("ports/lite", "ports/lite-434"), "firmware/lite434-release.json", "tools/build_lite434.py"
+
+
+def reuse_current(root, opener=urllib.request.urlopen, *, profile="lite"):
     """Reuse a newer published firmware only with its complete source pin.
 
     A fresh compiler embeds a different build timestamp. Rebuilding unchanged
@@ -105,9 +116,11 @@ def reuse_current(root, opener=urllib.request.urlopen):
     Transport/invalid-index errors never fall back to another image/compiler.
     """
     output = root / "custom_components/qingping_esphome/firmware"
+    digest, recipes, folders, metadata_path, _ = profile_source(root, profile)
+    stem = profile + "-template"
     if output.parent.resolve() != output.parent or output.is_symlink():
         raise RuntimeError("Release output must remain in the clean source")
-    if any((output/name).exists() or (output/name).is_symlink() for name in ("lite-template.bin","lite-template.json")):
+    if any((output/name).exists() or (output/name).is_symlink() for name in (stem+".bin",stem+".json")):
         raise RuntimeError("Existing firmware outputs are preserved")
     # Import only our pure catalog validator, without HA's package __init__.
     import importlib
@@ -152,16 +165,16 @@ def reuse_current(root, opener=urllib.request.urlopen):
         raw = reader(catalog.LEGACY_CATALOG_URL, catalog.MAX_INDEX_BYTES)
     if raw is None: return False
     releases = catalog.parse_catalog(json.loads(raw))
-    current = json.loads((root / "firmware/releases.json").read_text())["lite"]
-    release = releases.get("lite")
+    current = json.loads((root / metadata_path).read_text())[profile]
+    release = releases.get(profile)
     if not release or release.version != current["version"] or release.revision != current["revision"]: return False
-    dirty = git_read(root,"status","--porcelain","--untracked-files=all","--","ports/lite",*RECIPE_PATHS)
+    dirty = git_read(root,"status","--porcelain","--untracked-files=all","--",*folders,*recipes)
     if dirty: raise RuntimeError("Use a clean source snapshot for published firmware reuse")
     manifest_raw = reader(release.manifest.url, release.manifest.size)
     if not manifest_raw or len(manifest_raw)!=release.manifest.size or hashlib.sha256(manifest_raw).hexdigest()!=release.manifest.sha256:
         raise RuntimeError("Published firmware manifest differs")
     manifest=json.loads(manifest_raw)
-    if manifest.get("release_source_sha256")!=source_digest(root):
+    if manifest.get("release_source_sha256")!=digest(root):
         raise RuntimeError("Same firmware version has different source; publish a new UI version/revision")
     binary = reader(release.image.url, release.image.size)
     if (not binary or len(binary)!=release.image.size or hashlib.sha256(binary).hexdigest()!=release.image.sha256
@@ -175,28 +188,36 @@ def reuse_current(root, opener=urllib.request.urlopen):
             or any(binary.count(marker) < 1 or manifest.get("slots", {}).get(key) != binary.count(marker)
                    for key,marker in image.SLOTS.items())):
         raise RuntimeError("Published firmware slot contract differs")
+    if profile == "lite-434" and (manifest.get("profile") != profile
+            or manifest.get("hardware") != "0001" or manifest.get("source_stock_version") != "4.3.4"
+            or manifest.get("pm_policy") != "lite-434-polling-only-v1"):
+        raise RuntimeError("Published 4.3.4 profile differs")
     output.mkdir(parents=True, exist_ok=True)
-    for name,data in (("lite-template.bin",binary),("lite-template.json",manifest_raw)):
+    for name,data in ((stem+".bin",binary),(stem+".json",manifest_raw)):
         fd=os.open(output/name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
         with os.fdopen(fd,"wb") as target:
             target.write(data);target.flush();os.fsync(target.fileno())
     return True
 
 
-def main():
+def main(profile="lite"):
     os.umask(0o077)
-    dirty = git_read(ROOT,"status","--porcelain","--untracked-files=all","--","ports/lite",*RECIPE_PATHS)
+    _, recipes, folders, metadata_path, compiler = profile_source(ROOT, profile)
+    dirty = git_read(ROOT,"status","--porcelain","--untracked-files=all","--",*folders,*recipes)
     if dirty: raise RuntimeError("Use a clean committed public firmware source")
-    current=json.loads((ROOT/"firmware/releases.json").read_text())["lite"]
-    if current["version"] != "2026.11.06-ui25-polling1" and reuse_current(ROOT):
+    current=json.loads((ROOT/metadata_path).read_text())[profile]
+    if current["version"] != "2026.11.06-ui25-polling1" and reuse_current(ROOT, profile=profile):
         print("Reused exact source-matched public firmware and manifest")
-    elif compatible(ROOT):
+    elif profile == "lite" and compatible(ROOT):
         reuse(ROOT)
         print("Reused exact public Lite v0.1.3 image and matching manifest")
     else:
         print("Committed Lite source changed; using the normal public-template compiler", flush=True)
-        subprocess.run([sys.executable, str(ROOT / "tools/build_lite.py")], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / compiler)], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=("lite", "lite-434"), default="lite")
+    main(parser.parse_args().profile)

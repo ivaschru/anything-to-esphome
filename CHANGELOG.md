@@ -7,6 +7,8 @@
 - Add experimental factory4.3.4 Bluetooth/MQTT routing to its own polling-only
   template, with independent server admission, no 4.5.8 fallback and exact
   encrypted native project/version/physical-reading verification.
+  Require its independent image in the release ZIP and reuse the exact
+  source-matched immutable pair, preserving the existing Lite/Sonoff pairs.
 - Add the external-MCU UART receiver, strict raw telemetry decoder and finite
   research polling source. Preserve the blocked factory installer while core
   startup/scales/power/display lifecycle remain unqualified.

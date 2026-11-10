@@ -1359,6 +1359,11 @@ separate even though the HACS wizard is shared.
   Run test_lite_menu.py and render_lite_ui.py after a real SDK build; inspect
   those actual-method/generated-glyph frames before claiming visual QA.
 
+- The HACS ZIP must contain lite-434's matching independent pair now that its
+  factory route is selectable. Prepare it with prepare_release_template.py
+  --profile lite-434, reusing the exact immutable source-matched pair; never
+  rebuild another timestamp under a published version or fall back to Lite.
+  Package validation requires its profile/stock/hardware/policy/hash/source.
 - Installer-only releases use `python tools/prepare_release_template.py` to
   retain v0.1.3 legacy pins and reuse newer immutable pairs only with matching
   committed release_source_sha256 from firmware_source.py. Dirty or missing source and a failed asset
