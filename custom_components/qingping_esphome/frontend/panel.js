@@ -198,6 +198,7 @@ class QingpingPanel extends HTMLElement {
        <div id="ha-picker" class="hidden"><div class="row"><div class="ha-device-field"><label for="ha-device"><span data-i18n="ha_device_label"></span></label><select id="ha-device"></select></div><button id="scan" class="secondary"><span data-i18n="ha_scan"></span></button></div><p id="ble-status" class="note muted" role="status"></p></div>
        <button id="connect" class="secondary"><span data-i18n="connect"></span></button>
        <div id="identity" class="identity" aria-live="polite"></div>
+       <p id="profile-note" class="note muted hidden" data-i18n="profile_lite434"></p>
        <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2><div class="grid">
         <label><span data-i18n="ssid"></span><input id="ssid" type="text" required autocomplete="off" spellcheck="false"></label>
         <div class="password"><label><span data-i18n="wifi_password"></span><input id="password" type="password" autocomplete="off"></label><button id="show-password" class="secondary" type="button" data-i18n-aria="show_password"></button></div>
@@ -321,6 +322,7 @@ class QingpingPanel extends HTMLElement {
     // Selecting an unsupported second device must not leave the previous
     // supported device's form/identity armed and available for submission.
     this.identity = null; this.profile = null;
+    this.$("#profile-note").classList.add("hidden");
     this.$("#form").classList.add("hidden");
     this.stock?.disconnect();
     this.stock = this.transport === "ha"
@@ -335,6 +337,7 @@ class QingpingPanel extends HTMLElement {
         const e = document.createElement("span"); e.textContent = value; return e;
       }));
       this.profile = requireLiteProfile(this.catalog, identity);
+      this.$("#profile-note").classList.toggle("hidden", this.profile.id !== "lite-434");
       this.identity = identity;
       this.$("#form").classList.remove("hidden");
     } catch (error) { this.stock.disconnect(); this.fail(error); }
@@ -345,6 +348,7 @@ class QingpingPanel extends HTMLElement {
     this.identity = null; this.profile = null;
     this.stock?.disconnect(); this.stock = null;
     this.$("#identity").replaceChildren();
+    this.$("#profile-note").classList.add("hidden");
     this.$("#form").classList.add("hidden");
   }
 

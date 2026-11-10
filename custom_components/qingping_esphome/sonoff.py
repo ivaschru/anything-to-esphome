@@ -73,7 +73,7 @@ class Sonoff:
         self.manager, self.hass = manager, manager.hass
         self.account = Account(self.hass)
         self.root = Path(self.hass.config.path(".storage", "anything_sonoff"))
-        self.runtime = Runtime(self.hass, self.root)
+        self.runtime = Runtime(self.hass, self.root, active=lambda: self.active)
         self.store = Store(self.hass, 1, "qingping_esphome.sonoff", private=True, atomic_writes=True)
         self.records, self.selections, self.accounts = {}, {}, {}
         self.lock = asyncio.Lock()

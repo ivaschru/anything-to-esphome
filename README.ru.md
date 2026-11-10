@@ -63,13 +63,14 @@ Alpine3.24, x86-64/ARM64. При первой подготовке нужны и
 
 | Прибор | Платформа | Что есть в проекте | Установка через панель |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, экран, сенсоры, настройки, защищённый API | **[Прошивка 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v5)**; первичная установка через Bluetooth → локальный MQTT/HTTP пока beta |
-| **Lite / CGDN1**, исходная stock 4.3.4, HW 0001 | ESP32, прямой I²C | CO₂/T/RH, экран и HA проверены; **PM OFF не останавливает вентилятор на проверенном экземпляре** | **[Прошивка 4](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v4)**, профиль `lite-434`; со старой ESPHome нужна одна переходная установка. Первичная установка с заводской через Bluetooth не проверена |
-| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + внешний MCU | [Разбор CG/TLV и исследование отдельного порта](ports/lite-mcu421/) | Пока нет образа; мастер объясняет ограничение |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, экран, сенсоры, настройки, защищённый API | **[Прошивка 6](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v6)**; первичная установка через Bluetooth → локальный MQTT/HTTP пока beta |
+| **Lite / CGDN1**, исходная stock 4.3.4, HW 0001 | ESP32, прямой I²C | CO₂/T/RH, экран и HA проверены; **PM OFF не останавливает вентилятор на проверенном экземпляре** | **[Прошивка 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5)**, профиль `lite-434`; отдельная экспериментальная первичная установка через Bluetooth/MQTT и native OTA; ограничение вентилятора показывается до установки |
+| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + внешний MCU | [UART receiver и raw decoder отдельного порта](ports/lite-mcu4x/) | Пока нет образа; мастер объясняет ограничение |
+| **Sonoff S60TPF**, stock 1.2.0, SN-ESP32C3-S60-01 | ESP32-C3 | Защищённый API, калибровка счётчика, опциональный BLE proxy и native OTA | [Прошивка 1](https://github.com/ivaschru/anything-to-esphome/tree/firmware-sonoff-s60tpf-v1); экспериментальный eWeLink/LAN-мастер с закрытым бэкапом, историей и проверкой восстановления |
 | **Monitor 1 / CGS1**, SenseAir S8, co2_type=2 | Linux ARMv7 | Stock bridge и полный интерфейс, проверенные на приборе | [Runtime 1](docs/MONITOR1_RELEASES.md): экспериментальный USB-мастер компьютера/сервера с частной сборкой; чистая установка ещё не проверена |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Отдельный драйвер CO₂ и полный интерфейс, проверенные на приборе | [Runtime 1](docs/MONITOR1_RELEASES.md): экспериментальный USB-мастер компьютера/сервера с частной сборкой; чистая установка ещё не проверена |
 | Monitor 1, SCD30 / неизвестная ревизия | Linux | Требует проверки | Нет |
-| **Monitor 2** | Не установлен | Место для отдельного порта и список необходимых проверок | Нет |
+| **Monitor 2** | Отдельный Linux host-порт в исследовании | [Первичные источники, вход ADB и следующие границы](ports/monitor2/) | Пока нет |
 
 Прошивки 5 / `lite` и 4 / `lite-434` сами проверяют каталог своей модели и создают штатную сущность обновления ESPHome в Home Assistant. Последующие обновления работают без Qingping HACS и Device Builder. [Как устроены обновления](docs/NATIVE_FIRMWARE_UPDATES.md).
 

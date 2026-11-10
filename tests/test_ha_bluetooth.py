@@ -22,13 +22,14 @@ MODULE = "custom_components.qingping_esphome.ha_bluetooth"
 
 
 class FakeGatt:
-    def __init__(self, *, fail_setup=False, reject_ack=False, macs=None):
+    def __init__(self, *, fail_setup=False, reject_ack=False, macs=None, stock_version="4.5.8"):
         self.services = self
         self.notifications = {}
         self.fragments = {}
         self.commands = []
         self.fail_setup, self.reject_ack = fail_setup, reject_ack
         self.macs = list(macs or [IDENTITY["mac"]] * 3)
+        self.stock_version = stock_version
         self.disconnect = AsyncMock()
 
     def get_service(self, _uuid): return self
@@ -37,7 +38,7 @@ class FakeGatt:
     async def start_notify(self, uuid, callback): self.notifications[uuid] = callback
 
     async def read_gatt_char(self, uuid):
-        return {"00002a24": b"CGDN1", "00002a26": b"4.5.8", "00002a27": b"0001"}[uuid[:8]]
+        return {"00002a24": b"CGDN1", "00002a26": self.stock_version.encode(), "00002a27": b"0001"}[uuid[:8]]
 
     async def write_gatt_char(self, uuid, data, *, response):
         assert response is True
@@ -93,7 +94,9 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
         root.mkdir(exist_ok=True)
         template = fixture()
         (root / "lite-template.bin").write_bytes(template)
-        (root / "lite-template.json").write_text(json.dumps({"sha256": hashlib.sha256(template).hexdigest()}))
+        (root / "lite-template.json").write_text(json.dumps({"sha256": hashlib.sha256(template).hexdigest(),
+            "model": "CGDN1", "profile": "lite", "source_stock_version": "4.5.8", "hardware": "0001",
+            "pm_policy": "quiet-scd4x-window-v1", "format": "esp32-app-fixed-slots-v1", "size": len(template), "ui": "fixture", "public_version": 1}))
         data = {**IDENTITY, "profile": "lite", "usb": True, "transport": "ha", "selection": token,
                 "ssid": "fixture-network", "wifi_password": "fixture-password"}
         with patch("custom_components.qingping_esphome.manager.TEMPLATE_ROOT", root):
@@ -113,6 +116,16 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual([n for n, _, _ in client.commands], [0x17])
                 client.disconnect.assert_awaited_once()
                 self.assertFalse(self.radio.in_use)
+
+    async def test_434_selection_uses_same_read_only_gatt_and_separate_factory_profile(self):
+        client = FakeGatt(stock_version="4.3.4")
+        stack, *_ = self.radio_patches(client, source="local")
+        with stack:
+            result = await self.radio.select("owner", ADDRESS)
+        self.assertEqual(result["identity"]["stock_version"], "4.3.4")
+        self.assertEqual([number for number, _, _ in client.commands], [0x17])
+        self.assertEqual(self.radio.selected("owner", result["selection"], result["identity"]).identity,
+                         result["identity"])
 
     async def test_scan_filters_names_and_requires_connectable_scanner(self):
         from custom_components.qingping_esphome.errors import InstallerError

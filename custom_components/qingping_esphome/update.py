@@ -61,7 +61,7 @@ class QingpingFirmwareUpdate(UpdateEntity):
     _attr_has_entity_name = True
     _attr_device_class = UpdateDeviceClass.FIRMWARE
     _attr_translation_key = "firmware"
-    _attr_title = "Qingping ESPHome"
+    _attr_title = "Anything to ESPHome"
     _attr_should_poll = False
 
     def __init__(self, manager, coordinator, mac):

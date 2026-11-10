@@ -16,7 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
-from native_update_build import patch_table, marker_header
+from native_update_build import patch_table, marker_header, bind_ui_release
 
 _source_spec = importlib.util.spec_from_file_location("qf_firmware_source", Path(__file__).with_name("firmware_source.py"))
 _source_module = importlib.util.module_from_spec(_source_spec)
@@ -27,20 +27,6 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("template_image", ROOT / "custom_components/qingping_esphome/image.py")
 image = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(image)
-
-
-def bind_ui_release(text, release):
-    """Bind only the ordinary staged UI to its profile-local release metadata.
-
-    Probe branches stay at public version zero. The checked-in shared source
-    stays unchanged, so an independent hardware profile does not acquire a
-    different source identity merely because Lite's integer counter advances.
-    Require one normal branch: a changed header contract must fail the build.
-    """
-    pattern = r'(#else\nstatic constexpr const char \*UI_VERSION = )"[^"\n]+";(\n//[^\n]*\nstatic constexpr unsigned PUBLIC_VERSION = )([1-9][0-9]*);'
-    result, count = re.subn(pattern, lambda m: m[1] + json.dumps(release["version"]) + ";" + m[2] + str(release["public_version"]) + ";", text)
-    if count != 1: raise ValueError("Normal Lite UI release branch changed")
-    return result
 
 
 def main():
@@ -90,7 +76,7 @@ def main():
 substitutions:
   name: {json.dumps(values['name'])}
   trial_mode: "false"
-  ha_display: "true"
+  ha_display: "false"
   ha_display_entity: sensor.qingping_unused_display_feed
 packages:
   lite: !include cgdn1.yaml
@@ -109,8 +95,13 @@ esphome:
     - priority: 1000
       then:
         - lambda: |-
+            // Keep the old public slot layout readable by existing personalizers.
+            // Per-metric source bindings are ordinary native text settings; the
+            // legacy combined helper is not subscribed to. Keep its private
+            // slot value in the sealed profile/native OTA settings snapshot:
+            // ignoring a display input must not erase a retained credential
+            // slot or make an authenticated upgrade look like changed settings.
             qf_template::active_display_feed = qf_template::read(qf_template::display_feed_entity);
-            id(ha_display_feed).set_entity_id(qf_template::active_display_feed.empty() ? "sensor.qingping_unused_display_feed" : qf_template::active_display_feed.c_str());
             wifi::WiFiAP station;
             station.set_ssid(qf_template::read(qf_template::ssid));
             station.set_password(qf_template::read(qf_template::wifi_password));
@@ -196,6 +187,7 @@ esp32:
     output.mkdir(exist_ok=True)
     (output / "lite-template.bin").write_bytes(binary)
     (output / "lite-template.json").write_text(json.dumps({
+        "profile": "lite", "hardware": "0001", "source_stock_version": "4.5.8",
         "pm_policy": POLICY,
         "pm_source_sha256": pm_digest(ROOT),
         "model": "CGDN1", "ui": release["version"], "public_version": release["public_version"], "font": "Inter + Roboto Condensed (OFL)",

@@ -1,0 +1,42 @@
+# Compile-only harness for the passive MCU receiver. This is NOT a bootable
+# installation recipe: power/startup, target identity and stock-slot recovery
+# must be joined and qualified separately before any hardware trial.
+esphome:
+  name: cgdn1-mcu-receiver-check
+  compile_process_limit: 2
+esp32:
+  board: esp32dev
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+logger:
+  baud_rate: 0
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [cgdn1_mcu]
+uart:
+  id: mcu_rx
+  rx_pin: GPIO19
+  baud_rate: 115200
+  rx_buffer_size: 4096
+cgdn1_mcu:
+  id: mcu_receiver
+  uart_id: mcu_rx
+  raw_temperature:
+    name: MCU raw temperature
+  raw_humidity:
+    name: MCU raw humidity
+  raw_co2:
+    name: MCU raw CO2
+  raw_pm25:
+    name: MCU raw PM2.5
+  raw_pm10:
+    name: MCU raw PM10
+  raw_battery:
+    name: MCU raw battery
+  raw_voltage:
+    name: MCU raw voltage
+  raw_charge:
+    name: MCU raw charge state

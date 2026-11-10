@@ -12,6 +12,7 @@ const catalog = JSON.parse(execFileSync(python, ["-c",
   {cwd: root, encoding: "utf8"}));
 const identity = {model: "CGDN1", hardware: "0001", stock_version: "4.5.8"};
 assert.equal(requireLiteProfile(catalog, identity).id, "lite");
+assert.equal(requireLiteProfile(catalog, {...identity, stock_version: "4.3.4"}).id, "lite-434");
 assert.throws(() => requireLiteProfile(catalog, {...identity, stock_version: "4.2.1"}), {code: "profile_mcu421"});
 assert.throws(() => requireLiteProfile(catalog, {...identity, hardware: "0002"}), {code: "identity_unsupported"});
 assert.throws(() => requireLiteProfile(catalog, {...identity, model: "CGS1"}), {code: "identity_unsupported"});

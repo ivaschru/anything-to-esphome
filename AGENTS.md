@@ -53,6 +53,11 @@
   the selected job. Test actual kernel locks, typed API and admin/owner ACL.
   The SHA-pinned upstream archive now has the exact firmware-liberator-COMMIT
   root after its repository rename; retain strict full-SHA/path/link bounds.
+  Runtime passes the original kernel lease FD through exec and all isolated
+  Python helpers; parent exit does not release a descendant's lock. A saved FD
+  number cannot reopen/adopt it after restart: require the exact live private
+  lock inode. Fail closed on adapter errors (ordinary sitecustomize exceptions
+  would otherwise be ignored by Python). Test an actual surviving grandchild.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,
@@ -85,6 +90,35 @@ Monitor 2 support, BLE support or physical result follows from host tests.
   offers only after authenticated capability readback. No HA installation or
   restart is implied. Run test_native_update*.py, firmware/HA suites, pinned
   builds and actual profile-wire checks; retain separate hardware QA evidence.
+
+Current Lite source adds independent per-metric HA display bindings and
+30-second night touch wake in lite6/revision7 and lite-434v5/revision8. Native
+text settings validate before save/publish, use stable own preferences and
+bounded state/unit subscriptions with independent local fallback. Imported
+values affect OLED/LED only, never physical exports or power guards. Keep the
+unused historical combined-feed slot/value in sealed readback and native OTA;
+do not subscribe, erase or automatically migrate HA helpers. Both builders bind
+only their staged ordinary UI to their own release metadata; probe branches
+remain version0. Shared source changes require both independent new counters.
+
+Factory4.3.4/HW0001 now has an experimental BLE/MQTT route, based on retained
+historical stock4.3.4 factory transition/return evidence and fresh software QA.
+This is not a fresh physical qualification of this wizard. Both BLE transports
+resolve one exact catalog tuple; the server independently selects only the
+lite-434 template, validates its profile/stock/hardware/polling policy and never
+falls back to Lite4.5.8. Display the polling-only/fan-running limitation before
+installation. Require USB, fresh original GATT/MQTT identity, one consumed
+intent, APP-only CRC delivery and matching native project/public integer plus
+typed physical readings. MCU4.2.x and unknown tuples stay excluded.
+
+The external-MCU source now has a real bounded UART component under
+ports/lite-mcu4x, with one shared framing implementation behind the old
+lite-mcu421 alias. Reference0354 emits two-byte CO2/PM TLVs, not four-byte RAM
+storage widths. Reject wrong direction/length/duplicates; expire each raw
+field independently. Passive RX19 is default, fixed TX18 research polling is
+finite and opt-in. Do not attach direct-I2C GPIO/display/power code or install
+receiver-check.yaml. Exact startup, scales/invalid values, power and full UI
+remain outstanding; no factory admission follows from its SDK/sanitizer tests.
 
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
@@ -1315,12 +1349,13 @@ separate even though the HACS wizard is shared.
   drafts, two independent Cancel-default slot confirmations, native-size
   outline/classic digits, fixed status, and finite 240ms page transitions.
   Outline assets are never reduced. Use the bundled OFL font licenses.
-  Night is fully black; only centre wakes manual-off, consuming the gesture.
+  Night is black while idle; recognized touches temporarily wake it for30s.
+  Only centre wakes manual-off outside night, consuming the first gesture.
   API/Wi-Fi absence must not reboot standalone sensors. Unknown clocks are
   explicit. Preserve the optional per-device HA display feed and original
   stock provenance through fixed slots/sealed metadata; minimum HACS0.2.1.
-  Stock4.3.4 provenance is admitted only for qualified existing native devices,
-  not a wider factory Bluetooth installer. External-MCU images remain separate.
+  Stock4.3.4 uses its separate native line and current experimental factory
+  route described above. External-MCU images remain separate.
   Run test_lite_menu.py and render_lite_ui.py after a real SDK build; inspect
   those actual-method/generated-glyph frames before claiming visual QA.
 
@@ -1654,8 +1689,8 @@ separate even though the HACS wizard is shared.
   tests. Publisher: `tools/publish_firmware.py --profile lite-434` (preview;
   `--publish` consumes the independent atomic publication intent).
   Metadata/source pins belong to firmware/lite434-release.json and
-  tools/lite434_source.py. Integration 0.2.9+ supports native updates/adoption,
-  not a new factory BLE route. Keep factory admission at its qualified scope.
+  tools/lite434_source.py. Integration 0.2.9 introduced native updates/adoption;
+  the current experimental factory BLE route is separate and described above.
   The catalog extension `hardware_releases` keeps old readers' `releases.lite`
   intact. Every publisher must preserve both maps and `runtime_releases`.
   Route old public Lite records using authenticated original stock/HW values;

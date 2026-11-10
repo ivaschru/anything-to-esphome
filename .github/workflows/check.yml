@@ -113,6 +113,10 @@ jobs:
       # never an installation or publication of a personalised device image.
       - run: python tools/build_lite.py
       - run: python tools/check_profile_wire.py
+      # Compile/validate the passive external-MCU source only. This does not
+      # install its harness or enable any factory-write/hardware-ready flag.
+      - run: python -m unittest discover -s tests -p 'test_mcu4x_schema.py' -v
+      - run: python -m esphome compile ports/lite-mcu4x/receiver-check.yaml
   lite434-profile:
     runs-on: ubuntu-latest
     steps:

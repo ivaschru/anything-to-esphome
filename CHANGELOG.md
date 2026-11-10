@@ -1,5 +1,15 @@
-## Unreleased
+## 0.3.1 – recovery, native Lite sources and factory 4.3.4
 
+- Port PR #43 onto current native OTA: six persistent HA display-source
+  settings, independent local fallback and temporary 30-second night wake.
+  Stage independent Lite6/revision7 and lite-434v5/revision8 without changing
+  previous immutable releases or erasing the retained combined-feed slot.
+- Add experimental factory4.3.4 Bluetooth/MQTT routing to its own polling-only
+  template, with independent server admission, no 4.5.8 fallback and exact
+  encrypted native project/version/physical-reading verification.
+- Add the external-MCU UART receiver, strict raw telemetry decoder and finite
+  research polling source. Preserve the blocked factory installer while core
+  startup/scales/power/display lifecycle remain unqualified.
 - Add owner-scoped Sonoff installation history, older backup access, bounded
   diagnostics and read-only recovery through the original encrypted API key.
   Preserve consumed attempts; a verified app is reconciled only after the

@@ -19,6 +19,7 @@ import tarfile
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .sonoff_policy import SonoffError
+from .sonoff_journal import acquire
 
 COMMIT = "37962db36b154269076afd223c11f11e2d1eb770"
 ARCHIVE_URL = "https://codeload.github.com/adamsthws/Sonoff-OTA/tar.gz/" + COMMIT
@@ -83,8 +84,9 @@ def extract_archive(data, destination):
 
 
 class Runtime:
-    def __init__(self, hass, root):
+    def __init__(self, hass, root, active=lambda: True):
         self.hass, self.root = hass, Path(root)
+        self.active = active
 
     async def prepare(self, job_id):
         archive_path = self.root / "engine.tar.gz"
@@ -113,22 +115,32 @@ class Runtime:
         return job
 
     async def launch(self, job, request):
-        await self.hass.async_add_executor_job(private_write, job / "request.json",
-                                              json.dumps(request).encode())
+        lease = await self.hass.async_add_executor_job(acquire, job)
         # The request has already been admitted and durably consumed by the
         # caller. This is the sole spawn; no exception path retries it.
         environment = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
                        "HOME": str(job), "PYTHONUNBUFFERED": "1",
                        "PYTHONPATH": str(ROOT / "sonoff_worker") + os.pathsep + str(job / "upstream")}
-        log = (job / "private-engine.log").open("xb")
-        os.chmod(log.name, 0o600)
         try:
-            process = await asyncio.create_subprocess_exec(
-                sys.executable, str(ROOT / "sonoff_worker/runner.py"),
-                cwd=job / "upstream", env=environment, stdin=asyncio.subprocess.DEVNULL,
-                stdout=log, stderr=log, start_new_session=True)
+            await self.hass.async_add_executor_job(private_write, job / "request.json",
+                                                  json.dumps({**request, "lease_fd": lease}).encode())
+            # Preparation/file IO yielded to HA. An unloaded coordinator may
+            # retain an already-started writer, but cannot spawn a new one now.
+            if not self.active():
+                raise SonoffError("sonoff_busy")
+            log = (job / "private-engine.log").open("xb")
+            os.chmod(log.name, 0o600)
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable, str(ROOT / "sonoff_worker/runner.py"),
+                    cwd=job / "upstream", env=environment, stdin=asyncio.subprocess.DEVNULL,
+                    stdout=log, stderr=log, start_new_session=True, pass_fds=(lease,))
+            finally:
+                log.close()
         finally:
-            log.close()
+            # The child and its original descendants keep this same open-file
+            # description. HA unload/parent exit cannot retire their live lock.
+            os.close(lease)
         return process
 
 

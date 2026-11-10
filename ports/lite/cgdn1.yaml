@@ -14,6 +14,7 @@ substitutions:
 packages:
   mqtt_messages: !include packages/mqtt_${mqtt_messages}.yaml
   ha_display: !include packages/ha_display_${ha_display}.yaml
+  ha_sources: !include packages/ha_sources.yaml
 
 esphome:
   on_boot:
@@ -70,7 +71,7 @@ external_components:
   - source:
       type: local
       path: components
-    components: [cgdn1_boot, cgdn1_tcomp, cgdn1_display, cgdn1_touch, cgdn1_led, cgdn1_night, cgdn1_notify, cgdn1_pm, cgdn1_ui, scd4x]
+    components: [cgdn1_boot, cgdn1_tcomp, cgdn1_display, cgdn1_touch, cgdn1_led, cgdn1_night, cgdn1_notify, cgdn1_pm, cgdn1_ui, cgdn1_ha_sources, scd4x]
 
 # Power latch (GPIO23/13/18 HIGH from a global constructor, before anything else runs) and the
 # back-button long-press power-off. Must always be present: without it the unit switches itself off.
@@ -136,6 +137,7 @@ cgdn1_ui:
     "10": led_switch
     "12": ble_switch
     "16": hc_bt_comp
+    "24": ha_values_enabled
   selects:
     "2": idle_screen
     "4": ui_design
@@ -940,8 +942,8 @@ interval:
   - interval: 1s
     then:
       - lambda: |-
-          // The design's night mode is fully black for the configured window,
-          // including touch. Manual display-off has its own remembered intent.
+          // Night remains black when idle. Any recognized touch temporarily wakes
+          // the UI for 30 s; this does not change the saved Display preference.
           const auto clock = id(ha_time).now();
           id(local_ui).set_night_active(id(night_switch).state && clock.is_valid() &&
               cgdn1_night::in_window(clock.hour, clock.minute,
@@ -1188,12 +1190,23 @@ display:
       const auto clock = id(ha_time).now();
       values.summary = id(display_sources).choose(now, clock.is_valid() ? clock.timestamp : 0,
                                                    id(co2).state, id(temp_comp).state);
-      // Passing an invalid remote clock deliberately disables HA selection:
-      // dedicated pages remain fresh physical readings, independently of idle.
+      // First take fresh local values without the historical combined HA feed;
+      // native per-metric bindings below affect this display snapshot only.
       const auto local = id(display_sources).choose(now, 0, id(co2).state, id(temp_comp).state);
       values.co2 = local.co2; values.temperature = local.temperature;
       values.humidity = std::isfinite(local.temperature) ? id(rh_comp).state : NAN;
       values.pm1 = id(pm1).state; values.pm25 = id(pm25).state; values.pm10 = id(pm10).state;
+      for (size_t i = 0; i < values.ha_sources.size(); ++i) values.ha_sources[i] = cgdn1_ha::sources.using_ha(i, now);
+      values.co2 = cgdn1_ha::sources.value(0, now, values.co2);
+      values.temperature = cgdn1_ha::sources.value(1, now, values.temperature);
+      values.humidity = cgdn1_ha::sources.value(2, now, values.humidity);
+      values.pm1 = cgdn1_ha::sources.value(3, now, values.pm1);
+      values.pm25 = cgdn1_ha::sources.value(4, now, values.pm25);
+      values.pm10 = cgdn1_ha::sources.value(5, now, values.pm10);
+      values.summary.co2 = values.co2;
+      values.summary.temperature = values.temperature;
+      values.summary.co2_source = cgdn1_ha::sources.using_ha(0, now) ? cgdn1_display::DisplaySource::HA : (std::isfinite(values.co2) ? cgdn1_display::DisplaySource::LOCAL : cgdn1_display::DisplaySource::NONE);
+      values.summary.temperature_source = cgdn1_ha::sources.using_ha(1, now) ? cgdn1_display::DisplaySource::HA : (std::isfinite(values.temperature) ? cgdn1_display::DisplaySource::LOCAL : cgdn1_display::DisplaySource::NONE);
       values.summary_enabled = id(idle_screen).active_index().value_or(0) != 0;
       values.clock = clock;
       values.idle_delay = uint32_t(id(idle_screen_delay).state * 1000.0f);

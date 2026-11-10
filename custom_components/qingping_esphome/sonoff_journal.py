@@ -38,6 +38,25 @@ def acquire(job):
     return descriptor
 
 
+def inherited(job, descriptor):
+    """Validate an actually inherited kernel capability, never reopen a lease.
+
+    A descriptor number serialized in request.json is not authority after a
+    restart: it must still refer to this exact private consumed lock inode.
+    Only Runtime.launch passes that original descriptor through exec.
+    """
+    if type(descriptor) is not int or descriptor < 3:
+        raise ValueError("Original worker lease unavailable")
+    current = os.fstat(descriptor)
+    named = (Path(job) / "worker.lock").lstat()
+    if (not stat.S_ISREG(current.st_mode) or current.st_mode & 0o077
+            or current.st_uid != os.getuid() or current.st_nlink != 1
+            or not stat.S_ISREG(named.st_mode)
+            or (current.st_dev, current.st_ino) != (named.st_dev, named.st_ino)):
+        raise ValueError("Original worker lease changed")
+    return descriptor
+
+
 def finish(job, request, result):
     """Create one durable receipt; never turn an exception/signal into success."""
     if request.get("format") != "anything-sonoff-job-v2":

@@ -17,7 +17,7 @@ import bleak
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
 
-from .catalog import admission
+from .catalog import factory_lite_profile
 from .errors import InstallerError
 from .image import mac_normalize
 
@@ -223,9 +223,9 @@ class HABluetooth:
         async with asyncio.timeout(40):
             async with self.connection(address) as stock:
                 identity = await stock.initialize()
-        admission("lite", identity["model"], identity["stock_version"])
         if identity["hardware"] != "0001":
             raise InstallerError("hardware_unverified")
+        factory_lite_profile(identity["model"], identity["stock_version"], identity["hardware"])
         # The factory GATT MAC, not the transport address (which may be a
         # backend-specific identifier), binds the later MQTT/native checks.
         identity["mac"] = mac_normalize(identity["mac"])

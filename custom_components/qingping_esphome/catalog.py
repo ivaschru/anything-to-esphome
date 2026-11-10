@@ -11,11 +11,15 @@ CATALOG = [
      "stock_versions": ["4.5.8"],
      "hardware_versions": ["0001"],
      "note": "BLE настраивает сеть, Home Assistant передаёт ESP32 app по локальной сети"},
+    {"id": "lite-434", "name": "Air Monitor Lite · stock 4.3.4", "model": "CGDN1", "platform": "ESP32",
+     "transport": "ble_mqtt", "installer": "beta", "firmware": "lite-434",
+     "stock_versions": ["4.3.4"], "hardware_versions": ["0001"],
+     "note": "Отдельная polling-only прошивка: PM OFF останавливает измерения, но не вентилятор. Первичная установка через BLE/MQTT экспериментальная"},
     {"id": "lite-mcu421", "name": "Air Monitor Lite · MCU 4.2.1", "model": "CGDN1", "platform": "ESP32 + MCU",
      "transport": "ble_mqtt", "installer": "in_development", "firmware": None,
      "stock_versions": ["4.2.1"], "hardware_versions": ["0001"],
      "note_key": "profile_mcu421",
-     "note": "Lite 4.2.1 использует отдельный MCU. Разбор пакетов подготовлен; запуск и питание ещё не восстановлены. Образ для прошивки пока недоступен"},
+     "note": "Отдельный MCU backend: UART receiver и raw decoder собраны; startup, шкалы, питание и экран ещё не квалифицированы. Образ для установки недоступен"},
     {"id": "monitor1-s8", "name": "Air Monitor 1 · S8", "model": "CGS1", "platform": "Linux ARMv7",
      "co2_type": 2, "transport": "usb_adb_then_noise", "installer": "source_only",
      "wizard": "experimental_usb", "installation_ready": False,
@@ -49,3 +53,17 @@ def admission(profile_id, model, stock_version):
     if model != profile["model"] or stock_version not in profile["stock_versions"]:
         raise InstallerError("identity_unsupported")
     return profile
+
+
+def factory_lite_profile(model, stock_version, hardware):
+    """Resolve one exact factory tuple, independently of caller/profile labels.
+
+    Both BLE transports use this same catalog. HW0001 alone cannot admit the
+    external-MCU family; its stock generations have no factory-write backend.
+    """
+    matches = [profile for profile in CATALOG if profile["id"].startswith("lite")
+               and profile.get("model") == model and stock_version in profile.get("stock_versions", ())
+               and hardware in profile.get("hardware_versions", ())]
+    if len(matches) != 1:
+        raise InstallerError("identity_unsupported")
+    return admission(matches[0]["id"], model, stock_version)

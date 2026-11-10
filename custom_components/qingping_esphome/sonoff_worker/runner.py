@@ -50,7 +50,7 @@ def main():
     spec = importlib.util.spec_from_file_location("sonoff_journal", COMPONENT / "sonoff_journal.py")
     journal = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(journal)
-    lease = journal.acquire(job)
+    lease = journal.inherited(job, request.get("lease_fd"))
     result = None
     children = []
     original_threads = frozenset(threading.enumerate())

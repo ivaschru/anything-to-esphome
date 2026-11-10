@@ -62,13 +62,14 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
-| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
-| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 6](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v6)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5)**, profile `lite-434`; experimental factory Bluetooth/MQTT selects only its own template; native updates stay independent |
+| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [UART receiver and strict raw decoder](ports/lite-mcu4x/) | In development; no installation image |
+| **Sonoff S60TPF**, stock 1.2.0, SN-ESP32C3-S60-01 | ESP32-C3 | Encrypted API, meter calibration, optional BLE proxy and native OTA | [Firmware 1](https://github.com/ivaschru/anything-to-esphome/tree/firmware-sonoff-s60tpf-v1); experimental eWeLink/LAN wizard with private factory backup/history/recovery |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
-| **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
+| **Monitor 2** | Separate Linux-host research | [Primary sources, ADB entry and remaining evidence](ports/monitor2/) | Unavailable |
 
 Firmware 5 / `lite` and firmware 4 / `lite-434` check their own release catalog and expose standard ESPHome firmware updates in Home Assistant. Subsequent updates do not require Qingping HACS or Device Builder. [Update contract](docs/NATIVE_FIRMWARE_UPDATES.md).
 

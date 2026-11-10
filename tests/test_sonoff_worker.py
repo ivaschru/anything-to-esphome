@@ -46,6 +46,8 @@ class SonoffWorkerTests(unittest.TestCase):
             request = {"format": "anything-sonoff-job-v2", "receipt_nonce": "a" * 32,
                        "device_id": "1000abcdef", "mac": "AA:BB:CC:11:22:33", "host": "192.168.1.33",
                        "lan_host": "192.168.1.2", "auth": {"at": "fixture-session-token"}, "region": "eu", "values": private}
+            from test_sonoff_journal import journal
+            request["lease_fd"] = journal.acquire(job)
             (job / "request.json").write_text(json.dumps(request))
             esphome = types.ModuleType("tools.autoflash.esphome")
             esphome.check_app = Mock(side_effect=lambda result, _: image.layout(result))

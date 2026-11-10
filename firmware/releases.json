@@ -1,10 +1,10 @@
 {
   "lite": {
-    "version": "2026.11.08-ui25-native5",
-    "revision": 6,
+    "version": "2026.11.10-ui25-sources6",
+    "revision": 7,
     "backend": "esp32-noise-app-v1",
     "minimum_integration": "0.2.1",
-    "summary": "Lite 4.5.8 / HW0001 firmware 5. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration. Bounded continuation after transient HTTP read timeout.",
-    "public_version": 5
+    "summary": "Lite 4.5.8 / HW0001 firmware 6. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. Guarded quiet PM mode.",
+    "public_version": 6
   }
 }

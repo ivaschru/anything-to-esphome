@@ -60,6 +60,18 @@ class ProfileTests(unittest.TestCase):
             self.assertNotIn(secret.encode(), response)
             self.assertNotIn(secret, repr(value))
 
+    def test_sources_generation_preserves_434_native_admission(self):
+        token="d"*32
+        changes={"profile":"lite-434","version":"2026.11.10-ui25-434sources5","revision":8,"public_version":5,"source_stock_version":"4.3.4"}
+        wire=sealed(token,changes=changes)
+        decoded=profile.decode_profile(wire,KEY,MAC,NAME,token,hardware_versions={changes["version"]:8})
+        self.assertEqual(decoded.public_version,5)
+        self.assertEqual(decoded.source_stock_version,"4.3.4")
+        with self.assertRaises(profile.ProfileError):
+            profile.decode_profile(wire,KEY,MAC,NAME,token)
+        with self.assertRaises(profile.ProfileError):
+            profile.decode_profile(sealed(token,changes={**changes,"profile":"lite"}),KEY,MAC,NAME,token,public_versions={changes["version"]:8})
+
     def test_original_generation_and_display_feed_are_not_guessed(self):
         token=secrets.token_hex(16)
         wire=sealed(token,changes={"version":"2026.11.07-ui25-quiet2","revision":3,"public_version":2,

@@ -40,7 +40,9 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         root.mkdir()
         template = fixture()
         (root / "lite-template.bin").write_bytes(template)
-        (root / "lite-template.json").write_text(json.dumps({"sha256": hashlib.sha256(template).hexdigest()}))
+        (root / "lite-template.json").write_text(json.dumps({"sha256": hashlib.sha256(template).hexdigest(),
+            "model": "CGDN1", "profile": "lite", "source_stock_version": "4.5.8", "hardware": "0001",
+            "pm_policy": "quiet-scd4x-window-v1", "format": "esp32-app-fixed-slots-v1", "size": len(template), "ui": "fixture", "public_version": 1}))
         data = {"profile": "lite", "model": "CGDN1", "stock_version": "4.5.8", "hardware": "0001",
                 "mac": "00:11:22:33:44:55", "usb": True,
                 "ssid": "test-network", "wifi_password": "fixture-wifi-password"}

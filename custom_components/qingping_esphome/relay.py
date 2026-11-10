@@ -120,6 +120,7 @@ class Session:
     # it in public(), repr(), WebSocket status or diagnostic logs.
     profile: str = "lite"
     firmware_version: str | None = None
+    public_version: int = 0
     template_sha256: str | None = None
     personalization: dict = field(default_factory=dict, repr=False)
 

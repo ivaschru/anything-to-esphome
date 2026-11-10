@@ -135,6 +135,22 @@ class SonoffHATests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(SonoffError): await self.sonoff.install("owner", {"selection": token})
         self.sonoff.runtime.launch.assert_not_awaited()
 
+    async def test_unload_after_private_file_io_cannot_spawn_a_new_writer(self):
+        from custom_components.qingping_esphome.sonoff_runtime import Runtime, private_write
+        job = Path(self.temp.name) / "unloaded-job"; job.mkdir()
+        active = True
+        async def execute(function, *args):
+            nonlocal active
+            result = function(*args)
+            if function is private_write:
+                active = False  # HA unload while request-file executor IO completes.
+            return result
+        runtime = Runtime(SimpleNamespace(async_add_executor_job=execute), job.parent, active=lambda: active)
+        with patch("custom_components.qingping_esphome.sonoff_runtime.asyncio.create_subprocess_exec", new=AsyncMock()) as spawn:
+            with self.assertRaises(Exception): await runtime.launch(job, {"format": "anything-sonoff-job-v2"})
+            spawn.assert_not_awaited()
+        self.assertTrue((job / "worker.lock").exists(), "Consumed history remains even without a spawned child")
+
     async def test_verified_conversion_survives_enrollment_failure(self):
         self.sonoff.records["job"] = {"state": "running"}
         self.sonoff.verify = AsyncMock()
