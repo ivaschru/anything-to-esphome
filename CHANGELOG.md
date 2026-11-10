@@ -1,8 +1,11 @@
 ## 0.3.1 – recovery, native Lite sources and factory 4.3.4
 
+- Keep native Lite URLs compatible with the original repository name compiled
+  into installed firmware. Repair only the mutable catalog's known URL alias,
+  preserving immutable app/tag bytes and independent Sonoff endpoints.
 - Port PR #43 onto current native OTA: six persistent HA display-source
   settings, independent local fallback and temporary 30-second night wake.
-  Stage independent Lite6/revision7 and lite-434v5/revision8 without changing
+  Add independent Lite6/revision7 and lite-434v5/revision8 without changing
   previous immutable releases or erasing the retained combined-feed slot.
 - Add experimental factory4.3.4 Bluetooth/MQTT routing to its own polling-only
   template, with independent server admission, no 4.5.8 fallback and exact

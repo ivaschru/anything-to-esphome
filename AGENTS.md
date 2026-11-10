@@ -8,6 +8,11 @@
   immutable Qingping catalog assets. Never edit frozen Lite source just for
   branding. After rename, both old native catalogs and immutable manifest were
   verified directly with HTTP 200 and redirects disabled on 2026-11-10.
+  Native Lite manifests retain the exact original repository URL compiled
+  into deployed firmware, even when the HACS index uses the new name. A known
+  bad post-rename sidecar stays immutable; --repair-native-url --publish uses
+  its own consumed intent to fix only the mutable native endpoint by catalog
+  CAS. Never replace app/tag bytes or relax the device's exact URL check.
 - Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
   SN-ESP32C3-S60-01 only. The full initial wizard is experimental until physical
   qualification. Reuse detached SonoffLAN in-memory snapshots; no .storage
