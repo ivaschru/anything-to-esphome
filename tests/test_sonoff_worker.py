@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -16,6 +17,19 @@ from test_sonoff import ROOT, device, fixture, image, values
 
 
 class SonoffWorkerTests(unittest.TestCase):
+    def test_terminal_wait_observes_original_children_without_terminating_them(self):
+        path = ROOT / "custom_components/qingping_esphome/sonoff_worker/runner.py"
+        spec = importlib.util.spec_from_file_location("sonoff_worker_lifetime", path)
+        runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        try:
+            with patch.object(runner.time, "monotonic", side_effect=[0, 6]):
+                self.assertFalse(runner.children_settled([child]))
+            self.assertIsNone(child.poll(), "An uncertain original child is observed, never killed by recovery")
+        finally:
+            child.terminate(); child.wait(timeout=5)
+        self.assertTrue(runner.children_settled([child], frozenset(runner.threading.enumerate())))
+
     def test_final_producer_is_repeatable_but_cannot_change_private_profile(self):
         path = ROOT / "custom_components/qingping_esphome/sonoff_worker/runner.py"
         spec = importlib.util.spec_from_file_location("sonoff_worker_fixture", path)
@@ -24,11 +38,13 @@ class SonoffWorkerTests(unittest.TestCase):
             job = Path(temporary); upstream = job / "upstream"; upstream.mkdir()
             component = job / "component"; (component / "firmware").mkdir(parents=True)
             shutil.copyfile(ROOT / "custom_components/qingping_esphome/sonoff_image.py", component / "sonoff_image.py")
+            shutil.copyfile(ROOT / "custom_components/qingping_esphome/sonoff_journal.py", component / "sonoff_journal.py")
             binary = fixture(); (component / "firmware/sonoff-s60tpf-template.bin").write_bytes(binary)
             (component / "firmware/sonoff-s60tpf-template.json").write_text(json.dumps({"sha256": hashlib.sha256(binary).hexdigest()}))
             private = {key: value.decode() for key, value in values().items() if key != "noise_psk"}
             private["noise_psk"] = base64.b64encode(values()["noise_psk"]).decode()
-            request = {"device_id": "1000abcdef", "mac": "AA:BB:CC:11:22:33", "host": "192.168.1.33",
+            request = {"format": "anything-sonoff-job-v2", "receipt_nonce": "a" * 32,
+                       "device_id": "1000abcdef", "mac": "AA:BB:CC:11:22:33", "host": "192.168.1.33",
                        "lan_host": "192.168.1.2", "auth": {"at": "fixture-session-token"}, "region": "eu", "values": private}
             (job / "request.json").write_text(json.dumps(request))
             esphome = types.ModuleType("tools.autoflash.esphome")
@@ -61,6 +77,10 @@ class SonoffWorkerTests(unittest.TestCase):
                 self.assertFalse((job / "request.json").exists())
                 self.assertFalse((job / "answers.env").exists())
                 self.assertTrue((job / "profile.json").exists())
+                receipt = json.loads((job / "terminal.json").read_text())
+                self.assertEqual(receipt["result"], 0)
+                self.assertEqual(receipt["nonce"], request["receipt_nonce"])
+                self.assertNotIn("fixture-session-token", json.dumps(receipt))
             finally:
                 os.chdir(previous); os.umask(mask)
 

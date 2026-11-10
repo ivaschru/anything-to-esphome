@@ -1,5 +1,13 @@
 ## Unreleased
 
+- Add owner-scoped Sonoff installation history, older backup access, bounded
+  diagnostics and read-only recovery through the original encrypted API key.
+  Preserve consumed attempts; a verified app is reconciled only after the
+  original worker/children have settled. Uncertain legacy attempts stay fenced.
+- Track original worker completion without PIDs or replay, avoid stale Store
+  writes after integration reload, and unblock unrelated plugs only with
+  positive completion evidence. Accept the renamed root of the unchanged,
+  SHA-pinned upstream archive without relaxing extraction checks.
 - Fix an intermittent release-CI failure in the composed Monitor 1 Noise
   fixture: its simulated positive END now falls strictly after sixty seconds
   for every floating-point clock origin. Keep production timing and freshness

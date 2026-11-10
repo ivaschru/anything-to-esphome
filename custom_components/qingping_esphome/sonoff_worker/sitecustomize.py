@@ -18,7 +18,7 @@ def install():
     if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077 or metadata.st_size > 65536:
         raise SystemExit("Invalid private Sonoff job")
     request = json.loads(path.read_text())
-    if request.get("format") != "anything-sonoff-job-v1":
+    if request.get("format") not in {"anything-sonoff-job-v1", "anything-sonoff-job-v2"}:
         raise SystemExit("Invalid Sonoff job contract")
     from tools import get_device_key as account
     original_devices = account.get_devices

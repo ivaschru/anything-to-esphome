@@ -56,11 +56,15 @@ def extract_archive(data, destination):
         members = archive.getmembers()
         if len(members) > 5000 or sum(m.size for m in members) > MAX_EXTRACTED:
             raise SonoffError("sonoff_runtime_failed")
-        prefix = "Sonoff-OTA-" + COMMIT
+        # GitHub renamed the pinned upstream repository to firmware-liberator.
+        # The original codeload URL still returns the same SHA-pinned bytes,
+        # whose tar root uses that new name. Admit only these two exact roots;
+        # never infer an arbitrary archive prefix or relax path/link checks.
+        prefixes = {name + COMMIT for name in ("Sonoff-OTA-", "firmware-liberator-")}
         entries = []
         for member in members:
             path = PurePosixPath(member.name)
-            if (not path.parts or path.parts[0] != prefix or ".." in path.parts
+            if (not path.parts or path.parts[0] not in prefixes or ".." in path.parts
                     or path.is_absolute() or not (member.isfile() or member.isdir())
                     or member.size > 32 * 1024 * 1024):
                 raise SonoffError("sonoff_runtime_failed")
@@ -131,9 +135,9 @@ class Runtime:
 def progress(job):
     """Read finite counters, never forward the raw upstream state/log/body."""
     for path in (Path(job) / "upstream/captures").glob("plugs/*/runs/*/autoflash-state.json"):
-        if path.is_symlink() or path.stat().st_size > 1048576:
-            continue
         try:
+            if path.is_symlink() or path.stat().st_size > 1048576:
+                continue
             value = json.loads(path.read_text())
             steps = value.get("steps", {})
             states = [v.get("status") for v in steps.values() if isinstance(v, dict)]

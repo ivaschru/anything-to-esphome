@@ -13,6 +13,20 @@ Monitor 2 has no verified firmware port yet.
 
 ## Sonoff S60TPF
 
+The installation history keeps each plug's original attempt, date, state and
+private backup reachable after page reloads. Select an older installation to
+download its backup or a diagnostics report. Diagnostics exclude account and
+Wi-Fi credentials, keys, IPs, names, MACs and raw engine logs; the separate
+factory backup contains secrets and must remain private.
+
+After an interrupted/lost installation response, **Check installed ESPHome**
+uses the original encrypted key, MAC, project and fresh measurements. You may
+enter a new local IP if DHCP changed it. This action does not reflash, toggle
+the relay/Bluetooth or create another HA entry. A positively finished original
+worker and matching app reconcile the attempt as verified. Missing completion
+evidence keeps an old/crashed attempt blocked; a free process lock alone is
+not proof. A consumed plug is never offered another initial conversion.
+
 Integration **0.3.0** adds **Sonoff → S60TPF** to the shared wizard. It first
 looks for devices and an authenticated session in the existing **SonoffLAN**
 integration, then discovers plugs on the local network. Without a compatible
@@ -70,7 +84,7 @@ network are not claimed to be verified on every profile.
 
 1. Open **⋮ → Custom repositories**, add
    `https://github.com/ivaschru/anything-to-esphome`, category **Integration**.
-2. Install the latest normal **Qingping ESPHome** release (`v0.1.2` or later).
+2. Install the latest normal **Anything to ESPHome** release (`v0.3.0` or later).
    Showing prereleases is not required. Use the release ZIP: a source checkout
    does not include the compiled firmware template.
 3. If already configured in **Settings → Devices & services**, open the panel;
@@ -105,11 +119,11 @@ ESPHome → Configure → Interface → Show in sidebar**. This does not stop th
 installer or restart its MQTT/HTTP listeners. Both controls change the same
 HA setting; it takes effect immediately and is retained after restart.
 
-With the item hidden, open **Settings → Devices & services → Qingping ESPHome
+With the item hidden, open **Settings → Devices & services → Anything to ESPHome
 → installer device → Visit**. The direct path on the same HA is
 `/qingping_esphome`. Administrator access is still required.
 
-The **Qingping ESPHome** service device is an installer shortcut, not a
+The **Anything to ESPHome** service device is an installer shortcut, not a
 physical monitor. Flashed monitors and their readings belong to the standard
 **ESPHome** integration. Older installer versions showing “0 devices” are normal.
 
@@ -225,7 +239,7 @@ checks settings and repeated real CO₂/raw T/raw RH readings. Bootloader,
 partition layout and NVS are not rewritten; there is no automatic rollback or
 claim of a complete firmware backup.
 
-Older installer records do not contain Wi-Fi/AP values. Use **Qingping ESPHome
+Older installer records do not contain Wi-Fi/AP values. Use **Anything to ESPHome
 → Configure → Prepare an older installation for updates** before installation
 is enabled. Enter the current Wi-Fi and explicitly choose the fallback AP
 credentials for the next update: the old random AP password cannot be recovered
@@ -243,7 +257,7 @@ presses cannot clear this guard.
 Starting with integration **0.2.0** and Lite firmware **1**
 (build identity **2026.11.07-ui25-profile1**), no installer-profile file needs to be moved.
 Add the monitor to the new HA's standard ESPHome integration with its existing
-API encryption key. Once connected, Qingping ESPHome recognizes the supported
+API encryption key. Once connected, Anything to ESPHome recognizes the supported
 firmware and automatically adds its update entity, normally within one minute.
 It reuses HA's connection and key, with no pairing reset or automatic flash.
 

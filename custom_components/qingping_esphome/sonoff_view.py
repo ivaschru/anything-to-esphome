@@ -5,6 +5,7 @@ URL, arbitrary path or raw engine log is exposed. Files are read into a bounded
 private archive only after the same HA administrator/owner checks as status.
 """
 import io
+import json
 from pathlib import Path
 import re
 import tarfile
@@ -12,6 +13,7 @@ import tarfile
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.components.http.const import KEY_HASS, KEY_HASS_USER
+from .sonoff_runtime import COMMIT
 
 
 def backup_archive(root):
@@ -63,3 +65,36 @@ class SonoffBackupView(HomeAssistantView):
         return web.Response(body=data, content_type="application/x-tar", headers={
             "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
             "Content-Disposition": 'attachment; filename="sonoff-s60tpf-private-backup.tar"'})
+
+
+class SonoffDiagnosticsView(HomeAssistantView):
+    """Export an explicit allowlist, never redact an arbitrary private log.
+
+    Diagnostics are still owner/admin-only. Account sessions, IP addresses,
+    request/profile files, Wi-Fi credentials, keys and engine output are never
+    read by this view. The backup remains a separate deliberately private file.
+    """
+    url = "/api/qingping_esphome/sonoff/{job}/diagnostics"
+    name = "api:qingping_esphome:sonoff_diagnostics"
+    requires_auth = True
+
+    async def get(self, request, job):
+        user = request.get(KEY_HASS_USER)
+        if not user or not user.is_admin or not re.fullmatch(r"[a-f0-9]{32}", job):
+            raise web.HTTPForbidden()
+        hass = request.app[KEY_HASS]
+        sonoff = getattr(hass.data.get("qingping_esphome"), "sonoff", None)
+        if not sonoff or sonoff.records.get(job, {}).get("owner") != user.id:
+            raise web.HTTPNotFound()
+        public = sonoff.public_job(job, user.id)
+        # Names/MACs are useful locally but unnecessary for a shareable report.
+        fields = ("state", "model", "enrollment", "recovery", "completed", "total",
+                  "created_at", "updated_at", "checked_at")
+        value = {"format": "anything-sonoff-diagnostics-v1", "engine_commit": COMMIT,
+                 **{key: public.get(key) for key in fields}}
+        observed = public.get("observed") or {}
+        value["observed"] = {key: observed[key] for key in ("relay", "voltage", "power", "firmware_version")
+                             if key in observed}
+        return web.Response(body=json.dumps(value, indent=2).encode(), content_type="application/json", headers={
+            "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": 'attachment; filename="sonoff-s60tpf-diagnostics.json"'})

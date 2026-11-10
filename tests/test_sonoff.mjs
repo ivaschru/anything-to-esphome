@@ -44,6 +44,7 @@ view._hass = {async callWS(message) {
     throw Error("reply disappeared after commit");
   }
   if (message.operation === "sonoff_login") return {devices: []};
+  if (message.operation === "sonoff_recover") return {...savedJob, state: "verified", writer_settled: true, recovery: "app_verified"};
   throw Error("Unexpected operation");
 }};
 view.initialize(); await new Promise(resolve => setImmediate(resolve));
@@ -77,6 +78,33 @@ const reloaded = new Component(); reloaded._hass = view._hass;
 reloaded.initialize(); await new Promise(resolve => setImmediate(resolve));
 assert.equal(reloaded.job, "verified-job", "Verified backup remains reachable after a page reload");
 assert.equal(reloaded.$("#another").hidden, false);
+const older = {job: "older-job", name: "<script>untrusted</script>", mac: "AA:BB:CC:11:22:44", state: "outcome_unknown", completed: 4, total: 11};
+reloaded.jobs.push(older); reloaded.renderHistory();
+assert.equal(reloaded.$("#history").children[1].textContent.includes("<script>"), true);
+reloaded.$("#history").value = older.job; reloaded.$("#history").onchange();
+assert.equal(reloaded.job, older.job, "Old installation and its backup remain independently reachable");
+reloaded.$("#recoveryHost").value = "192.168.1.44";
+const installsBeforeRecovery = calls.filter(call => call.operation === "sonoff_install").length;
+savedJob = older;
+await reloaded.recover();
+assert.equal(reloaded.state, "verified");
+assert.equal(calls.at(-1).operation, "sonoff_recover");
+assert.equal(calls.at(-1).data.job, older.job);
+assert.equal(calls.at(-1).data.host, "192.168.1.44");
+assert.equal(calls.filter(call => call.operation === "sonoff_install").length, installsBeforeRecovery);
+reloaded.lang = "ru"; reloaded.translate();
+assert.equal(reloaded.$("#history").value, older.job, "Language preserves selected installation");
+assert.equal(reloaded.$("#recoveryHost").value, "192.168.1.44");
+// An older status reply may not undo a deliberate history selection.
+let statusReply;
+reloaded.isConnected = true;
+const originalRPC = reloaded.rpc;
+reloaded.rpc = () => new Promise(resolve => { statusReply = resolve; });
+const pendingStatus = reloaded.poll();
+reloaded.showJob({job: "newer-job", name: "Newer", state: "verified", completed: 11, total: 11});
+statusReply(older); await pendingStatus;
+assert.equal(reloaded.job, "newer-job");
+reloaded.rpc = originalRPC;
 console.log("Sonoff selection, acknowledgements, language, private login and lost-response restoration passed");
 
 // A job restored by the hidden child must not trap the default brand page.

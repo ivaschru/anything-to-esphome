@@ -25,7 +25,8 @@ from .sonoff_discovery import Account, decrypt_advert, discover, sonoff_inventor
 from .sonoff_mdns import probe_target
 from .sonoff_policy import (MODEL, PROFILE, STOCK, SonoffError, canonical_mac,
                             lan_address, require_selection)
-from .sonoff_runtime import Runtime, private_write, progress
+from .sonoff_runtime import Runtime, progress
+from .sonoff_journal import settlement
 
 ROOT = Path(__file__).parent
 
@@ -86,6 +87,7 @@ class Sonoff:
         for value in self.records.values():
             if value.get("state") in {"preparing", "running", "verifying"}:
                 value["state"] = "outcome_unknown"
+        await self.store.async_save(self.records)
 
     async def stop(self):
         # No terminate()/cancel() of an active firmware writer on UI unload.
@@ -160,10 +162,16 @@ class Sonoff:
         if data.get("load_ack") is not True or data.get("power_loss_ack") is not True:
             raise SonoffError("sonoff_load_ack")
         device = require_selection(self.selections.get(data.get("selection")), owner)
-        if any(value.get("mac") == device.mac or value.get("state") in {"running", "verifying", "outcome_unknown"}
-               for value in self.records.values()):
+        if any(value.get("mac") == device.mac for value in self.records.values()):
             raise SonoffError("sonoff_busy")
         async with self.lock:
+            # Historical uncertainty about one plug does not block another
+            # after the original writer has positively settled. A free/missing
+            # lock or an arbitrary PID is never sufficient completion proof.
+            for job_id, previous in self.records.items():
+                if previous.get("state") in {"running", "verifying", "outcome_unknown"}:
+                    if not await self.writer_settled(job_id, previous):
+                        raise SonoffError("sonoff_busy")
             device, _ = await self.preflight(device)
             manifest_path = ROOT / "firmware/sonoff-s60tpf-template.json"
             binary_path = ROOT / "firmware/sonoff-s60tpf-template.bin"
@@ -180,6 +188,8 @@ class Sonoff:
             rule = await self.hass.async_add_executor_job(timezone_rule, self.hass.config.time_zone)
             job_id = secrets.token_hex(16)
             job = await self.runtime.prepare(job_id)
+            if not self.active:
+                raise SonoffError("sonoff_busy")
             noise = secrets.token_bytes(32)
             values = {"name": "s60-" + device.mac.replace(":", "").lower() + "-" + secrets.token_hex(7),
                       "noise_psk": base64.b64encode(noise).decode(),
@@ -187,21 +197,28 @@ class Sonoff:
                       "ap_ssid": "S60 Recovery " + device.mac.replace(":", "")[-6:],
                       # Slot zero is the calendar rule in this separate profile.
                       "display_feed_entity": rule, "source_stock_version": STOCK}
-            request = {"format": "anything-sonoff-job-v1", "device_id": device.device_id,
+            receipt_nonce = secrets.token_hex(16)
+            request = {"format": "anything-sonoff-job-v2", "receipt_nonce": receipt_nonce,
+                       "device_id": device.device_id,
                        "mac": device.mac, "host": device.host, "lan_host": self.manager.host,
                        "auth": device.auth, "region": device.region, "values": values}
             record = {"owner": owner, "mac": device.mac, "host": device.host, "name": device.name,
                       "state": "running", "consumed": True, "values": values,
-                      "bluetooth_proxy": data.get("bluetooth_proxy") is True}
+                      "bluetooth_proxy": data.get("bluetooth_proxy") is True,
+                      "receipt_nonce": receipt_nonce, "created_at": time.time(),
+                      "firmware_version": str(manifest.get("public_version", 1))}
             self.records[job_id] = record
             # Durable write precedes spawn. A failure from here onward remains
             # uncertain even when the HTTP/WebSocket reply never reaches HA UI.
             await self.store.async_save(self.records)
             try:
+                if not self.active:
+                    raise SonoffError("sonoff_outcome_unknown")
                 process = await self.runtime.launch(job, request)
             except Exception:
                 record["state"] = "outcome_unknown"
-                await self.store.async_save(self.records)
+                if self.active:
+                    await self.store.async_save(self.records)
                 raise SonoffError("sonoff_outcome_unknown") from None
             task = self.hass.async_create_background_task(self.watch(job_id, process), "S60TPF conversion")
             self.tasks.add(task)
@@ -215,8 +232,11 @@ class Sonoff:
                 result = await process.wait()
             if result != 0:
                 raise SonoffError("sonoff_outcome_unknown")
+            if record.get("receipt_nonce") and not await self.writer_settled(job_id, record):
+                raise SonoffError("sonoff_outcome_unknown")
             record["state"] = "verifying"
-            await self.store.async_save(self.records)
+            if self.active:
+                await self.store.async_save(self.records)
             await self.verify(record)
             record["state"] = "verified"
             # A failed HA config flow cannot undo a positively verified app.
@@ -229,9 +249,13 @@ class Sonoff:
         except BaseException:
             record["state"] = "outcome_unknown"
         finally:
-            await self.store.async_save(self.records)
+            record["updated_at"] = time.time()
+            # A removed integration's still-running watcher must not overwrite
+            # a newly loaded coordinator's durable recovery/history snapshot.
+            if self.active:
+                await self.store.async_save(self.records)
 
-    async def verify(self, record):
+    async def verify(self, record, *, apply_options=True):
         client = APIClient(record["host"], 6053, "", noise_psk=record["values"]["noise_psk"])
         try:
             await client.connect(login=True)
@@ -261,16 +285,69 @@ class Sonoff:
                     or not isinstance(relay, bool)
                     or not isinstance(calibration, str)
                     or not calibration.startswith(("stock NVS, factor ", "from backup, factor "))
-                    or firmware != "1"):
+                    or not isinstance(firmware, str) or not firmware.isdecimal()
+                    or int(firmware) < int(record.get("firmware_version", "1"))):
                 raise SonoffError("sonoff_outcome_unknown")
             # BLE is an explicit option; no advertisement subscription is
             # taken here because that would displace HA's one proxy consumer.
             bluetooth = by_name.get("Bluetooth Proxy")
-            if record["bluetooth_proxy"] and isinstance(bluetooth, SwitchInfo):
+            if apply_options and record["bluetooth_proxy"] and isinstance(bluetooth, SwitchInfo):
                 client.switch_command(bluetooth.key, True)
-            record["observed"] = {"relay": relay, "voltage": voltage, "power": power}
+            record["observed"] = {"relay": relay, "voltage": voltage, "power": power,
+                                  "firmware_version": firmware}
         finally:
             await client.disconnect(force=True)
+
+    async def writer_settled(self, job_id, record):
+        """Use original completion evidence, never a restartable worker handle."""
+        if record.get("state") == "verified":
+            return True
+        status = await self.hass.async_add_executor_job(
+            settlement, self.root / job_id, record.get("receipt_nonce"), record.get("mac"))
+        return status == "settled"
+
+    def owned_record(self, job_id, owner):
+        record = self.records.get(job_id) if isinstance(job_id, str) else None
+        if not record or record.get("owner") != owner:
+            raise SonoffError("sonoff_selection_expired")
+        return record
+
+    async def recover(self, owner, data):
+        """Observe the installed app and reconcile a settled job, without writes.
+
+        Recovery does not reflash, toggle the relay/BLE switch, enroll in HA or
+        clear consumption. A different DHCP address is accepted only after the
+        original Noise key, MAC, project and fresh typed readings all match.
+        Legacy/crashed writers without terminal proof retain outcome_unknown
+        even when the new app answers; their observed evidence is still useful.
+        """
+        job_id = data.get("job")
+        record = self.owned_record(job_id, owner)
+        if self.lock.locked() or record["state"] not in {"outcome_unknown", "verified"}:
+            raise SonoffError("sonoff_busy")
+        async with self.lock:
+            status = await self.hass.async_add_executor_job(
+                settlement, self.root / job_id, record.get("receipt_nonce"), record.get("mac"))
+            if status == "active":
+                raise SonoffError("sonoff_busy")
+            record["writer_settled"] = await self.writer_settled(job_id, record)
+            candidate = {**record, "host": lan_address(data.get("host") or record["host"])}
+            try:
+                async with asyncio.timeout(30):
+                    await self.verify(candidate, apply_options=False)
+            except Exception:
+                record["recovery"] = "app_unavailable"
+            else:
+                record["observed"] = candidate["observed"]
+                record["host"] = candidate["host"]
+                settled = await self.writer_settled(job_id, record)
+                record["recovery"] = "app_verified" if settled else "writer_unconfirmed"
+                if settled:
+                    record["state"] = "verified"
+                    record.setdefault("enrollment", "manual_flow_required")
+            record["checked_at"] = time.time()
+            await self.store.async_save(self.records)
+            return self.public_job(job_id, owner)
 
     async def enroll(self, record):
         existing = self.hass.config_entries.async_entries("esphome")
@@ -293,10 +370,12 @@ class Sonoff:
         return "manual_flow_required"
 
     def public_job(self, job_id, owner):
-        record = self.records.get(job_id)
-        if not record or record.get("owner") != owner:
-            raise SonoffError("sonoff_selection_expired")
+        record = self.owned_record(job_id, owner)
         return {"job": job_id, "state": record["state"], "name": record["name"],
+                "model": MODEL, "mac": record.get("mac"),
+                "created_at": record.get("created_at"), "updated_at": record.get("updated_at"),
+                "checked_at": record.get("checked_at"), "recovery": record.get("recovery"),
+                "writer_settled": record["state"] == "verified" or record.get("writer_settled") is True,
                 "enrollment": record.get("enrollment"), "observed": record.get("observed"),
                 **progress(self.root / job_id)}
 
@@ -313,7 +392,14 @@ class Sonoff:
             return await self.install(owner, data)
         if operation == "sonoff_status":
             return self.public_job(data.get("job"), owner)
+        if operation == "sonoff_recover":
+            return await self.recover(owner, data)
         if operation == "sonoff_jobs":
-            return {"jobs": [self.public_job(job, owner) for job, value in self.records.items()
-                             if value.get("owner") == owner][-128:]}
+            offset = data.get("offset", 0)
+            if type(offset) is not int or offset < 0:
+                raise SonoffError("sonoff_invalid_request")
+            jobs = [job for job, value in reversed(list(self.records.items())) if value.get("owner") == owner]
+            selected = jobs[offset:offset + 50]
+            return {"jobs": [self.public_job(job, owner) for job in selected],
+                    "next_offset": offset + 50 if len(jobs) > offset + 50 else None}
         raise SonoffError("sonoff_invalid_request")

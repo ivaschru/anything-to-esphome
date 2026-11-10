@@ -27,6 +27,11 @@ const TEXT = {
     template: "The matching S60TPF template is missing. Install the complete release ZIP.",
     enrolling: "HA enrollment", existing_entry_check_required: "Existing ESPHome entry needs review", created: "Added to ESPHome",
     manual_flow_required: "Add this verified device through the ESPHome integration", existing_or_pending_flow: "An ESPHome entry or flow already exists",
+    history: "Installation history", historyChoose: "Choose an installation", more: "Load older installations",
+    diagnostics: "Download diagnostics", recover: "Check installed ESPHome", recoveryHelp: "Reads the existing encrypted app. Does not flash again, toggle the relay or change Bluetooth settings. If DHCP changed its address, enter the current local IP.",
+    recoveryHost: "Current local IP (optional)", recovering: "Checking the original key, device identity and fresh measurements…",
+    app_verified: "Installed app verified; the original worker has finished.", app_unavailable: "Could not verify the installed app. Keep the backup and check power/network before another read-only check.",
+    writer_unconfirmed: "The app answers, but the original worker's completion is unconfirmed. The job remains blocked; no conversion was repeated.",
   },
   ru: {
     title: "Sonoff S60TPF", note: "Экспериментальная установка · только Wi-Fi S60TPF с заводской 1.2.0. Не отключайте питание во время установки.",
@@ -51,6 +56,11 @@ const TEXT = {
     template: "Нет подходящего шаблона S60TPF. Установите полный ZIP релиза.",
     enrolling: "Подключение в HA", existing_entry_check_required: "Нужно проверить существующий ESPHome entry", created: "Добавлено в ESPHome",
     manual_flow_required: "Добавьте проверенную розетку через интеграцию ESPHome", existing_or_pending_flow: "ESPHome entry или настройка уже существует",
+    history: "История установок", historyChoose: "Выберите установку", more: "Загрузить более ранние установки",
+    diagnostics: "Скачать диагностику", recover: "Проверить установленный ESPHome", recoveryHelp: "Читает уже установленную прошивку по защищённому API. Не прошивает повторно, не переключает реле и Bluetooth. Если DHCP сменил адрес, укажите текущий локальный IP.",
+    recoveryHost: "Текущий локальный IP (необязательно)", recovering: "Проверяем исходный ключ, устройство и свежие измерения…",
+    app_verified: "Установленная прошивка проверена, исходный worker завершён.", app_unavailable: "Не удалось проверить прошивку. Сохраните бэкап и проверьте питание и сеть перед следующей проверкой.",
+    writer_unconfirmed: "Прошивка отвечает, но завершение исходного worker не подтверждено. Попытка остаётся заблокированной, конверсия не повторялась.",
   },
 };
 
@@ -65,7 +75,8 @@ class SonoffInstaller extends HTMLElement {
   static get observedAttributes() { return ["lang"]; }
   set hass(value) { this._hass = value; if (this.isConnected && !this.initialized) this.initialize(); }
   get hass() { return this._hass; }
-  get busy() { return this.pending || ["running", "verifying", "outcome_unknown"].includes(this.state); }
+  get busy() { return this.pending || this.jobs?.some(job => ["running", "verifying"].includes(job.state)
+    || (job.state === "outcome_unknown" && !job.writer_settled)); }
   connectedCallback() {
     if (this.hass && !this.initialized) this.initialize();
     else if (this.initialized && this.job) this.poll();
@@ -77,7 +88,7 @@ class SonoffInstaller extends HTMLElement {
   $(selector) { return this.shadowRoot.querySelector(selector); }
 
   initialize() {
-    this.initialized = true; this.devices = []; this.state = "idle";
+    this.initialized = true; this.devices = []; this.jobs = []; this.state = "idle";
     this.attachShadow({mode: "open"});
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;font:inherit;color:inherit}*{box-sizing:border-box}[hidden]{display:none!important}
@@ -88,6 +99,7 @@ class SonoffInstaller extends HTMLElement {
       button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--primary-color,#087f8c);outline-offset:3px}details{margin:20px 0}summary{cursor:pointer;min-height:44px;padding:10px 0}
       .check{display:flex;align-items:flex-start;gap:10px;font-weight:400}.check input{flex:none;width:20px;height:20px;margin:3px 0}.error{color:var(--error-color,#b42318)}progress{width:100%;height:14px;accent-color:var(--primary-color,#087f8c)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:650px){.box{padding:20px}.grid{grid-template-columns:1fr}}
     </style><section class="box"><h2 data-t="title"></h2><p class="muted" data-t="note"></p>
+      <details id="historyBox" hidden><summary data-t="history"></summary><label for="history" data-t="historyChoose"></label><select id="history"></select><button id="more" data-t="more" hidden></button></details>
       <div id="setup"><button id="scan" data-t="find"></button><p id="message" role="status" aria-live="polite"></p>
         <label for="devices" data-t="devices"></label><select id="devices"></select>
         <details id="account"><summary data-t="account"></summary><p class="muted" data-t="accountHelp"></p><form id="login">
@@ -99,6 +111,7 @@ class SonoffInstaller extends HTMLElement {
         <button id="check" data-t="check" disabled></button>
         <div id="approval" hidden><label class="check"><input id="load" type="checkbox"><span data-t="load"></span></label><label class="check"><input id="power" type="checkbox"><span data-t="power"></span></label><label class="check"><input id="ble" type="checkbox"><span data-t="ble"></span></label><button id="install" class="primary" data-t="install" disabled></button></div>
       </div><div id="job" hidden aria-live="polite"><p id="state"></p><progress id="progress" max="100"></progress><p id="detail" class="muted"></p><button id="backup" data-t="backup"></button><p class="muted" data-t="backupHelp"></p><button id="another" data-t="another" hidden></button></div>
+      <div id="recovery" hidden><p class="muted" data-t="recoveryHelp"></p><label for="recoveryHost" data-t="recoveryHost"></label><input id="recoveryHost" inputmode="decimal" autocomplete="off" placeholder="192.168.1.100"><button id="recover" data-t="recover"></button><p id="recoveryResult" role="status" aria-live="polite"></p></div><button id="diagnostics" data-t="diagnostics" hidden></button>
       <p id="error" class="error" role="alert"></p></section>`;
     this.$("#scan").onclick = () => this.perform("sonoff_scan", {}, "finding", result => this.renderDevices(result));
     this.$("#login").onsubmit = event => {
@@ -121,7 +134,19 @@ class SonoffInstaller extends HTMLElement {
       power_loss_ack: this.$("#power").checked, bluetooth_proxy: this.$("#ble").checked,
     }, "preparing", result => { this.job = result.job; this.showJob(result); this.poll(); });
     this.$("#backup").onclick = () => this.downloadBackup();
+    this.$("#diagnostics").onclick = () => this.download("diagnostics", "sonoff-s60tpf-diagnostics.json");
+    this.$("#recover").onclick = () => this.recover();
+    this.$("#history").onchange = () => {
+      if (this.pending) return;
+      const job = this.jobs.find(value => value.job === this.$("#history").value);
+      if (job) { this.$("#recoveryHost").value = ""; this.error = null; this.showJob(job); this.poll(); }
+    };
+    this.$("#more").onclick = async () => {
+      try { await this.loadHistory(this.nextOffset); }
+      catch { this.error = "generic"; this.translate(); }
+    };
     this.$("#another").onclick = () => { this.job = null; this.state = "idle"; this.$("#job").hidden = true;
+      this.$("#recovery").hidden = true; this.$("#diagnostics").hidden = true;
       this.$("#setup").hidden = false; this.invalidate(); };
     this.translate(); this.renderDevices({devices: []}); this.restore();
   }
@@ -134,6 +159,7 @@ class SonoffInstaller extends HTMLElement {
     for (const input of this.shadowRoot.querySelectorAll("#setup input,#setup select,#setup button")) input.disabled = Boolean(this.pending || this.job);
     this.$("#check").disabled = Boolean(this.pending || this.job || !this.$("#devices").value);
     this.$("#install").disabled = Boolean(this.pending || this.job || !this.ready || !this.$("#load").checked || !this.$("#power").checked);
+    for (const selector of ["#history", "#more", "#recover", "#recoveryHost", "#another"]) this.$(selector).disabled = Boolean(this.pending);
   }
   renderDevices(result) {
     this.devices = result.devices || []; this.invalidate();
@@ -156,6 +182,8 @@ class SonoffInstaller extends HTMLElement {
       option.textContent = device ? `${device.name} · ${device.mac} · ${this.t(device.source === "sonoff" ? "source" : "cloud")}${device.host ? " · " + device.host : ""}` : this.t("choose");
     }
     if (this.job) this.$("#state").textContent = this.t(this.state);
+    this.$("#recoveryResult").textContent = this.recoveryMessage ? this.t(this.recoveryMessage) : "";
+    this.renderHistory();
     this.$("#progress").setAttribute("aria-label", this.t("running"));
   }
   async perform(operation, data, message, done) {
@@ -172,36 +200,75 @@ class SonoffInstaller extends HTMLElement {
   }
   showJob(value) {
     this.job = value.job; this.state = value.state;
+    const index = this.jobs.findIndex(job => job.job === value.job);
+    if (index < 0) this.jobs.unshift(value); else this.jobs[index] = value;
+    this.recoveryMessage = value.recovery;
     this.$("#setup").hidden = true; this.$("#job").hidden = false;
     this.$("#progress").value = value.completed * 100 / Math.max(1, value.total);
-    this.$("#detail").textContent = `${value.name} · ${value.completed}/${value.total}${value.enrollment ? " · " + this.t(value.enrollment) : ""}`;
-    this.$("#another").hidden = value.state !== "verified";
+    this.$("#detail").textContent = `${value.name}${value.mac ? " · " + value.mac : ""} · ${value.completed}/${value.total}${value.enrollment ? " · " + this.t(value.enrollment) : ""}`;
+    this.$("#another").hidden = !value.writer_settled && value.state !== "verified";
+    this.$("#recovery").hidden = !["verified", "outcome_unknown"].includes(value.state);
+    this.$("#diagnostics").hidden = false;
     this.controls(); this.translate();
   }
   async restore() {
     try {
-      const {jobs} = await this.rpc("sonoff_jobs");
+      await this.loadHistory(0);
       // Keep the last successful job reachable too: reloading the page must
       // not hide its private factory-backup download. Choose another plug
       // deliberately leaves this view without clearing the durable record.
-      const pending = jobs.filter(job => job.state !== "verified").at(-1) || jobs.at(-1);
+      const pending = this.jobs.find(job => job.state !== "verified") || this.jobs[0];
       if (pending) { this.showJob(pending); this.poll(); }
     } catch { /* A read failure never authorizes a repeated installation. */ }
+  }
+  renderHistory() {
+    this.$("#historyBox").hidden = !this.jobs.length;
+    const options = this.jobs.map(job => {
+      const option = document.createElement("option"); option.value = job.job;
+      const date = job.created_at ? new Date(job.created_at * 1000).toLocaleString(this.lang === "ru" ? "ru-RU" : "en-US") : "";
+      option.textContent = [job.name, job.mac, date, this.t(job.state)].filter(Boolean).join(" · ");
+      return option;
+    });
+    this.$("#history").replaceChildren(...options); this.$("#history").value = this.job || "";
+    this.$("#more").hidden = this.nextOffset == null;
+  }
+  async loadHistory(offset = 0) {
+    const result = await this.rpc("sonoff_jobs", {offset});
+    this.jobs = offset ? [...this.jobs, ...result.jobs.filter(job => !this.jobs.some(old => old.job === job.job))] : result.jobs;
+    this.nextOffset = result.next_offset; this.renderHistory();
+  }
+  async recover() {
+    if (this.pending || !this.job) return;
+    this.pending = true; this.error = null; this.recoveryMessage = "recovering"; this.controls(); this.translate();
+    const job = this.job;
+    try { this.showJob(await this.rpc("sonoff_recover", {job, host: this.$("#recoveryHost").value.trim()})); }
+    catch (error) { this.error = ERROR_KEYS[String(error?.code || "").replace(/^qingping_/, "")] || "generic"; }
+    finally { this.pending = false; this.controls(); this.translate(); }
   }
   async poll() {
     clearTimeout(this.timer);
     if (!this.job || !this.isConnected) return;
-    try { const result = await this.rpc("sonoff_status", {job: this.job}); this.showJob(result);
+    const job = this.job;
+    if (this.pending) { this.timer = setTimeout(() => this.poll(), 2000); return; }
+    try { const result = await this.rpc("sonoff_status", {job});
+      // Switching history or starting a recovery retires this read's right to
+      // redraw the page. A late status response never changes the chosen job.
+      if (this.job !== job) return;
+      if (this.pending) { this.timer = setTimeout(() => this.poll(), 2000); return; }
+      this.showJob(result);
       if (["verified", "outcome_unknown"].includes(result.state)) return;
     } catch { this.error = "generic"; this.translate(); return; }
     this.timer = setTimeout(() => this.poll(), 2000);
   }
   async downloadBackup() {
+    return this.download("backup", "sonoff-s60tpf-private-backup.tar");
+  }
+  async download(kind, filename) {
     try {
-      const response = await this.hass.fetchWithAuth(`/api/qingping_esphome/sonoff/${this.job}/backup`);
+      const response = await this.hass.fetchWithAuth(`/api/qingping_esphome/sonoff/${this.job}/${kind}`);
       if (!response.ok) throw new Error();
       const blob = await response.blob(); const url = URL.createObjectURL(blob);
-      const link = document.createElement("a"); link.href = url; link.download = "sonoff-s60tpf-private-backup.tar"; link.click();
+      const link = document.createElement("a"); link.href = url; link.download = filename; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { this.error = "generic"; this.translate(); }
   }

@@ -36,6 +36,23 @@
   HA/catalog/native suites and package checks. The C3 C++ stream tests use
   ASan/UBSan against Python and the actual public build. Compile the pinned
   S60TPF SDK and keep software QA distinct from physical installation/OTA QA.
+- Sonoff recovery is a read-only original-key/MAC/project/typed-reading check;
+  never toggle relay/BLE, enroll or reflash from it. A changed RFC1918 DHCP
+  address needs that same authenticated readback. Keep consumed history and
+  all original backup/profile material. The v2 worker owns an exclusive,
+  permanently consumed worker.lock and nonce/MAC-bound terminal receipt only
+  after engine return, original child exit, background-thread drainage and
+  ephemeral-file cleanup. Free lock/parent exit/PID alone is not settlement.
+  Missing/partial/legacy receipts remain uncertain. Positive settlement may
+  free unrelated plugs, never authorize re-conversion of the consumed MAC.
+  Old unloaded coordinators must not overwrite the new Store snapshot.
+  History is newest-first/owner-only in finite pages; every old job retains its
+  own backup. Diagnostics use an explicit field allowlist, no raw engine log,
+  account, IP, name, MAC, key, profile or request. Preserve EN/RU forms and
+  selected history across language changes; late poll replies cannot change
+  the selected job. Test actual kernel locks, typed API and admin/owner ACL.
+  The SHA-pinned upstream archive now has the exact firmware-liberator-COMMIT
+  root after its repository rename; retain strict full-SHA/path/link bounds.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,

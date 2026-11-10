@@ -11,22 +11,73 @@ import base64
 import importlib.util
 import json
 import os
+import subprocess
 import sys
+import threading
+import time
 
 COMPONENT = Path(__file__).parents[1]
+
+
+def children_settled(children, original_threads=()):
+    """Observe original child handles and drain threads without killing them.
+
+    Some upstream failures terminate a helper without waiting, and HTTP calls
+    can retain background threads. An engine return code alone cannot retire
+    those writers. Keep uncertain history unless all original children/threads
+    have actually ended within this finite grace period; never adopt a PID.
+    """
+    deadline = time.monotonic() + 5
+    for process in children:
+        try:
+            process.wait(timeout=max(0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            return False
+    for thread in threading.enumerate():
+        if thread is not threading.current_thread() and thread not in original_threads:
+            thread.join(max(0, deadline - time.monotonic()))
+            if thread.is_alive():
+                return False
+    return True
 
 
 def main():
     os.umask(0o077)
     job = Path.cwd().parent
     request = json.loads((job / "request.json").read_text())
+    # Load only the installed sibling module. Importing the HA package here
+    # would initialize unrelated integrations in this isolated GPL process.
+    spec = importlib.util.spec_from_file_location("sonoff_journal", COMPONENT / "sonoff_journal.py")
+    journal = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(journal)
+    lease = journal.acquire(job)
+    result = None
+    children = []
+    original_threads = frozenset(threading.enumerate())
+    original_popen = subprocess.Popen
+
+    class OwnedProcess(original_popen):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            children.append(self)
+
     try:
-        return run(job, request)
+        # Track actual handles inside this isolated process without changing
+        # the pinned engine's argv, transport, group or confirmation semantics.
+        subprocess.Popen = OwnedProcess
+        result = run(job, request)
+        return result
     finally:
         # Account authorization stays available to original engine children
         # only for this process lifetime, including a pre-write refusal.
-        (job / "answers.env").unlink(missing_ok=True)
-        (job / "request.json").unlink(missing_ok=True)
+        try:
+            (job / "answers.env").unlink(missing_ok=True)
+            (job / "request.json").unlink(missing_ok=True)
+            if type(result) is int and children_settled(children, original_threads):
+                journal.finish(job, request, result)
+        finally:
+            subprocess.Popen = original_popen
+            os.close(lease)
 
 
 def run(job, request):
