@@ -1,0 +1,60 @@
+{
+  "profile": "sonoff-s60tpf",
+  "model": "S60TPF",
+  "hardware": "SN-ESP32C3-S60-01",
+  "source_stock_version": "1.2.0",
+  "public_version": 1,
+  "revision": 1,
+  "qualification": "experimental-new-installer",
+  "upstream_commit": "37962db36b154269076afd223c11f11e2d1eb770",
+  "sha256": "308ebe80319ba5b207b3e669261a957bae3316d35d9800ce7776243a6b83753c",
+  "size": 1615968,
+  "chip": "ESP32-C3",
+  "slot_size": 2031616,
+  "source_sha256": "1d0e7a8a2d9e20f7a769d31c31a21eeefc4193fc023532a960b5ba9f5f6eb4ba",
+  "native_update": {
+    "format": "anything-native-update-v1",
+    "patches": [
+      [
+        80,
+        4
+      ],
+      [
+        20020,
+        4
+      ],
+      [
+        152876,
+        7
+      ],
+      [
+        152940,
+        6
+      ],
+      [
+        153004,
+        5
+      ],
+      [
+        153040,
+        3
+      ],
+      [
+        153104,
+        2
+      ],
+      [
+        153140,
+        1
+      ],
+      [
+        153176,
+        0
+      ],
+      [
+        153244,
+        8
+      ]
+    ]
+  }
+}

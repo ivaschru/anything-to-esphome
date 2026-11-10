@@ -1,0 +1,54 @@
+{
+  "format": "anything-native-update-v1",
+  "hardware": "SN-ESP32C3-S60-01",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      20020,
+      4
+    ],
+    [
+      152876,
+      7
+    ],
+    [
+      152940,
+      6
+    ],
+    [
+      153004,
+      5
+    ],
+    [
+      153040,
+      3
+    ],
+    [
+      153104,
+      2
+    ],
+    [
+      153140,
+      1
+    ],
+    [
+      153176,
+      0
+    ],
+    [
+      153244,
+      8
+    ]
+  ],
+  "profile": "sonoff-s60tpf",
+  "public_version": 1,
+  "revision": 1,
+  "sha256": "308ebe80319ba5b207b3e669261a957bae3316d35d9800ce7776243a6b83753c",
+  "size": 1615968,
+  "source_stock_version": "1.2.0",
+  "summary": "S60TPF firmware; experimental initial installer",
+  "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-sonoff-s60tpf-v1/sonoff-s60tpf-template.bin"
+}
