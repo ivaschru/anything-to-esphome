@@ -67,6 +67,9 @@ public initiator describe that primitive alone; the wizard composes its
 separately consumed coordinator and does not expose private actor operations.
 Pristine CGS1 hardware qualification remains outstanding; no readiness flag,
 Monitor 2 support, BLE support or physical result follows from host tests.
+Keep current README/build/recovery guides aligned with that wizard. Historical
+primitive-only notes do not mean the complete HACS workflow is unavailable;
+`source_only` describes private source-built distribution, not a missing UI.
 
 - Canonical `lite` firmware 5 and `lite-434` firmware 4 add device-owned native
   ESPHome UpdateEntity checks, independent of HACS/Device Builder. This is a

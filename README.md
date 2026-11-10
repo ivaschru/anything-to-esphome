@@ -89,8 +89,8 @@ network are not claimed to be verified on every profile.
    Showing prereleases is not required. Use the release ZIP: a source checkout
    does not include the compiled firmware template.
 3. If already configured in **Settings → Devices & services**, open the panel;
-   do not create a second entry. Otherwise choose **Add integration → Qingping
-   ESPHome**. The LAN address and ports are selected automatically. Only failed
+   do not create a second entry. Otherwise choose **Add integration → Anything
+   to ESPHome**. The LAN address and ports are selected automatically. Only failed
    address detection requires input. Overrides are available via **Configure**.
 4. Open the installer, select Lite, connect USB power and choose **Use Bluetooth
    from → This computer / phone** or **Home Assistant**. Mi Home is not required.
@@ -115,8 +115,8 @@ is remembered in this browser only. Changing language preserves the form and
 current installation. HA's own configuration dialogs use your HA profile language.
 
 Use **Page settings** beside the language picker → **Show in sidebar**, or open
-**Settings → Devices & services → Qingping
-ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
+**Settings → Devices & services → Anything
+to ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
 installer or restart its MQTT/HTTP listeners. Both controls change the same
 HA setting; it takes effect immediately and is retained after restart.
 
