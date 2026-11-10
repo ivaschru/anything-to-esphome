@@ -50,5 +50,5 @@
   "size": 1701264,
   "source_stock_version": "4.5.8",
   "summary": "Lite 4.5.8 / HW0001 firmware 6. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. Guarded quiet PM mode.",
-  "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-v6/lite-template.bin"
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v6/lite-template.bin"
 }
