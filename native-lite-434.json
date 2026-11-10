@@ -1,0 +1,54 @@
+{
+  "format": "qingping-native-update-v1",
+  "hardware": "0001",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      19296,
+      4
+    ],
+    [
+      270738,
+      8
+    ],
+    [
+      272122,
+      7
+    ],
+    [
+      272186,
+      6
+    ],
+    [
+      272250,
+      5
+    ],
+    [
+      272283,
+      3
+    ],
+    [
+      272347,
+      2
+    ],
+    [
+      272380,
+      1
+    ],
+    [
+      272415,
+      0
+    ]
+  ],
+  "profile": "lite-434",
+  "public_version": 5,
+  "revision": 8,
+  "sha256": "dd4f7374e70c24aa471e4a33195539a46e2e53d6a0c6d51eb2ae737e3cb90711",
+  "size": 1700064,
+  "source_stock_version": "4.3.4",
+  "summary": "Lite 4.3.4 / HW0001 firmware 5. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. PM OFF stops readings only; fan shutdown is not supported.",
+  "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.bin"
+}
