@@ -72,6 +72,11 @@ assert.equal(fresh.$("#password").value, "", "Password leaves the form immediate
 await new Promise(resolve => setImmediate(resolve));
 assert.equal(calls.at(-1).operation, "sonoff_login");
 assert.equal(calls.at(-1).data.password, "fixture-password");
+savedJob = {job: "verified-job", name: "Plug", state: "verified", completed: 11, total: 11};
+const reloaded = new Component(); reloaded._hass = view._hass;
+reloaded.initialize(); await new Promise(resolve => setImmediate(resolve));
+assert.equal(reloaded.job, "verified-job", "Verified backup remains reachable after a page reload");
+assert.equal(reloaded.$("#another").hidden, false);
 console.log("Sonoff selection, acknowledgements, language, private login and lost-response restoration passed");
 
 // A job restored by the hidden child must not trap the default brand page.

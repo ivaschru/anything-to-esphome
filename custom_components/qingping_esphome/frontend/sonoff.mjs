@@ -181,7 +181,10 @@ class SonoffInstaller extends HTMLElement {
   async restore() {
     try {
       const {jobs} = await this.rpc("sonoff_jobs");
-      const pending = jobs.filter(job => job.state !== "verified").at(-1);
+      // Keep the last successful job reachable too: reloading the page must
+      // not hide its private factory-backup download. Choose another plug
+      // deliberately leaves this view without clearing the durable record.
+      const pending = jobs.filter(job => job.state !== "verified").at(-1) || jobs.at(-1);
       if (pending) { this.showJob(pending); this.poll(); }
     } catch { /* A read failure never authorizes a repeated installation. */ }
   }
