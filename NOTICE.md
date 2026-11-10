@@ -25,3 +25,12 @@ the project does not bundle another copy of the ESPHome uploader or SDK.
 Roboto Condensed font: Google Fonts / Roboto Project Authors, SIL Open Font
 License1.1. Bundled original font and complete license are under ports/lite/fonts/.
 The system fonts used by the design mockup are not redistributed.
+
+## Sonoff S60TPF
+
+`ports/sonoff_s60/sonoff_s60.yaml` derives from adamsthws/Sonoff-OTA commit
+`37962db36b154269076afd223c11f11e2d1eb770`, GPL-3.0-only. Its full license is
+`ports/sonoff_s60/COPYING`. The separate `sonoff_worker` adapters are also
+GPL-3.0-only with their own COPYING. The MIT Home Assistant coordinator invokes
+that separately downloaded, SHA-pinned engine via a private process contract.
+No vendor firmware or personal backup is distributed by this repository.

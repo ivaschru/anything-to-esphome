@@ -31,7 +31,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_manual()
         # Selecting Add integration already starts the requested setup. There
         # is no reason for a second confirmation of values HA knows itself.
-        return self.async_create_entry(title="Qingping ESPHome", data=automatic_settings(host))
+        return self.async_create_entry(title="Anything to ESPHome", data=automatic_settings(host))
 
     async def async_step_manual(self, user_input=None):
         errors = {}
@@ -43,7 +43,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 data = automatic_settings(host)
                 data["automatic_network"] = False
-                return self.async_create_entry(title="Qingping ESPHome", data=data)
+                return self.async_create_entry(title="Anything to ESPHome", data=data)
         return self.async_show_form(step_id="manual", errors=errors, data_schema=vol.Schema({
             vol.Required("lan_host"): str,
         }))

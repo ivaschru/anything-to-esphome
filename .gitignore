@@ -1,4 +1,5 @@
 .venv/
+.venv-*/
 .build/
 __pycache__/
 *.pyc
@@ -17,3 +18,4 @@ ports/monitor1/build/
 ports/monitor1/.esphome/
 
 custom_components/qingping_esphome/firmware/lite-434-template.json
+custom_components/qingping_esphome/firmware/sonoff-s60tpf-template.json

@@ -1,3 +1,22 @@
+## 0.3.0 – Anything to ESPHome and Sonoff S60TPF
+
+- Rename the repository and installer to Anything to ESPHome. Preserve the
+  historical HA domain, entries, private journals and ZIP name, plus exact old
+  Qingping firmware URLs and immutable assets.
+- Add a brand selector and an experimental S60TPF stock1.2.0 wizard: HA mDNS
+  discovery, optional manual IP, detached device/session reuse from SonoffLAN
+  and private eWeLink sign-in when no compatible session is available.
+- Bind installation to fresh owned/cloud/encrypted-LAN identity, two explicit
+  initial-write/load acknowledgements and a durable one-use request. Keep the
+  pinned original conversion engine, private complete backup and meter
+  calibration. Reconcile lost responses through read-only owned job status.
+- Add an independently built ESP32-C3 app with encrypted ESPHome enrollment,
+  optional Bluetooth Proxy and native firmware update entity. Preserve private
+  configuration and calendar/DST rules through inactive-slot, SHA-verified OTA.
+- Add separate public-template build/reuse and atomic native-channel tooling.
+  Preserve Qingping endpoints and independent version counters. Full physical
+  qualification of the new wizard and its OTA transition remains outstanding.
+
 ## 0.2.11 – experimental browser USB installation
 
 - Connect the Monitor 1 computer WebUSB installer inside the single HACS

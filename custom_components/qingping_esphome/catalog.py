@@ -25,7 +25,16 @@ CATALOG = [
     {"id": "monitor2", "name": "Air Monitor 2", "model": "CGS2", "platform": "unverified",
      "transport": None, "installer": "unverified",
      "note": "Аппаратный профиль и установка ещё не подтверждены на приборе"},
+    {"id": "sonoff-s60tpf", "brand": "sonoff", "name": "S60TPF", "model": "S60TPF", "platform": "ESP32-C3",
+     "transport": "ewelink_lan", "installer": "experimental", "firmware": "sonoff-s60tpf",
+     "stock_versions": ["1.2.0"], "hardware_versions": ["SN-ESP32C3-S60-01"],
+     "note": "Experimental Wi-Fi conversion with private factory backup; native ESPHome firmware updates afterwards"},
 ]
+
+# Keep old profile IDs and admission contracts stable. A brand is navigation,
+# never permission to run a different hardware family's installation engine.
+for _profile in CATALOG:
+    _profile.setdefault("brand", "qingping")
 
 
 def admission(profile_id, model, stock_version):

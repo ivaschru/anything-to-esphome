@@ -1,0 +1,34 @@
+name: Sonoff firmware
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the immutable experimental S60TPF app and native endpoint
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: firmware-catalog
+  cancel-in-progress: false
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r ports/sonoff_s60/requirements.txt
+      - run: python tools/build_sonoff.py --reuse-published
+      - run: python -m unittest discover -s tests -p 'test_sonoff*.py' -v
+      - run: python tools/publish_sonoff.py
+      - if: inputs.publish
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python tools/publish_sonoff.py --publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sonoff-s60tpf-public-template
+          path: custom_components/qingping_esphome/firmware/sonoff-s60tpf-template.*

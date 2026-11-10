@@ -14,6 +14,8 @@ from .manager import DOMAIN, Manager
 from .network_setup import NetworkDetectionError
 from .monitor1 import Monitor1, Monitor1View
 from .errors import InstallerError, MESSAGES
+from .sonoff import Sonoff
+from .sonoff_policy import SonoffError
 
 NETWORK_KEYS = ("automatic_network", "lan_host", "http_port", "mqtt_port")
 
@@ -22,7 +24,7 @@ def register_installer_device(hass, entry):
     """One service card provides an origin-independent link to the panel."""
     return dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "installer")}, entry_type=dr.DeviceEntryType.SERVICE,
-        name="Qingping ESPHome", model="Firmware installer",
+        name="Anything to ESPHome", model="Firmware installer",
         configuration_url=f"homeassistant://{DOMAIN}")
 
 
@@ -30,7 +32,7 @@ def apply_sidebar(hass, show_sidebar):
     """Update navigation in place; never stop the broker or an active session."""
     panel = hass.data[frontend.DATA_PANELS][DOMAIN]
     frontend.async_register_built_in_panel(hass, component_name=panel.component_name,
-        frontend_url_path=DOMAIN, sidebar_title="Qingping ESPHome" if show_sidebar else None,
+        frontend_url_path=DOMAIN, sidebar_title="Anything to ESPHome" if show_sidebar else None,
         sidebar_icon="mdi:chip", config=panel.config, require_admin=True,
         show_in_sidebar=show_sidebar, update=True)
 
@@ -42,11 +44,24 @@ async def async_setup(hass, config):
 async def async_setup_entry(hass, entry):
     manager = Manager(hass, entry)
     manager.monitor1 = Monitor1(hass)
-    try: await manager.start()
+    manager.sonoff = Sonoff(manager)
+    try:
+        await manager.start()
+        await manager.sonoff.start()
     except NetworkDetectionError as error:
+        await manager.sonoff.stop()
+        await manager.stop()
         raise ConfigEntryNotReady("Could not detect the LAN address; integration network options are available") from error
     except OSError as error:
+        await manager.sonoff.stop()
+        await manager.stop()
         raise ConfigEntryNotReady("Could not open local ports; integration network options are available") from error
+    except BaseException:
+        # A private Sonoff journal read may fail after the shared listeners
+        # started. Retire those owned resources before HA retries setup.
+        await manager.sonoff.stop()
+        await manager.stop()
+        raise
     hass.data[DOMAIN] = manager
     try:
         return await _async_setup_loaded_entry(hass, entry, manager)
@@ -55,6 +70,7 @@ async def async_setup_entry(hass, entry):
         # or an owned update task alive when HA retries this config entry.
         hass.data.pop(DOMAIN, None)
         await manager.monitor1.stop()
+        await manager.sonoff.stop()
         await manager.stop()
         if DOMAIN in hass.data.get(frontend.DATA_PANELS, {}):
             frontend.async_remove_panel(hass, DOMAIN)
@@ -68,10 +84,12 @@ async def _async_setup_loaded_entry(hass, entry, manager):
             StaticPathConfig(f"/api/{DOMAIN}/static", str(Path(__file__).parent / "frontend"), cache_headers=False)
         ])
         register_ws(hass)
+        from .sonoff_view import SonoffBackupView
+        hass.http.register_view(SonoffBackupView())
         hass.http.register_view(Monitor1View())
         hass.data[marker] = True
     await panel_custom.async_register_panel(hass, frontend_url_path=DOMAIN,
-        webcomponent_name="qingping-installer-panel", sidebar_title="Qingping ESPHome",
+        webcomponent_name="qingping-installer-panel", sidebar_title="Anything to ESPHome",
         sidebar_icon="mdi:chip", module_url=f"/api/{DOMAIN}/static/panel.js", require_admin=True)
     apply_sidebar(hass, manager.settings.get("show_sidebar", True))
     # This is an explicit service device, not a physical Qingping monitor.
@@ -105,6 +123,7 @@ async def async_unload_entry(hass, entry):
         return False
     manager = hass.data.pop(DOMAIN)
     await manager.monitor1.stop()
+    await manager.sonoff.stop()
     await manager.stop()
     frontend.async_remove_panel(hass, DOMAIN)
     return True
@@ -121,7 +140,9 @@ def register_ws(hass):
             return
         try:
             operation = message["operation"]
-            if operation == "catalog": result = {"models": CATALOG}
+            if operation.startswith("sonoff_"):
+                result = await manager.sonoff.call(connection.user.id, operation, message.get("data", {}))
+            elif operation == "catalog": result = {"models": CATALOG, "brands": ["qingping", "sonoff"]}
             elif operation == "ble_scan": result = await manager.bluetooth.scan()
             elif operation == "ble_select": result = await manager.bluetooth.select(connection.user.id, message["address"])
             elif operation == "ble_provision": result = await manager.provision(message["session"], connection.user.id)
@@ -133,7 +154,7 @@ def register_ws(hass):
                 result = await manager.arm(message["session"], connection.user.id)
             else: raise InstallerError("invalid_request")
             connection.send_result(message["id"], result)
-        except InstallerError as error:
+        except (InstallerError, SonoffError) as error:
             connection.send_error(message["id"], "qingping_" + error.code, str(error))
         except ValueError:
             connection.send_error(message["id"], "qingping_invalid_request", MESSAGES["invalid_request"])
@@ -142,7 +163,8 @@ def register_ws(hass):
             connection.send_error(message["id"], "qingping_operation_failed", MESSAGES["operation_failed"])
     handler = websocket_api.websocket_command({
         vol.Required("type"): DOMAIN + "/command",
-        vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel", "ble_scan", "ble_select", "ble_provision"]),
+        vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel", "ble_scan", "ble_select", "ble_provision",
+                                           "sonoff_scan", "sonoff_login", "sonoff_select", "sonoff_install", "sonoff_status", "sonoff_jobs"]),
         vol.Optional("data"): dict,
         vol.Optional("session"): str,
         vol.Optional("address"): str,

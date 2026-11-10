@@ -51,6 +51,22 @@ class PackagePolicyTests(unittest.TestCase):
                 manifest["pm_policy"] = policy
             (firmware / "lite-template.bin").write_bytes(binary)
             (firmware / "lite-template.json").write_text(json.dumps(manifest))
+            # The multi-brand ZIP must carry an independently verified C3
+            # template too. Synthetic public app only; never a household image.
+            from test_sonoff import fixture, image
+            for name in ("tools/build_sonoff.py", "firmware/sonoff-release.json",
+                         "custom_components/qingping_esphome/sonoff_image.py"):
+                target = root / name; target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, target)
+            shutil.copytree(ROOT / "ports/sonoff_s60", root / "ports/sonoff_s60")
+            sonoff = runpy.run_path(str(root / "tools/build_sonoff.py"))
+            c3 = fixture()
+            (firmware / "sonoff-s60tpf-template.bin").write_bytes(c3)
+            (firmware / "sonoff-s60tpf-template.json").write_text(json.dumps({
+                "profile": "sonoff-s60tpf", "source_sha256": sonoff["source_digest"](),
+                "size": len(c3), "sha256": hashlib.sha256(c3).hexdigest(),
+                "native_update": {"format": "anything-native-update-v1", "patches": image.patch_table(c3)},
+            }))
             result = subprocess.run([sys.executable, str(root / "tools/package_release.py")],
                                     capture_output=True, text=True)
             archive = root / ".build/qingping_esphome.zip"

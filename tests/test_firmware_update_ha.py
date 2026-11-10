@@ -388,13 +388,14 @@ class FirmwareHAContracts(unittest.IsolatedAsyncioTestCase):
 
     async def test_setup_platform_failure_closes_owned_manager(self):
         from custom_components.qingping_esphome import async_setup_entry
-        fake = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
+        fake = SimpleNamespace(hass=self.hass, start=AsyncMock(), stop=AsyncMock())
         with patch("custom_components.qingping_esphome.Manager", return_value=fake), patch(
                 "custom_components.qingping_esphome._async_setup_loaded_entry",
                 AsyncMock(side_effect=RuntimeError("fixture platform failure"))):
             with self.assertRaisesRegex(RuntimeError, "fixture platform failure"):
                 await async_setup_entry(self.hass, SimpleNamespace())
         fake.stop.assert_awaited_once()
+        self.assertFalse(fake.sonoff.active)
         self.assertNotIn("qingping_esphome", self.hass.data)
 
 

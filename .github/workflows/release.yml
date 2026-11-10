@@ -18,6 +18,12 @@ jobs:
       # known source change still uses the pinned public-placeholder compiler;
       # dirty/missing source or failed download never selects another image.
       - run: python tools/prepare_release_template.py
+      # Separate SDK: changing Sonoff must never change the frozen Lite image.
+      - name: Prepare the S60TPF public template
+        run: |
+          python -m venv .build/sonoff-venv
+          .build/sonoff-venv/bin/pip install -r ports/sonoff_s60/requirements.txt
+          .build/sonoff-venv/bin/python tools/build_sonoff.py --reuse-published
       - name: Verify sealed profile across the actual C++ and Python implementations
         # The initial capability build supplies the exact SDK source tree.
         # Installer-only releases reuse the already-verified immutable pair.
@@ -32,7 +38,7 @@ jobs:
       - run: python tools/legacy_catalog.py
       - uses: actions/upload-artifact@v4
         with:
-          name: qingping-esphome
+          name: anything-to-esphome
           path: |
             .build/qingping_esphome.zip
             .build/legacy-feed/firmware-catalog.json
