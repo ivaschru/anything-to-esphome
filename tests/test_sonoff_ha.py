@@ -161,6 +161,32 @@ class SonoffHATests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["enrollment"], "manual_flow_required")
         self.assertIs(record["writer_settled"], True)
 
+    async def test_unloaded_watcher_only_reaps_its_original_child(self):
+        job, record = self.recovery_job(settled=True)
+        record["state"] = "running"
+        async def finished():
+            await self.sonoff.stop()
+            return 0
+        process = SimpleNamespace(wait=AsyncMock(side_effect=finished))
+        self.sonoff.verify = AsyncMock(); self.sonoff.enroll = AsyncMock()
+        await self.sonoff.watch(job, process)
+        process.wait.assert_awaited_once()
+        self.sonoff.verify.assert_not_awaited(); self.sonoff.enroll.assert_not_awaited()
+        self.sonoff.store.async_save.assert_not_awaited()
+
+    async def test_recovery_read_crossing_unload_cannot_promote_or_save_old_snapshot(self):
+        from custom_components.qingping_esphome.sonoff_policy import SonoffError
+        job, record = self.recovery_job(settled=True)
+        before = copy.deepcopy(record)
+        async def observed(candidate, *, apply_options):
+            self.assertFalse(apply_options)
+            candidate["observed"] = {"voltage": 230, "power": 0, "relay": False}
+            await self.sonoff.stop()
+        self.sonoff.verify = AsyncMock(side_effect=observed)
+        with self.assertRaises(SonoffError): await self.sonoff.recover("owner", {"job": job})
+        self.assertEqual(record, before)
+        self.sonoff.store.async_save.assert_not_awaited()
+
     def recovery_job(self, *, settled=False):
         job = "a" * 32
         record = {"owner": "owner", "state": "outcome_unknown", "name": "Private plug",
@@ -244,6 +270,15 @@ class SonoffHATests(unittest.IsolatedAsyncioTestCase):
         client.switch_command.assert_not_called()
         client.disconnect.assert_awaited_once_with(force=True)
         self.sonoff.runtime.launch.assert_not_awaited(); self.sonoff.enroll.assert_not_awaited()
+        # Normal verification must also notice unload during its awaited
+        # observations before applying a previously requested BLE option.
+        self.sonoff.active = True
+        async def unload_after_observation(_delay):
+            await self.sonoff.stop()
+        with patch("custom_components.qingping_esphome.sonoff.APIClient", return_value=client), \
+                patch("custom_components.qingping_esphome.sonoff.asyncio.sleep", new=AsyncMock(side_effect=unload_after_observation)):
+            await self.sonoff.verify(record)
+        client.switch_command.assert_not_called()
 
     async def test_recovery_keeps_legacy_uncertainty_and_refuses_wrong_owner_or_live_worker(self):
         from custom_components.qingping_esphome.sonoff_journal import acquire

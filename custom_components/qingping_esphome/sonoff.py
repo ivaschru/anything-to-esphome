@@ -233,15 +233,26 @@ class Sonoff:
         try:
             async with asyncio.timeout(2400):
                 result = await process.wait()
+            # Reap the original child after unload, but let the new manager's
+            # durable recovery own any later API checks/options/enrollment.
+            if not self.active:
+                return
             if result != 0:
                 raise SonoffError("sonoff_outcome_unknown")
-            record["writer_settled"] = await self.writer_settled(job_id, record)
-            if not record["writer_settled"]:
+            settled = await self.writer_settled(job_id, record)
+            if not self.active:
+                return
+            record["writer_settled"] = settled
+            if not settled:
                 raise SonoffError("sonoff_outcome_unknown")
             record["state"] = "verifying"
             if self.active:
                 await self.store.async_save(self.records)
+            if not self.active:
+                return
             await self.verify(record)
+            if not self.active:
+                return
             record["state"] = "verified"
             # A failed HA config flow cannot undo a positively verified app.
             # Keep enrollment as a separate outcome, without permitting a new
@@ -295,7 +306,7 @@ class Sonoff:
             # BLE is an explicit option; no advertisement subscription is
             # taken here because that would displace HA's one proxy consumer.
             bluetooth = by_name.get("Bluetooth Proxy")
-            if apply_options and record["bluetooth_proxy"] and isinstance(bluetooth, SwitchInfo):
+            if apply_options and self.active and record["bluetooth_proxy"] and isinstance(bluetooth, SwitchInfo):
                 client.switch_command(bluetooth.key, True)
             record["observed"] = {"relay": relay, "voltage": voltage, "power": power,
                                   "firmware_version": firmware}
@@ -325,26 +336,32 @@ class Sonoff:
         """
         job_id = data.get("job")
         record = self.owned_record(job_id, owner)
-        if self.lock.locked() or record["state"] not in {"outcome_unknown", "verified"}:
+        if not self.active or self.lock.locked() or record["state"] not in {"outcome_unknown", "verified"}:
             raise SonoffError("sonoff_busy")
         async with self.lock:
             status = await self.hass.async_add_executor_job(
                 settlement, self.root / job_id, record.get("receipt_nonce"), record.get("mac"))
-            if status == "active":
+            if not self.active or status == "active":
                 raise SonoffError("sonoff_busy")
-            record["writer_settled"] = await self.writer_settled(job_id, record)
+            settled = status == "settled"
             candidate = {**record, "host": lan_address(data.get("host") or record["host"])}
             try:
                 async with asyncio.timeout(30):
                     await self.verify(candidate, apply_options=False)
             except Exception:
-                record["recovery"] = "app_unavailable"
+                recovery = "app_unavailable"
             else:
+                settled = await self.writer_settled(job_id, record)
+                recovery = "app_verified" if settled else "writer_unconfirmed"
+            # The read can span unload/reload. Never promote an old snapshot
+            # or overwrite a replacement manager's newly consumed jobs.
+            if not self.active:
+                raise SonoffError("sonoff_busy")
+            record["writer_settled"] = settled
+            record["recovery"] = recovery
+            if recovery != "app_unavailable":
                 record["observed"] = candidate["observed"]
                 record["host"] = candidate["host"]
-                settled = await self.writer_settled(job_id, record)
-                record["writer_settled"] = settled
-                record["recovery"] = "app_verified" if settled else "writer_unconfirmed"
                 if settled:
                     record["state"] = "verified"
                     record.setdefault("enrollment", "manual_flow_required")
@@ -359,6 +376,8 @@ class Sonoff:
         flow = await self.hass.config_entries.flow.async_init("esphome", context={"source": "user"},
                                                              data={"host": record["host"], "port": 6053})
         for _ in range(4):
+            if not self.active:
+                return "manual_flow_required"
             if flow.get("type") == "create_entry":
                 return "created"
             if flow.get("type") == "abort":

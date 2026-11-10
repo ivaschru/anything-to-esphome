@@ -66,6 +66,9 @@
   A legacy verified app label is not worker completion. Check original terminal
   proof for every prior conversion before another plug's install, and never
   derive writer_settled from the UI/app state alone.
+  Read-only recovery must recheck active ownership after awaited API/journal
+  reads before promoting/saving a record. An unloaded watcher only reaps its
+  original child; it cannot start later option writes or HA enrollment.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,
