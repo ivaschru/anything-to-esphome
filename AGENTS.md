@@ -1016,6 +1016,10 @@ separate even though the HACS wizard is shared.
   not only the separate stop/return helpers. Its deterministic binade regression
   rebases the observation clock only after the actual Noise session closes;
   moving the socket deadline epoch before Noise IO invalidates the fixture.
+  Guardian stream timeout fixtures must advance their synthetic deadline only
+  after the exact sealed body is written. A real10ms shortcut can expire in
+  WebCrypto before OPEN under load, exercising a different guard. Keep both
+  missing-START and missing-remote-close cases and original production limits.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

@@ -12,6 +12,8 @@
   fixture: its simulated positive END now falls strictly after sixty seconds
   for every floating-point clock origin. Keep production timing and freshness
   limits unchanged, with a deterministic encrypted-protocol regression.
+  Drive the browser guardian's missing-response test deadlines only after
+  its sealed write, avoiding a second pre-OPEN/WebCrypto timing race in CI.
 
 ## 0.3.0 – Anything to ESPHome and Sonoff S60TPF
 
