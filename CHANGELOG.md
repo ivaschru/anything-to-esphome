@@ -16,6 +16,7 @@
   diagnostics and read-only recovery through the original encrypted API key.
   Preserve consumed attempts; a verified app is reconciled only after the
   original worker/children have settled. Uncertain legacy attempts stay fenced.
+  A historical verified-app label cannot bypass missing/live worker proof.
 - Track original worker completion without PIDs or replay, avoid stale Store
   writes after integration reload, and unblock unrelated plugs only with
   positive completion evidence. Accept the renamed root of the unchanged,

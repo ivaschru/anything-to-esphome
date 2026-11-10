@@ -58,6 +58,9 @@
   number cannot reopen/adopt it after restart: require the exact live private
   lock inode. Fail closed on adapter errors (ordinary sitecustomize exceptions
   would otherwise be ignored by Python). Test an actual surviving grandchild.
+  A legacy verified app label is not worker completion. Check original terminal
+  proof for every prior conversion before another plug's install, and never
+  derive writer_settled from the UI/app state alone.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,

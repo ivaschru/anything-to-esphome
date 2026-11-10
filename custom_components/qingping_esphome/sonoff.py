@@ -169,9 +169,12 @@ class Sonoff:
             # after the original writer has positively settled. A free/missing
             # lock or an arbitrary PID is never sufficient completion proof.
             for job_id, previous in self.records.items():
-                if previous.get("state") in {"running", "verifying", "outcome_unknown"}:
-                    if not await self.writer_settled(job_id, previous):
-                        raise SonoffError("sonoff_busy")
+                # Old versions could label an app verified after only the
+                # direct child exited. That label does not prove descendants
+                # stopped. Check every consumed job, including legacy verified
+                # records, against the original receipt and kernel lease.
+                if not await self.writer_settled(job_id, previous):
+                    raise SonoffError("sonoff_busy")
             device, _ = await self.preflight(device)
             manifest_path = ROOT / "firmware/sonoff-s60tpf-template.json"
             binary_path = ROOT / "firmware/sonoff-s60tpf-template.bin"
@@ -232,7 +235,8 @@ class Sonoff:
                 result = await process.wait()
             if result != 0:
                 raise SonoffError("sonoff_outcome_unknown")
-            if record.get("receipt_nonce") and not await self.writer_settled(job_id, record):
+            record["writer_settled"] = await self.writer_settled(job_id, record)
+            if not record["writer_settled"]:
                 raise SonoffError("sonoff_outcome_unknown")
             record["state"] = "verifying"
             if self.active:
@@ -300,8 +304,6 @@ class Sonoff:
 
     async def writer_settled(self, job_id, record):
         """Use original completion evidence, never a restartable worker handle."""
-        if record.get("state") == "verified":
-            return True
         status = await self.hass.async_add_executor_job(
             settlement, self.root / job_id, record.get("receipt_nonce"), record.get("mac"))
         return status == "settled"
@@ -341,6 +343,7 @@ class Sonoff:
                 record["observed"] = candidate["observed"]
                 record["host"] = candidate["host"]
                 settled = await self.writer_settled(job_id, record)
+                record["writer_settled"] = settled
                 record["recovery"] = "app_verified" if settled else "writer_unconfirmed"
                 if settled:
                     record["state"] = "verified"
@@ -375,7 +378,7 @@ class Sonoff:
                 "model": MODEL, "mac": record.get("mac"),
                 "created_at": record.get("created_at"), "updated_at": record.get("updated_at"),
                 "checked_at": record.get("checked_at"), "recovery": record.get("recovery"),
-                "writer_settled": record["state"] == "verified" or record.get("writer_settled") is True,
+                "writer_settled": record.get("writer_settled") is True,
                 "enrollment": record.get("enrollment"), "observed": record.get("observed"),
                 **progress(self.root / job_id)}
 

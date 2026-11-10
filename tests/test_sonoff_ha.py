@@ -152,12 +152,14 @@ class SonoffHATests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((job / "worker.lock").exists(), "Consumed history remains even without a spawned child")
 
     async def test_verified_conversion_survives_enrollment_failure(self):
-        self.sonoff.records["job"] = {"state": "running"}
+        job, record = self.recovery_job(settled=True)
+        record["state"] = "running"
         self.sonoff.verify = AsyncMock()
         self.sonoff.enroll = AsyncMock(side_effect=RuntimeError("config flow failed"))
-        await self.sonoff.watch("job", SimpleNamespace(wait=AsyncMock(return_value=0)))
-        self.assertEqual(self.sonoff.records["job"]["state"], "verified")
-        self.assertEqual(self.sonoff.records["job"]["enrollment"], "manual_flow_required")
+        await self.sonoff.watch(job, SimpleNamespace(wait=AsyncMock(return_value=0)))
+        self.assertEqual(record["state"], "verified")
+        self.assertEqual(record["enrollment"], "manual_flow_required")
+        self.assertIs(record["writer_settled"], True)
 
     def recovery_job(self, *, settled=False):
         job = "a" * 32
@@ -175,6 +177,45 @@ class SonoffHATests(unittest.IsolatedAsyncioTestCase):
                           "mac": record["mac"]}, 2)
             os.close(lease)
         return job, record
+
+    async def test_verified_label_never_bypasses_live_or_missing_terminal_proof(self):
+        from custom_components.qingping_esphome.sonoff_journal import acquire, finish
+        from custom_components.qingping_esphome.sonoff_policy import SonoffError
+        job, record = self.recovery_job()
+        record["state"] = "verified"  # A historical app result, not a lease receipt.
+        nonce = record.pop("receipt_nonce")  # v0.3.0 had no bound terminal receipt.
+        token, owned = self.choice()
+        owned.mac = "AA:BB:CC:44:55:66"  # A different plug must pass the fleet guard.
+        self.assertNotEqual(record["mac"], owned.mac)
+        self.sonoff.preflight = AsyncMock(side_effect=SonoffError("sonoff_unavailable"))
+        self.sonoff.runtime.launch = AsyncMock()
+        data = {"selection": token, "load_ack": True, "power_loss_ack": True}
+        self.assertFalse(self.sonoff.public_job(job, "owner")["writer_settled"])
+        with self.assertRaises(SonoffError) as refused:
+            await self.sonoff.install("owner", data)
+        self.assertEqual(refused.exception.code, "sonoff_busy")
+        self.sonoff.preflight.assert_not_awaited()
+
+        record["receipt_nonce"] = nonce
+        root = self.sonoff.root / job; root.mkdir(parents=True, mode=0o700)
+        lease = acquire(root)
+        try:
+            finish(root, {"format": "anything-sonoff-job-v2", "receipt_nonce": record["receipt_nonce"],
+                          "mac": record["mac"]}, 0)
+            # A valid receipt still cannot release a living original worker.
+            self.assertFalse(await self.sonoff.writer_settled(job, record))
+            with self.assertRaises(SonoffError) as refused:
+                await self.sonoff.install("owner", data)
+            self.assertEqual(refused.exception.code, "sonoff_busy")
+            self.sonoff.preflight.assert_not_awaited()
+        finally:
+            os.close(lease)
+        self.assertTrue(await self.sonoff.writer_settled(job, record))
+        with self.assertRaises(SonoffError) as allowed_preflight:
+            await self.sonoff.install("owner", data)
+        self.assertEqual(allowed_preflight.exception.code, "sonoff_unavailable")
+        self.sonoff.preflight.assert_awaited_once()
+        self.sonoff.runtime.launch.assert_not_awaited()
 
     async def test_recovery_uses_typed_fresh_api_without_switches_enrollment_or_reflash(self):
         from aioesphomeapi import SwitchInfo, SensorInfo, TextSensorInfo, UpdateInfo
