@@ -995,6 +995,10 @@ separate even though the HACS wizard is shared.
   shifts only a synthetic clock origin after real Noise callbacks, preserving
   identities, callback counts and relative wire age. Immediate/stale END
   rejection tests must continue to pass; never fix this by rounding production.
+  Apply the same strictly-later END to the composed run_guardian_trial fixture,
+  not only the separate stop/return helpers. Its deterministic binade regression
+  rebases the observation clock only after the actual Noise session closes;
+  moving the socket deadline epoch before Noise IO invalidates the fixture.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT

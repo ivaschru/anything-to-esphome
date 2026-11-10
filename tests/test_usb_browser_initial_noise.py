@@ -164,6 +164,8 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.subscribed = False
         install_wire_delivery_fixture(self, module)
         self.composed_end_at = None
+        self.composed_origin = None
+        self.composed_running = None
         self.base_answer = self.f.answer
         self.base_exchange = self.f.f.exchange
         self.f.f.f.b.service.exchange.side_effect = self.exchange
@@ -324,6 +326,15 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
             self.f.b.cap.answer({'id': frame['id'], 'ok': True, 'data': first})
             return
         if op == 'guardian-finish' and self.composed_end_at is not None:
+            if self.composed_origin is not None:
+                # Rebase only AFTER the real Noise session has closed. Its
+                # socket deadlines must continue using the real event-loop
+                # epoch. Keep wire age unchanged in this synthetic END case.
+                running = self.composed_running
+                wire = running._wire_observation
+                elapsed = wire._last_sample_at - running.issued_at
+                running._issued_at = self.composed_origin
+                wire._last_sample_at = self.composed_origin + elapsed
             self.clock = self.composed_end_at  # Test-only device wait; no production sleep/clock override.
         if op not in ('api-open', 'api-read', 'api-write', 'api-close'):
             return await self.base_answer(frame)
@@ -568,11 +579,35 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_private_composition_runs_original_grant_through_real_noise_and_actor_record(self):
+        await self.composed_trial()
+
+    async def test_composed_positive_end_crossing_float_binade_is_not_an_early_stop(self):
+        # This origin deterministically reproduces the composed fixture's CI
+        # failure: adding sixty rounds so subtraction is strictly less than
+        # sixty. The real production minimum must keep refusing an early END.
+        origin = 7.999999999999991
+        self.assertLess((origin + 60.0) - origin, 60.0)
+        await self.composed_trial(synthetic_origin=origin)
+
+    async def composed_trial(self, *, synthetic_origin=None):
         await self.flow(prepared_only=True)
+        self.composed_origin = synthetic_origin
         guardian = fixtures.fixtures.joins.guardian
-        self.composed_end_at = self.clock + 60
+        # The all-in-one coordinator used to retain this one exact-boundary
+        # clock even after the separate stop fixtures were fixed. Move only
+        # the positive simulated END to the next representable instant, so
+        # production still receives at least sixty elapsed seconds on every
+        # clock origin. Immediate/stale END refusal remains unchanged.
+        origin = self.clock if synthetic_origin is None else synthetic_origin
+        self.composed_end_at = math.nextafter(origin + 60.0, math.inf)
+        original_start = guardian.start_guardian
+        async def remember_running(ram):
+            running = await original_start(ram)
+            self.composed_running = running
+            return running
         with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait), \
-                patch.object(guardian, 'time', SimpleNamespace(monotonic=lambda: self.clock)):
+                patch.object(guardian, 'time', SimpleNamespace(monotonic=lambda: self.clock)), \
+                patch.object(guardian, 'start_guardian', remember_running):
             result = await guardian.run_guardian_trial(self.ram)
         self.assertEqual(result['state'], 'browser_initial_trial_stopped_observed')
         self.assertFalse(result['installed'])

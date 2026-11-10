@@ -1,3 +1,10 @@
+## Unreleased
+
+- Fix an intermittent release-CI failure in the composed Monitor 1 Noise
+  fixture: its simulated positive END now falls strictly after sixty seconds
+  for every floating-point clock origin. Keep production timing and freshness
+  limits unchanged, with a deterministic encrypted-protocol regression.
+
 ## 0.3.0 – Anything to ESPHome and Sonoff S60TPF
 
 - Rename the repository and installer to Anything to ESPHome. Preserve the
