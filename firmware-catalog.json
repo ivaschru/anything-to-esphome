@@ -37,25 +37,29 @@
         {
           "revision": 3,
           "version": "2026.11.07-ui25-quiet2"
+        },
+        {
+          "revision": 6,
+          "version": "2026.11.08-ui25-native5"
         }
       ],
       "backend": "esp32-noise-app-v1",
       "image": {
-        "sha256": "f7a3e4f173b31e6495bfe83a4c466f7df371f916bbf2e42da4426248a1f23d37",
-        "size": 1693536,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v5/lite-template.bin"
+        "sha256": "9759fc0ab7c1cb75ec3713bf22b253e573c5427d280c80b4c61ad9ab405a0685",
+        "size": 1701264,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-v6/lite-template.bin"
       },
       "manifest": {
-        "sha256": "5a31ecc135830232215e25294b6390372ee6d2258b060e78f2c78d9d9115df9c",
-        "size": 1245,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-v5/lite-template.json"
+        "sha256": "02f2d7ff1eb6a5070d56663e8fd067c781e7cced20bb849a3a826bf38093e80b",
+        "size": 1324,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-v6/lite-template.json"
       },
       "minimum_integration": "0.2.2",
-      "public_version": 5,
-      "release_url": "https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v5",
-      "revision": 6,
-      "summary": "Lite 4.5.8 / HW0001 firmware 5. Guarded quiet PM mode and native ESPHome firmware updates without the Qingping HACS integration. Bounded continuation after transient HTTP read timeout.",
-      "version": "2026.11.08-ui25-native5"
+      "public_version": 6,
+      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v6",
+      "revision": 7,
+      "summary": "Lite 4.5.8 / HW0001 firmware 6. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. Guarded quiet PM mode.",
+      "version": "2026.11.10-ui25-sources6"
     }
   },
   "runtime_releases": {
