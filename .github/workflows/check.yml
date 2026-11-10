@@ -24,6 +24,7 @@ jobs:
       - run: node tests/test_i18n.mjs
       - run: node tests/test_ha_transport.mjs
       - run: node tests/test_sidebar_settings.mjs
+      - run: node tests/test_sonoff.mjs
       - run: node tests/test_usb_probe.mjs
       - run: node tests/test_usb_native_channel.mjs
       - run: node tests/test_usb_native_stage.mjs
@@ -156,6 +157,21 @@ jobs:
         with:
           category: integration
           ignore: brands
+
+  sonoff-firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r ports/sonoff_s60/requirements.txt
+      - run: python tools/build_sonoff.py --reuse-published
+      - run: python -m unittest discover -s tests -p 'test_sonoff*.py' -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sonoff-s60tpf-public-template
+          path: custom_components/qingping_esphome/firmware/sonoff-s60tpf-template.*
 
   usb-companion:
     runs-on: ubuntu-latest

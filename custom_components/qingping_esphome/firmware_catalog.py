@@ -11,7 +11,9 @@ from dataclasses import dataclass
 import re
 from urllib.parse import urlsplit
 
-REPOSITORY = "ivaschru/qingping-esphome"
+REPOSITORY = "ivaschru/anything-to-esphome"
+LEGACY_REPOSITORY = "ivaschru/qingping-esphome"
+REPOSITORIES = (REPOSITORY, LEGACY_REPOSITORY)
 LEGACY_CATALOG_URL = f"https://github.com/{REPOSITORY}/releases/latest/download/firmware-catalog.json"
 CATALOG_BRANCH = "firmware-catalog"
 CATALOG_URL = f"https://raw.githubusercontent.com/{REPOSITORY}/{CATALOG_BRANCH}/firmware-catalog.json"
@@ -58,8 +60,11 @@ def asset_url(value, *, filename=None, profile=None):
     parsed = urlsplit(value)
     if parsed.scheme != "https" or parsed.query or parsed.fragment:
         raise FirmwareError("invalid_asset_url")
-    legacy = f"/{REPOSITORY}/releases/download/"
-    raw = f"/{REPOSITORY}/"
+    repository = next((repo for repo in REPOSITORIES if parsed.path.startswith(f"/{repo}/")), None)
+    if repository is None:
+        raise FirmwareError("invalid_asset_url")
+    legacy = f"/{repository}/releases/download/"
+    raw = f"/{repository}/"
     if parsed.netloc == "github.com" and parsed.path.startswith(legacy):
         pieces = parsed.path[len(legacy):].split("/")
         valid = len(pieces)==2 and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+",pieces[0])
@@ -128,14 +133,14 @@ class Release:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", minimum):
             raise FirmwareError("invalid_catalog")
         release_url = _text(data.get("release_url"), maximum=512)
-        legacy_url = re.fullmatch(r"https://github\.com/ivaschru/qingping-esphome/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+", release_url)
+        legacy_url = any(re.fullmatch(rf"https://github\.com/{re.escape(repo)}/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+", release_url) for repo in REPOSITORIES)
         public_number = _positive(data["public_version"],2**53-1) if "public_version" in data else None
         tag = firmware_tag(profile,public_number) if public_number is not None else None
-        independent_url = f"https://github.com/{REPOSITORY}/tree/{tag}"
-        if not legacy_url and release_url != independent_url:
+        repository = next((repo for repo in REPOSITORIES if release_url == f"https://github.com/{repo}/tree/{tag}"), None)
+        if not legacy_url and repository is None:
             raise FirmwareError("invalid_catalog")
         if not legacy_url:
-            expected = f"https://raw.githubusercontent.com/{REPOSITORY}/{tag}/"
+            expected = f"https://raw.githubusercontent.com/{repository}/{tag}/"
             if (data.get("image",{}).get("url") != expected+stem+".bin"
                     or data.get("manifest",{}).get("url") != expected+stem+".json"):
                 raise FirmwareError("invalid_asset_url")

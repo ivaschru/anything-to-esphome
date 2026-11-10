@@ -1,0 +1,10 @@
+{
+  "profile": "sonoff-s60tpf",
+  "model": "S60TPF",
+  "hardware": "SN-ESP32C3-S60-01",
+  "source_stock_version": "1.2.0",
+  "public_version": 1,
+  "revision": 1,
+  "qualification": "experimental-new-installer",
+  "upstream_commit": "37962db36b154269076afd223c11f11e2d1eb770"
+}

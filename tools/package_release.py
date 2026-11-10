@@ -18,6 +18,17 @@ assert hashlib.sha256((source / "firmware/lite-template.bin").read_bytes()).hexd
 # binary explicitly instead of silently shipping an obsolete rail/driver pair.
 assert manifest.get("pm_policy") == POLICY, "Rebuild the public Lite template with the current PM policy"
 assert manifest.get("pm_source_sha256") == pm_digest(ROOT), "Template PM source does not match this release"
+# S60TPF owns a different chip/layout and source closure. Never ship a ZIP
+# whose brand selector works while its app is missing or silently stale.
+sonoff = runpy.run_path(str(ROOT / "tools/build_sonoff.py"))
+sonoff_image = sonoff["image_module"]()
+sonoff_binary = (source / "firmware/sonoff-s60tpf-template.bin").read_bytes()
+sonoff_manifest = json.loads((source / "firmware/sonoff-s60tpf-template.json").read_text())
+assert sonoff_manifest.get("profile") == "sonoff-s60tpf", "S60TPF profile missing"
+assert sonoff_manifest.get("source_sha256") == sonoff["source_digest"](), "S60TPF template source differs"
+assert sonoff_manifest.get("size") == len(sonoff_binary), "S60TPF template size differs"
+assert sonoff_manifest.get("sha256") == hashlib.sha256(sonoff_binary).hexdigest(), "S60TPF template SHA differs"
+assert sonoff_manifest.get("native_update") == {"format": "anything-native-update-v1", "patches": sonoff_image.patch_table(sonoff_binary)}, "S60TPF native slots differ"
 target = ROOT / ".build/qingping_esphome.zip"
 target.parent.mkdir(exist_ok=True)
 # HACS zip_release expects the integration files at the archive root.

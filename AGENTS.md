@@ -1,4 +1,41 @@
-# Qingping ESPHome
+# Anything to ESPHome
+
+
+- The historical `qingping_esphome` domain, routes, Store keys, service device
+  identifier, language key and HACS ZIP filename are compatibility contracts.
+  The canonical repository is now `ivaschru/anything-to-esphome`. Accept only
+  this exact repository and the original `ivaschru/qingping-esphome` for old
+  immutable Qingping catalog assets. Never edit frozen Lite source just for
+  branding. After rename, both old native catalogs and immutable manifest were
+  verified directly with HTTP 200 and redirects disabled on 2026-11-10.
+- Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
+  SN-ESP32C3-S60-01 only. The full initial wizard is experimental until physical
+  qualification. Reuse detached SonoffLAN in-memory snapshots; no .storage
+  credential scraping, integration reload, entity replacement or account-password
+  copying. Otherwise explicit eWeLink login stays ephemeral/private in HA.
+  mDNS or a manual RFC1918 IP only locates a candidate; require fresh owned
+  cloud identity and encrypted LAN readback before consumption and child start.
+- The SHA-pinned GPL Sonoff-OTA engine runs in a separate private process with
+  a finite request file, fixed argv and no secrets in argv/environment/public
+  status. Keep original validators, backup, locks and readbacks. Consume a
+  durable owner-bound intent before the one spawn. Restart, timeout or lost
+  response must never resume/replay a conversion. Retain private stock/eFuse
+  and recovery profile; expose backups only to the owning HA admin. Enrollment
+  failure after verified firmware is a separate HA outcome, never a new write.
+- Sonoff native OTA uses the existing inactive 0x1f0000 app slot, encrypted API,
+  strict TLS, fixed immutable URLs, full original SHA and a consumed journal.
+  Native checks are automatic; installation is explicit. Preserve all nine
+  private slots. Slot0 encodes the pinned ESPHome SDK's parsed calendar as 32
+  explicit little-endian bytes in 64 hex characters (future DST included), not
+  a display entity. Do not use removed RTC set_timezone/libc TZ setters.
+  `tools/build_sonoff.py --reuse-published` reuses an exact source-matched
+  immutable pair; changing a published source requires increasing counters.
+  Sonoff/Lite publishers preserve every other native endpoint. The ordinary
+  Qingping index is unchanged by Sonoff staging. Keep separate SDKs/licensing.
+- Run test_sonoff*.py with the real supported HA SDK, test_sonoff.mjs, existing
+  HA/catalog/native suites and package checks. The C3 C++ stream tests use
+  ASan/UBSan against Python and the actual public build. Compile the pinned
+  S60TPF SDK and keep software QA distinct from physical installation/OTA QA.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,

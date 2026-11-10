@@ -1,6 +1,6 @@
 {
   "domain": "qingping_esphome",
-  "name": "Qingping ESPHome",
+  "name": "Anything to ESPHome",
   "codeowners": [
     "@ivaschru"
   ],
@@ -12,12 +12,13 @@
     "http",
     "network",
     "panel_custom",
-    "websocket_api"
+    "websocket_api",
+    "zeroconf"
   ],
-  "documentation": "https://github.com/ivaschru/qingping-esphome",
+  "documentation": "https://github.com/ivaschru/anything-to-esphome",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/ivaschru/qingping-esphome/issues",
+  "issue_tracker": "https://github.com/ivaschru/anything-to-esphome/issues",
   "requirements": [],
-  "version": "0.2.11"
+  "version": "0.3.0"
 }

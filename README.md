@@ -1,8 +1,8 @@
-# Qingping → ESPHome
+# Anything → ESPHome
 
 **English** · [Русский](README.ru.md)
 
-One project for **Air Monitor Lite, Air Monitor 1 and Air Monitor 2**: firmware
+One project for **Qingping Air Monitor Lite, Air Monitor 1, Air Monitor 2 and Sonoff S60TPF**: firmware
 sources, hardware profiles and a shared Home Assistant installer.
 
 **The wizard is experimental.** A complete browser installation was verified
@@ -10,6 +10,27 @@ on 6 November 2026 on Lite / CGDN1, stock `4.5.8`, HW `0001`: Bluetooth setup,
 local image delivery, ESPHome startup, HA enrollment and live CO₂/T/RH.
 This evidence applies to that profile. Monitor 1 ports were tested separately;
 Monitor 2 has no verified firmware port yet.
+
+## Sonoff S60TPF
+
+Integration **0.3.0** adds **Sonoff → S60TPF** to the shared wizard. It first
+looks for devices and an authenticated session in the existing **SonoffLAN**
+integration, then discovers plugs on the local network. Without a compatible
+session, sign into the owning **eWeLink** account in the wizard; it obtains the
+device key automatically. An optional IP field helps when discovery is blocked.
+No manual device-key entry or separate Sonoff integration is required.
+
+The initial path supports **Wi-Fi S60TPF, stock 1.2.0, UIID 190,
+SN-ESP32C3-S60-01** only. It saves a private full factory/eFuse backup, preserves
+meter calibration, installs an encrypted ESPHome app and enrolls it in HA.
+Bluetooth Proxy is optional. Firmware updates appear through ESPHome's native
+**Firmware** entity: checks are automatic; installation needs a user action.
+The complete new wizard is experimental and still needs physical qualification.
+Read [S60TPF support and recovery](docs/SONOFF_S60TPF.md) before installation.
+
+The repository was renamed from `qingping-esphome`. The HA domain, existing
+entries and ZIP filename remain `qingping_esphome` for compatibility. Old
+Qingping firmware/catalog URLs still work; their immutable bytes are retained.
 
 ## Compatibility
 
@@ -27,8 +48,8 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
-| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
 | **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
@@ -48,7 +69,7 @@ network are not claimed to be verified on every profile.
 ## Install through Marketplace / HACS
 
 1. Open **⋮ → Custom repositories**, add
-   `https://github.com/ivaschru/qingping-esphome`, category **Integration**.
+   `https://github.com/ivaschru/anything-to-esphome`, category **Integration**.
 2. Install the latest normal **Qingping ESPHome** release (`v0.1.2` or later).
    Showing prereleases is not required. Use the release ZIP: a source checkout
    does not include the compiled firmware template.
@@ -158,7 +179,7 @@ no full backup is created and later OTA may overwrite the remaining stock app.
 
 ## Independent firmware releases
 
-From integration **0.2.2**, firmware checks use a separate [live catalog](https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-catalog/firmware-catalog.json).
+From integration **0.2.2**, firmware checks use a separate [live catalog](https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-catalog/firmware-catalog.json).
 Firmware-only publication creates a profile tag such as `firmware-lite-v2`;
 it does not create a GitHub Release or change the HACS plugin version. Standard
 HA update entities still select the exact hardware profile and enforce the
@@ -316,7 +337,7 @@ ESPHome are not reflashed automatically.
 ### Lite 4.3.4 firmware 1
 
 Original stock **4.3.4 / HW0001** now has its own `lite-434` release line and
-[firmware 1](https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v1).
+[firmware 1](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v1).
 It retains the direct-I²C sensors, full local UI, HA API and encrypted OTA.
 **PM OFF stops PM polling only; it does not stop the fan.** GPIO13 stays HIGH;
 no quiet-mode claim, rail pulses or guessed commands are part of this release.

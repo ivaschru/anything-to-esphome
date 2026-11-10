@@ -1,5 +1,5 @@
 {
-  "title": "Qingping ESPHome",
+  "title": "Anything to ESPHome",
   "config": {
     "step": {
       "manual": {
@@ -39,7 +39,7 @@
       },
       "interface": {
         "title": "Sidebar visibility",
-        "description": "When hidden, open Settings → Devices & services → Qingping ESPHome → installer device → Visit. Direct path: /qingping_esphome. Choose the language inside the installer.",
+        "description": "When hidden, open Settings → Devices & services → Anything to ESPHome → installer device → Visit. Direct path: /qingping_esphome. Choose the language inside the installer.",
         "data": {
           "show_sidebar": "Show in sidebar"
         }
@@ -74,7 +74,7 @@
       "firmware_download_failed": "Could not download the public firmware release.",
       "firmware_asset_mismatch": "The firmware bytes, version or template manifest do not match the release. No firmware was sent.",
       "firmware_update_busy": "A firmware operation is already running. Wait for it to finish.",
-      "update_profile_required": "Prepare this older installation’s private firmware profile in Qingping ESPHome → Configure. Keep passwords in that Home Assistant form.",
+      "update_profile_required": "Prepare this older installation’s private firmware profile in Anything to ESPHome → Configure. Keep passwords in that Home Assistant form.",
       "update_profile_invalid": "Check the Wi-Fi and fallback access point fields. SSID: 1–32 UTF-8 bytes; Wi-Fi password: up to 63 bytes; access point password: 8–63 bytes.",
       "update_unmanaged_firmware": "The running firmware differs from the installer’s verified public version. Automatic adoption of a private or manual build is not supported.",
       "update_identity_mismatch": "The encrypted device identity does not match this installation. No new firmware was sent.",
@@ -118,7 +118,7 @@
       "message": "A firmware operation is already running. Wait for it to finish."
     },
     "update_profile_required": {
-      "message": "Prepare this older installation’s private firmware profile in Qingping ESPHome → Configure. Keep passwords in that Home Assistant form."
+      "message": "Prepare this older installation’s private firmware profile in Anything to ESPHome → Configure. Keep passwords in that Home Assistant form."
     },
     "update_profile_invalid": {
       "message": "Check the Wi-Fi and fallback access point fields. SSID: 1–32 UTF-8 bytes; Wi-Fi password: up to 63 bytes; access point password: 8–63 bytes."

@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -62,9 +63,9 @@ def native_catalog_files(root, expected_head):
     files={}
     if expected_head:
         names=git(root,'ls-tree','--full-tree','--name-only',expected_head).decode().splitlines()
-        for profile in ('lite','lite-434'):
-            name='native-'+profile+'.json'
-            if name in names:files[name]=read_object(root,expected_head,name)
+        for name in names:
+            if re.fullmatch(r'native-[a-z0-9-]+\.json', name):
+                files[name]=read_object(root,expected_head,name)
     return files
 
 
