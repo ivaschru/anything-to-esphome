@@ -6,25 +6,29 @@
         {
           "revision": 4,
           "version": "2026.11.08-ui25-434v1"
+        },
+        {
+          "revision": 7,
+          "version": "2026.11.08-ui25-434native4"
         }
       ],
       "backend": "esp32-noise-app-v1",
       "image": {
-        "sha256": "50c3ff7c7629852906476976ab0a6708f7b4e41b99f6ae1f0483ba7bb2fad0bf",
-        "size": 1692176,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v4/lite-434-template.bin"
+        "sha256": "dd4f7374e70c24aa471e4a33195539a46e2e53d6a0c6d51eb2ae737e3cb90711",
+        "size": 1700064,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.bin"
       },
       "manifest": {
-        "sha256": "8f00ab365f3e1ea59a320456afc4493b583df89cc15633c8611312f9cd66e4dd",
-        "size": 1268,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v4/lite-434-template.json"
+        "sha256": "11aa09f59fdeb4e0350b379592188ddf033dac35a93c0311d05fbf3a106511de",
+        "size": 1269,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.json"
       },
       "minimum_integration": "0.2.9",
-      "public_version": 4,
-      "release_url": "https://github.com/ivaschru/qingping-esphome/tree/firmware-lite-434-v4",
-      "revision": 7,
-      "summary": "Lite 4.3.4 / HW0001 firmware 4. Native ESPHome firmware updates without Qingping HACS. PM OFF stops readings only; fan shutdown is not supported. Bounded continuation after transient HTTP read timeout.",
-      "version": "2026.11.08-ui25-434native4"
+      "public_version": 5,
+      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5",
+      "revision": 8,
+      "summary": "Lite 4.3.4 / HW0001 firmware 5. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. PM OFF stops readings only; fan shutdown is not supported.",
+      "version": "2026.11.10-ui25-434sources5"
     }
   },
   "releases": {

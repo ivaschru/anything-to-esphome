@@ -7,48 +7,48 @@
       4
     ],
     [
-      18883,
+      19296,
       4
     ],
     [
-      270218,
+      270738,
       8
     ],
     [
-      271606,
+      272122,
       7
     ],
     [
-      271670,
+      272186,
       6
     ],
     [
-      271734,
+      272250,
       5
     ],
     [
-      271767,
+      272283,
       3
     ],
     [
-      271831,
+      272347,
       2
     ],
     [
-      271864,
+      272380,
       1
     ],
     [
-      271899,
+      272415,
       0
     ]
   ],
   "profile": "lite-434",
-  "public_version": 4,
-  "revision": 7,
-  "sha256": "50c3ff7c7629852906476976ab0a6708f7b4e41b99f6ae1f0483ba7bb2fad0bf",
-  "size": 1692176,
+  "public_version": 5,
+  "revision": 8,
+  "sha256": "dd4f7374e70c24aa471e4a33195539a46e2e53d6a0c6d51eb2ae737e3cb90711",
+  "size": 1700064,
   "source_stock_version": "4.3.4",
-  "summary": "Lite 4.3.4 / HW0001 firmware 4. Native ESPHome firmware updates without Qingping HACS. PM OFF stops readings only; fan shutdown is not supported. Bounded continuation after transient HTTP read timeout.",
-  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v4/lite-434-template.bin"
+  "summary": "Lite 4.3.4 / HW0001 firmware 5. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. PM OFF stops readings only; fan shutdown is not supported.",
+  "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.bin"
 }
