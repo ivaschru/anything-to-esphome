@@ -1,0 +1,7 @@
+{
+  "image_sha256": "9759fc0ab7c1cb75ec3713bf22b253e573c5427d280c80b4c61ad9ab405a0685",
+  "manifest_sha256": "02f2d7ff1eb6a5070d56663e8fd067c781e7cced20bb849a3a826bf38093e80b",
+  "profile": "lite",
+  "public_version": 6,
+  "source_commit": "62b041cafa5c2ec0fd5c17f9d4fe94f85c476745"
+}

@@ -1,0 +1,54 @@
+{
+  "format": "qingping-native-update-v1",
+  "hardware": "0001",
+  "patches": [
+    [
+      80,
+      4
+    ],
+    [
+      19667,
+      4
+    ],
+    [
+      271114,
+      8
+    ],
+    [
+      272498,
+      7
+    ],
+    [
+      272562,
+      6
+    ],
+    [
+      272626,
+      5
+    ],
+    [
+      272659,
+      3
+    ],
+    [
+      272723,
+      2
+    ],
+    [
+      272756,
+      1
+    ],
+    [
+      272791,
+      0
+    ]
+  ],
+  "profile": "lite",
+  "public_version": 6,
+  "revision": 7,
+  "sha256": "9759fc0ab7c1cb75ec3713bf22b253e573c5427d280c80b4c61ad9ab405a0685",
+  "size": 1701264,
+  "source_stock_version": "4.5.8",
+  "summary": "Lite 4.5.8 / HW0001 firmware 6. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. Guarded quiet PM mode.",
+  "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-v6/lite-template.bin"
+}
