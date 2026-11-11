@@ -195,6 +195,22 @@ class Monitor1InstallTests(unittest.IsolatedAsyncioTestCase):
         consume.assert_not_awaited()
         self.assertEqual(peer.calls, [])
 
+    async def test_reconcile_does_not_repeat_install_and_preserves_old_boot_boundary(self):
+        peer = Peer()
+        installer = object.__new__(m.Monitor1Installer)
+        installer.lock = asyncio.Lock()
+        row = {"phase": "reboot", "old_version": "1", "target_version": "2", "old_boot": OLD_BOOT,
+               "old_pair": peer.old.pair, "target_pair": peer.new.pair}
+        installer.store = Obj(async_load=AsyncMock(return_value={MAC: row}), async_save=AsyncMock())
+        target = Obj(version="2")
+        device = Obj(verify_native_pair=AsyncMock())
+        with patch.object(installer, "device", return_value=device):
+            self.assertTrue(await installer.reconcile(MAC, target, None))
+            device.verify_native_pair.assert_awaited_once_with("2", peer.new.pair, OLD_BOOT, duration=15)
+            self.assertEqual(installer.store.async_save.await_args.args[0][MAC]["phase"], "verified")
+            self.assertTrue(await installer.reconcile(MAC, Obj(version="1"), None))
+            self.assertEqual(installer.store.async_save.await_args.args[0][MAC]["phase"], "restored")
+
     def test_private_candidate_exact_source_profile_and_binary(self):
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch).resolve() / "updates"

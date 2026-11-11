@@ -231,6 +231,7 @@ class DeviceUpgrade:
             boot, job = body.get("boot_id"), body.get("nonce")
             require(known_boot(boot) and isinstance(job, str) and NONCE.fullmatch(job) and job != "0" * 16
                     and native_sample(body, previous.pair, boot, job), "monitor1_update_original_not_ready")
+            self.original_boot, self.original_full = boot, True
             await consume("return_to_stock")
             # This status-only API may close its connection while yielding the
             # display. The following reads must prove the exact guardian return.
@@ -435,20 +436,29 @@ class Monitor1Installer:
         return DeviceUpgrade(host, port, mac, node, key, "ivaschru.qingping_" + monitor.profile.replace("-", "_"))
 
     async def reconcile(self, mac, monitor, esphome):
-        """Recheck a lost HA reboot receipt without another device mutation."""
+        """Resolve a lost host receipt from the live pair, with no device write."""
         if self.lock.locked():
             return False
         async with self.lock:
             ledger = await self.store.async_load() or {}
             row = ledger.get(mac, {})
-            if row.get("phase") != "reboot" or row.get("target_version") != monitor.version:
+            phase = row.get("phase")
+            if phase in (None, "verified", "restored"):
                 return False
-            old_boot, pair = row.get("old_boot"), row.get("target_pair")
-            require(known_boot(old_boot) and isinstance(pair, dict) and set(pair) == set(KINDS)
+            if phase == "reboot" and row.get("target_version") == monitor.version:
+                old_boot, pair, result = row.get("old_boot"), row.get("target_pair"), "verified"
+                require(known_boot(old_boot))
+            elif row.get("old_version") == monitor.version:
+                # The exact original native runtime can be healthy on the
+                # same boot if the first mutation was never received.
+                old_boot, pair, result = None, row.get("old_pair"), "restored"
+            else:
+                return False
+            require(isinstance(pair, dict) and set(pair) == set(KINDS)
                     and all(isinstance(pin, dict) and isinstance(pin.get("sha256"), str) and SHA.fullmatch(pin["sha256"])
                             for pin in pair.values()))
             await self.device(mac, monitor, esphome).verify_native_pair(monitor.version, pair, old_boot, duration=15)
-            await self.store.async_save({**ledger, mac: {**row, "phase": "verified"}})
+            await self.store.async_save({**ledger, mac: {**row, "phase": result}})
             return True
 
     async def install(self, mac, monitor, release, esphome, progress):
@@ -472,7 +482,7 @@ class Monitor1Installer:
                 # HA reload/cancellation cannot turn an ambiguous ACK into a replay.
                 ledger[mac] = {"old_version": previous.version, "target_version": target.version,
                                "old_bridge": previous.bridge["sha256"], "target_bridge": target.bridge["sha256"],
-                               "old_boot": device.original_boot, "target_pair": target.pair,
+                               "old_boot": device.original_boot, "old_pair": previous.pair, "target_pair": target.pair,
                                "phase": phase}
                 await self.store.async_save(ledger)
 
