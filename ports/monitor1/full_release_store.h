@@ -7,6 +7,7 @@
 // Boot still uses the tested RAM staging/materialization/coordinator path.
 #include "trial_staging.h"
 #include "supervisor_image.h"
+#include <string_view>
 #include <sys/vfs.h>
 
 namespace cgs1_supervisor {
@@ -62,50 +63,52 @@ template<long FilesystemMagic=0xef53> class BasicFullReleaseStore {
           s.st_size==off_t(manifest_[i].size) && s.st_nlink==1;
       }
     }
-    if(!okay){close_sources_(sources);return fail_("exact_ram_pair_unavailable");}
-    bool created=false;
-    if(!::mkdirat(root_,identity_.c_str(),0700))created=true;
-    else if(errno!=EEXIST){close_sources_(sources);return fail_("release_directory_create_failed");}
-    if(!open_release_()){close_sources_(sources);return false;}
-    if(created) {
-      for(unsigned i=0;i<2 && okay;++i) {
-        const char *role=i?"guardian":"native";
-        okay=!::mkdirat(release_,role,0700);
-        const int target=okay?::openat(release_,role,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC):-1;
-        okay=okay && target>=0 && copy_(sources[i],target,"program",manifest_[i].size,0700);
-        if(target>=0)::close(target);
-      }
-      okay=okay && !::fsync(release_) && !::fsync(root_) && !::fsync(parent_);
-    }
+    okay=okay?save_sources_(sources,arch):fail_("exact_ram_pair_unavailable");
     close_sources_(sources);
-    return okay && verify(arch);
+    return okay;
+  }
+
+  // A release update can persist the exact compiled pair after upload and
+  // before taking the display away from stock. Re-read the sealed input via
+  // its held directory and validate the ELF contract before touching ext4.
+  template<class Layout>
+  bool install_staged(cgs1_net_trial::BasicStaging<Layout> &stage,const std::string &job,
+                      const ExecutableSpec &arch={}) {
+    // Production passes FullStaging. The Linux fixture uses its own private
+    // temporary layout while exercising the same sealed upload contract.
+    static_assert(Layout::NAMES.size()==2 && std::string_view(Layout::NAMES[0])=="native-program" &&
+                  std::string_view(Layout::NAMES[1])=="guardian-program");
+    if(!job_(job) || stage.job()!=job || !current_())return fail_("fixed_sealed_job_and_store_required");
+    const int directory=stage.duplicate_verified_directory();
+    if(directory<0)return fail_("sealed_ram_pair_unavailable");
+    std::array<int,2> sources{{-1,-1}};
+    bool okay=true;
+    for(unsigned i=0;i<2 && okay;++i) {
+      const auto name=stage.NAMES[i];
+      sources[i]=::openat(directory,name,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+      okay=verified_file_(directory,name,sources[i],i,arch);
+    }
+    okay=okay?save_sources_(sources,arch):fail_("sealed_ram_pair_verification_failed");
+    close_sources_(sources);
+    ::close(directory);
+    return okay;
   }
 
   bool verify(const ExecutableSpec &arch={}) {
     if(!current_() || !open_release_())return fail_("release_not_available");
     for(unsigned i=0;i<2;++i) {
-      const int dir=::openat(release_,i?"guardian":"native",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
-      struct stat ds{};Digest digest{},actual{};parse_digest(manifest_[i].sha256,digest);
+      const char *role=i?"guardian":"native";
+      const int dir=::openat(release_,role,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
       const int image=dir>=0?::openat(dir,"program",O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC):-1;
-      struct stat before{},after{},named{};unsigned char header[52]{};
-      const bool good=private_dir_(dir,ds) && ds.st_dev==root_identity_.st_dev && image>=0 &&
-        !::fstat(image,&before) && regular_(before,manifest_[i].size,0700) &&
-        before.st_dev==ds.st_dev && ::pread(image,header,sizeof(header),0)==ssize_t(sizeof(header)) &&
-        // ELF32 little endian ARM hard-float, identical architecture contract
-        // to ImageDirectory. Tests can explicitly select a synthetic target.
-        header[0]==0x7f && header[1]=='E' && header[2]=='L' && header[3]=='F' &&
-        header[4]==1 && arch.elf_class==1 && header[5]==1 && header[6]==1 &&
-        (header[16]==2 || header[16]==3) && header[17]==0 && header[20]==1 &&
-        header[21]==0 && header[22]==0 && header[23]==0 && header[40]==52 && header[41]==0 && header[18]==(arch.machine&255) &&
-        header[19]==(arch.machine>>8) && (!arch.arm_hard_float || (header[37]&6)==4) &&
-        image_hash(image,before.st_size,actual) && actual==digest &&
-        !::fstat(image,&after) && same_file_(before,after) &&
-        !::fstatat(dir,"program",&named,AT_SYMLINK_NOFOLLOW) && same_file_(after,named);
+      struct stat ds{},named_dir{};
+      const bool good=private_dir_(dir,ds) && ds.st_dev==root_identity_.st_dev &&
+        verified_file_(dir,"program",image,i,arch) &&
+        !::fstatat(release_,role,&named_dir,AT_SYMLINK_NOFOLLOW) && same_(ds,named_dir);
       if(image>=0)::close(image);
       if(dir>=0)::close(dir);
       if(!good)return fail_("installed_release_verification_failed");
     }
-    return current_();
+    return open_release_();
   }
 
   // Mode names the exact approved pair. A new bridge with another manifest
@@ -204,6 +207,45 @@ template<long FilesystemMagic=0xef53> class BasicFullReleaseStore {
       !::fstatat(root_,identity_.c_str(),&named,AT_SYMLINK_NOFOLLOW) && same_(held,named) && S_ISDIR(named.st_mode);
   }
   static void close_sources_(const std::array<int,2>&fds){for(int fd:fds)if(fd>=0)::close(fd);}
+  bool verified_file_(int dir,const char *name,int image,unsigned i,const ExecutableSpec &arch) const {
+    struct stat ds{},before{},after{},named{};
+    Digest digest{},actual{};
+    unsigned char header[52]{};
+    return private_dir_(dir,ds) && image>=0 && parse_digest(manifest_[i].sha256,digest) &&
+      !::fstat(image,&before) && regular_(before,manifest_[i].size,0700) &&
+      before.st_dev==ds.st_dev && ::pread(image,header,sizeof(header),0)==ssize_t(sizeof(header)) &&
+      // Use the same ELF checks for staged and durable bytes. Hash only an
+      // owned bounded regular file, and verify the held and named inode again.
+      header[0]==0x7f && header[1]=='E' && header[2]=='L' && header[3]=='F' &&
+      header[4]==1 && arch.elf_class==1 && header[5]==1 && header[6]==1 &&
+      (header[16]==2 || header[16]==3) && header[17]==0 && header[20]==1 &&
+      header[21]==0 && header[22]==0 && header[23]==0 && header[40]==52 && header[41]==0 && header[18]==(arch.machine&255) &&
+      header[19]==(arch.machine>>8) && (!arch.arm_hard_float || (header[37]&6)==4) &&
+      image_hash(image,before.st_size,actual) && actual==digest &&
+      !::fstat(image,&after) && same_file_(before,after) &&
+      !::fstatat(dir,name,&named,AT_SYMLINK_NOFOLLOW) && same_file_(after,named);
+  }
+  bool save_sources_(const std::array<int,2>&sources,const ExecutableSpec &arch) {
+    if(!current_())return fail_("store_identity_changed");
+    if(::mkdirat(root_,identity_.c_str(),0700)) {
+      // A complete existing pair may be observed again. An interrupted or
+      // foreign directory is never overwritten or pruned by an update.
+      if(errno!=EEXIST)return fail_("release_directory_create_failed");
+      return verify(arch);
+    }
+    if(!open_release_())return false;
+    for(unsigned i=0;i<2;++i) {
+      const char *role=i?"guardian":"native";
+      if(::mkdirat(release_,role,0700))return fail_("release_role_create_failed");
+      const int target=::openat(release_,role,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+      if(target<0)return fail_("release_role_unavailable");
+      const bool copied=copy_(sources[i],target,"program",manifest_[i].size,0700);
+      const bool closed=!::close(target);
+      if(!copied || !closed)return fail_("release_copy_unverified");
+    }
+    if(::fsync(release_) || ::fsync(root_) || ::fsync(parent_))return fail_("release_sync_unverified");
+    return verify(arch);
+  }
   static bool copy_(int source,int directory,const char *name,uint32_t size,mode_t mode) {
     struct stat before{},after{};
     if(::fstat(source,&before) || !regular_(before,size,0700))return false;

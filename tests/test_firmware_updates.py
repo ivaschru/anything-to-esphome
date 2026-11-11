@@ -122,6 +122,7 @@ class EncryptedOTATests(unittest.IsolatedAsyncioTestCase):
         self.peer_errors = []
         self.raw_frames = []
         self.mode = "success"
+        self.host_image = False
 
     async def peer(self, reader, writer):
         self.calls += 1
@@ -170,11 +171,15 @@ class EncryptedOTATests(unittest.IsolatedAsyncioTestCase):
                 value, buffer = buffer[:size], buffer[size:]
                 return value
 
-            nonce = b"a" * 64
-            await send(b"\2" + nonce)
-            cnonce = await read(64)
-            digest = await read(64)
-            self.assertEqual(digest, hashlib.sha256(self.password.encode() + nonce + cnonce).hexdigest().encode())
+            if not self.host_image or self.mode == "password_challenge":
+                nonce = b"a" * 64
+                await send(b"\2" + nonce)
+                if self.host_image:
+                    self.assertEqual(await reader.read(), b"")
+                    return
+                cnonce = await read(64)
+                digest = await read(64)
+                self.assertEqual(digest, hashlib.sha256(self.password.encode() + nonce + cnonce).hexdigest().encode())
             await send(b"\x41")
             self.assertEqual(await read(1), b"\0")  # app only
             size = int.from_bytes(await read(4), "big")
@@ -203,7 +208,11 @@ class EncryptedOTATests(unittest.IsolatedAsyncioTestCase):
         self.progress = []
         try:
             with patch.object(native.asyncio, "open_connection", local):
-                await native.upload_app("192.168.50.9", self.image, self.key, self.password, self.progress.append)
+                if self.host_image:
+                    pin = {"size": len(self.image), "sha256": hashlib.sha256(self.image).hexdigest()}
+                    await native.upload_monitor1_bridge("192.168.50.9", self.image, pin, self.key, self.progress.append)
+                else:
+                    await native.upload_app("192.168.50.9", self.image, self.key, self.password, self.progress.append)
         finally:
             server.close(); await server.wait_closed()
             for writer in self.connections: writer.close()
@@ -231,6 +240,23 @@ class EncryptedOTATests(unittest.IsolatedAsyncioTestCase):
             await self.upload()
         self.assertEqual(self.calls, 1)
         self.assertEqual(self.received, self.image)
+
+    async def test_bridge_uses_noise_without_a_second_password(self):
+        from test_monitor1_install import arm
+        self.host_image, self.image = True, arm(42) + b"payload" * 1200
+        await self.upload()
+        self.assertEqual(self.received, self.image)
+        self.assertEqual(self.peer_errors, [])
+        self.assertEqual(self.calls, 1)
+
+    async def test_bridge_rejects_unexpected_password_challenge(self):
+        from test_monitor1_install import arm
+        self.host_image, self.image = True, arm(42)
+        self.mode = "password_challenge"
+        with self.assertRaisesRegex(catalog.FirmwareError, "ota_authentication_failed"):
+            await self.upload()
+        self.assertEqual(self.received, b"")
+        self.assertEqual(self.peer_errors, [])
 
 
 if __name__ == "__main__": unittest.main()

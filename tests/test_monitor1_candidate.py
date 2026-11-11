@@ -28,9 +28,11 @@ def profile():
 
 class CandidateTests(unittest.TestCase):
     def test_numbered_full_bundle_identity_is_hardware_specific_and_shared_by_modes(self):
+        versions = json.loads((PORT / "release-versions.json").read_text())["profiles"]
         for co2_type, expected in ((2,"monitor1-s8"),(3,"monitor1-scd40")):
             values=profile();values["co2_type"]=co2_type
-            self.assertEqual(candidate.release_line(PORT,values),(expected,1))
+            version = versions[expected]["public_version"]
+            self.assertEqual(candidate.release_line(PORT,values),(expected,version))
             with tempfile.TemporaryDirectory() as temp:
                 root=Path(temp)
                 (root/"release-versions.json").write_bytes((PORT/"release-versions.json").read_bytes())
@@ -38,7 +40,7 @@ class CandidateTests(unittest.TestCase):
                     with patch.object(candidate,"header_closure",return_value=[]):
                         path=candidate.configuration(root,values,base,"fixture",())
                     text=path.read_text()
-                    self.assertIn('version: "1"',text)
+                    self.assertIn(f'version: "{version}"',text)
                     self.assertIn(expected.replace("-","_"),text)
 
     def test_unknown_or_boolean_version_cannot_become_a_numbered_release(self):

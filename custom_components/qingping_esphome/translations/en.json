@@ -96,6 +96,45 @@
     }
   },
   "exceptions": {
+    "monitor1_update_busy": {
+      "message": "A Monitor 1 update is already running."
+    },
+    "monitor1_update_candidate_mismatch": {
+      "message": "The private Monitor 1 bundle does not match the device or published source."
+    },
+    "monitor1_update_disconnect_unverified": {
+      "message": "Could not confirm closure of the update connection."
+    },
+    "monitor1_update_identity_changed": {
+      "message": "The encrypted Monitor 1 identity changed."
+    },
+    "monitor1_update_original_not_ready": {
+      "message": "The running Monitor 1 release has not reported the expected display and sensor state."
+    },
+    "monitor1_update_pending_review": {
+      "message": "An earlier Monitor 1 attempt is recorded. Check the device and the saved attempt first."
+    },
+    "monitor1_update_pm_helper_changed": {
+      "message": "The new bundle requires a different stock PM helper. Prepare a bundle for the installed helper."
+    },
+    "monitor1_update_previous_restored": {
+      "message": "The new version failed to start. The previous Monitor 1 release was restored."
+    },
+    "monitor1_update_private_bundle_required": {
+      "message": "Prepare the two private bundles and the matching profile in Home Assistant storage."
+    },
+    "monitor1_update_reconnect_unverified": {
+      "message": "Could not confirm the expected Monitor 1 after reconnecting."
+    },
+    "monitor1_update_recovery_required": {
+      "message": "The update is uncertain. Check the monitor and keep the original private bundle for USB recovery."
+    },
+    "monitor1_update_storage_space": {
+      "message": "The monitor has insufficient free space for the new bundle and recovery reserve."
+    },
+    "monitor1_update_unverified": {
+      "message": "Could not confirm the Monitor 1 update step."
+    },
     "firmware_admin_required": {
       "message": "A Home Assistant administrator must start firmware installation."
     },

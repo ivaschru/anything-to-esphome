@@ -90,6 +90,14 @@ def manifest(root, revision, profile, package):
     if set(item) != {"public_version"} or type(version) is not int or not 1 <= version <= 2**53-1:
         raise ValueError("Invalid Monitor 1 public version")
     tag = channel.catalog.firmware_tag(profile, version)
+    builder = "ports/monitor1/build_candidate.py"
+    limitations = LIMITATIONS
+    if version >= 2:
+        builder = "ports/monitor1/build_update_candidate.py"
+        if not channel.read_object(root, revision, builder):
+            raise ValueError("The update candidate builder is missing")
+        limitations = [*LIMITATIONS]
+        limitations[1] = "HA installation requires an administrator and the exact previous and target private builds."
     return {
         "format": FORMAT, "profile": profile, "public_version": version,
         "package_family": "cgs1-linux-armv7-full-runtime",
@@ -100,7 +108,7 @@ def manifest(root, revision, profile, package):
                    "sha256": hashlib.sha256(package).hexdigest(), "size": len(package)},
         "hardware": {"model": "CGS1", "soc": "RK3128", "architecture": "armv7l",
                      "stock_version": "4.1.8_0287", "co2_type": PROFILES[profile]},
-        "build": {"entry": "ports/monitor1/build_candidate.py", "esphome": "2026.10.1", "ziglang": "0.14.1",
+        "build": {"entry": builder, "esphome": "2026.10.1", "ziglang": "0.14.1",
                   "private_profile_required": True, "private_stock_qt_required": True,
                   "source_ref": revision},
         # Preserve three different claims: existing ports have real runtime
@@ -112,7 +120,7 @@ def manifest(root, revision, profile, package):
                           "automatic_update_ready": False},
         "features": ["Full ESPHome interface", "CO2, temperature, humidity and tVOC",
                      "PM control", "Persistent settings", "English/Russian UI", "Guarded factory return"],
-        "limitations": LIMITATIONS,
+        "limitations": limitations,
     }
 
 
@@ -120,6 +128,12 @@ def release_files(value, package):
     profile = value["profile"]
     version = value["public_version"]
     revision = value["source_commit"]
+    deployment = ("Use the existing deployment/recovery procedure for an already installed runtime.\n"
+                  "Initial USB installation and automatic HA updates are separate unfinished routes.")
+    if version >= 2:
+        deployment = ("For Home Assistant installation use `ports/monitor1/build_update_candidate.py` with the exact\n"
+                      "`--source-ref` above. Prepare both private builds using the Monitor 1 README.\n"
+                      "The source kit never starts an automatic build or installation.")
     readme = f'''# {profile} – firmware runtime {version}
 
 This is the **source-built full ESPHome runtime** for CGS1 / CO2 type {PROFILES[profile]}.
@@ -139,8 +153,7 @@ Keep the existing API key, node name and API MAC. Its result stays private.
 The downloadable source archive is an inspection copy of ports/monitor1 and its
 license, not a standalone Git checkout or substitute for the exact source commit.
 Neither downloading nor compiling performs an installation or contacts hardware.
-Use the existing deployment/recovery procedure for an already installed runtime.
-Initial USB installation and automatic HA updates are separate unfinished routes.
+{deployment}
 
 Existing S8 and SCD40 private runtimes passed real sensor/UI/settings and software
 reboot tests. That does not establish hardware QA for newly built release bytes.

@@ -16,19 +16,19 @@ and the matching private factory QtCore. It compiles a matched native/guardian/
 bridge and derives actual dependency hashes, rather than copying old pins. The
 source tar is an inspection copy; the builder needs the exact Git commit.
 
-For an existing ESPHome installation retain the current node name, API MAC,
-Noise key and preferences. Use its established deployment/recovery procedure.
-The release does not provide a new automatic updater, generic OTA image or a
-qualified first-install USB route. Factory-only and existing installations must
-not be routed through each other's tools. Read the installation boundaries in
-`ports/monitor1/README.md` before any device action.
+The Home Assistant update entity checks the S8 or SCD40 source line every
+six hours. A source kit alone offers release notes. For an existing supported
+installation, an administrator can prepare the exact previous and target
+private builds in HA storage and then use the entity's Install action. The
+target report must identify the source commit and release line. Both builds
+use the same private profile and existing stock PM helper.
 
-The integration's Monitor 1 update entity checks for new source kits every
-six hours. It links the kit for the S8 or SCD40 project reported by the existing
-encrypted ESPHome connection. The entity offers release notes. Installation
-still requires the private build and the matched bridge, native and guardian
-programs. Older custom builds without the published project name and numeric
-version cannot be associated with a source line automatically.
+The experimental install replaces the complete bridge/native/guardian bundle
+over the authenticated device connection. It verifies the new Linux boot and
+live native sensors before recording success. It can restore the previous
+bundle when the exact stock-side bridge is reachable. Keep the original
+private bundle for USB recovery when the bridge does not respond. See the
+[preparation and installation steps](../ports/monitor1/README.md#обновление-установленного-monitor-1-из-home-assistant).
 
 ## Publication
 

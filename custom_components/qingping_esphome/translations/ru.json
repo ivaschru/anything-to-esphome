@@ -95,6 +95,45 @@
     }
   },
   "exceptions": {
+    "monitor1_update_busy": {
+      "message": "Обновление Monitor 1 уже идёт."
+    },
+    "monitor1_update_candidate_mismatch": {
+      "message": "Частный комплект Monitor 1 не совпадает с прибором или опубликованными исходниками."
+    },
+    "monitor1_update_disconnect_unverified": {
+      "message": "Не удалось подтвердить закрытие соединения для обновления."
+    },
+    "monitor1_update_identity_changed": {
+      "message": "Изменилась идентичность Monitor 1 в зашифрованном соединении."
+    },
+    "monitor1_update_original_not_ready": {
+      "message": "Текущая версия Monitor 1 ещё не подтвердила работу экрана и датчиков."
+    },
+    "monitor1_update_pending_review": {
+      "message": "Сохранена предыдущая попытка обновления Monitor 1. Сначала проверьте прибор и результат этой попытки."
+    },
+    "monitor1_update_pm_helper_changed": {
+      "message": "Новый комплект требует другую версию штатного PM helper. Подготовьте сборку с установленной версией."
+    },
+    "monitor1_update_previous_restored": {
+      "message": "Новая версия не запустилась. Предыдущая версия Monitor 1 восстановлена."
+    },
+    "monitor1_update_private_bundle_required": {
+      "message": "Подготовьте две частные сборки и соответствующий профиль в хранилище Home Assistant."
+    },
+    "monitor1_update_reconnect_unverified": {
+      "message": "После переподключения не удалось подтвердить ожидаемое состояние Monitor 1."
+    },
+    "monitor1_update_recovery_required": {
+      "message": "Результат обновления неясен. Проверьте монитор и сохраните прежнюю частную сборку для восстановления через USB."
+    },
+    "monitor1_update_storage_space": {
+      "message": "На мониторе не хватает свободного места для нового комплекта и резерва для восстановления."
+    },
+    "monitor1_update_unverified": {
+      "message": "Не удалось подтвердить этап обновления Monitor 1."
+    },
     "firmware_admin_required": {
       "message": "Установку прошивки должен запускать администратор Home Assistant."
     },

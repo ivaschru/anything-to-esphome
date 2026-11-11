@@ -52,6 +52,42 @@ class Monitor1CatalogTests(unittest.TestCase):
 
 @unittest.skipUnless(importlib.util.find_spec("homeassistant"), "Optional HA SDK required")
 class Monitor1UpdateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_prepared_update_entity_only_allows_an_admin_on_the_exact_release(self):
+        from aioesphomeapi import DeviceInfo
+        from homeassistant.components.update import UpdateEntityFeature
+        from homeassistant.core import Context
+        from homeassistant.exceptions import HomeAssistantError
+        from custom_components.qingping_esphome.monitor1_update import ConnectedMonitor, Monitor1FirmwareUpdate
+
+        mac = "021122334455"
+        monitor = ConnectedMonitor("monitor1-s8", "1")
+        releases = catalog.parse_monitor1_releases(index())
+        # The catalog fixture loads a separate module for no-HA tests. Build
+        # the actual integration's release instance for the real entity.
+        from custom_components.qingping_esphome.firmware_catalog import Monitor1Release
+        release = Monitor1Release(**vars(releases[monitor.profile]))
+        installer = SimpleNamespace(status=AsyncMock(return_value=(True, None)), install=AsyncMock())
+        entity = Monitor1FirmwareUpdate(SimpleNamespace(data={monitor.profile: release}), mac, monitor, installer)
+        entry = SimpleNamespace(unique_id=mac, data={"noise_psk": "fixture-only"}, runtime_data=SimpleNamespace(
+            available=True, device_info=DeviceInfo(mac_address=mac, project_name="ivaschru.qingping_monitor1_s8", project_version="1")))
+        entity.hass = SimpleNamespace(auth=SimpleNamespace(async_get_user=AsyncMock(return_value=SimpleNamespace(is_admin=False))),
+                                      config_entries=SimpleNamespace(async_entries=Mock(return_value=[entry])))
+        entity._context = Context(user_id="a" * 32)
+        entity._listening = True
+        with patch.object(entity, "async_write_ha_state"), patch.object(entity, "_schedule_check"):
+            await entity._check_candidate()
+            self.assertTrue(entity.supported_features & UpdateEntityFeature.INSTALL)
+            with self.assertRaises(HomeAssistantError):
+                await entity.async_install("2", False)
+            installer.install.assert_not_awaited()
+            entity.hass.auth.async_get_user.return_value = SimpleNamespace(is_admin=True)
+            with self.assertRaises(HomeAssistantError):
+                await entity.async_install("8", False)
+            installer.install.assert_not_awaited()
+            await entity.async_install("2", False)
+        self.assertEqual(installer.install.await_args.args[:4], (mac, monitor, release, entry))
+        self.assertEqual(entity.installed_version, "2")
+
     async def test_late_esphome_connection_uses_its_own_source_line_without_install(self):
         from aioesphomeapi import DeviceInfo
         from homeassistant.components.update import UpdateEntityFeature

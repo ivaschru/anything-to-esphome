@@ -16,9 +16,27 @@
 - Monitor 1 source release notices use the existing catalog refresh and the
   cached identity, project name and version of a connected ESPHome entry.
   Preserve the separate S8 and SCD40 source lines. Report releases on the
-  existing HA device with RELEASE_NOTES only. A source kit never grants
-  INSTALL capability or starts a build, device request or firmware transfer.
+  existing HA device. A source kit alone grants RELEASE_NOTES and starts no
+  build or connection. INSTALL requires matching owner-prepared private
+  bundles, an administrator and fresh encrypted device/Store verification.
   Invalid runtime metadata must leave the Lite catalog usable.
+- The Monitor 1 bridge can save a sealed, exact compiled native/guardian
+  pair while stock owns the hardware. Bind the call to the current boot,
+  bridge digest and staging nonce. Verify the private durable copy before
+  releasing uploads. Retain the previous pair and boot mode, never launch or
+  repair a partial Store from this call. Its status receipt is process-local.
+  Share the existing trial uploader's exact ACK and digest checks. The update
+  caller owns the authenticated connection and one durable attempt. After a
+  lost save ACK, read the exact receipt once without repeating the save.
+  The runtime updater checks the original bridge and durable pair, uses only
+  encrypted Host OTA for the exact new bridge, then saves and enables its
+  compiled pair. It records each phase before mutation. Verify a new Linux
+  boot, exact pair, panel, physical sensors and two fresh guardian samples.
+  Restore only through an independently verified idle stock bridge. If the
+  bridge is unavailable, retain the original private bundle for USB. Never
+  retry an uncertain writer. Use the Linux root Store and Noise fixtures.
+  Generate update release metadata in build_update_candidate.py using the
+  exact archived source. Keep the initial-install build_candidate.py byte pin.
 - The CGS2 USB inventory is read-only and separate from the installer. Use
   an explicit existing USB ADB serial, bound each reply and verify the same
   transport/boot. Collect the PX30 device-tree signature, ELF header, stock

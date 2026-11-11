@@ -34,6 +34,7 @@ class RuntimePublicationTests(unittest.TestCase):
         port.mkdir(parents=True)
         (port/'release-versions.json').write_bytes((ROOT/'ports/monitor1/release-versions.json').read_bytes())
         (port/'runtime.cpp').write_text('// Synthetic source, not a sensor program\n')
+        (port/'build_update_candidate.py').write_text('# Synthetic builder fixture\n')
         (self.root/'LICENSE').write_text('Synthetic license fixture')
         (self.root/'NOTICE.md').write_text('Synthetic third-party notice fixture')
         self.source = self.commit()
@@ -86,6 +87,7 @@ class RuntimePublicationTests(unittest.TestCase):
             self.assertFalse(item['qualification']['automatic_update_ready'])
             self.assertFalse(item['qualification']['initial_installation_ready'])
             self.assertNotIn('image',item)
+            self.assertEqual(item['build']['entry'], 'ports/monitor1/build_update_candidate.py')
         with self.assertRaises(ValueError):publisher.manifest(self.root,self.source,'lite-mcu421',self.package)
 
     def test_atomic_two_profile_publication_and_idempotent_readback(self):
@@ -116,8 +118,9 @@ class RuntimePublicationTests(unittest.TestCase):
             git(self.root,'push','origin',competing+':'+publisher.channel.BRANCH)
         with patch.object(publisher.channel,'save_intent',side_effect=race),self.assertRaises(RuntimeError):
             self.publish()
-        for profile in publisher.PROFILES:
-            self.assertIsNone(publisher.channel.remote_ref(self.root,'refs/tags/firmware-'+profile+'-v1'))
+        for row in self.values:
+            tag = publisher.channel.catalog.firmware_tag(row['profile'], row['public_version'])
+            self.assertIsNone(publisher.channel.remote_ref(self.root, 'refs/tags/' + tag))
         self.assertTrue((self.root/'intent.json').exists())
 
 
