@@ -35,6 +35,8 @@
   Restore only through an independently verified idle stock bridge. If the
   bridge is unavailable, retain the original private bundle for USB. Never
   retry an uncertain writer. Use the Linux root Store and Noise fixtures.
+  Generate update release metadata in build_update_candidate.py using the
+  exact archived source. Keep the initial-install build_candidate.py byte pin.
 - The CGS2 USB inventory is read-only and separate from the installer. Use
   an explicit existing USB ADB serial, bound each reply and verify the same
   transport/boot. Collect the PX30 device-tree signature, ELF header, stock

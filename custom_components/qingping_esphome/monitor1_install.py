@@ -22,7 +22,7 @@ from .monitor1_worker.full_ui_trial import (
     KINDS, SAVE_SERVICE, UPLOAD_SERVICES, exact_artifacts, native_sample,
     rpc, save_update_pair, services_named,
 )
-from .native_ota import check_monitor1_image, upload_monitor1_bridge
+from .native_ota import check_monitor1_image, encryption_available, upload_monitor1_bridge
 
 FILES = (*KINDS, "bridge-program")
 SHA = re.compile(r"[0-9a-f]{64}")
@@ -409,14 +409,16 @@ class Monitor1Installer:
         # This is a bounded availability hint. Every byte is rehashed before
         # install. No routine inventory reads credentials or contacts a device.
         path = self.root / mac.lower()
-        return all((path / version / "result.json").is_file()
-                   for version in (monitor.version, str(release.public_version)))
+        return (path / "profile.json").is_file() and all(
+            (path / version / name).is_file() for version in (monitor.version, str(release.public_version))
+            for name in (*FILES, "result.json"))
 
     async def status(self, mac, monitor, release):
         ledger = await self.store.async_load() or {}
         row = ledger.get(mac, {})
         pending = row.get("phase") not in (None, "verified", "restored")
-        ready = bool(not pending and monitor and release and int(monitor.version) < release.public_version
+        ready = bool(not pending and encryption_available() and monitor and release
+                     and int(monitor.version) < release.public_version
                      and not (row.get("phase") == "restored" and row.get("target_version") == str(release.public_version))
                      and await self.hass.async_add_executor_job(self.candidate_present, mac, monitor, release))
         return ready, row.get("old_version") if pending else None
@@ -427,8 +429,9 @@ class Monitor1Installer:
         key = esphome.data.get("noise_psk")
         host = private_ipv4(runtime.client.connected_address)
         port = esphome.data.get("port", 6053)
-        require(type(port) is int and 0 < port <= 65535 and isinstance(key, str) and len(key) == 44
-                and len(base64.b64decode(key, validate=True)) == 32)
+        require(type(port) is int and 0 < port <= 65535 and isinstance(key, str) and len(key) == 44)
+        decoded = base64.b64decode(key, validate=True)
+        require(len(decoded) == 32 and any(decoded))
         return DeviceUpgrade(host, port, mac, node, key, "ivaschru.qingping_" + monitor.profile.replace("-", "_"))
 
     async def reconcile(self, mac, monitor, esphome):
@@ -450,6 +453,7 @@ class Monitor1Installer:
 
     async def install(self, mac, monitor, release, esphome, progress):
         require(not self.lock.locked(), "monitor1_update_busy")
+        require(encryption_available(), "ota_encryption_required")
         async with self.lock:
             ledger = await self.store.async_load()
             if ledger is None:

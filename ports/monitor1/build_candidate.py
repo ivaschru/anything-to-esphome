@@ -238,9 +238,7 @@ def main():
     with os.fdopen(lock_fd, "r+b"), (output / "build.log").open("xb") as log:
         try:
             source, revision, source_hashes = snapshot(output, args.source_ref)
-            line, version = release_line(source, profile)
-            report.update(source_commit=revision, source_sha256=source_hashes,
-                          runtime_release={"profile": line, "public_version": version})
+            report.update(source_commit=revision, source_sha256=source_hashes)
             python = source / ".venv/bin/python"
             env = dict(os.environ, CC=str(source / "zig-cc"), CXX=str(source / "zig-cxx"),
                        AR=str(source / "zig-ar"), RANLIB=str(source / "zig-ranlib"),
