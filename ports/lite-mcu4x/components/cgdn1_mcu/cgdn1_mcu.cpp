@@ -78,6 +78,12 @@ void Cgdn1Mcu::loop() {
         break;
       }
       case SerialEvent::POLL: ++polls_; break;
+      // The receiver has no downlink workflow. Keep counting these replies
+      // as other lines, just as before the offline trace gained their names.
+      case SerialEvent::DOWN_NONE:
+      case SerialEvent::DOWN:
+      case SerialEvent::ERROR_REPLY:
+      case SerialEvent::MCU_VERSION:
       case SerialEvent::UNKNOWN: ++unknown_lines_; break;
       case SerialEvent::INVALID:
       case SerialEvent::LINE_TOO_LONG: ++rejected_; break;

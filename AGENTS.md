@@ -51,6 +51,13 @@
 - The exact stock 4.2.1 ESP32 APP uses signed LE16 T and unsigned LE16 RH
   divided by 100 as compensation inputs. Keep the APP scale evidence distinct
   from the separate MCU 0354 wire fixture and any target qualification.
+- Lite 4.2.1 stock UART `get_down` has a separate text reply path. Successful
+  `hex_string` processing in the exact stock handler is silent. Do not promote
+  the finite research probe's `ok` into a production ACK. The offline trace
+  reader uses both analyzer CSVs from one capture and the shared CG decoder.
+  Preserve direction, timestamps, terminators, TLV lengths and four-digit
+  `mcu_version` from the MCU wire when present. Keep raw lines,
+  unknown values and ESP-to-MCU settings out of its report and public history.
   Optional scaled sensors expose only these inputs as diagnostics. Retain raw
   counts and field expiry, and keep hardware control and the installer closed.
 - Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
