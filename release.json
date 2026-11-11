@@ -1,0 +1,51 @@
+{
+  "build": {
+    "entry": "ports/monitor1/build_update_candidate.py",
+    "esphome": "2026.10.1",
+    "private_profile_required": true,
+    "private_stock_qt_required": true,
+    "source_ref": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
+    "ziglang": "0.14.1"
+  },
+  "delivery": "source-build-private-profile",
+  "features": [
+    "Full ESPHome interface",
+    "CO2, temperature, humidity and tVOC",
+    "PM control",
+    "Persistent settings",
+    "English/Russian UI",
+    "Guarded factory return"
+  ],
+  "format": "qingping-monitor1-runtime-source-v1",
+  "hardware": {
+    "architecture": "armv7l",
+    "co2_type": 3,
+    "model": "CGS1",
+    "soc": "RK3128",
+    "stock_version": "4.1.8_0287"
+  },
+  "limitations": [
+    "Initial USB/HACS installation is experimental and is not enabled by this release.",
+    "HA installation requires an administrator and the exact previous and target private builds.",
+    "Personalized ARM programs and the matching vendor Qt library stay private.",
+    "Cold power cycling, absent-AP recovery and battery transitions are not hardware-qualified for this release.",
+    "Bluetooth proxy is not implemented."
+  ],
+  "package_family": "cgs1-linux-armv7-full-runtime",
+  "profile": "monitor1-scd40",
+  "public_version": 2,
+  "qualification": {
+    "automatic_update_ready": false,
+    "exact_release_build_hardware_tested": false,
+    "existing_private_runtime_tested": true,
+    "initial_installation_ready": false
+  },
+  "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-monitor1-scd40-v2",
+  "source": {
+    "sha256": "36f7a0ee7d05d5e9ae21082cf750abddaf3526c1bd965a4524f4206774bb31dc",
+    "size": 1008298,
+    "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-monitor1-scd40-v2/monitor1-runtime-source.tar.gz"
+  },
+  "source_commit": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
+  "source_url": "https://github.com/ivaschru/anything-to-esphome/tree/3c5363f6ee72f0b3b314b734a796ab894d6bd136"
+}

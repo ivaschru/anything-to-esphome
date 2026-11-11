@@ -1,7 +1,0 @@
-{
-  "format": "qingping-monitor1-release-lines-v1",
-  "profiles": {
-    "monitor1-s8": {"public_version": 2},
-    "monitor1-scd40": {"public_version": 2}
-  }
-}
