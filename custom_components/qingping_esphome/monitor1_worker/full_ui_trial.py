@@ -18,8 +18,10 @@ except ImportError:
 
 TRIAL_MS = 60000
 KINDS = ("native-program", "guardian-program")
-SERVICES = ("full_runtime_status", "full_runtime_inspect_start", "full_runtime_begin",
-            "full_runtime_chunk", "full_runtime_seal", "full_runtime_prepare", "full_runtime_launch_trial")
+UPLOAD_SERVICES = ("full_runtime_status", "full_runtime_inspect_start", "full_runtime_begin",
+                   "full_runtime_chunk", "full_runtime_seal")
+SERVICES = (*UPLOAD_SERVICES, "full_runtime_prepare", "full_runtime_launch_trial")
+SAVE_SERVICE = "full_runtime_save_staged_core_release"
 
 
 class FullUiTrialError(Exception):
@@ -93,6 +95,117 @@ def native_sample(body, expected, boot, job):
             all(type(value) is int and value > 0 for value in peers))
 
 
+def validate_upload(expected, bridge_sha, boot, job, images):
+    if (not isinstance(job, str) or not re.fullmatch(r"[a-f0-9]{16}", job) or job == "0" * 16 or
+            not isinstance(boot, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", boot) or
+            not isinstance(bridge_sha, str) or not re.fullmatch(r"[a-f0-9]{64}", bridge_sha) or
+            not isinstance(expected, dict) or not isinstance(images, dict) or
+            set(expected) != set(KINDS) or set(images) != set(KINDS)):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+    # Rehash actual bytes before the first write. The device repeats its
+    # compiled manifest checks; this is never caller-selected executable data.
+    for kind in KINDS:
+        pin, body = expected[kind], images[kind]
+        if (not isinstance(pin, dict) or set(pin) != {"size", "sha256"} or
+                type(pin["size"]) is not int or not 0 < pin["size"] <= 16 * 1024**2 or
+                not isinstance(body, bytes) or len(body) != pin["size"] or
+                hashlib.sha256(body).hexdigest() != pin["sha256"]):
+            raise FullUiTrialError("usb_full_ui_trial_unverified")
+
+
+async def preflight_upload(client, services, expected, bridge_sha, boot):
+    status = await rpc(client, services, "full_runtime_status", {})
+    exact_artifacts(status, expected)
+    if (status.get("job") != "" or type(status.get("phase")) is not int or status["phase"] != 0 or
+            status.get("hardware_trial_active") is not False or status.get("core_boot_enabled") is not False or
+            type(status.get("hard_runtime_ms")) is not int or status["hard_runtime_ms"] != 0 or
+            status.get("core_release_autostart_supported") is not True or
+            any(type(row.get("offset")) is not int or row["offset"] != 0 or row.get("verified") is not False
+                for row in status["artifacts"])):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+    capture = await rpc(client, services, "full_runtime_inspect_start", {})
+    if (capture.get("ok") is not True or capture.get("read_only") is not True or
+            capture.get("process_signals_exposed") is not False or capture.get("network_mutations_exposed") is not False or
+            capture.get("boot_id") != boot or capture.get("bridge_sha256") != bridge_sha):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+
+
+def check_upload(expected, job, offsets, verified, body, *, prepared=False, launching=False, pending=False):
+    exact_artifacts(body, expected)
+    known_pending = pending and body.get("ok") is False and body.get("error") == "core_display_repair_pending"
+    if (body.get("job") != job or (body.get("ok") is not True and not known_pending) or
+            body.get("core_boot_enabled") is not False):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+    # Before launch every response must still describe our exact idle
+    # staging session. Progress from another role/session is not an ACK
+    # for this chunk. Do not continue writing after an unknown state.
+    if not launching and (type(body.get("phase")) is not int or body["phase"] != 0 or
+            body.get("hardware_trial_active") is not False or
+            type(body.get("hard_runtime_ms")) is not int or body["hard_runtime_ms"] != 0):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+    for row in body["artifacts"]:
+        kind = row["kind"]
+        if (type(row.get("offset")) is not int or row["offset"] != offsets[kind] or
+                row.get("verified") is not verified[kind]):
+            raise FullUiTrialError("usb_full_ui_trial_unverified")
+    if prepared and (body.get("materialized") is not True or body.get("upload_duplicates_released") is not True):
+        raise FullUiTrialError("usb_full_ui_trial_unverified")
+
+
+async def upload_pair(client, services, job, images, offsets, verified, checked):
+    for kind in KINDS:
+        checked(await rpc(client, services, "full_runtime_begin", {"job": job, "kind": kind}))
+        for offset in range(0, len(images[kind]), 1024):
+            chunk = images[kind][offset:offset + 1024]
+            body = await rpc(client, services, "full_runtime_chunk",
+                             {"job": job, "kind": kind, "offset": offset, "hex_data": chunk.hex()})
+            offsets[kind] = offset + len(chunk)
+            checked(body)
+        body = await rpc(client, services, "full_runtime_seal", {"job": job, "kind": kind})
+        verified[kind] = True
+        checked(body)
+
+
+async def save_update_pair(client, listed, expected, bridge_sha, boot, job, images):
+    """Save the matched pair over an existing authenticated stock connection.
+
+    The caller owns Noise identity and the durable attempt. A lost save ACK
+    permits one status read of this exact nonce, never a second writer call.
+    """
+    validate_upload(expected, bridge_sha, boot, job, images)
+    services = services_named(listed, (*UPLOAD_SERVICES, SAVE_SERVICE))
+    if set(services) != {*UPLOAD_SERVICES, SAVE_SERVICE}:
+        raise FullUiTrialError("usb_full_ui_trial_rebuild_required")
+    offsets, verified = dict.fromkeys(KINDS, 0), dict.fromkeys(KINDS, False)
+
+    def checked(body):
+        check_upload(expected, job, offsets, verified, body)
+
+    try:
+        await preflight_upload(client, services, expected, bridge_sha, boot)
+        async with asyncio.timeout(360):
+            await upload_pair(client, services, job, images, offsets, verified, checked)
+            try:
+                await rpc(client, services, SAVE_SERVICE,
+                          {"job": job, "expected_boot": boot, "expected_bridge": bridge_sha})
+            except Exception:
+                # The bridge may have fsynced the pair before losing the ACK.
+                # Only a fresh receipt can advance the host after this call.
+                pass
+            status = await rpc(client, services, "full_runtime_status", {})
+            exact_artifacts(status, expected)
+            receipt = status.get("staged_release_save")
+            if (status.get("job") != "" or status.get("core_boot_enabled") is not False or
+                    type(status.get("phase")) is not int or status["phase"] != 0 or
+                    not isinstance(receipt, dict) or set(receipt) != {"job", "pair_saved", "uploads_released"} or
+                    receipt["job"] != job or receipt["pair_saved"] is not True or receipt["uploads_released"] is not True or
+                    any(type(row.get("offset")) is not int or row["offset"] != 0 or row.get("verified") is not False
+                        for row in status["artifacts"])):
+                raise FullUiTrialError("monitor1_update_pair_save_unverified")
+    except Exception:
+        raise FullUiTrialError("monitor1_update_pair_save_unverified") from None
+
+
 async def run(port, profile, expected, bridge_sha, boot, job, images, *, factory=None,
               clock=time.monotonic, sleep=asyncio.sleep):
     """Consume no host intent here: the fixed caller must already own it.
@@ -102,22 +215,9 @@ async def run(port, profile, expected, bridge_sha, boot, job, images, *, factory
     admission step polls its one consumed repair; a status read cannot advance it.
     A lost launch response permits read-only observation, never another launch.
     """
-    if (type(port) is not int or not 1024 <= port <= 65535 or
-            not isinstance(job, str) or not re.fullmatch(r"[a-f0-9]{16}", job) or job == "0" * 16 or
-            not isinstance(boot, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", boot) or
-            not isinstance(bridge_sha, str) or not re.fullmatch(r"[a-f0-9]{64}", bridge_sha) or
-            not isinstance(expected, dict) or not isinstance(images, dict) or
-            set(expected) != set(KINDS) or set(images) != set(KINDS)):
+    if type(port) is not int or not 1024 <= port <= 65535:
         raise FullUiTrialError("usb_full_ui_trial_unverified")
-    # Rehash actual bytes before opening a connection. The device repeats its
-    # compiled manifest checks; this is never caller-selected executable data.
-    for kind in KINDS:
-        pin, body = expected[kind], images[kind]
-        if (not isinstance(pin, dict) or set(pin) != {"size", "sha256"} or
-                type(pin["size"]) is not int or not 0 < pin["size"] <= 16 * 1024**2 or
-                not isinstance(body, bytes) or len(body) != pin["size"] or
-                hashlib.sha256(body).hexdigest() != pin["sha256"]):
-            raise FullUiTrialError("usb_full_ui_trial_unverified")
+    validate_upload(expected, bridge_sha, boot, job, images)
     if factory is None:
         from aioesphomeapi import APIClient
         factory = APIClient
@@ -149,64 +249,16 @@ async def run(port, profile, expected, bridge_sha, boot, job, images, *, factory
         services = services_named(listed, SERVICES)
         if set(services) != set(SERVICES):
             raise FullUiTrialError("usb_full_ui_trial_rebuild_required")
-        status = await rpc(client, services, "full_runtime_status", {})
-        exact_artifacts(status, expected)
-        if (status.get("job") != "" or type(status.get("phase")) is not int or status["phase"] != 0 or
-                status.get("hardware_trial_active") is not False or status.get("core_boot_enabled") is not False or
-                type(status.get("hard_runtime_ms")) is not int or status["hard_runtime_ms"] != 0 or
-                status.get("core_release_autostart_supported") is not True or
-                any(type(row.get("offset")) is not int or row["offset"] != 0 or row.get("verified") is not False
-                    for row in status["artifacts"])):
-            raise FullUiTrialError("usb_full_ui_trial_unverified")
-        capture = await rpc(client, services, "full_runtime_inspect_start", {})
-        if (capture.get("ok") is not True or capture.get("read_only") is not True or
-                capture.get("process_signals_exposed") is not False or capture.get("network_mutations_exposed") is not False or
-                capture.get("boot_id") != boot or capture.get("bridge_sha256") != bridge_sha):
-            raise FullUiTrialError("usb_full_ui_trial_unverified")
+        await preflight_upload(client, services, expected, bridge_sha, boot)
 
         offsets = {kind: 0 for kind in KINDS}
         verified = {kind: False for kind in KINDS}
 
-        def checked(body, *, prepared=False, launching=False, pending=False):
-            exact_artifacts(body, expected)
-            known_pending = pending and body.get("ok") is False and body.get("error") == "core_display_repair_pending"
-            if (body.get("job") != job or (body.get("ok") is not True and not known_pending) or
-                    body.get("core_boot_enabled") is not False):
-                raise FullUiTrialError("usb_full_ui_trial_unverified")
-            # Before launch every response must still describe our exact idle
-            # staging session. Progress from another role/session is not an ACK
-            # for this chunk. Do not continue writing after an unknown state.
-            if not launching and (type(body.get("phase")) is not int or body["phase"] != 0 or
-                    body.get("hardware_trial_active") is not False or
-                    type(body.get("hard_runtime_ms")) is not int or body["hard_runtime_ms"] != 0):
-                raise FullUiTrialError("usb_full_ui_trial_unverified")
-            for row in body["artifacts"]:
-                kind = row["kind"]
-                if (type(row.get("offset")) is not int or row["offset"] != offsets[kind] or
-                        row.get("verified") is not verified[kind]):
-                    raise FullUiTrialError("usb_full_ui_trial_unverified")
-            if prepared and (body.get("materialized") is not True or body.get("upload_duplicates_released") is not True):
-                raise FullUiTrialError("usb_full_ui_trial_unverified")
-            return {row["kind"]: row for row in body["artifacts"]}
+        def checked(body, **kwargs):
+            check_upload(expected, job, offsets, verified, body, **kwargs)
 
         async with asyncio.timeout(360):
-            for kind in KINDS:
-                body = await rpc(client, services, "full_runtime_begin", {"job": job, "kind": kind})
-                row = checked(body)[kind]
-                if type(row.get("offset")) is not int or row["offset"] != 0 or row.get("verified") is not False:
-                    raise FullUiTrialError("usb_full_ui_trial_unverified")
-                for offset in range(0, len(images[kind]), 1024):
-                    chunk = images[kind][offset:offset + 1024]
-                    body = await rpc(client, services, "full_runtime_chunk",
-                        {"job": job, "kind": kind, "offset": offset, "hex_data": chunk.hex()})
-                    offsets[kind] = offset + len(chunk)
-                    row = checked(body)[kind]
-                    if type(row.get("offset")) is not int or row["offset"] != offset + len(chunk):
-                        raise FullUiTrialError("usb_full_ui_trial_unverified")
-                body = await rpc(client, services, "full_runtime_seal", {"job": job, "kind": kind})
-                verified[kind] = True
-                if checked(body)[kind].get("verified") is not True:
-                    raise FullUiTrialError("usb_full_ui_trial_unverified")
+            await upload_pair(client, services, job, images, offsets, verified, checked)
             body = await rpc(client, services, "full_runtime_prepare", {"job": job}, pending_prepare=True)
             until = clock() + 20
             while body.get("ok") is False:

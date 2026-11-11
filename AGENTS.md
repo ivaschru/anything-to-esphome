@@ -24,6 +24,9 @@
   bridge digest and staging nonce. Verify the private durable copy before
   releasing uploads. Retain the previous pair and boot mode, never launch or
   repair a partial Store from this call. Its status receipt is process-local.
+  Share the existing trial uploader's exact ACK and digest checks. The update
+  caller owns the authenticated connection and one durable attempt. After a
+  lost save ACK, read the exact receipt once without repeating the save.
   Keep HA INSTALL unavailable until the coordinated bridge update, boot and
   recovery path is implemented. Use the explicit Linux root Store fixture.
 - The CGS2 USB inventory is read-only and separate from the installer. Use

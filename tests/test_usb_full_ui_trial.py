@@ -29,16 +29,21 @@ class Peer:
         self.launched, self.pending, self.repaired, self.lost_launch = False, 0, False, False
         self.missing, self.corrupt, self.disconnect_error = None, None, False
         self.observations, self.warming, self.wrong_native, self.stale = 0, False, False, False
+        self.saved, self.lost_save, self.wrong_receipt = False, False, False
         self.rows = [{"kind": k, **v, "offset": 0, "verified": False} for k, v in self.expected.items()]
 
     def status(self):
-        return {"ok": True, "job": self.job if self.calls and any(n == "full_runtime_begin" for n, _ in self.calls) else "",
+        body = {"ok": True, "job": self.job if not self.saved and any(n == "full_runtime_begin" for n, _ in self.calls) else "",
                 "phase": 7 if self.launched and self.observations >= 3 else 0,
                 "hard_runtime_ms": trial.TRIAL_MS if self.launched else 0,
                 "core_release_autostart_supported": True, "hardware_trial_active": False,
                 "core_boot_enabled": False, "materialized": True, "upload_duplicates_released": True,
                 "native_acquired": self.launched, "coordinator_error": "", "artifacts": copy.deepcopy(self.rows),
                 "core_display_repair_completed": self.repaired}
+        if self.saved:
+            body["staged_release_save"] = {"job": "d" * 16 if self.wrong_receipt else self.job,
+                                           "pair_saved": True, "uploads_released": True}
+        return body
 
     def factory(self, host, port, **kwargs):
         assert host == "127.0.0.1" and port == 16053
@@ -89,6 +94,14 @@ class Peer:
                         row["offset"] += len(payload)
                     if name == "full_runtime_seal":
                         next(v for v in peer.rows if v["kind"] == data["kind"])["verified"] = True
+                    if name == trial.SAVE_SERVICE:
+                        assert data == {"job": peer.job, "expected_boot": peer.boot, "expected_bridge": peer.bridge}
+                        assert all(row["verified"] for row in peer.rows)
+                        peer.saved = True
+                        for row in peer.rows:
+                            row.update(offset=0, verified=False)
+                        if peer.lost_save:
+                            raise TimeoutError("synthetic lost save reply")
                     if name == "full_runtime_launch_trial":
                         peer.launched = True
                         if peer.lost_launch:
@@ -114,8 +127,29 @@ class Peer:
         return asyncio.run(trial.run(16053, self.profile, self.expected, self.bridge, self.boot, self.job,
             self.images, factory=self.factory, clock=lambda: self.now, sleep=self.sleep))
 
+    def save_update(self):
+        async def run():
+            client = self.factory("127.0.0.1", 16053, noise_psk=self.profile["api_encryption_key"])
+            _, services = await client.list_entities_services()
+            await trial.save_update_pair(client, [*services, SimpleNamespace(name=trial.SAVE_SERVICE)],
+                self.expected, self.bridge, self.boot, self.job, self.images)
+        asyncio.run(run())
+
 
 class FullUiTrialTests(unittest.TestCase):
+    def test_update_save_uses_read_only_receipt_after_lost_reply(self):
+        peer = Peer(); peer.lost_save = True
+        peer.save_update()
+        actions = [name for name, _ in peer.calls]
+        self.assertEqual(actions.count(trial.SAVE_SERVICE), 1)
+        self.assertEqual(actions[actions.index(trial.SAVE_SERVICE) + 1:], ["full_runtime_status"])
+        self.assertFalse(any("launch" in action or "boot_mode" in action for action in actions))
+
+        peer = Peer(); peer.lost_save = True; peer.wrong_receipt = True
+        with self.assertRaisesRegex(trial.FullUiTrialError, "monitor1_update_pair_save_unverified"):
+            peer.save_update()
+        self.assertEqual(sum(name == trial.SAVE_SERVICE for name, _ in peer.calls), 1)
+
     def test_actual_coordinator_uploads_exact_pair_once_and_observes_return(self):
         peer = Peer()
         result = peer.run()
