@@ -197,6 +197,13 @@ class Monitor1Tests(unittest.TestCase):
     def test_full_boot_keeps_one_attempt_and_startup_window(self):
         self.run_cpp("test_full_boot_flow.cpp")
 
+    @unittest.skipUnless(
+        sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0,
+        "Real Linux root-owned Store fixture; CI runs an explicit root step",
+    )
+    def test_staged_release_preserves_the_active_pair_and_mode(self):
+        self.run_cpp("test_full_release_staged_save.cpp", crypto=True)
+
     @unittest.skipUnless(hasattr(os, "getuid"), "POSIX filesystem fixture")
     def test_cleanup_preserves_working_pair_and_unknown_files(self):
         self.run_cpp("test_storage_release_prune.cpp", crypto=True, own_uid=True)

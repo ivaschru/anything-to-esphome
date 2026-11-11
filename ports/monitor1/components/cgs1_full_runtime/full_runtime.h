@@ -91,6 +91,36 @@ class FullRuntime : public Component {
     root["ok"]=installed;root["error"]=installed?"":core_store_->error();
     root["enabled"]=core_store_->enabled();
   }
+  void save_staged_core_release(StringRef job,StringRef expected_boot,StringRef expected_bridge,JsonObject root) {
+    root["ok"]=false;
+    const auto nonce=text_(job);
+    // Save only under the bridge that compiled this pair and in the exact
+    // Linux boot observed by the updater. No mode, watchdog or launch write
+    // belongs to this action. Any uncertain write is observed via status.
+    if(!core_release_autostart_ || !staged_save_job_.empty() || prepared_attempted_ ||
+        !stage_ || stage_->job()!=nonce || !stage_->ready() || !boot_flow_ ||
+        boot_flow_->state()!=cgs1_supervisor::FullBootState::DISABLED || !coordinator_ ||
+        coordinator_->phase()!=cgs1_supervisor::CoordinatorPhase::IDLE || !policy_) {
+      root["error"]="idle_bridge_and_exact_sealed_pair_required";return;
+    }
+    cgs1_net_trial::StockInspection stock;cgs1_supervisor::OriginalEffects effects;
+    if(!policy_->capture(stock,effects) || stock.boot_id!=text_(expected_boot) ||
+        stock.bridge_sha!=text_(expected_bridge)) {
+      root["error"]="quiet_stock_exact_bridge_and_boot_required";return;
+    }
+    staged_save_job_=nonce;
+    if(!open_core_store_(true) || core_store_->enabled()) {
+      root["error"]="disabled_private_release_store_required";return;
+    }
+    staged_pair_saved_=core_store_->install_staged(*stage_,nonce);
+    // Only release the staging directory from this request after verifying
+    // the durable copy. A partial copy or unknown RAM entry stays for review.
+    staged_uploads_released_=staged_pair_saved_ && stage_->discard(nonce);
+    root["ok"]=staged_uploads_released_;
+    root["pair_saved"]=staged_pair_saved_;
+    root["uploads_released"]=staged_uploads_released_;
+    root["error"]=!staged_pair_saved_?core_store_->error():staged_uploads_released_?"":stage_->error();
+  }
   void set_core_boot_mode(bool enabled,JsonObject root) {
     root["ok"]=false;root["enabled"]=false;
     if(!core_release_autostart_ || !quiet_stock_() || !open_core_store_(false)) {
@@ -281,6 +311,14 @@ class FullRuntime : public Component {
   }
   void report(JsonObject root) const {
     root["core_release_autostart_supported"]=core_release_autostart_;
+    // Same-process receipt only. A later bridge process must read the Store
+    // before making any decision about an interrupted saved pair.
+    if(!staged_save_job_.empty()) {
+      auto receipt=root["staged_release_save"].to<JsonObject>();
+      receipt["job"]=staged_save_job_;
+      receipt["pair_saved"]=staged_pair_saved_;
+      receipt["uploads_released"]=staged_uploads_released_;
+    }
     root["hard_runtime_ms"]=coordinator_?coordinator_->hard_runtime_ms():0;
     root["core_boot_state"]=boot_flow_?unsigned(boot_flow_->state()):0;
     root["core_boot_error"]=boot_error_;
@@ -485,6 +523,8 @@ class FullRuntime : public Component {
   std::unique_ptr<cgs1_supervisor::RunnerWifiPrivateRoot>core_parent_;
   std::unique_ptr<cgs1_supervisor::FullReleaseStore>core_store_;
   std::string boot_job_,boot_id_,boot_error_;
+  std::string staged_save_job_;
+  bool staged_pair_saved_{false},staged_uploads_released_{false};
   bool quiet_stock_() {
     if(!coordinator_ || !policy_)return false;
     const auto phase=coordinator_->phase();

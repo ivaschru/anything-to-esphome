@@ -19,6 +19,13 @@
   existing HA device with RELEASE_NOTES only. A source kit never grants
   INSTALL capability or starts a build, device request or firmware transfer.
   Invalid runtime metadata must leave the Lite catalog usable.
+- The Monitor 1 bridge can save a sealed, exact compiled native/guardian
+  pair while stock owns the hardware. Bind the call to the current boot,
+  bridge digest and staging nonce. Verify the private durable copy before
+  releasing uploads. Retain the previous pair and boot mode, never launch or
+  repair a partial Store from this call. Its status receipt is process-local.
+  Keep HA INSTALL unavailable until the coordinated bridge update, boot and
+  recovery path is implemented. Use the explicit Linux root Store fixture.
 - The CGS2 USB inventory is read-only and separate from the installer. Use
   an explicit existing USB ADB serial, bound each reply and verify the same
   transport/boot. Collect the PX30 device-tree signature, ELF header, stock

@@ -73,6 +73,15 @@ api:
       then:
         - api.respond:
             data: !lambda id(full_runtime).install_core_release(job, root);
+    - action: full_runtime_save_staged_core_release
+      supports_response: only
+      variables:
+        job: string
+        expected_boot: string
+        expected_bridge: string
+      then:
+        - api.respond:
+            data: !lambda id(full_runtime).save_staged_core_release(job, expected_boot, expected_bridge, root);
     - action: full_runtime_set_core_boot_mode
       supports_response: only
       variables:
