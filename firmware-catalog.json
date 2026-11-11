@@ -69,11 +69,11 @@
   "runtime_releases": {
     "monitor1-s8": {
       "build": {
-        "entry": "ports/monitor1/build_candidate.py",
+        "entry": "ports/monitor1/build_update_candidate.py",
         "esphome": "2026.10.1",
         "private_profile_required": true,
         "private_stock_qt_required": true,
-        "source_ref": "e8f640e7fc3c06151818da675fb0548a8fd563c9",
+        "source_ref": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
         "ziglang": "0.14.1"
       },
       "delivery": "source-build-private-profile",
@@ -95,36 +95,36 @@
       },
       "limitations": [
         "Initial USB/HACS installation is experimental and is not enabled by this release.",
-        "Automatic HA firmware installation is not implemented for this Linux package.",
+        "HA installation requires an administrator and the exact previous and target private builds.",
         "Personalized ARM programs and the matching vendor Qt library stay private.",
         "Cold power cycling, absent-AP recovery and battery transitions are not hardware-qualified for this release.",
         "Bluetooth proxy is not implemented."
       ],
       "package_family": "cgs1-linux-armv7-full-runtime",
       "profile": "monitor1-s8",
-      "public_version": 1,
+      "public_version": 2,
       "qualification": {
         "automatic_update_ready": false,
         "exact_release_build_hardware_tested": false,
         "existing_private_runtime_tested": true,
         "initial_installation_ready": false
       },
-      "release_url": "https://github.com/ivaschru/qingping-esphome/tree/firmware-monitor1-s8-v1",
+      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-monitor1-s8-v2",
       "source": {
-        "sha256": "289b9b7111b1a6e18f45435626d6d5a8ffdc88db4ce715f3b084d1ff3d5f6b89",
-        "size": 982336,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-monitor1-s8-v1/monitor1-runtime-source.tar.gz"
+        "sha256": "36f7a0ee7d05d5e9ae21082cf750abddaf3526c1bd965a4524f4206774bb31dc",
+        "size": 1008298,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-monitor1-s8-v2/monitor1-runtime-source.tar.gz"
       },
-      "source_commit": "e8f640e7fc3c06151818da675fb0548a8fd563c9",
-      "source_url": "https://github.com/ivaschru/qingping-esphome/tree/e8f640e7fc3c06151818da675fb0548a8fd563c9"
+      "source_commit": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
+      "source_url": "https://github.com/ivaschru/anything-to-esphome/tree/3c5363f6ee72f0b3b314b734a796ab894d6bd136"
     },
     "monitor1-scd40": {
       "build": {
-        "entry": "ports/monitor1/build_candidate.py",
+        "entry": "ports/monitor1/build_update_candidate.py",
         "esphome": "2026.10.1",
         "private_profile_required": true,
         "private_stock_qt_required": true,
-        "source_ref": "e8f640e7fc3c06151818da675fb0548a8fd563c9",
+        "source_ref": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
         "ziglang": "0.14.1"
       },
       "delivery": "source-build-private-profile",
@@ -146,28 +146,28 @@
       },
       "limitations": [
         "Initial USB/HACS installation is experimental and is not enabled by this release.",
-        "Automatic HA firmware installation is not implemented for this Linux package.",
+        "HA installation requires an administrator and the exact previous and target private builds.",
         "Personalized ARM programs and the matching vendor Qt library stay private.",
         "Cold power cycling, absent-AP recovery and battery transitions are not hardware-qualified for this release.",
         "Bluetooth proxy is not implemented."
       ],
       "package_family": "cgs1-linux-armv7-full-runtime",
       "profile": "monitor1-scd40",
-      "public_version": 1,
+      "public_version": 2,
       "qualification": {
         "automatic_update_ready": false,
         "exact_release_build_hardware_tested": false,
         "existing_private_runtime_tested": true,
         "initial_installation_ready": false
       },
-      "release_url": "https://github.com/ivaschru/qingping-esphome/tree/firmware-monitor1-scd40-v1",
+      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-monitor1-scd40-v2",
       "source": {
-        "sha256": "289b9b7111b1a6e18f45435626d6d5a8ffdc88db4ce715f3b084d1ff3d5f6b89",
-        "size": 982336,
-        "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-monitor1-scd40-v1/monitor1-runtime-source.tar.gz"
+        "sha256": "36f7a0ee7d05d5e9ae21082cf750abddaf3526c1bd965a4524f4206774bb31dc",
+        "size": 1008298,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-monitor1-scd40-v2/monitor1-runtime-source.tar.gz"
       },
-      "source_commit": "e8f640e7fc3c06151818da675fb0548a8fd563c9",
-      "source_url": "https://github.com/ivaschru/qingping-esphome/tree/e8f640e7fc3c06151818da675fb0548a8fd563c9"
+      "source_commit": "3c5363f6ee72f0b3b314b734a796ab894d6bd136",
+      "source_url": "https://github.com/ivaschru/anything-to-esphome/tree/3c5363f6ee72f0b3b314b734a796ab894d6bd136"
     }
   }
 }
