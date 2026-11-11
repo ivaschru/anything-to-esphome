@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .firmware_catalog import FirmwareError, device_release_profile
 from .firmware_update import fetch_catalog, pending, private_values
+from .monitor1_update import track_monitor1_updates
 from .native_ota import encryption_available
 
 DOMAIN = "qingping_esphome"
@@ -24,7 +25,7 @@ class CatalogCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
-            return await fetch_catalog(self.hass)
+            return await fetch_catalog(self.hass, include_monitor1=True)
         except FirmwareError:
             raise UpdateFailed("Could not check Qingping firmware releases") from None
 
@@ -55,6 +56,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entry.async_on_unload(manager.add_record_listener(add_verified))
     add_verified()
+    track_monitor1_updates(hass, entry, coordinator, async_add_entities)
 
 
 class QingpingFirmwareUpdate(UpdateEntity):

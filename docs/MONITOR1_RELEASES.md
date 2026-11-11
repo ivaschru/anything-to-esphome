@@ -23,6 +23,13 @@ qualified first-install USB route. Factory-only and existing installations must
 not be routed through each other's tools. Read the installation boundaries in
 `ports/monitor1/README.md` before any device action.
 
+The integration's Monitor 1 update entity checks for new source kits every
+six hours. It links the kit for the S8 or SCD40 project reported by the existing
+encrypted ESPHome connection. The entity offers release notes. Installation
+still requires the private build and the matched bridge, native and guardian
+programs. Older custom builds without the published project name and numeric
+version cannot be associated with a source line automatically.
+
 ## Publication
 
 From a clean archive of a reviewed committed source:
