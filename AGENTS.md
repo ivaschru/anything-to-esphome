@@ -47,6 +47,8 @@
 - The exact stock 4.2.1 ESP32 APP uses signed LE16 T and unsigned LE16 RH
   divided by 100 as compensation inputs. Keep the APP scale evidence distinct
   from the separate MCU 0354 wire fixture and any target qualification.
+  Optional scaled sensors expose only these inputs as diagnostics. Retain raw
+  counts and field expiry, and keep hardware control and the installer closed.
 - Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
   SN-ESP32C3-S60-01 only. The full initial wizard is experimental until physical
   qualification. Reuse detached SonoffLAN in-memory snapshots; no .storage

@@ -31,6 +31,12 @@ int main() {
   assert(sample.values[4] == 1 && sample.values[5] == 800);
   assert(sample.values[6] == 12 && sample.values[7] == 17);
   for (bool present : sample.present) assert(present);
+  const auto inputs = stock421_inputs(sample);
+  assert(inputs.valid && inputs.temperature == -2.5f && inputs.humidity == 50.0f);
+  assert(decode_telemetry(frame({2,4,0,0,0,0x10,0x27}), sample) == TelemetryError::NONE);
+  assert(stock421_inputs(sample).valid && stock421_inputs(sample).humidity == 100.0f);
+  assert(decode_telemetry(frame({2,4,0,0,0,0x11,0x27}), sample) == TelemetryError::NONE);
+  assert(!stock421_inputs(sample).valid);
 
   // Four-byte ESP32 storage does not establish a four-byte wire type. Wrong
   // lengths, duplicates and the downlink command must retire the whole sample.
@@ -47,6 +53,7 @@ int main() {
   // Unknown TLVs and settings ACKs may coexist with data but cannot create any.
   assert(decode_telemetry(frame({0x25,1,0,1,0xfe,0,0}), sample) == TelemetryError::NONE);
   for (bool present : sample.present) assert(!present);
+  assert(!stock421_inputs(sample).valid);
   auto invalid = full;
   invalid.tlvs[0].offset = MAX_FRAME;
   assert(decode_telemetry(invalid, sample) == TelemetryError::BOUNDS);

@@ -2,13 +2,13 @@
 
 Default passive mode accepts only RX. The opt-in poll probe requires the exact
 TX18/RX19 pair and can send only two fixed transport messages under a one-boot
-budget, never settings, calibration or MCU updates. Export raw counts until the
-target's layout, scales and invalid values have been checked on hardware.
+budget, never settings, calibration or MCU updates. Optional 4.2.1 scaled
+inputs stay diagnostic alongside the raw fields.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor, uart
-from esphome.const import CONF_ID
+from esphome.const import CONF_ID, UNIT_CELSIUS, UNIT_PERCENT
 import esphome.final_validate as fv
 
 DEPENDENCIES = ["esp32", "uart"]
@@ -17,6 +17,8 @@ CONF_STALE_AFTER = "stale_after"
 CONF_TRANSMIT_MODE = "transmit_mode"
 FIELDS = ("raw_temperature", "raw_humidity", "raw_battery", "raw_voltage",
           "raw_charge", "raw_co2", "raw_pm25", "raw_pm10")
+STOCK_421_INPUTS = (("stock_421_temperature_input", UNIT_CELSIUS),
+                    ("stock_421_humidity_input", UNIT_PERCENT))
 ns = cg.esphome_ns.namespace("cgdn1_mcu")
 Cgdn1Mcu = ns.class_("Cgdn1Mcu", cg.Component, uart.UARTDevice)
 
@@ -29,6 +31,8 @@ CONFIG_SCHEMA = cv.Schema({
     ),
     **{cv.Optional(key): sensor.sensor_schema(accuracy_decimals=0,
         entity_category="diagnostic") for key in FIELDS},
+    **{cv.Optional(key): sensor.sensor_schema(accuracy_decimals=2, unit_of_measurement=unit,
+        entity_category="diagnostic") for key, unit in STOCK_421_INPUTS},
 }).extend(cv.COMPONENT_SCHEMA).extend(uart.UART_DEVICE_SCHEMA)
 
 
@@ -67,3 +71,6 @@ async def to_code(config):
     for index, key in enumerate(FIELDS):
         if key in config:
             cg.add(var.set_sensor(index, await sensor.new_sensor(config[key])))
+    for index, (key, _) in enumerate(STOCK_421_INPUTS):
+        if key in config:
+            cg.add(var.set_stock_421_input(index, await sensor.new_sensor(config[key])))

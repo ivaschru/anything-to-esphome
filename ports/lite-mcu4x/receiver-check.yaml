@@ -28,6 +28,10 @@ cgdn1_mcu:
     name: MCU raw temperature
   raw_humidity:
     name: MCU raw humidity
+  stock_421_temperature_input:
+    name: MCU stock 4.2.1 temperature input
+  stock_421_humidity_input:
+    name: MCU stock 4.2.1 humidity input
   raw_co2:
     name: MCU raw CO2
   raw_pm25:

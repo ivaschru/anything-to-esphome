@@ -21,6 +21,9 @@ class Cgdn1Mcu : public Component, public uart::UARTDevice {
   void set_sensor(size_t index, sensor::Sensor *value) {
     if (index < sensors_.size()) sensors_[index] = value;
   }
+  void set_stock_421_input(size_t index, sensor::Sensor *value) {
+    if (index < stock_421_inputs_.size()) stock_421_inputs_[index] = value;
+  }
   void set_stale_after(uint32_t value) { stale_after_ = value; }
   void set_poll_probe(bool value) { poll_probe_ = value; }
   void set_poll_series(bool value) { poll_series_ = value; }
@@ -36,6 +39,9 @@ class Cgdn1Mcu : public Component, public uart::UARTDevice {
   qingping::mcu4x::PollLong long_;
   qingping::mcu4x::PmIntervalAck pm_ack_;
   std::array<sensor::Sensor *, qingping::mcu4x::FIELD_COUNT> sensors_{};
+  // Shares the first two field expiry clocks. Nothing here drives the screen
+  // or marks the reference inputs as calibrated physical measurements.
+  std::array<sensor::Sensor *, 2> stock_421_inputs_{};
   uint32_t stale_after_{30000};
   uint32_t last_byte_{0};
   uint32_t last_summary_{0};

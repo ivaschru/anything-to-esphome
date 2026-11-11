@@ -22,6 +22,23 @@ struct Telemetry {
   std::array<bool, FIELD_COUNT> present{};
 };
 
+// Stock 4.2.1 passes these two divided wire values into its compensation
+// code. They are diagnostic inputs: no stock calibration, status-bit
+// semantics or unobserved sentinel is inferred from the physical units.
+struct Stock421Inputs {
+  float temperature{0};
+  float humidity{0};
+  bool valid{false};
+};
+
+inline Stock421Inputs stock421_inputs(const Telemetry &sample) {
+  constexpr size_t temperature = static_cast<size_t>(Field::TEMPERATURE_RAW);
+  constexpr size_t humidity = static_cast<size_t>(Field::HUMIDITY_RAW);
+  if (!sample.present[temperature] || !sample.present[humidity] ||
+      sample.values[humidity] < 0 || sample.values[humidity] > 10000) return {};
+  return {sample.values[temperature] / 100.0f, sample.values[humidity] / 100.0f, true};
+}
+
 enum class TelemetryError { NONE, COMMAND, LAYOUT, DUPLICATE, BOUNDS };
 
 inline TelemetryError decode_telemetry(const Frame &frame, Telemetry &out) {
