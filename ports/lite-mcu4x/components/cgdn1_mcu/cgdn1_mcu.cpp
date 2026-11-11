@@ -12,6 +12,7 @@ using namespace qingping::mcu4x;
 void Cgdn1Mcu::setup() {
   this->check_uart_settings(115200, 1, uart::UART_CONFIG_PARITY_NONE, 8);
   for (auto *value : sensors_) if (value != nullptr) value->publish_state(NAN);
+  for (auto *value : stock_421_inputs_) if (value != nullptr) value->publish_state(NAN);
 }
 
 void Cgdn1Mcu::loop() {
@@ -67,6 +68,13 @@ void Cgdn1Mcu::loop() {
         state_.apply(sample, now);
         for (size_t i = 0; i < FIELD_COUNT; ++i)
           if (sample.present[i] && sensors_[i] != nullptr) sensors_[i]->publish_state(sample.values[i]);
+        if (sample.present[static_cast<size_t>(Field::TEMPERATURE_RAW)]) {
+          const auto inputs = stock421_inputs(sample);
+          if (stock_421_inputs_[0] != nullptr)
+            stock_421_inputs_[0]->publish_state(inputs.valid ? inputs.temperature : NAN);
+          if (stock_421_inputs_[1] != nullptr)
+            stock_421_inputs_[1]->publish_state(inputs.valid ? inputs.humidity : NAN);
+        }
         break;
       }
       case SerialEvent::POLL: ++polls_; break;
@@ -81,8 +89,12 @@ void Cgdn1Mcu::loop() {
   if (poll_probe_ && probe_.poll_due(now)) this->write_str(EMPTY_POLL);
   if (poll_series_ && series_.poll_due(now)) this->write_str(EMPTY_POLL);
   if (poll_long_ && long_.poll_due(now)) this->write_str(EMPTY_POLL);
-  for (size_t i = 0; i < FIELD_COUNT; ++i)
-    if (state_.expire(i, now, stale_after_) && sensors_[i] != nullptr) sensors_[i]->publish_state(NAN);
+  for (size_t i = 0; i < FIELD_COUNT; ++i) {
+    if (!state_.expire(i, now, stale_after_)) continue;
+    if (sensors_[i] != nullptr) sensors_[i]->publish_state(NAN);
+    if (i < stock_421_inputs_.size() && stock_421_inputs_[i] != nullptr)
+      stock_421_inputs_[i]->publish_state(NAN);
+  }
   if (now - last_summary_ >= 30000) {
     last_summary_ = now;
     ESP_LOGD(TAG, "RX reports=%" PRIu32 " rejected=%" PRIu32 " polls=%" PRIu32,
@@ -124,7 +136,7 @@ void Cgdn1Mcu::dump_config() {
   ESP_LOGCONFIG(TAG, "  Mode: %s", poll_long_ ? "bounded long poll series without ACK" :
       (poll_series_ ? "bounded poll series without ACK" :
       (poll_probe_ ? "bounded fixed poll probe" : "passive RX")));
-  ESP_LOGCONFIG(TAG, "  Raw counts only; no settings, GPIO power or MCU OTA");
+  ESP_LOGCONFIG(TAG, "  Raw counts and optional 4.2.1 compensation inputs; no settings, GPIO power or MCU OTA");
   ESP_LOGCONFIG(TAG, "  Field expiry: %" PRIu32 " ms", stale_after_);
 }
 }  // namespace esphome::cgdn1_mcu

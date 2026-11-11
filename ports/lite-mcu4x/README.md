@@ -26,9 +26,13 @@ reads signed LE16 temperature followed by unsigned LE16 humidity. It divides
 both by `100.0` when preparing inputs to the stock compensation code. The
 operand is stored at `0x400d0218`, and the call target `0x40002954` is
 `__divdf3` in the ESP32 ROM linker definitions. These are the scale and wire
-order expected by this ESP32 application. The receiver still exports raw
-counts until the corresponding MCU report and invalid values are confirmed
-on the target revision.
+order expected by this ESP32 application. The receiver preserves its raw
+counts. The optional `stock_421_temperature_input` and
+`stock_421_humidity_input` expose the divided inputs as diagnostics. They
+share the raw frame's expiry, preserve negative temperature and refuse
+humidity above 100%. They do not apply the factory compensation or interpret
+unknown MCU status/sentinel values. The installable firmware still needs
+the exact target's layout and validity evidence.
 
 The component also retains separate finite research poll modes with exact
 TX18/RX19 and fixed empty-poll/ACK strings. There is no arbitrary command,
