@@ -1,3 +1,12 @@
+## Unreleased
+
+- Show available Monitor 1 source releases in Home Assistant for connected S8
+  and SCD40 runtimes. Use the matching project and version reported by ESPHome.
+  Installation still requires a private build and coordinated bundle deployment.
+- Add a read-only USB inventory for Monitor 2 with PX30 device-tree, application
+  ABI and fixed I²C driver checks. Record the stock 4.2.1 APP's T/RH scale
+  separately from the external MCU receiver's unqualified raw readings.
+
 ## 0.3.1 – recovery, native Lite sources and factory 4.3.4
 
 - Keep native Lite URLs compatible with the original repository name compiled

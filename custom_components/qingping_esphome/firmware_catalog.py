@@ -24,6 +24,7 @@ MAX_IMAGE_BYTES = 0x1E0000 - 1
 # MCU Lite, Linux Monitor 1 and Monitor 2 need their own qualified updater.
 UPDATE_BACKENDS = {"lite": "esp32-noise-app-v1", "lite-434": "esp32-noise-app-v1"}
 KNOWN_PROFILES = {"lite-434", "lite", "lite-mcu421", "monitor1-s8", "monitor1-scd40", "monitor2"}
+MONITOR1_CO2_TYPES = {"monitor1-s8": 2, "monitor1-scd40": 3}
 
 
 class FirmwareError(ValueError):
@@ -192,6 +193,53 @@ def parse_catalog(data):
             or set(extra) & set(data["releases"])):
         raise FirmwareError("invalid_catalog")
     return {profile: Release.parse(profile, item) for profile, item in {**data["releases"], **extra}.items()}
+
+
+@dataclass(frozen=True)
+class Monitor1Release:
+    public_version: int
+    release_url: str
+
+    @classmethod
+    def parse(cls, profile, data):
+        # Runtime kits are source packages. A catalog cannot turn one into
+        # an installable ESP32 image or confer permission to update a bundle.
+        if (not isinstance(data, dict) or data.get("profile") != profile
+                or data.get("format") != "qingping-monitor1-runtime-source-v1"
+                or data.get("package_family") != "cgs1-linux-armv7-full-runtime"
+                or data.get("delivery") != "source-build-private-profile"
+                or data.get("hardware") != {"model": "CGS1", "soc": "RK3128", "architecture": "armv7l",
+                                            "stock_version": "4.1.8_0287", "co2_type": MONITOR1_CO2_TYPES[profile]}):
+            raise FirmwareError("invalid_catalog")
+        version = _positive(data.get("public_version"), 2**53 - 1)
+        commit = _text(data.get("source_commit"), maximum=40)
+        if not re.fullmatch(r"[0-9a-f]{40}", commit):
+            raise FirmwareError("invalid_catalog")
+        tag = firmware_tag(profile, version)
+        repo = next((repo for repo in REPOSITORIES
+                     if data.get("release_url") == f"https://github.com/{repo}/tree/{tag}"), None)
+        if repo is None or data.get("source_url") != f"https://github.com/{repo}/tree/{commit}":
+            raise FirmwareError("invalid_asset_url")
+        source = Asset.parse(data.get("source"), filename="monitor1-runtime-source.tar.gz",
+                             maximum=32 * 1024 * 1024, profile=profile)
+        if source.url != f"https://raw.githubusercontent.com/{repo}/{tag}/monitor1-runtime-source.tar.gz":
+            raise FirmwareError("invalid_asset_url")
+        return cls(version, data["release_url"])
+
+
+def parse_monitor1_releases(data):
+    """Read only the two known source lines without making Lite depend on them."""
+    rows = data.get("runtime_releases")
+    releases = {}
+    if isinstance(rows, dict):
+        for profile in MONITOR1_CO2_TYPES:
+            if profile in rows:
+                try:
+                    releases[profile] = Monitor1Release.parse(profile, rows[profile])
+                except FirmwareError:
+                    # Malformed source metadata suppresses just this notice.
+                    continue
+    return releases
 
 
 def device_release_profile(record):

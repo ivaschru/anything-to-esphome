@@ -21,7 +21,10 @@ from aioesphomeapi import APIClient, BinarySensorState, NumberState, SelectState
 from aiohttp import ClientError, ClientTimeout
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .firmware_catalog import CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog, asset_url, device_release_profile
+from .firmware_catalog import (
+    CATALOG_URL, MAX_INDEX_BYTES, Release, FirmwareError, parse_catalog,
+    parse_monitor1_releases, asset_url, device_release_profile,
+)
 from .image import SLOTS, layout, mac_normalize, personalize, private_ipv4
 from .native_ota import encryption_available, upload_app
 
@@ -106,9 +109,13 @@ signed CDN URLs, whose query strings must never appear in errors or logs.
     raise FirmwareError("firmware_download_failed")
 
 
-async def fetch_catalog(hass):
+async def fetch_catalog(hass, *, include_monitor1=False):
     try:
-        return parse_catalog(json.loads(await download_public(hass, CATALOG_URL, MAX_INDEX_BYTES)))
+        data = json.loads(await download_public(hass, CATALOG_URL, MAX_INDEX_BYTES))
+        releases = parse_catalog(data)
+        if include_monitor1:
+            releases.update(parse_monitor1_releases(data))
+        return releases
     except (ValueError, UnicodeError):
         raise FirmwareError("invalid_catalog") from None
 

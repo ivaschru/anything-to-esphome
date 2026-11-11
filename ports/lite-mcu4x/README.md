@@ -19,6 +19,17 @@ unsigned8 and voltage as unsigned16. These are wire counts, not qualified
 physical units or stock heat compensation. Four-byte ESP32 RAM loads do not
 prove four-byte TLVs. A different MCU layout must fail explicitly.
 
+The preserved stock 4.2.1 ESP32 APP (1 810 048 bytes, SHA-256
+`feb78216a1a1477036672a736d1e8a0d104f8c23bb6b128ee7f1a89a731ab5d5`)
+provides separate evidence about scale. The `0x02` handler at `0x400d6f36`
+reads signed LE16 temperature followed by unsigned LE16 humidity. It divides
+both by `100.0` when preparing inputs to the stock compensation code. The
+operand is stored at `0x400d0218`, and the call target `0x40002954` is
+`__divdf3` in the ESP32 ROM linker definitions. These are the scale and wire
+order expected by this ESP32 application. The receiver still exports raw
+counts until the corresponding MCU report and invalid values are confirmed
+on the target revision.
+
 The component also retains separate finite research poll modes with exact
 TX18/RX19 and fixed empty-poll/ACK strings. There is no arbitrary command,
 setting/calibration encoder or MCU updater. These modes never qualify a
@@ -28,7 +39,7 @@ production polling lifecycle, fan-off behavior or another hardware revision.
 qualified startup, power/input/display ownership, exact target join or stock
 return. Default 30-second field expiry is diagnostic and may be shorter than
 normal PM intervals. A usable full port still needs exact startup/ACK,
-measurement scales/invalid values, power and display/input evidence.
+target report and invalid-value evidence, and power and display/input behavior.
 
 ```sh
 python -m unittest discover -s tests -p 'test_mcu4x*.py' -v

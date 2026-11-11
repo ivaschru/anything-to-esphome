@@ -13,6 +13,22 @@
   bad post-rename sidecar stays immutable; --repair-native-url --publish uses
   its own consumed intent to fix only the mutable native endpoint by catalog
   CAS. Never replace app/tag bytes or relax the device's exact URL check.
+- Monitor 1 source release notices use the existing catalog refresh and the
+  cached identity, project name and version of a connected ESPHome entry.
+  Preserve the separate S8 and SCD40 source lines. Report releases on the
+  existing HA device with RELEASE_NOTES only. A source kit never grants
+  INSTALL capability or starts a build, device request or firmware transfer.
+  Invalid runtime metadata must leave the Lite catalog usable.
+- The CGS2 USB inventory is read-only and separate from the installer. Use
+  an explicit existing USB ADB serial, bound each reply and verify the same
+  transport/boot. Collect the PX30 device-tree signature, ELF header, stock
+  version and bounded app fingerprint at the original OTA paths, and only
+  the fixed I2C device/driver paths. Keep serials and boot IDs out of the JSON.
+  Published DTS evidence applies to its observed revision. Never infer an
+  installable Monitor 2 profile from the inventory or a synthetic fixture.
+- The exact stock 4.2.1 ESP32 APP uses signed LE16 T and unsigned LE16 RH
+  divided by 100 as compensation inputs. Keep the APP scale evidence distinct
+  from the separate MCU 0354 wire fixture and any target qualification.
 - Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
   SN-ESP32C3-S60-01 only. The full initial wizard is experimental until physical
   qualification. Reuse detached SonoffLAN in-memory snapshots; no .storage
