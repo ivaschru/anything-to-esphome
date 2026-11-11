@@ -199,6 +199,7 @@ def parse_catalog(data):
 class Monitor1Release:
     public_version: int
     release_url: str
+    source_commit: str
 
     @classmethod
     def parse(cls, profile, data):
@@ -224,7 +225,7 @@ class Monitor1Release:
                              maximum=32 * 1024 * 1024, profile=profile)
         if source.url != f"https://raw.githubusercontent.com/{repo}/{tag}/monitor1-runtime-source.tar.gz":
             raise FirmwareError("invalid_asset_url")
-        return cls(version, data["release_url"])
+        return cls(version, data["release_url"], commit)
 
 
 def parse_monitor1_releases(data):

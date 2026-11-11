@@ -1,8 +1,11 @@
-## Unreleased
+## 0.3.2 – Monitor 1 updates from Home Assistant
 
 - Show available Monitor 1 source releases in Home Assistant for connected S8
   and SCD40 runtimes. Use the matching project and version reported by ESPHome.
-  Installation still requires a private build and coordinated bundle deployment.
+- Install a prepared private Monitor 1 bundle from the HA update entity.
+  Verify the exact active bundle, replace its bridge through Noise OTA, and
+  check the native program after a new Linux boot. Restore the previous bundle
+  if the exact idle stock bridge remains reachable. Keep private USB recovery.
 - Add a read-only USB inventory for Monitor 2 with PX30 device-tree, application
   ABI and fixed I²C driver checks. Record the stock 4.2.1 APP's T/RH scale
   separately from the external MCU receiver's unqualified raw readings.

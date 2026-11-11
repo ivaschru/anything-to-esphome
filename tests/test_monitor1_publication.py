@@ -116,8 +116,9 @@ class RuntimePublicationTests(unittest.TestCase):
             git(self.root,'push','origin',competing+':'+publisher.channel.BRANCH)
         with patch.object(publisher.channel,'save_intent',side_effect=race),self.assertRaises(RuntimeError):
             self.publish()
-        for profile in publisher.PROFILES:
-            self.assertIsNone(publisher.channel.remote_ref(self.root,'refs/tags/firmware-'+profile+'-v1'))
+        for row in self.values:
+            tag = publisher.channel.catalog.firmware_tag(row['profile'], row['public_version'])
+            self.assertIsNone(publisher.channel.remote_ref(self.root, 'refs/tags/' + tag))
         self.assertTrue((self.root/'intent.json').exists())
 
 

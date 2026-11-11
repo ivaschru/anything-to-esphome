@@ -81,13 +81,34 @@ class _Wire:
 
 async def upload_app(host, image, noise_key, password, progress):
     """A single literal-IPv4 connection; errors never cause another upload."""
-    from cryptography.exceptions import InvalidTag
-    from aioesphomeapi.noise import NoiseHandshake
-
-    host = private_ipv4(host)
     layout(image)  # Refuse vendor CRC trailers, full flash or oversized apps.
     if not noise_key or not password:
         raise FirmwareError("update_profile_required")
+    await _upload(private_ipv4(host), image, noise_key, password, progress)
+
+
+def check_monitor1_image(image, pin):
+    if (not isinstance(image, bytes) or not 52 <= len(image) <= 16 * 1024**2
+            or not isinstance(pin, dict) or type(pin.get("size")) is not int
+            or pin != {"size": len(image), "sha256": hashlib.sha256(image).hexdigest()}
+            or image[:7] != b"\x7fELF\x01\x01\x01" or image[16:18] not in (b"\x02\0", b"\x03\0")
+            or image[18:24] != b"\x28\0\x01\0\0\0" or image[40:42] != b"\x34\0"
+            or int.from_bytes(image[36:40], "little") & 0xff000600 != 0x05000400):
+        raise FirmwareError("monitor1_update_candidate_mismatch")
+
+
+async def upload_monitor1_bridge(host, image, pin, noise_key, progress):
+    """Send only a locally pinned ARM Linux bridge over mandatory Noise OTA."""
+    check_monitor1_image(image, pin)
+    if not noise_key:
+        raise FirmwareError("update_profile_required")
+    await _upload(private_ipv4(host), image, noise_key, None, progress)
+
+
+async def _upload(host, image, noise_key, password, progress):
+    from cryptography.exceptions import InvalidTag
+    from aioesphomeapi.noise import NoiseHandshake
+
     writer = None
     try:
         async with asyncio.timeout(300):
@@ -114,6 +135,8 @@ async def upload_app(host, image, noise_key, password, progress):
 
             auth = (await wire.read(1))[0]
             if auth in (1, 2):
+                if password is None:
+                    raise FirmwareError("ota_authentication_failed")
                 width = 32 if auth == 1 else 64
                 nonce = await wire.read(width)
                 if not re.fullmatch(rb"[0-9a-fA-F]+", nonce):
