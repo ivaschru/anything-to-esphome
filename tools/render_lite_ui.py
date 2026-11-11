@@ -80,7 +80,9 @@ p=OUT/'esphome/components/cgdn1_display/stock_icons.h';p.parent.mkdir(parents=Tr
 entities=(ROOT/'ports/lite/components/cgdn1_ui/settings_entities.h').read_text()
 label=entities[entities.index('  std::string label('):entities.index('\n};',entities.index('  std::string label('))]
 choices=entities[entities.index('inline const char *choice_label'):entities.index('class SettingsEntities')]
-code='''#include "fake.h"
+readings = s[s.index('struct Readings {'):s.index('\n};',s.index('struct Readings {'))+3]
+code='''#include <array>
+#include "fake.h"
 #include "ports/lite/components/cgdn1_ui/settings_menu.h"
 #include "ports/lite/components/cgdn1_ui/design_render.h"
 #include "ports/lite/components/cgdn1_display/display_sources.h"
@@ -91,7 +93,7 @@ struct Settings : SettingsMenu {
  float get(Key k,float=0)const{return states[int(k)];}
 '''+label+'''
 };
-struct Readings {float co2=780,temperature=24.8,humidity=43,pm25=11,pm1=4,pm10=13;bool usb=false;ESPTime clock;cgdn1_display::DisplayValues summary{780,24.8};};
+'''+readings+'''
 class Fixture {public:
  Settings settings_;struct Battery{float state=82;} battery;Battery*battery_=&battery;
  struct PM{bool on=false;bool ready(){return on;}bool enabled(){return on;}uint32_t warmup_remaining_ms(){return 30000;}}pm;PM*pm_=&pm;
@@ -103,16 +105,19 @@ for name in ('ha_connected_','render_status_','hero_','render_reading_','render_
     code+=method(name)+'\n'
 code+='void fonts(){\n'+fontcode+init+'}\n};}\n'
 code+=r'''
-int main(int argc,char**argv){using namespace esphome;using namespace cgdn1_ui;Fixture f;f.fonts();Readings in;
+int main(int argc,char**argv){using namespace esphome;using namespace cgdn1_ui;Fixture f;f.fonts();Readings in;in.co2=780;in.temperature=24.8;in.humidity=43;in.pm1=4;in.pm25=11;in.pm10=13;in.summary={780,24.8};
  for(int i=0;i<int(Key::COUNT);++i){auto &b=f.settings_.values[i];b.read=[&,i]{return f.settings_.states[i];};b.step=[]{return 1.f;};b.minimum=[]{return 0.f;};}
  f.settings_.states[int(Key::BRIGHTNESS)]=6;
- for(int k:{1,6,9,10,12,16}){f.settings_.values[k].kind=ValueKind::BOOLEAN;f.settings_.states[k]=k!=9;}
+ for(int k:{1,6,9,10,12,16,24}){f.settings_.values[k].kind=ValueKind::BOOLEAN;f.settings_.states[k]=k!=9;}
  for(int k:{2,4,5,11,15,23}){f.settings_.values[k].kind=ValueKind::CHOICE;f.settings_.values[k].label=[k](int index){const char*s=choice_label(Key(k),index);return s?std::string(s):"Measured";};}
  for(int k:{7,8}){f.settings_.values[k].kind=ValueKind::TIME;f.settings_.states[k]=k==7?1320:420;}
  for(int design=0;design<2;++design){f.settings_.states[int(Key::DESIGN)]=design;
   for(int page=0;page<4;++page){display::Display d;Painter p(d);f.render_status_(p,in,page);f.render_reading_(p,in,page);d.save(std::string(argv[1])+"/reading-"+std::to_string(design)+"-"+std::to_string(page)+".pbm");}
   for(int layout=1;layout<7;++layout){display::Display d;Painter p(d);f.settings_.states[int(Key::IDLE)]=layout;f.render_status_(p,in,0);f.render_saver_(p,in);d.save(std::string(argv[1])+"/saver-"+std::to_string(design)+"-"+std::to_string(layout)+".pbm");}
  }
+ in.ha_sources.fill(true);
+ for(int page=0;page<4;++page){display::Display d;Painter p(d);f.render_status_(p,in,page);f.render_reading_(p,in,page);d.save(std::string(argv[1])+"/ha-reading-"+std::to_string(page)+".pbm");}
+ in.ha_sources.fill(false);
  f.settings_.open(0);
  for(int group=0;group<8;++group){display::Display d;Painter p(d);f.settings_.group=group;f.settings_.row=0;f.render_settings_(p,in);d.save(std::string(argv[1])+"/menu-"+std::to_string(group)+".pbm");}
  f.settings_.group=1;f.settings_.row=0;f.settings_.key=0;f.settings_.draft=6;f.settings_.view=SettingsMenu::View::EDIT;

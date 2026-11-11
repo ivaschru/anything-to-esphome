@@ -30,6 +30,14 @@ def encoded(value):return (json.dumps(value,indent=2,sort_keys=True)+'\n').encod
 def sha(data):return hashlib.sha256(data).hexdigest()
 
 
+def native_image_url(profile, version, *, repository=catalog.LEGACY_REPOSITORY):
+    # Deployed Lite updaters derive and compare this exact original URL. The
+    # repository rename is a GitHub alias, not permission to change their wire
+    # contract. The ordinary HACS index may use the new repository name.
+    if profile not in ('lite', 'lite-434'):raise ValueError('Unqualified native profile')
+    return f'https://raw.githubusercontent.com/{repository}/{catalog.firmware_tag(profile,version)}/{profile}-template.bin'
+
+
 def native_manifest(profile, entry, binary, manifest_bytes):
     """One bounded, device-readable manifest for the SAME immutable app bytes.
 
@@ -47,7 +55,7 @@ def native_manifest(profile, entry, binary, manifest_bytes):
     result={'format':'qingping-native-update-v1','profile':profile,'hardware':'0001',
             'source_stock_version':'4.5.8' if profile=='lite' else '4.3.4',
             'revision':entry['revision'],'public_version':entry['public_version'],
-            'size':len(binary),'sha256':sha(binary),'url':entry['image']['url'],
+            'size':len(binary),'sha256':sha(binary),'url':native_image_url(profile,entry['public_version']),
             'summary':entry['summary'],'patches':native['patches']}
     if len(encoded(result))>16384:raise ValueError('Native manifest exceeds the device bound')
     return encoded(result)
@@ -211,7 +219,7 @@ def save_intent(path,value):
     finally:os.close(dfd)
 
 
-def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit,intent,*,stage_native=False):
+def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit,intent,*,stage_native=False,repair_native_url=False):
     """Create-only tag plus catalog CAS, sharing one atomic remote transaction.
 
     Existing identical tags are reconciled, never recreated. A stale catalog
@@ -229,7 +237,17 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
     if native is not None:files['native-'+profile+'.json']=native
     if existing:
         fetch_object(root,existing)
-        if any(read_object(root,existing,name)!=data for name,data in files.items()):raise ValueError('Immutable firmware tag differs')
+        for name,data in files.items():
+            actual=read_object(root,existing,name)
+            if actual==data:continue
+            # The first post-rename publication used the canonical name in
+            # its native sidecar. Preserve that immutable historical file;
+            # accept ONLY the same complete manifest with that one known URL
+            # alias. No image, source manifest, patch, SHA or version may vary.
+            alias=json.loads(data) if name=='native-'+profile+'.json' else None
+            if alias is not None:
+                alias['url']=native_image_url(profile,entry['public_version'],repository=catalog.REPOSITORY)
+            if alias is None or json.loads(actual)!=alias:raise ValueError('Immutable firmware tag differs')
         provenance=json.loads(read_object(root,existing,'release.json'))
         if provenance['profile']!=profile or provenance['public_version']!=entry['public_version']:
             raise ValueError('Immutable firmware identity differs')
@@ -253,6 +271,24 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
             and all(previous_files.get(name)==data for name,data in catalog_files.items() if name!='firmware-catalog.json')):
         if not existing:raise RuntimeError('Catalog points to a missing firmware tag')
         return {'state':'already_published','tag':tag,'catalog_head':expected_head}
+    if existing and native is not None and not repair_native_url:
+        alias=json.loads(native)
+        alias['url']=native_image_url(profile,entry['public_version'],repository=catalog.REPOSITORY)
+        if json.loads(previous_files.get('native-'+profile+'.json',b'null'))==alias:
+            raise ValueError('Use the dedicated native URL repair intent')
+    if repair_native_url:
+        # A dedicated consumed intent repairs only this mutable endpoint. It
+        # cannot create a tag, promote a version, alter another endpoint or
+        # turn a stale/unknown publication into a replay of the original push.
+        if not existing or native is None or not expected_head or stage_native:
+            raise ValueError('Existing native publication required for URL repair')
+        alias=json.loads(native)
+        alias['url']=native_image_url(profile,entry['public_version'],repository=catalog.REPOSITORY)
+        previous_index=read_object(root,expected_head,'firmware-catalog.json')
+        if (json.loads(previous_index)!=index or
+                json.loads(previous_files.get('native-'+profile+'.json',b'null'))!=alias):
+            raise ValueError('Native URL repair must change only the known repository alias')
+        catalog_files['firmware-catalog.json']=previous_index
     next_head=commit(root,catalog_files,expected_head,'Index '+tag)
     value={'tag':tag,'tag_head':tag_head,'expected_catalog_head':expected_head,'catalog_head':next_head,
            'image_sha256':sha(binary),'source_commit':source_commit,'state':'consumed_before_atomic_push'}
@@ -263,7 +299,8 @@ def publish(root,profile,binary,manifest_bytes,index,expected_head,source_commit
         'origin',f'{tag_head}:{ref}',f'{next_head}:{BRANCH}')
     if remote_ref(root,ref)!=tag_head or remote_ref(root,BRANCH)!=next_head:
         raise RuntimeError('Publication reply requires read-only reconciliation')
-    return {**value,'state':'staged_native' if stage_native else 'published'}
+    state='repaired_native_url' if repair_native_url else 'staged_native' if stage_native else 'published'
+    return {**value,'state':state}
 
 
 def main():
@@ -272,9 +309,11 @@ def main():
     parser.add_argument('--publish',action='store_true')
     parser.add_argument('--stage-native',action='store_true',help='Stage native qualification without promoting the ordinary index')
     parser.add_argument('--status',action='store_true')
+    parser.add_argument('--repair-native-url',action='store_true',help='Repair only the known post-rename native URL alias; use --publish to apply')
     parser.add_argument('--source-commit',help='Exact reviewed source SHA; defaults to the Actions commit/HEAD')
     args=parser.parse_args()
     if args.publish and args.stage_native:raise ValueError('Select staging or promotion, never both')
+    if args.repair_native_url and args.stage_native:raise ValueError('URL repair cannot stage or promote firmware')
     if args.status:
         print(json.dumps({'catalog_head':remote_ref(ROOT,BRANCH),'catalog_url':catalog.CATALOG_URL}));return
     metadata=json.loads((ROOT/('firmware/lite434-release.json' if args.profile=='lite-434' else 'firmware/releases.json')).read_text())
@@ -303,9 +342,11 @@ def main():
     index=next_catalog(args.profile,metadata,binary,manifest_bytes,previous)
     tag=catalog.firmware_tag(args.profile,index['hardware_releases' if args.profile=='lite-434' else 'releases'][args.profile]['public_version'])
     if args.publish or args.stage_native:
+        intent_name=('native-url-repair-intent.json' if args.repair_native_url else
+                     'stage-intent.json' if args.stage_native else 'intent.json')
         result=publish(ROOT,args.profile,binary,manifest_bytes,index,head,source,
-                       ROOT/'.build/firmware-publication'/tag/('stage-intent.json' if args.stage_native else 'intent.json'),
-                       stage_native=args.stage_native)
+                       ROOT/'.build/firmware-publication'/tag/intent_name,
+                       stage_native=args.stage_native,repair_native_url=args.repair_native_url)
     else:result={'state':'dry_run','tag':tag,'source_commit':source,'expected_catalog_head':head,'catalog':index}
     print(json.dumps(result,indent=2))
 

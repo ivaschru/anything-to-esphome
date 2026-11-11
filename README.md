@@ -13,6 +13,20 @@ Monitor 2 has no verified firmware port yet.
 
 ## Sonoff S60TPF
 
+The installation history keeps each plug's original attempt, date, state and
+private backup reachable after page reloads. Select an older installation to
+download its backup or a diagnostics report. Diagnostics exclude account and
+Wi-Fi credentials, keys, IPs, names, MACs and raw engine logs; the separate
+factory backup contains secrets and must remain private.
+
+After an interrupted/lost installation response, **Check installed ESPHome**
+uses the original encrypted key, MAC, project and fresh measurements. You may
+enter a new local IP if DHCP changed it. This action does not reflash, toggle
+the relay/Bluetooth or create another HA entry. A positively finished original
+worker and matching app reconcile the attempt as verified. Missing completion
+evidence keeps an old/crashed attempt blocked; a free process lock alone is
+not proof. A consumed plug is never offered another initial conversion.
+
 Integration **0.3.0** adds **Sonoff → S60TPF** to the shared wizard. It first
 looks for devices and an authenticated session in the existing **SonoffLAN**
 integration, then discovers plugs on the local network. Without a compatible
@@ -48,13 +62,14 @@ See the [Monitor 1 USB instructions](apps/monitor1_usb/README.md)
 
 | Monitor | Platform | Available | Panel installation |
 | --- | --- | --- | --- |
-| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v5)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
-| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 4](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v4)**, profile `lite-434`; older ESPHome images need one transition. Factory Bluetooth installation is not qualified |
-| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [CG/TLV parser and port research](ports/lite-mcu421/) | In development; no installation image |
+| **Lite / CGDN1**, stock 4.5.8, HW 0001 | ESP32 | UI25, display, sensors, settings, encrypted API | **[Firmware 6](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-v6)**; initial Bluetooth → local MQTT/HTTP installation remains beta |
+| **Lite / CGDN1**, original stock 4.3.4, HW 0001 | ESP32, direct I²C | CO₂/T/RH, display and HA verified; **PM OFF does not stop the fan on the tested unit** | **[Firmware 5](https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5)**, profile `lite-434`; experimental factory Bluetooth/MQTT selects only its own template; native updates stay independent |
+| **Lite / CGDN1**, stock 4.2.1, HW 0001 | ESP32 + MCU | [UART receiver and strict raw decoder](ports/lite-mcu4x/) | In development; no installation image |
+| **Sonoff S60TPF**, stock 1.2.0, SN-ESP32C3-S60-01 | ESP32-C3 | Encrypted API, meter calibration, optional BLE proxy and native OTA | [Firmware 1](https://github.com/ivaschru/anything-to-esphome/tree/firmware-sonoff-s60tpf-v1); experimental eWeLink/LAN wizard with private factory backup/history/recovery |
 | **Monitor 1 / CGS1**, S8, co2_type=2 | Linux ARMv7 | Stock bridge and full UI, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | **Monitor 1 / CGS1**, SCD40, co2_type=3 | Linux ARMv7 | Separate CO₂ backend, hardware-tested | [Runtime 1 source kit](docs/MONITOR1_RELEASES.md); experimental computer/server USB wizard with a private build; untouched-device qualification outstanding |
 | Monitor 1, SCD30 / unknown revision | Linux | Needs verification | Unavailable |
-| **Monitor 2** | Not established | Reserved for a separate port | Unavailable |
+| **Monitor 2** | Separate Linux-host research | [Primary sources, ADB entry and remaining evidence](ports/monitor2/) | Unavailable |
 
 Firmware 5 / `lite` and firmware 4 / `lite-434` check their own release catalog and expose standard ESPHome firmware updates in Home Assistant. Subsequent updates do not require Qingping HACS or Device Builder. [Update contract](docs/NATIVE_FIRMWARE_UPDATES.md).
 
@@ -70,12 +85,12 @@ network are not claimed to be verified on every profile.
 
 1. Open **⋮ → Custom repositories**, add
    `https://github.com/ivaschru/anything-to-esphome`, category **Integration**.
-2. Install the latest normal **Qingping ESPHome** release (`v0.1.2` or later).
+2. Install the latest normal **Anything to ESPHome** release (`v0.3.0` or later).
    Showing prereleases is not required. Use the release ZIP: a source checkout
    does not include the compiled firmware template.
 3. If already configured in **Settings → Devices & services**, open the panel;
-   do not create a second entry. Otherwise choose **Add integration → Qingping
-   ESPHome**. The LAN address and ports are selected automatically. Only failed
+   do not create a second entry. Otherwise choose **Add integration → Anything
+   to ESPHome**. The LAN address and ports are selected automatically. Only failed
    address detection requires input. Overrides are available via **Configure**.
 4. Open the installer, select Lite, connect USB power and choose **Use Bluetooth
    from → This computer / phone** or **Home Assistant**. Mi Home is not required.
@@ -100,16 +115,16 @@ is remembered in this browser only. Changing language preserves the form and
 current installation. HA's own configuration dialogs use your HA profile language.
 
 Use **Page settings** beside the language picker → **Show in sidebar**, or open
-**Settings → Devices & services → Qingping
-ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
+**Settings → Devices & services → Anything
+to ESPHome → Configure → Interface → Show in sidebar**. This does not stop the
 installer or restart its MQTT/HTTP listeners. Both controls change the same
 HA setting; it takes effect immediately and is retained after restart.
 
-With the item hidden, open **Settings → Devices & services → Qingping ESPHome
+With the item hidden, open **Settings → Devices & services → Anything to ESPHome
 → installer device → Visit**. The direct path on the same HA is
 `/qingping_esphome`. Administrator access is still required.
 
-The **Qingping ESPHome** service device is an installer shortcut, not a
+The **Anything to ESPHome** service device is an installer shortcut, not a
 physical monitor. Flashed monitors and their readings belong to the standard
 **ESPHome** integration. Older installer versions showing “0 devices” are normal.
 
@@ -225,7 +240,7 @@ checks settings and repeated real CO₂/raw T/raw RH readings. Bootloader,
 partition layout and NVS are not rewritten; there is no automatic rollback or
 claim of a complete firmware backup.
 
-Older installer records do not contain Wi-Fi/AP values. Use **Qingping ESPHome
+Older installer records do not contain Wi-Fi/AP values. Use **Anything to ESPHome
 → Configure → Prepare an older installation for updates** before installation
 is enabled. Enter the current Wi-Fi and explicitly choose the fallback AP
 credentials for the next update: the old random AP password cannot be recovered
@@ -243,7 +258,7 @@ presses cannot clear this guard.
 Starting with integration **0.2.0** and Lite firmware **1**
 (build identity **2026.11.07-ui25-profile1**), no installer-profile file needs to be moved.
 Add the monitor to the new HA's standard ESPHome integration with its existing
-API encryption key. Once connected, Qingping ESPHome recognizes the supported
+API encryption key. Once connected, Anything to ESPHome recognizes the supported
 firmware and automatically adds its update entity, normally within one minute.
 It reuses HA's connection and key, with no pairing reset or automatic flash.
 

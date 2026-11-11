@@ -145,7 +145,7 @@ class Manager:
         return session
 
     async def create(self, owner, data):
-        admission(data["profile"], data["model"], data["stock_version"])
+        profile = admission(data["profile"], data["model"], data["stock_version"])
         if data.get("hardware") != "0001": raise InstallerError("hardware_unverified")
         if data.get("usb") is not True: raise InstallerError("usb_required")
         transport = data.get("transport", "browser")
@@ -166,11 +166,26 @@ class Manager:
         if any(c in ssid + password for c in ('"', '\\', '\r', '\n', '\0')):
             raise InstallerError("wifi_characters")
         root = TEMPLATE_ROOT
-        manifest_path = root / "lite-template.json"
+        # Factory stock provenance selects a separate template, PM policy and
+        # native-update line. Never install the quiet 4.5.8 image on 4.3.4 or
+        # fall back to it when the complete 4.3.4 release pair is unavailable.
+        stem = "lite-434-template" if profile["id"] == "lite-434" else "lite-template"
+        manifest_path = root / (stem + ".json")
         if not manifest_path.is_file():
             raise InstallerError("template_missing")
         manifest = await self.hass.async_add_executor_job(lambda: json.loads(manifest_path.read_text()))
-        template = await self.hass.async_add_executor_job((root / "lite-template.bin").read_bytes)
+        try:
+            template = await self.hass.async_add_executor_job((root / (stem + ".bin")).read_bytes)
+        except OSError:
+            raise InstallerError("template_missing") from None
+        policy = "lite-434-polling-only-v1" if profile["id"] == "lite-434" else "quiet-scd4x-window-v1"
+        if (manifest.get("profile") != profile["id"] or manifest.get("model") != "CGDN1"
+                or manifest.get("source_stock_version") != data["stock_version"]
+                or manifest.get("hardware") != data["hardware"] or manifest.get("pm_policy") != policy
+                or manifest.get("format") != "esp32-app-fixed-slots-v1" or manifest.get("size") != len(template)
+                or not isinstance(manifest.get("ui"), str) or not manifest["ui"]
+                or type(manifest.get("public_version")) is not int or manifest["public_version"] < 1):
+            raise InstallerError("template_invalid")
         psk = secrets.token_bytes(32)
         name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)[:9]
         values = {"display_feed_entity": "", "source_stock_version": data["stock_version"], "ssid": ssid, "wifi_password": password, "name": name,
@@ -185,6 +200,7 @@ class Manager:
                           noise_key=base64.b64encode(psk).decode(), ota_password=values["ota_password"])
         session.profile = data["profile"]
         session.firmware_version = manifest.get("ui")
+        session.public_version = manifest["public_version"]
         session.template_sha256 = manifest["sha256"]
         session.personalization = {key: value for key, value in values.items() if key != "noise_psk"}
         session.transport = transport
@@ -278,6 +294,7 @@ class Manager:
             "schema_version": 2, "profile": session.profile, "hardware": "0001",
             "source_stock_version": session.stock_version,
             "firmware_version": session.firmware_version, "firmware_revision": 0,
+            "public_version": session.public_version,
             "template_sha256": session.template_sha256,
             "personalization": dict(session.personalization),
             "outcome": "sent_requires_verification",
@@ -295,7 +312,7 @@ class Manager:
         return session.public()
 
     async def verify(self, session):
-        from aioesphomeapi import APIClient, SensorState
+        from aioesphomeapi import APIClient, SensorInfo, SensorState
         deadline = time.monotonic() + 100
         client = None
         try:
@@ -314,8 +331,11 @@ class Manager:
             info = await client.device_info()
             if mac_normalize(info.mac_address) != session.mac or info.name != session.name:
                 raise ValueError("Native identity mismatch")
+            project = "ivaschru.qingping_lite_434" if session.profile == "lite-434" else "ivaschru.qingping_lite_direct_i2c"
+            if info.project_name != project or info.project_version != str(session.public_version):
+                raise ValueError("Native firmware profile mismatch")
             entities, _ = await client.list_entities_services()
-            keys = {e.key: e.name for e in entities if e.name in ("CO2", "Temperature", "Humidity")}
+            keys = {e.key: e.name for e in entities if isinstance(e, SensorInfo) and e.name in ("CO2", "Temperature", "Humidity")}
             values = {}
             def state(value):
                 if isinstance(value, SensorState) and value.key in keys:
@@ -329,7 +349,7 @@ class Manager:
             record = self.records[session.mac]
             record.update(outcome="native_verified", build=info.compilation_time)
             await self.save_records()
-            session.state = "installed"; session.image = b""
+            session.state = "installed"; session.image = b""; session.error = None
             # Standard ESPHome registration is independent of firmware success.
             # A flow conflict stays visible; it never causes another flash.
             try:

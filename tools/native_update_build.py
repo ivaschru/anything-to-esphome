@@ -6,6 +6,8 @@ Markers in the updater itself are XOR encoded: otherwise the ordinary initial
 personalizer would replace its reference markers along with the boot slots.
 """
 import importlib.util
+import json
+import re
 from pathlib import Path
 
 def image_module(root):
@@ -44,3 +46,17 @@ def patch_table(root, binary):
         if at + len(list(image.SLOTS.values())[slot]) > nxt:
             raise ValueError("Overlapping native patches")
     return patches
+
+
+def bind_ui_release(text, release):
+    """Bind only the ordinary staged UI to its profile-local release metadata.
+
+    Probe branches stay at public version zero. The checked-in shared source
+    stays unchanged, so an independent hardware profile does not acquire a
+    different source identity merely because Lite's integer counter advances.
+    Require one normal branch: a changed header contract must fail the build.
+    """
+    pattern = r'(#else\nstatic constexpr const char \*UI_VERSION = )"[^"\n]+";(\n//[^\n]*\nstatic constexpr unsigned PUBLIC_VERSION = )([1-9][0-9]*);'
+    result, count = re.subn(pattern, lambda m: m[1] + json.dumps(release["version"]) + ";" + m[2] + str(release["public_version"]) + ";", text)
+    if count != 1: raise ValueError("Normal Lite UI release branch changed")
+    return result

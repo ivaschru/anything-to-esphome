@@ -1,3 +1,36 @@
+## 0.3.1 – recovery, native Lite sources and factory 4.3.4
+
+- Keep native Lite URLs compatible with the original repository name compiled
+  into installed firmware. Repair only the mutable catalog's known URL alias,
+  preserving immutable app/tag bytes and independent Sonoff endpoints.
+- Port PR #43 onto current native OTA: six persistent HA display-source
+  settings, independent local fallback and temporary 30-second night wake.
+  Add independent Lite6/revision7 and lite-434v5/revision8 without changing
+  previous immutable releases or erasing the retained combined-feed slot.
+- Add experimental factory4.3.4 Bluetooth/MQTT routing to its own polling-only
+  template, with independent server admission, no 4.5.8 fallback and exact
+  encrypted native project/version/physical-reading verification.
+  Require its independent image in the release ZIP and reuse the exact
+  source-matched immutable pair, preserving the existing Lite/Sonoff pairs.
+- Add the external-MCU UART receiver, strict raw telemetry decoder and finite
+  research polling source. Preserve the blocked factory installer while core
+  startup/scales/power/display lifecycle remain unqualified.
+- Add owner-scoped Sonoff installation history, older backup access, bounded
+  diagnostics and read-only recovery through the original encrypted API key.
+  Preserve consumed attempts; a verified app is reconciled only after the
+  original worker/children have settled. Uncertain legacy attempts stay fenced.
+  A historical verified-app label cannot bypass missing/live worker proof.
+- Track original worker completion without PIDs or replay, avoid stale Store
+  writes after integration reload, and unblock unrelated plugs only with
+  positive completion evidence. Accept the renamed root of the unchanged,
+  SHA-pinned upstream archive without relaxing extraction checks.
+- Fix an intermittent release-CI failure in the composed Monitor 1 Noise
+  fixture: its simulated positive END now falls strictly after sixty seconds
+  for every floating-point clock origin. Keep production timing and freshness
+  limits unchanged, with a deterministic encrypted-protocol regression.
+  Drive the browser guardian's missing-response test deadlines only after
+  its sealed write, avoiding a second pre-OPEN/WebCrypto timing race in CI.
+
 ## 0.3.0 – Anything to ESPHome and Sonoff S60TPF
 
 - Rename the repository and installer to Anything to ESPHome. Preserve the

@@ -1,9 +1,10 @@
 # Power, offline Wi-Fi and storage recovery
 
-This is portable source for the CGS1 Linux host port. It is not an admission
-of an unknown device, a universal precompiled image or an enabled HACS
-installation route. Private device profiles and matching release manifests
-are still required. Never remove those guards to make a configuration build.
+This is portable source for the CGS1 Linux host port. Private device profiles
+and matching release manifests are required, including in the separate
+[experimental HACS USB wizard](../../apps/monitor1_usb/README.md). These
+features do not admit unknown devices or provide a universal precompiled
+image. Never remove those guards to make a configuration build.
 
 ## Power entities
 
@@ -46,8 +47,9 @@ their own physical checks.
 
 The S8 update retired only its own dead RAM program copies; its older
 persistent releases and user data were retained. That is not NAND cleanup.
-Neither deployment qualifies a fresh USB/bootstrap install or enables CGS1
-in the HACS wizard. `source_only` / `installation_ready=false` remain in force.
+Neither deployment qualifies a fresh USB/bootstrap install. The experimental
+HACS wizard is available separately; public runtime distribution still uses
+`source_only` / `installation_ready=false` and private matched builds.
 
 ## A new network without the previous AP
 

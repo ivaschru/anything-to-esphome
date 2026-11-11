@@ -9,7 +9,7 @@ const encoder=new TextEncoder();
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};}
 function fixture(v=structuredClone(vectors[0]),options={}) {
  let opens=0,retired=0,rawClosed=0,live=true,controller,closed,wire='',sent=false,ended=false,ownedClosed=false;
- const opened=deferred(),openWait=options.delayOpen?deferred():null;
+ const opened=deferred(),written=deferred(),openWait=options.delayOpen?deferred():null;
  const stamp=options.stockCollision?[v.fresh.scope.stock_process[0],'1000']:[123,'18446744073709551615'];
  const nonce=v.packet.nonce,rawEnd=`CGS1_TRIAL_END_V1 ${nonce} ${stamp[0]} ${stamp[1]} 124 456 60000 1 1 1 0 15\n`;
  let marker;
@@ -36,7 +36,7 @@ function fixture(v=structuredClone(vectors[0]),options={}) {
      wire+=new TextDecoder().decode(bytes);
      if(wire.length===framing.size) {
       assert.equal(createHash('sha256').update(wire).digest('hex'),framing.sha256);
-      assert.equal(wire,initialGuardianLaunchBody(v.packet,v.fresh,v.ram));sent=true;
+      assert.equal(wire,initialGuardianLaunchBody(v.packet,v.fresh,v.ram));sent=true;written.resolve();
       const start=options.badNonce?'0'.repeat(32):nonce;
       if(!options.noResponse)emit(`CGS1_TRIAL_START_V1 ${start} ${stamp[0]} ${stamp[1]}\nCGS1_TRIAL_CHILD_V1 ${nonce} 124 456\n`);
       if(!options.holdEnd && !options.noResponse)release();
@@ -49,7 +49,7 @@ function fixture(v=structuredClone(vectors[0]),options={}) {
    return socket;
   },
  };
- return {stream:new InitialGuardianStream(backend),v,opened:opened.promise,release,releaseOpen:()=>openWait.resolve(),
+ return {stream:new InitialGuardianStream(backend),v,opened:opened.promise,written:written.promise,release,releaseOpen:()=>openWait.resolve(),
   get opens(){return opens;},get retired(){return retired;},get rawClosed(){return rawClosed;},get sent(){return sent;}};
 }
 for(const vector of vectors) {
@@ -82,13 +82,29 @@ for(const options of [{badEnd:true},{wrongChild:true},{extraLine:true},{noMarker
  await assert.rejects(f.stream.start(f.v.packet,f.v.fresh,f.v.ram));assert.equal(f.opens,0);assert.equal(f.retired,1);
 }
 {
- const original=globalThis.setTimeout;
- globalThis.setTimeout=(fn,ms,...args)=>original(fn,[30000,110000].includes(ms)?10:ms,...args);
+ const original=globalThis.setTimeout,originalClear=globalThis.clearTimeout,originalNow=Date.now;
+ const timers=[];
+ // Drive a chosen missing-response deadline only AFTER the sealed body was
+ // actually written. A real 10ms shortcut can expire while WebCrypto is still
+ // hashing under CI load, testing pre-OPEN refusal instead of the intended
+ // missing START/remote-close path. Keep production budgets unchanged.
+ Date.now=()=>1000;
+ globalThis.setTimeout=(fn,ms,...args)=>{
+  if(![30000,110000].includes(ms))return original(fn,ms,...args);
+  const timer={ms,active:true,fire:()=>fn(...args)};timers.push(timer);return timer;
+ };
+ globalThis.clearTimeout=timer=>{if(timers.includes(timer))timer.active=false;else originalClear(timer);};
  try {
   for(const options of [{noResponse:true},{noRemoteClose:true}]) {
-   const f=fixture(undefined,options);await assert.rejects(async()=>{await f.stream.start(f.v.packet,f.v.fresh,f.v.ram);await f.stream.finish();});
+   const f=fixture(undefined,options);
+   const operation=(async()=>{await f.stream.start(f.v.packet,f.v.fresh,f.v.ram);await f.stream.finish();})();
+   const refused=assert.rejects(operation);
+   await f.written;await new Promise(resolve=>setImmediate(resolve));
+   const timer=timers.find(timer=>timer.active && timer.ms===(options.noResponse?30000:110000));
+   assert.ok(timer,'The intended post-write timeout must still be pending');
+   timer.active=false;timer.fire();await refused;
    assert.equal(f.retired,1);assert.equal(f.opens,1);
   }
- } finally {globalThis.setTimeout=original;}
+ } finally {globalThis.setTimeout=original;globalThis.clearTimeout=originalClear;Date.now=originalNow;}
 }
 console.log('Guardian transport: sealed bytes, ordered uint64-safe records, split stdout, bounded cancellation/close and one attempt passed; emulated only, no shell/monitor or independent trial success');

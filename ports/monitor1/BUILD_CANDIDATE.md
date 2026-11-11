@@ -4,6 +4,10 @@
 Separate end-to-end SCD40 and S8 source compiles have passed. No result from this tool is
 hardware QA or permission to install it. Its report always keeps
 `installation_ready=false`, and the HACS CGS1 profiles remain `source_only`.
+These fields describe public source distribution and hardware qualification.
+The separate [experimental HACS USB wizard](../../apps/monitor1_usb/README.md)
+already composes private building, staging, trials, permanent startup and HA
+enrollment; this build controller alone never performs those operations.
 
 The controller builds the stock PM helper, a guardian, the full native UI and
 a matched stock bridge from **one committed public source revision**. The
@@ -96,8 +100,9 @@ There is **no upload, remote command, USB connection, preload change, launch,
 boot activation or Home Assistant mutation** in this controller. A complete
 installer still needs independent current device identity/stock/CO2 checks,
 verified backup, a matching PM loader, resource checks, one consumed install
-intent and real guarded return/boot verification. Do not enable the HACS
-installation route until that separate work has passed.
+intent and guarded return/boot verification. The experimental HACS wizard
+implements those separate gates. This compiler result does not qualify a first
+factory-device installation or enable automatic runtime updates.
 
 ## Current validation
 

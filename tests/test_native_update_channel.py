@@ -1,6 +1,8 @@
 """Native manifests share the actual atomic Git publication transaction."""
 import json
+import re
 import unittest
+from unittest.mock import patch
 import test_firmware_channel as fixture
 from test_native_update_stream import build, ROOT
 
@@ -24,8 +26,63 @@ class NativePublicationTests(unittest.TestCase):
         data=json.loads(native)
         self.assertEqual(data['patches'],build.patch_table(ROOT,self.binary))
         self.assertEqual(data['profile'],'lite');self.assertEqual(data['source_stock_version'],'4.5.8')
-        self.assertEqual(data['url'],self.index['releases']['lite']['image']['url'])
+        self.assertEqual(data['url'],channel.native_image_url('lite',data['public_version']))
         self.assertEqual(self.publish(result['catalog_head'])['state'],'already_published')
+
+    def test_publisher_preserves_the_exact_url_compiled_into_both_native_profiles(self):
+        source=(ROOT/'ports/lite/components/qf_native_update/qf_native_update.cpp').read_text()
+        raw=re.search(r'static constexpr char RAW\[\] = "([^"]+)";',source).group(1)
+        for profile in ('lite','lite-434'):
+            url=channel.native_image_url(profile,6)
+            self.assertEqual(url,raw+f'firmware-{profile}-v6/{profile}-template.bin')
+            self.assertNotIn(channel.catalog.REPOSITORY,url)
+
+    def test_url_repair_preserves_immutable_tag_index_and_other_native_endpoint(self):
+        self.set_native()
+        original=channel.native_manifest
+        def renamed(*args):
+            value=json.loads(original(*args))
+            value['url']=channel.native_image_url('lite',value['public_version'],repository=channel.catalog.REPOSITORY)
+            return channel.encoded(value)
+        with patch.object(channel,'native_manifest',side_effect=renamed):
+            first=self.publish()
+        parent=first['catalog_head'];tag=first['tag_head']
+        tag_native=channel.read_object(self.root,tag,'native-lite.json')
+        index_bytes=channel.read_object(self.root,parent,'firmware-catalog.json')
+        other=b'{"other":"independently pinned endpoint"}\n'
+        files=channel.native_catalog_files(self.root,parent)
+        files.update({'firmware-catalog.json':index_bytes,'native-sonoff-s60tpf.json':other})
+        parent=channel.commit(self.root,files,parent,'Synthetic other endpoint')
+        channel.git(self.root,'push','origin',parent+':'+channel.BRANCH)
+        with self.assertRaises(ValueError):
+            channel.publish(self.root,'lite',self.binary,self.manifest,self.index,parent,self.source,
+                            self.root/'ordinary-retry.json')
+        self.assertFalse((self.root/'ordinary-retry.json').exists())
+        repaired=channel.publish(self.root,'lite',self.binary,self.manifest,self.index,parent,self.source,
+                                 self.root/'repair.json',repair_native_url=True)
+        self.assertEqual(repaired['state'],'repaired_native_url')
+        self.assertEqual(repaired['tag_head'],tag)
+        self.assertEqual(channel.read_object(self.root,tag,'native-lite.json'),tag_native)
+        self.assertEqual(channel.read_object(self.root,repaired['catalog_head'],'firmware-catalog.json'),index_bytes)
+        self.assertEqual(channel.read_object(self.root,repaired['catalog_head'],'native-sonoff-s60tpf.json'),other)
+        native=json.loads(channel.read_object(self.root,repaired['catalog_head'],'native-lite.json'))
+        self.assertEqual(native['url'],channel.native_image_url('lite',native['public_version']))
+        self.assertEqual(channel.remote_ref(self.root,'refs/tags/firmware-lite-v2'),tag)
+        self.assertEqual(self.publish(repaired['catalog_head'])['state'],'already_published')
+
+    def test_url_repair_refuses_any_additional_mutable_field_change(self):
+        self.set_native();first=self.publish();parent=first['catalog_head']
+        files=channel.native_catalog_files(self.root,parent)
+        wrong=json.loads(files['native-lite.json'])
+        wrong.update(url=channel.native_image_url('lite',wrong['public_version'],repository=channel.catalog.REPOSITORY),size=1)
+        files.update({'native-lite.json':channel.encoded(wrong),'firmware-catalog.json':channel.encoded(self.index)})
+        parent=channel.commit(self.root,files,parent,'Synthetic invalid endpoint')
+        channel.git(self.root,'push','origin',parent+':'+channel.BRANCH)
+        with self.assertRaises(ValueError):
+            channel.publish(self.root,'lite',self.binary,self.manifest,self.index,parent,self.source,
+                            self.root/'repair.json',repair_native_url=True)
+        self.assertEqual(channel.remote_ref(self.root,channel.BRANCH),parent)
+        self.assertFalse((self.root/'repair.json').exists())
 
     def test_native_offsets_must_be_reproduced_not_trusted(self):
         self.set_native(); manifest=json.loads(self.manifest)

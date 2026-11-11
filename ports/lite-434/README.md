@@ -1,13 +1,18 @@
 # Air Monitor Lite – original stock 4.3.4 / HW0001
 
-Independent firmware **1**, profile **lite-434**, full ESPHome replacement.
+Independent firmware **5** source, profile **lite-434**, full ESPHome replacement.
 The stock-generation identifier is preserved provenance, not a proven PCB ID.
 Do not select this profile from the CGDN1 name or HW0001 alone.
 
 CO₂, temperature, humidity, local UI and HA use the existing direct-I²C
-backend. **Fan shutdown is not supported in version 1.** PM OFF stops polling
+backend. **Fan shutdown is not supported.** PM OFF stops polling
 and invalidates the three PM readings; GPIO13 remains HIGH. It does not pause
 CO₂, temperature or humidity. GPIO18/23 remain untouched.
+
+Version 5 adds the same six native display-source settings and temporary
+30-second night wake as Lite 6, with independent local fallback. Native OTA
+retains private slots and existing device preferences. Its public counter and
+internal revision 8 stay independent from the 4.5.8 line.
 
 ## Build and publish
 
@@ -40,7 +45,11 @@ public Lite 2 keeps that installed label until profile-specific 1 is verified;
 internal revision 4 preserves forward OTA ordering. Firmware updates after this
 initial integration support remain independent of HACS versions.
 
-A new factory Bluetooth installation for 4.3.4 is not qualified or enabled.
-This release was built and software-tested, not installed during publication.
+The factory Bluetooth/MQTT wizard now offers an experimental 4.3.4 route and
+uses only this matching template. The server independently checks original
+stock/hardware and the polling-only policy; a missing pair never falls back
+to 4.5.8. Historical factory transition/return evidence and software tests do
+not claim a fresh physical run of this wizard. No device is installed merely
+by building or publishing a release.
 Prior live physical source/UI/HA checks establish the direct-I²C backend;
 software tests do not substitute for a fresh hardware install or fan-off proof.

@@ -15,7 +15,7 @@ import json
 import shutil
 import subprocess
 import sys
-from native_update_build import patch_table, marker_header
+from native_update_build import patch_table, marker_header, bind_ui_release
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("template_image", ROOT / "custom_components/qingping_esphome/image.py")
@@ -32,8 +32,7 @@ def main():
     # staged replacements are part of this profile's own source digest.
     shutil.copyfile(ROOT / "ports/lite-434/cgdn1_pm.h", work / "components/cgdn1_pm/cgdn1_pm.h")
     ui = work / "components/cgdn1_ui/cgdn1_ui.h"
-    ui.write_text(ui.read_text().replace("2026.11.08-ui25-native4", release["version"])
-                  .replace("PUBLIC_VERSION = 4;", f"PUBLIC_VERSION = {release["public_version"]};"))
+    ui.write_text(bind_ui_release(ui.read_text(), release))
     exporter = work / "components/cgdn1_ui/update_profile.h"
     wire = exporter.read_text()
     assert wire.count('body["profile"] = "lite";') == 1
@@ -81,7 +80,7 @@ def main():
 substitutions:
   name: {json.dumps(values['name'])}
   trial_mode: "false"
-  ha_display: "true"
+  ha_display: "false"
   ha_display_entity: sensor.qingping_unused_display_feed
 packages:
   lite: !include cgdn1.yaml
@@ -100,8 +99,10 @@ esphome:
     - priority: 1000
       then:
         - lambda: |-
+            // Native per-metric bindings replace the historical combined helper.
+            // Retain its private value in sealed readback/native OTA even
+            // though no HA subscription uses that historical combined feed.
             qf_template::active_display_feed = qf_template::read(qf_template::display_feed_entity);
-            id(ha_display_feed).set_entity_id(qf_template::active_display_feed.empty() ? "sensor.qingping_unused_display_feed" : qf_template::active_display_feed.c_str());
             wifi::WiFiAP station;
             station.set_ssid(qf_template::read(qf_template::ssid));
             station.set_password(qf_template::read(qf_template::wifi_password));

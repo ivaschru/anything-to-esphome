@@ -18,6 +18,7 @@ jobs:
       # known source change still uses the pinned public-placeholder compiler;
       # dirty/missing source or failed download never selects another image.
       - run: python tools/prepare_release_template.py
+      - run: python tools/prepare_release_template.py --profile lite-434
       # Separate SDK: changing Sonoff must never change the frozen Lite image.
       - name: Prepare the S60TPF public template
         run: |
@@ -30,6 +31,9 @@ jobs:
         run: |
           if [ -f .build/lite-app/build/compile_commands.json ]; then
             python tools/check_profile_wire.py
+          fi
+          if [ -f .build/lite434-app/build/compile_commands.json ]; then
+            python tools/check_lite434_wire.py
           fi
       - run: python -m unittest discover -s tests -v
       - run: python tools/package_release.py

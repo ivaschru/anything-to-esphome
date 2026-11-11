@@ -84,8 +84,9 @@ async def _async_setup_loaded_entry(hass, entry, manager):
             StaticPathConfig(f"/api/{DOMAIN}/static", str(Path(__file__).parent / "frontend"), cache_headers=False)
         ])
         register_ws(hass)
-        from .sonoff_view import SonoffBackupView
+        from .sonoff_view import SonoffBackupView, SonoffDiagnosticsView
         hass.http.register_view(SonoffBackupView())
+        hass.http.register_view(SonoffDiagnosticsView())
         hass.http.register_view(Monitor1View())
         hass.data[marker] = True
     await panel_custom.async_register_panel(hass, frontend_url_path=DOMAIN,
@@ -164,7 +165,7 @@ def register_ws(hass):
     handler = websocket_api.websocket_command({
         vol.Required("type"): DOMAIN + "/command",
         vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel", "ble_scan", "ble_select", "ble_provision",
-                                           "sonoff_scan", "sonoff_login", "sonoff_select", "sonoff_install", "sonoff_status", "sonoff_jobs"]),
+                                           "sonoff_scan", "sonoff_login", "sonoff_select", "sonoff_install", "sonoff_status", "sonoff_jobs", "sonoff_recover"]),
         vol.Optional("data"): dict,
         vol.Optional("session"): str,
         vol.Optional("address"): str,

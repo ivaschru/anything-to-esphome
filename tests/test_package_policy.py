@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackagePolicyTests(unittest.TestCase):
-    def package(self, policy, source_hash_matches=True, corrupt_core=False):
+    def package(self, policy, source_hash_matches=True, corrupt_core=False, include434=True):
         # Run the actual packager in a disposable miniature source tree. The
         # binary deliberately has a correct digest in every refusal scenario.
         with tempfile.TemporaryDirectory(prefix="qingping-package-policy-") as d:
@@ -51,6 +51,20 @@ class PackagePolicyTests(unittest.TestCase):
                 manifest["pm_policy"] = policy
             (firmware / "lite-template.bin").write_bytes(binary)
             (firmware / "lite-template.json").write_text(json.dumps(manifest))
+            from tools import lite434_source
+            for name in lite434_source.RECIPE_PATHS:
+                target = root / name; target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, target)
+            shutil.copytree(ROOT / "ports/lite-434", root / "ports/lite-434")
+            if include434:
+                binary434 = b"independent polling-only template fixture"
+                (firmware / "lite-434-template.bin").write_bytes(binary434)
+                (firmware / "lite-434-template.json").write_text(json.dumps({
+                    "profile": "lite-434", "source_stock_version": "4.3.4", "hardware": "0001",
+                    "pm_policy": lite434_source.POLICY, "size": len(binary434),
+                    "sha256": hashlib.sha256(binary434).hexdigest(),
+                    "release_source_sha256": lite434_source.source_digest(root),
+                }))
             # The multi-brand ZIP must carry an independently verified C3
             # template too. Synthetic public app only; never a household image.
             from test_sonoff import fixture, image
@@ -73,6 +87,7 @@ class PackagePolicyTests(unittest.TestCase):
             if result.returncode == 0:
                 with zipfile.ZipFile(archive) as z:
                     self.assertEqual(z.read("firmware/lite-template.bin"), binary)
+                    self.assertEqual(z.read("firmware/lite-434-template.bin"), binary434)
             else:
                 self.assertFalse(archive.exists(), "A refusal must not emit a release ZIP")
             return result
@@ -95,3 +110,8 @@ class PackagePolicyTests(unittest.TestCase):
         result = self.package("quiet-scd4x-window-v1", corrupt_core=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Stale generated Core package", result.stderr)
+
+    def test_selectable_factory434_without_its_pair_cannot_ship(self):
+        result = self.package("quiet-scd4x-window-v1", include434=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("lite-434-template.bin", result.stderr)

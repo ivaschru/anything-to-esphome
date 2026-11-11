@@ -31,6 +31,32 @@ qualify the complete new wizard on physical hardware.
 - Enroll via HA's ordinary ESPHome flow after fresh encrypted identity and
   relay/measurement readback. Do not overwrite existing entries automatically.
 
+## Installation history and recovery
+
+Version 0.3.1 keeps an owner-only, newest-first history with pages of 50 jobs.
+Select an older job to view its progress or download its private stock/eFuse
+backup. Backups contain device secrets; the separate diagnostics download uses
+an explicit allowlist and excludes account/Wi-Fi/key/IP/name/MAC/raw-log data.
+Neither download changes the device or clears a consumed installation.
+
+After a lost response, **Check installed ESPHome** reads through the original
+Noise key and verifies the exact MAC/project plus fresh typed readings. A new
+RFC1918 IP is accepted only after that authentication. It never toggles relay
+or Bluetooth, enrolls in HA, reflashes or relaunches the conversion engine.
+
+The original v2 worker's nonce/MAC-bound terminal receipt and released kernel
+lease must agree before the attempt is settled. Its actual child processes
+inherit the lease; parent exit alone is insufficient. Positive settlement can
+unblock a different plug, including when the first app cannot be reached.
+The consumed original MAC always stays blocked against another conversion.
+
+Missing/partial/legacy receipts remain uncertain even when an app answers or
+an old record says verified. The UI can retain that useful app observation,
+but cannot invent worker completion. Restarting HA or refreshing the page does
+not clear this fence. A successful read-only recovery also does not replace an
+existing HA entry; add/check the standard ESPHome integration separately when
+enrollment needs manual attention.
+
 ## Subsequent firmware updates
 
 The device owns its model-specific native ESPHome firmware update entity.

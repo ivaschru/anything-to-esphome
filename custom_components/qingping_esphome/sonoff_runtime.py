@@ -19,6 +19,7 @@ import tarfile
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .sonoff_policy import SonoffError
+from .sonoff_journal import acquire
 
 COMMIT = "37962db36b154269076afd223c11f11e2d1eb770"
 ARCHIVE_URL = "https://codeload.github.com/adamsthws/Sonoff-OTA/tar.gz/" + COMMIT
@@ -56,11 +57,15 @@ def extract_archive(data, destination):
         members = archive.getmembers()
         if len(members) > 5000 or sum(m.size for m in members) > MAX_EXTRACTED:
             raise SonoffError("sonoff_runtime_failed")
-        prefix = "Sonoff-OTA-" + COMMIT
+        # GitHub renamed the pinned upstream repository to firmware-liberator.
+        # The original codeload URL still returns the same SHA-pinned bytes,
+        # whose tar root uses that new name. Admit only these two exact roots;
+        # never infer an arbitrary archive prefix or relax path/link checks.
+        prefixes = {name + COMMIT for name in ("Sonoff-OTA-", "firmware-liberator-")}
         entries = []
         for member in members:
             path = PurePosixPath(member.name)
-            if (not path.parts or path.parts[0] != prefix or ".." in path.parts
+            if (not path.parts or path.parts[0] not in prefixes or ".." in path.parts
                     or path.is_absolute() or not (member.isfile() or member.isdir())
                     or member.size > 32 * 1024 * 1024):
                 raise SonoffError("sonoff_runtime_failed")
@@ -79,8 +84,9 @@ def extract_archive(data, destination):
 
 
 class Runtime:
-    def __init__(self, hass, root):
+    def __init__(self, hass, root, active=lambda: True):
         self.hass, self.root = hass, Path(root)
+        self.active = active
 
     async def prepare(self, job_id):
         archive_path = self.root / "engine.tar.gz"
@@ -109,31 +115,41 @@ class Runtime:
         return job
 
     async def launch(self, job, request):
-        await self.hass.async_add_executor_job(private_write, job / "request.json",
-                                              json.dumps(request).encode())
+        lease = await self.hass.async_add_executor_job(acquire, job)
         # The request has already been admitted and durably consumed by the
         # caller. This is the sole spawn; no exception path retries it.
         environment = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
                        "HOME": str(job), "PYTHONUNBUFFERED": "1",
                        "PYTHONPATH": str(ROOT / "sonoff_worker") + os.pathsep + str(job / "upstream")}
-        log = (job / "private-engine.log").open("xb")
-        os.chmod(log.name, 0o600)
         try:
-            process = await asyncio.create_subprocess_exec(
-                sys.executable, str(ROOT / "sonoff_worker/runner.py"),
-                cwd=job / "upstream", env=environment, stdin=asyncio.subprocess.DEVNULL,
-                stdout=log, stderr=log, start_new_session=True)
+            await self.hass.async_add_executor_job(private_write, job / "request.json",
+                                                  json.dumps({**request, "lease_fd": lease}).encode())
+            # Preparation/file IO yielded to HA. An unloaded coordinator may
+            # retain an already-started writer, but cannot spawn a new one now.
+            if not self.active():
+                raise SonoffError("sonoff_busy")
+            log = (job / "private-engine.log").open("xb")
+            os.chmod(log.name, 0o600)
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable, str(ROOT / "sonoff_worker/runner.py"),
+                    cwd=job / "upstream", env=environment, stdin=asyncio.subprocess.DEVNULL,
+                    stdout=log, stderr=log, start_new_session=True, pass_fds=(lease,))
+            finally:
+                log.close()
         finally:
-            log.close()
+            # The child and its original descendants keep this same open-file
+            # description. HA unload/parent exit cannot retire their live lock.
+            os.close(lease)
         return process
 
 
 def progress(job):
     """Read finite counters, never forward the raw upstream state/log/body."""
     for path in (Path(job) / "upstream/captures").glob("plugs/*/runs/*/autoflash-state.json"):
-        if path.is_symlink() or path.stat().st_size > 1048576:
-            continue
         try:
+            if path.is_symlink() or path.stat().st_size > 1048576:
+                continue
             value = json.loads(path.read_text())
             steps = value.get("steps", {})
             states = [v.get("status") for v in steps.values() if isinstance(v, dict)]

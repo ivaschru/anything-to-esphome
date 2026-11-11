@@ -81,6 +81,20 @@ Native URLs are fixed to
 An image URL is derived locally from its immutable profile/version tag, never
 accepted as an arbitrary manifest-selected destination.
 
+Keep this original repository name in native manifests after the rename to
+`anything-to-esphome`: installed Lite firmware compares the complete URL, not
+just the host or final GitHub destination. The ordinary HACS index can use the
+new name. Both URLs must deliver the same immutable bytes without a redirect.
+
+The initial post-rename Lite6/lite-434v5 native sidecars used the new name.
+Their immutable tags and app bytes are preserved. The dedicated
+`--repair-native-url --publish` action corrects only the live native endpoint
+through a separate consumed intent and catalog CAS. It verifies the original
+tag, complete patch/SHA/version contract and known URL-alias-only change;
+the ordinary index and every other endpoint are retained. An already repaired
+endpoint reconciles read-only. Do not overwrite a tag, rebuild under the same
+version or weaken firmware URL checks to repair this publication error.
+
 For first-time hardware qualification, `--stage-native` creates that same
 immutable tag/native endpoint but retains the previous ordinary HACS index.
 Only the explicitly installed private qualification firmware can consume the

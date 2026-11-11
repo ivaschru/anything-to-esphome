@@ -8,6 +8,11 @@
   immutable Qingping catalog assets. Never edit frozen Lite source just for
   branding. After rename, both old native catalogs and immutable manifest were
   verified directly with HTTP 200 and redirects disabled on 2026-11-10.
+  Native Lite manifests retain the exact original repository URL compiled
+  into deployed firmware, even when the HACS index uses the new name. A known
+  bad post-rename sidecar stays immutable; --repair-native-url --publish uses
+  its own consumed intent to fix only the mutable native endpoint by catalog
+  CAS. Never replace app/tag bytes or relax the device's exact URL check.
 - Sonoff is a separate ESP32-C3 profile: S60TPF / stock1.2.0 / UIID190 /
   SN-ESP32C3-S60-01 only. The full initial wizard is experimental until physical
   qualification. Reuse detached SonoffLAN in-memory snapshots; no .storage
@@ -36,6 +41,34 @@
   HA/catalog/native suites and package checks. The C3 C++ stream tests use
   ASan/UBSan against Python and the actual public build. Compile the pinned
   S60TPF SDK and keep software QA distinct from physical installation/OTA QA.
+- Sonoff recovery is a read-only original-key/MAC/project/typed-reading check;
+  never toggle relay/BLE, enroll or reflash from it. A changed RFC1918 DHCP
+  address needs that same authenticated readback. Keep consumed history and
+  all original backup/profile material. The v2 worker owns an exclusive,
+  permanently consumed worker.lock and nonce/MAC-bound terminal receipt only
+  after engine return, original child exit, background-thread drainage and
+  ephemeral-file cleanup. Free lock/parent exit/PID alone is not settlement.
+  Missing/partial/legacy receipts remain uncertain. Positive settlement may
+  free unrelated plugs, never authorize re-conversion of the consumed MAC.
+  Old unloaded coordinators must not overwrite the new Store snapshot.
+  History is newest-first/owner-only in finite pages; every old job retains its
+  own backup. Diagnostics use an explicit field allowlist, no raw engine log,
+  account, IP, name, MAC, key, profile or request. Preserve EN/RU forms and
+  selected history across language changes; late poll replies cannot change
+  the selected job. Test actual kernel locks, typed API and admin/owner ACL.
+  The SHA-pinned upstream archive now has the exact firmware-liberator-COMMIT
+  root after its repository rename; retain strict full-SHA/path/link bounds.
+  Runtime passes the original kernel lease FD through exec and all isolated
+  Python helpers; parent exit does not release a descendant's lock. A saved FD
+  number cannot reopen/adopt it after restart: require the exact live private
+  lock inode. Fail closed on adapter errors (ordinary sitecustomize exceptions
+  would otherwise be ignored by Python). Test an actual surviving grandchild.
+  A legacy verified app label is not worker completion. Check original terminal
+  proof for every prior conversion before another plug's install, and never
+  derive writer_settled from the UI/app state alone.
+  Read-only recovery must recheck active ownership after awaited API/journal
+  reads before promoting/saving a record. An unloaded watcher only reaps its
+  original child; it cannot start later option writes or HA enrollment.
 
 Current browser wizard: the finite `browser-wizard-*` Core routes now compose
 stage, disabled commit, original-task guarded trial, bridge next-boot, PM,
@@ -45,6 +78,9 @@ public initiator describe that primitive alone; the wizard composes its
 separately consumed coordinator and does not expose private actor operations.
 Pristine CGS1 hardware qualification remains outstanding; no readiness flag,
 Monitor 2 support, BLE support or physical result follows from host tests.
+Keep current README/build/recovery guides aligned with that wizard. Historical
+primitive-only notes do not mean the complete HACS workflow is unavailable;
+`source_only` describes private source-built distribution, not a missing UI.
 
 - Canonical `lite` firmware 5 and `lite-434` firmware 4 add device-owned native
   ESPHome UpdateEntity checks, independent of HACS/Device Builder. This is a
@@ -68,6 +104,35 @@ Monitor 2 support, BLE support or physical result follows from host tests.
   offers only after authenticated capability readback. No HA installation or
   restart is implied. Run test_native_update*.py, firmware/HA suites, pinned
   builds and actual profile-wire checks; retain separate hardware QA evidence.
+
+Current Lite source adds independent per-metric HA display bindings and
+30-second night touch wake in lite6/revision7 and lite-434v5/revision8. Native
+text settings validate before save/publish, use stable own preferences and
+bounded state/unit subscriptions with independent local fallback. Imported
+values affect OLED/LED only, never physical exports or power guards. Keep the
+unused historical combined-feed slot/value in sealed readback and native OTA;
+do not subscribe, erase or automatically migrate HA helpers. Both builders bind
+only their staged ordinary UI to their own release metadata; probe branches
+remain version0. Shared source changes require both independent new counters.
+
+Factory4.3.4/HW0001 now has an experimental BLE/MQTT route, based on retained
+historical stock4.3.4 factory transition/return evidence and fresh software QA.
+This is not a fresh physical qualification of this wizard. Both BLE transports
+resolve one exact catalog tuple; the server independently selects only the
+lite-434 template, validates its profile/stock/hardware/polling policy and never
+falls back to Lite4.5.8. Display the polling-only/fan-running limitation before
+installation. Require USB, fresh original GATT/MQTT identity, one consumed
+intent, APP-only CRC delivery and matching native project/public integer plus
+typed physical readings. MCU4.2.x and unknown tuples stay excluded.
+
+The external-MCU source now has a real bounded UART component under
+ports/lite-mcu4x, with one shared framing implementation behind the old
+lite-mcu421 alias. Reference0354 emits two-byte CO2/PM TLVs, not four-byte RAM
+storage widths. Reject wrong direction/length/duplicates; expire each raw
+field independently. Passive RX19 is default, fixed TX18 research polling is
+finite and opt-in. Do not attach direct-I2C GPIO/display/power code or install
+receiver-check.yaml. Exact startup, scales/invalid values, power and full UI
+remain outstanding; no factory admission follows from its SDK/sanitizer tests.
 
 Public home for three distinct device families: Lite/CGDN1, Monitor 1/CGS1,
 and Monitor 2. Firmware profiles and their installation transports remain
@@ -995,6 +1060,14 @@ separate even though the HACS wizard is shared.
   shifts only a synthetic clock origin after real Noise callbacks, preserving
   identities, callback counts and relative wire age. Immediate/stale END
   rejection tests must continue to pass; never fix this by rounding production.
+  Apply the same strictly-later END to the composed run_guardian_trial fixture,
+  not only the separate stop/return helpers. Its deterministic binade regression
+  rebases the observation clock only after the actual Noise session closes;
+  moving the socket deadline epoch before Noise IO invalidates the fixture.
+  Guardian stream timeout fixtures must advance their synthetic deadline only
+  after the exact sealed body is written. A real10ms shortcut can expire in
+  WebCrypto before OPEN under load, exercising a different guard. Keep both
+  missing-START and missing-remote-close cases and original production limits.
 
 - CGS1 Bluetooth remains unavailable. Read BLUETOOTH_RESEARCH.md before
   hardware work: WLAN rfkill0 and the stock rkrtkbt wrapper are not safe BT
@@ -1290,15 +1363,21 @@ separate even though the HACS wizard is shared.
   drafts, two independent Cancel-default slot confirmations, native-size
   outline/classic digits, fixed status, and finite 240ms page transitions.
   Outline assets are never reduced. Use the bundled OFL font licenses.
-  Night is fully black; only centre wakes manual-off, consuming the gesture.
+  Night is black while idle; recognized touches temporarily wake it for30s.
+  Only centre wakes manual-off outside night, consuming the first gesture.
   API/Wi-Fi absence must not reboot standalone sensors. Unknown clocks are
   explicit. Preserve the optional per-device HA display feed and original
   stock provenance through fixed slots/sealed metadata; minimum HACS0.2.1.
-  Stock4.3.4 provenance is admitted only for qualified existing native devices,
-  not a wider factory Bluetooth installer. External-MCU images remain separate.
+  Stock4.3.4 uses its separate native line and current experimental factory
+  route described above. External-MCU images remain separate.
   Run test_lite_menu.py and render_lite_ui.py after a real SDK build; inspect
   those actual-method/generated-glyph frames before claiming visual QA.
 
+- The HACS ZIP must contain lite-434's matching independent pair now that its
+  factory route is selectable. Prepare it with prepare_release_template.py
+  --profile lite-434, reusing the exact immutable source-matched pair; never
+  rebuild another timestamp under a published version or fall back to Lite.
+  Package validation requires its profile/stock/hardware/policy/hash/source.
 - Installer-only releases use `python tools/prepare_release_template.py` to
   retain v0.1.3 legacy pins and reuse newer immutable pairs only with matching
   committed release_source_sha256 from firmware_source.py. Dirty or missing source and a failed asset
@@ -1629,8 +1708,8 @@ separate even though the HACS wizard is shared.
   tests. Publisher: `tools/publish_firmware.py --profile lite-434` (preview;
   `--publish` consumes the independent atomic publication intent).
   Metadata/source pins belong to firmware/lite434-release.json and
-  tools/lite434_source.py. Integration 0.2.9+ supports native updates/adoption,
-  not a new factory BLE route. Keep factory admission at its qualified scope.
+  tools/lite434_source.py. Integration 0.2.9 introduced native updates/adoption;
+  the current experimental factory BLE route is separate and described above.
   The catalog extension `hardware_releases` keeps old readers' `releases.lite`
   intact. Every publisher must preserve both maps and `runtime_releases`.
   Route old public Lite records using authenticated original stock/HW values;

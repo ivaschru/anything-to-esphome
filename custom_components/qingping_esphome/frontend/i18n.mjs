@@ -103,7 +103,8 @@ export const MESSAGES = {
     "native_unconfirmed": "ESPHome has not confirmed the result. The firmware has not been resent.",
     "profile_unavailable": "The installer for this hardware profile is not ready.",
     "identity_unsupported": "This model or stock firmware has not been verified. Settings have not changed.",
-    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. Startup and power control are still under investigation; no installation image is available. Settings have not changed."
+    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. A raw UART receiver is built, but startup, measurement scales, power and display are not qualified. No installation image is available. Settings have not changed.",
+    "profile_lite434": "Experimental factory installation for stock 4.3.4. This uses its separate firmware line: PM OFF stops readings only; fan shutdown is not supported."
   },
   "ru": {
     "firmware_update_busy": "Уже выполняется операция с прошивкой. Дождитесь её завершения.",
@@ -205,7 +206,8 @@ export const MESSAGES = {
     "native_unconfirmed": "ESPHome пока не подтвердил результат. Повторная прошивка не отправлялась.",
     "profile_unavailable": "Для этого аппаратного профиля установщик ещё не готов.",
     "identity_unsupported": "Эта модель или заводская версия ещё не проверена. Настройки не менялись.",
-    "profile_mcu421": "Lite 4.2.1 использует отдельный MCU. Запуск и питание ещё исследуются; образ для установки пока недоступен. Настройки не менялись."
+    "profile_mcu421": "Lite 4.2.1 использует отдельный MCU. Raw UART receiver собран, но запуск, шкалы измерений, питание и экран ещё не квалифицированы. Образ для установки недоступен. Настройки не менялись.",
+    "profile_lite434": "Экспериментальная первичная установка для stock 4.3.4. Используется отдельная прошивка: PM OFF останавливает измерения, но не вентилятор."
   }
 };
 export const LANGUAGE_KEY = "qingping-esphome-language";

@@ -18,6 +18,46 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTemplateTests(unittest.TestCase):
+    def current_434_fixture(self):
+        root=Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        from tools import lite434_source
+        for name in (*lite434_source.RECIPE_PATHS, "tools/lite434_source.py",
+                     "custom_components/qingping_esphome/firmware_catalog.py"):
+            target=root/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes((ROOT/name).read_bytes())
+        path=root/"ports/lite/example.h";path.parent.mkdir(parents=True);path.write_text("// synthetic shared source")
+        (root/"ports/lite-434").mkdir(parents=True)
+        version="2026.11.10-ui25-434sources5"
+        info={"version":version,"revision":8,"public_version":5,"backend":"esp32-noise-app-v1","minimum_integration":"0.2.9","summary":"Polling only"}
+        (root/"firmware/lite434-release.json").write_text(json.dumps({"lite-434":info}))
+        binary=fixture(version.encode())
+        manifest=json.dumps({"model":"CGDN1","format":"esp32-app-fixed-slots-v1","ui":version,
+            "profile":"lite-434","hardware":"0001","source_stock_version":"4.3.4","pm_policy":lite434_source.POLICY,
+            "public_version":5,"size":len(binary),"sha256":hashlib.sha256(binary).hexdigest(),
+            "slots":{k:binary.count(v) for k,v in image.SLOTS.items()},"release_source_sha256":lite434_source.source_digest(root)}).encode()
+        prefix="https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/"
+        asset=lambda name,data:{"url":prefix+name,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
+        index={"format":"qingping-esphome-firmware-catalog-v1","releases":{},"hardware_releases":{"lite-434":{**info,
+            "image":asset("lite-434-template.bin",binary),"manifest":asset("lite-434-template.json",manifest),
+            "release_url":"https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5"}}}
+        mapping={"https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-catalog/firmware-catalog.json":json.dumps(index).encode(),prefix+"lite-434-template.bin":binary,prefix+"lite-434-template.json":manifest}
+        return root,binary,manifest,lambda url,maximum:mapping[url]
+
+    def test_434_reuses_own_immutable_pair_and_preserves_standard_lite_output(self):
+        root,binary,manifest,opener=self.current_434_fixture()
+        output=root/"custom_components/qingping_esphome/firmware";output.mkdir(parents=True)
+        (output/"lite-template.bin").write_bytes(b"preserve independent Lite")
+        with patch.object(release,"git_read",return_value=""):
+            self.assertTrue(release.reuse_current(root,opener,profile="lite-434"))
+        self.assertEqual((output/"lite-434-template.bin").read_bytes(),binary)
+        self.assertEqual((output/"lite-434-template.json").read_bytes(),manifest)
+        self.assertEqual((output/"lite-template.bin").read_bytes(),b"preserve independent Lite")
+
+    def test_434_changed_source_cannot_rebuild_same_published_version(self):
+        root,_,_,opener=self.current_434_fixture()
+        (root/"ports/lite-434/changed.h").write_text("// changed source")
+        with patch.object(release,"git_read",return_value=""),self.assertRaises(RuntimeError):
+            release.reuse_current(root,opener,profile="lite-434")
+
     def current_fixture(self):
         root=Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
         version="2026.11.07-ui25-profile1"
