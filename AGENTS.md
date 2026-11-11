@@ -44,6 +44,10 @@
   the fixed I2C device/driver paths. Keep serials and boot IDs out of the JSON.
   Published DTS evidence applies to its observed revision. Never infer an
   installable Monitor 2 profile from the inventory or a synthetic fixture.
+  The opt-in CGS2 stock sample probe requires the exact 4.5.6_0156 app digest
+  and reads the three fixed attributes once per run. Report only allowlisted
+  numeric fields. Keep PM serial, arbitrary peer text and unknown status out.
+  Default inventory never initiates a sensor read.
 - The exact stock 4.2.1 ESP32 APP uses signed LE16 T and unsigned LE16 RH
   divided by 100 as compensation inputs. Keep the APP scale evidence distinct
   from the separate MCU 0354 wire fixture and any target qualification.

@@ -63,6 +63,33 @@ class SnapshotTests(unittest.TestCase):
             snapshot.inventory("fixture-usb", run=lambda arguments:
                                b"device\n" if arguments[-1] == "get-state" else b"unknown\n")
 
+    def test_opt_in_exact_stock_samples_drop_the_pm_serial_and_unknown_text(self):
+        boot = "00000000-0000-0000-0000-000000000001"
+        elf = b"\x7fELF\x02\x01\x01" + bytes(11) + b"\xb7\x00"
+        rows = [boot, "rockchip,px30", "4.19.232", "aarch64", elf.hex(),
+                snapshot.SAMPLE_RELEASE, snapshot.SAMPLE_APP]
+        rows += ["-"] * 14 + ["co2_ppm=0,temperature=-12.5,humidity=45",
+                              "temperature=-31,humidity=450", "pm1=3,pm25=5,pm10=7,sn=private-serial",
+                              boot, "done"]
+        result = snapshot.parse_reply("\n".join(rows).encode(), "done", samples=True)
+        self.assertEqual(result["stock_samples"]["co2"]["raw"]["co2_ppm"], 0)
+        self.assertEqual(result["stock_samples"]["temperature_humidity"]["raw"], {"temperature": -31, "humidity": 450})
+        self.assertEqual(result["stock_samples"]["pm"], {"state": "observed", "raw": {"pm1": 3, "pm25": 5, "pm10": 7}})
+        self.assertNotIn("private-serial", str(result))
+        self.assertEqual(snapshot.stock_sample("pm", "pm1=3,pm25=5,pm25=7,pm10=9"), {"state": "unrecognized"})
+        self.assertEqual(snapshot.stock_sample("pm", "-"), {"state": "unavailable"})
+        self.assertEqual(snapshot.stock_sample("pm", "pm1=3,pm25=5,pm10=7,sn=" + "x" * 256), {"state": "unrecognized"})
+        rows[6] = "b" * 64
+        with self.assertRaisesRegex(snapshot.SnapshotError, "exact analyzed stock"):
+            snapshot.parse_reply("\n".join(rows).encode(), "done", samples=True)
+
+    def test_default_inventory_never_reads_measurement_attributes(self):
+        default, enabled = snapshot.shell_probe("done"), snapshot.shell_probe("done", samples=True)
+        for path in snapshot.SAMPLE_PATHS.values():
+            self.assertNotIn(path, default)
+            self.assertEqual(enabled.count("head -c 257 /sys/bus/i2c/devices/" + path), 1)
+        self.assertLess(enabled.index('test "$fingerprint" = ' + snapshot.SAMPLE_APP), enabled.index("co2_scd40_read"))
+
     def test_local_client_reply_is_bounded(self):
         with self.assertRaisesRegex(snapshot.SnapshotError, "size limit"):
             snapshot.adb_read([sys.executable, "-c", "print('x' * 9000)"])
