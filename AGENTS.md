@@ -21,7 +21,8 @@
   Invalid runtime metadata must leave the Lite catalog usable.
 - The CGS2 USB inventory is read-only and separate from the installer. Use
   an explicit existing USB ADB serial, bound each reply and verify the same
-  transport/boot. Collect the PX30 device-tree signature, ELF header and only
+  transport/boot. Collect the PX30 device-tree signature, ELF header, stock
+  version and bounded app fingerprint at the original OTA paths, and only
   the fixed I2C device/driver paths. Keep serials and boot IDs out of the JSON.
   Published DTS evidence applies to its observed revision. Never infer an
   installable Monitor 2 profile from the inventory or a synthetic fixture.

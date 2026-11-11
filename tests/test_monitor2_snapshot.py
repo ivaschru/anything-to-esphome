@@ -24,16 +24,37 @@ class SnapshotTests(unittest.TestCase):
             marker = re.search(r"CGS2_SNAPSHOT_DONE_[0-9a-f]{32}", arguments[5]).group()
             boot = "00000000-0000-0000-0000-000000000001"
             elf = b"\x7fELF\x01\x01\x01" + bytes(11) + b"\x28\x00"
-            rows = [boot, "rockchip,px30-evb-ddr3-v11-linux rockchip,px30", "4.19.232", "aarch64", elf.hex()]
+            rows = [boot, "rockchip,px30-evb-ddr3-v11-linux rockchip,px30", "4.19.232", "aarch64", elf.hex(),
+                    "4.5.6_0156", "a" * 64]
             rows += ["co2_scd40", "co2_scd40"] + ["-"] * 12 + [boot, marker]
             return ("\r\n".join(rows) + "\r\n").encode()
 
         result = snapshot.inventory("fixture-usb", run=reply)
         self.assertEqual((result["kernel_machine"], result["stock_app_elf"]), ("aarch64", "arm32"))
+        self.assertEqual(result["stock_release"], "4.5.6_0156")
+        self.assertEqual(result["stock_app_sha256"], "a" * 64)
         self.assertEqual(result["i2c"]["co2"], {"address": "1-0062", "device": "co2_scd40", "driver": "co2_scd40"})
         self.assertIsNone(result["i2c"]["pm"]["driver"])
         self.assertNotIn("fixture-usb", str(result))
         self.assertNotIn("00000000-0000-0000-0000-000000000001", str(result))
+
+    def test_optional_metadata_uses_fixed_formats_and_does_not_leak_peer_text(self):
+        boot = "00000000-0000-0000-0000-000000000001"
+        elf = b"\x7fELF\x02\x01\x01" + bytes(11) + b"\xb7\x00"
+        rows = [boot, "rockchip,px30", "4.19.232", "aarch64", elf.hex(), "-", "-"]
+        rows += ["-"] * 14 + [boot, "done"]
+
+        def parse():
+            return snapshot.parse_reply("\n".join(rows).encode(), "done")
+
+        self.assertIsNone(parse()["stock_release"])
+        self.assertIsNone(parse()["stock_app_sha256"])
+        rows[5] = "unexpected assignment"
+        with self.assertRaisesRegex(snapshot.SnapshotError, "Unexpected stock version format"):
+            parse()
+        rows[5:7] = ["4.5.6_0156", "b" * 63]
+        with self.assertRaisesRegex(snapshot.SnapshotError, "Unexpected stock application fingerprint"):
+            parse()
 
     def test_unfinished_and_non_usb_reads_are_refused(self):
         with self.assertRaisesRegex(snapshot.SnapshotError, "did not finish"):

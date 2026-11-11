@@ -21,6 +21,8 @@ COMMAND_TIMEOUT = 15
 BOOT_ID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 KERNEL_RELEASE = re.compile(r"[A-Za-z0-9._+\-]{1,128}")
 DRIVER_NAME = re.compile(r"[A-Za-z0-9_.+\-]{1,64}")
+STOCK_RELEASE = re.compile(r"[0-9]{1,3}(?:\.[0-9]{1,3}){2}_[0-9]{1,8}")
+SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 class SnapshotError(Exception):
@@ -67,10 +69,29 @@ def usb_path(run, base):
 
 
 def shell_probe(marker):
+    # The original OTA script installs these two files at fixed paths. Read
+    # only the version assignment, and fingerprint the app on disk without
+    # copying it or asking the stock app to execute anything.
     script = ["set -e", "cat /proc/sys/kernel/random/boot_id",
               "tr '\\000' ' ' < /proc/device-tree/compatible; printf '\\n'",
               "uname -r", "uname -m",
-              "od -An -v -tx1 -N20 /qingping/bin/QingSnow2App | tr -d ' \\n'; printf '\\n'"]
+              "app=/qingping/bin/QingSnow2App",
+              "signature=$(stat -Lc '%s:%d:%i:%Y:%Z' \"$app\" 2>/dev/null) || signature=",
+              "od -An -v -tx1 -N20 \"$app\" | tr -d ' \\n'; printf '\\n'",
+              "version=-",
+              "if test -r /qingping/etc/os-release; then "
+              "version=$(head -c 256 /qingping/etc/os-release | sed -n 's/^CLEARGRASS_VERSION=//p'); fi",
+              "printf '%s\\n' \"${version:--}\"",
+              # Avoid hashing large or non-regular files. Old systems may
+              # lack an applet. Keep that observation separate from the ABI.
+              "size=${signature%%:*}",
+              "fingerprint=-",
+              "if test -n \"$size\" && test -f \"$app\" && "
+              "test \"$size\" -gt 0 && test \"$size\" -le 16777216 && "
+              "digest=$(sha256sum < \"$app\" 2>/dev/null); then "
+              "test \"$signature\" = \"$(stat -Lc '%s:%d:%i:%Y:%Z' \"$app\")\"; "
+              "fingerprint=${digest%% *}; fi",
+              "printf '%s\\n' \"$fingerprint\""]
     for address in SENSORS.values():
         path = f"/sys/bus/i2c/devices/{address}"
         script.extend([
@@ -83,9 +104,9 @@ def shell_probe(marker):
 
 def parse_reply(data, marker):
     fields = data.decode("ascii").splitlines()
-    if len(fields) != 7 + 2 * len(SENSORS) or fields[-1] != marker:
+    if len(fields) != 9 + 2 * len(SENSORS) or fields[-1] != marker:
         raise SnapshotError("CGS2 inventory did not finish")
-    boot, compatible, release, machine, elf = fields[:5]
+    boot, compatible, release, machine, elf, stock, digest = fields[:7]
     if not BOOT_ID.fullmatch(boot) or boot != fields[-2]:
         raise SnapshotError("The monitor rebooted during the read")
     if "rockchip,px30" not in compatible.split():
@@ -98,9 +119,13 @@ def parse_reply(data, marker):
     elf_kind = {(1, 40): "arm32", (2, 183): "aarch64"}.get((header[4], int.from_bytes(header[18:20], "little")))
     if elf_kind is None:
         raise SnapshotError("Unknown stock application ABI")
+    if stock != "-" and not STOCK_RELEASE.fullmatch(stock):
+        raise SnapshotError("Unexpected stock version format")
+    if digest != "-" and not SHA256.fullmatch(digest):
+        raise SnapshotError("Unexpected stock application fingerprint")
     sensors = {}
     for index, (sensor, address) in enumerate(SENSORS.items()):
-        name, driver = fields[5 + 2 * index:7 + 2 * index]
+        name, driver = fields[7 + 2 * index:9 + 2 * index]
         if not all(value == "-" or DRIVER_NAME.fullmatch(value) for value in (name, driver)):
             raise SnapshotError("Unexpected I2C driver metadata")
         sensors[sensor] = {"address": address, "device": None if name == "-" else name,
@@ -108,7 +133,8 @@ def parse_reply(data, marker):
     # Boot ID, ADB serial and transport address are used for the read itself
     # and intentionally excluded from the resulting hardware inventory.
     return {"soc": "rockchip,px30", "kernel_release": release, "kernel_machine": machine,
-            "stock_app_elf": elf_kind, "i2c": sensors}
+            "stock_app_elf": elf_kind, "stock_release": None if stock == "-" else stock,
+            "stock_app_sha256": None if digest == "-" else digest, "i2c": sensors}
 
 
 def inventory(serial, run=adb_read):
