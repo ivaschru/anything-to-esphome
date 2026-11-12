@@ -9,7 +9,6 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.const import Platform
 
-from .catalog import CATALOG
 from .manager import DOMAIN, Manager
 from .network_setup import NetworkDetectionError
 from .monitor1 import Monitor1, Monitor1View
@@ -158,7 +157,7 @@ def register_ws(hass):
             operation = message["operation"]
             if operation.startswith("sonoff_"):
                 result = await manager.sonoff.call(connection.user.id, operation, message.get("data", {}))
-            elif operation == "catalog": result = {"models": CATALOG, "brands": ["qingping", "sonoff"]}
+            elif operation == "catalog": result = await manager.catalog()
             elif operation == "ble_scan": result = await manager.bluetooth.scan()
             elif operation == "ble_select": result = await manager.bluetooth.select(connection.user.id, message["address"])
             elif operation == "ble_provision": result = await manager.provision(message["session"], connection.user.id)

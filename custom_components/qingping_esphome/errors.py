@@ -41,7 +41,7 @@ MESSAGES = {
     "native_unconfirmed": "ESPHome has not confirmed the result. The firmware has not been resent.",
     "profile_unavailable": "The installer for this hardware profile is not ready.",
     "identity_unsupported": "This model or stock firmware has not been verified. Settings have not changed.",
-    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. A raw UART receiver is built, but startup, measurement scales, power and display are not qualified. No installation image is available. Settings have not changed.",
+    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. The port is in development. Firmware is not available for installation yet.",
 }
 
 

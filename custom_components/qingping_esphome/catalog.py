@@ -8,11 +8,13 @@ from .errors import InstallerError
 CATALOG = [
     {"id": "lite", "name": "Air Monitor Lite", "model": "CGDN1", "platform": "ESP32",
      "transport": "ble_mqtt", "installer": "beta", "firmware": "lite-ui25",
+     "description_key": "profile_lite",
      "stock_versions": ["4.5.8"],
      "hardware_versions": ["0001"],
      "note": "BLE настраивает сеть, Home Assistant передаёт ESP32 app по локальной сети"},
     {"id": "lite-434", "name": "Air Monitor Lite · stock 4.3.4", "model": "CGDN1", "platform": "ESP32",
      "transport": "ble_mqtt", "installer": "beta", "firmware": "lite-434",
+     "description_key": "profile_lite434",
      "stock_versions": ["4.3.4"], "hardware_versions": ["0001"],
      "note": "Отдельная polling-only прошивка: PM OFF останавливает измерения, но не вентилятор. Первичная установка через BLE/MQTT экспериментальная"},
     {"id": "lite-mcu421", "name": "Air Monitor Lite · MCU 4.2.1", "model": "CGDN1", "platform": "ESP32 + MCU",

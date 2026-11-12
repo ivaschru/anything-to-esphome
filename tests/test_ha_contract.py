@@ -33,6 +33,30 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         await self.hass.async_stop(force=True)
         self.temp.cleanup()
 
+    async def test_catalog_reads_each_lite_version_from_its_own_bundled_metadata(self):
+        root = Path(self.temp.name)
+        for stem, profile, stock, policy, version in (
+            ("lite-template", "lite", "4.5.8", "quiet-scd4x-window-v1", 17),
+            ("lite-434-template", "lite-434", "4.3.4", "lite-434-polling-only-v1", 42),
+        ):
+            (root / f"{stem}.json").write_text(json.dumps({
+                "profile": profile, "model": "CGDN1", "source_stock_version": stock,
+                "hardware": "0001", "pm_policy": policy, "format": "esp32-app-fixed-slots-v1",
+                "ui": "fixture", "public_version": version,
+            }))
+            (root / f"{stem}.bin").touch()
+
+        with patch("custom_components.qingping_esphome.manager.TEMPLATE_ROOT", root):
+            models = {profile["id"]: profile for profile in (await self.manager.catalog())["models"]}
+            self.assertEqual(models["lite"]["public_version"], 17)
+            self.assertEqual(models["lite-434"]["public_version"], 42)
+            self.assertNotIn("public_version", models["lite-mcu421"])
+            (root / "lite-434-template.bin").unlink()
+            models = {profile["id"]: profile for profile in (await self.manager.catalog())["models"]}
+            self.assertEqual(models["lite"]["public_version"], 17)
+            self.assertEqual(models["lite-434"]["template_error"], "template_missing")
+            self.assertNotIn("public_version", models["lite-434"])
+
     async def test_personalization_private_journal_and_restart_fence(self):
         from custom_components.qingping_esphome.manager import Manager
         from test_protocol import fixture

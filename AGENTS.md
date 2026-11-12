@@ -19,6 +19,10 @@
   first when the matching records agree on the assigned area. Conflicting
   names suppress registry labels. Conflicting or missing areas stay unlabeled.
   Keep the discovery address and fresh GATT identity checks intact.
+  Before installation show only the exact profile's description and the
+  public version from its bundled template metadata. Separate 4.5.8 fan
+  shutdown from 4.3.4 polling-only PM OFF. Explain the unverified factory
+  wizard transition for 4.3.4 and keep 4.2.1 without an installation image.
   Load the panel and its relative imports from a release-versioned static
   directory to avoid stale Home Assistant service worker responses. Keep the
   unversioned static route for the embedded USB wizard.
