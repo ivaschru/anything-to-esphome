@@ -1,3 +1,10 @@
+## 0.3.3 – Lite Bluetooth search feedback
+
+- Show when the Home Assistant Bluetooth search finishes and how many
+  monitors it found. Highlight a nonempty result in green.
+- Show the existing Home Assistant device name when the advertised address
+  matches the device registry. Keep the advertised name and address visible.
+
 ## 0.3.2 – Monitor 1 updates from Home Assistant
 
 - Show available Monitor 1 source releases in Home Assistant for connected S8

@@ -11,7 +11,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -128,9 +128,34 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
                          result["identity"])
 
     async def test_scan_filters_names_and_requires_connectable_scanner(self):
+        from homeassistant.config_entries import ConfigEntry
+        from homeassistant.helpers import device_registry as dr
         from custom_components.qingping_esphome.errors import InstallerError
-        infos = [SimpleNamespace(address=str(i), name=name, rssi=-50)
-                 for i, name in enumerate(("Qingping Lite", "CGDN1 Test", "Air Monitor Test", "Unrelated", None))]
+        labels = ("Qingping Lite", "CGDN1 Test", "Air Monitor Test", "Qingping conflict", "Unrelated", None)
+        addresses = [f"00:11:22:33:44:{n:02X}" for n in (0x50, 0x52, 0x54, 0x56, 0x58, 0x5A)]
+        infos = [SimpleNamespace(address=address, name=name, rssi=-50) for address, name in zip(addresses, labels)]
+        registry = dr.DeviceRegistry(self.hass)
+        self.hass.data[dr.DATA_REGISTRY] = registry
+        await registry.async_load()
+        entries = [ConfigEntry(version=1, minor_version=1, domain=domain, title=domain,
+                               data={}, options={}, source="user", unique_id=domain,
+                               discovery_keys=MappingProxyType({}), subentries_data=[])
+                   for domain in ("qingping", "mqtt")]
+        with patch.object(self.hass.config_entries, "async_setup", AsyncMock(return_value=True)):
+            for entry in entries:
+                await self.hass.config_entries.async_add(entry)
+        first = registry.async_get_or_create(config_entry_id=entries[0].entry_id, name="Default name",
+                                             connections={(dr.CONNECTION_BLUETOOTH, addresses[0].lower())})
+        registry.async_update_device(first.id, name_by_user="Кабинет")
+        registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Network entry",
+                                     connections={(dr.CONNECTION_NETWORK_MAC, addresses[0])})
+        registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Гостиная",
+                                     connections={(dr.CONNECTION_NETWORK_MAC, addresses[1].replace(":", ""))})
+        registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Adjacent device",
+                                     connections={(dr.CONNECTION_NETWORK_MAC, "00:11:22:33:44:55")})
+        for entry in entries:
+            registry.async_get_or_create(config_entry_id=entry.entry_id, name=entry.domain,
+                                         connections={(dr.CONNECTION_BLUETOOTH, addresses[3])})
         with patch(MODULE + ".bluetooth.async_scanner_count", return_value=0):
             with self.assertRaises(InstallerError) as error: await self.radio.scan()
         self.assertEqual(error.exception.code, "ha_bluetooth_unavailable")
@@ -138,7 +163,9 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
              patch(MODULE + ".bluetooth.async_discovered_service_info", return_value=infos) as discovered, \
              patch(MODULE + ".bluetooth.async_process_advertisements", AsyncMock(side_effect=TimeoutError)) as active:
             result = await self.radio.scan()
-        self.assertEqual([d["address"] for d in result["devices"]], ["0", "1", "2"])
+        self.assertEqual([d["address"] for d in result["devices"]], addresses[:4])
+        self.assertEqual([d["name"] for d in result["devices"]], list(labels[:4]))
+        self.assertEqual([d.get("ha_name") for d in result["devices"]], ["Кабинет", "Гостиная", None, None])
         discovered.assert_called_once_with(self.hass, connectable=True)
         self.assertEqual(active.call_args.args[2], {"connectable": True})
 

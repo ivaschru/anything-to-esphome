@@ -9,7 +9,7 @@ import {HABluetoothConnection} from "./ha-transport.mjs";
 import "./usb-choice.mjs";
 import "./sonoff.mjs";
 import {SidebarSettings} from "./sidebar-settings.mjs";
-import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage} from "./i18n.mjs";
+import {t, failure, errorKey, readLanguage, saveLanguage, normalizeLanguage, scanSummary} from "./i18n.mjs";
 
 const VENDOR = "22210000-554a-4546-5542-46534450464d";
 const INFO = "0000180a-0000-1000-8000-00805f9b34fb";
@@ -177,6 +177,7 @@ class QingpingPanel extends HTMLElement {
       button{font:600 15px system-ui;min-height:46px;border-radius:9px;padding:11px 18px;cursor:pointer;transition:background .15s,border-color .15s}button:disabled{opacity:.55;cursor:default}button.primary{background:var(--accent);border:1px solid var(--accent);color:var(--text-primary-color,#fff)}button.secondary{background:transparent;color:inherit;border:1px solid var(--divider-color,#c8cfd6)}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:22px 0}.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}.note{font-size:14px}.error{color:var(--error-color,#b42318);white-space:pre-wrap}.status{margin-bottom:10px;font-weight:600}progress{width:100%;height:12px;accent-color:var(--accent)}.hidden{display:none!important}.password{display:flex;align-items:end;gap:8px}.password label{flex:1}.password button{padding:10px;min-width:46px;font-size:12px}footer{font-size:13px;color:var(--secondary-text-color,#58616b)}a{color:var(--accent)}
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
       #transport,#ha-device{display:block;width:100%;max-width:100%;margin:7px 0 12px}.ha-device-field{flex:1;min-width:0}#ha-picker .row{align-items:flex-end}#ha-picker .row>button{margin-bottom:12px}
+      #ble-status:empty{margin:0}#ble-status.scan-complete{margin-bottom:4px}#ble-status.scan-success{color:var(--primary-text-color,#202124);color:color-mix(in srgb,var(--success-color,#198754) 48%,var(--primary-text-color,#202124));font-weight:600}
       #brands button[aria-pressed=true]{border:2px solid var(--accent);color:var(--accent)}.header-controls{display:flex;align-items:center;gap:12px;margin-left:auto}.page-settings{position:relative}.page-settings>summary{display:flex;align-items:center;justify-content:center;list-style:none;width:44px;height:44px;border:1px solid transparent;border-radius:9px;cursor:pointer;color:var(--secondary-text-color,#58616b)}.page-settings>summary::-webkit-details-marker{display:none}.page-settings>summary:hover,.page-settings[open]>summary{background:var(--secondary-background-color,#f0f2f5);color:var(--primary-text-color,#202124)}.page-settings>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.page-settings svg{width:22px;height:22px}.sidebar-setting{position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:min(340px,calc(100vw - 32px));padding:16px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:12px;box-shadow:0 8px 24px #0003}.sidebar-setting .check{min-height:44px;align-items:center;margin:0;cursor:pointer}.sidebar-setting .check:has(input:disabled){opacity:.55;cursor:default}.sidebar-setting p{margin:6px 0 0}.sidebar-setting input{flex:none;margin:0}.sidebar-setting #sidebar-status:empty{display:none}
       </style>
       <main><header><div class="heading"><h1>Anything → ESPHome</h1><div class="header-controls"><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label><details id="page-settings" class="page-settings"><summary data-i18n-aria="page_settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card-background-color,#fff)"/><circle cx="15" cy="17" r="3" fill="var(--card-background-color,#fff)"/></svg></summary><div class="sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></div></details></div></div><p class="muted"><span data-i18n="tagline"></span></p></header>
@@ -195,7 +196,7 @@ class QingpingPanel extends HTMLElement {
        <p class="note muted"><span data-i18n="connect_help"></span></p>
        <label for="transport"><span data-i18n="transport_label"></span></label><select id="transport" aria-describedby="transport-help"><option value="browser" data-i18n="transport_browser"></option><option value="ha" data-i18n="transport_ha"></option></select>
        <p id="transport-help" class="note muted"></p>
-       <div id="ha-picker" class="hidden"><div class="row"><div class="ha-device-field"><label for="ha-device"><span data-i18n="ha_device_label"></span></label><select id="ha-device"></select></div><button id="scan" class="secondary"><span data-i18n="ha_scan"></span></button></div><p id="ble-status" class="note muted" role="status"></p></div>
+       <div id="ha-picker" class="hidden"><div class="row"><div class="ha-device-field"><label for="ha-device"><span data-i18n="ha_device_label"></span></label><select id="ha-device" aria-describedby="ble-hint"></select></div><button id="scan" class="secondary"><span data-i18n="ha_scan"></span></button></div><p id="ble-status" class="note muted" role="status" aria-atomic="true"></p><p id="ble-hint" class="note muted hidden"></p></div>
        <button id="connect" class="secondary"><span data-i18n="connect"></span></button>
        <div id="identity" class="identity" aria-live="polite"></div>
        <p id="profile-note" class="note muted hidden" data-i18n="profile_lite434"></p>
@@ -363,7 +364,19 @@ class QingpingPanel extends HTMLElement {
   updateTransport() {
     this.$("#ha-picker").classList.toggle("hidden", this.transport !== "ha");
     this.$("#transport-help").textContent = this.t("transport_" + this.transport + "_help");
-    if (this.bleMessage) this.$("#ble-status").textContent = this.t(this.bleMessage);
+    const found = this.bleMessage === "ha_devices_found";
+    const completed = found || this.bleMessage === "ha_devices_empty";
+    const status = this.$("#ble-status");
+    let message = this.bleMessage ? this.t(this.bleMessage) : "";
+    if (completed) message = scanSummary(this.language, this.devices.length);
+    // Keep the live region stable. Other panel updates need not repeat the
+    // announcement, while changing language still updates the whole status.
+    if (status.textContent !== message) status.textContent = message;
+    status.classList.toggle("scan-complete", completed);
+    status.classList.toggle("scan-success", found);
+    const hint = this.$("#ble-hint");
+    hint.textContent = completed ? this.t(this.bleMessage) : "";
+    hint.classList.toggle("hidden", !completed);
     this.$("#scan").disabled = Boolean(this.busy || this.scanning || this.connecting);
   }
 
@@ -376,12 +389,17 @@ class QingpingPanel extends HTMLElement {
   renderDevices(devices) {
     this.devices = devices;
     const selected = this.$("#ha-device").value;
-    // Advertised names are untrusted data. Build text nodes, never HTML.
+    // Both names are display-only. Keep the BLE address as the option value
+    // passed to the independent identity read. Render names as plain text.
     const option = (value, label) => {
       const node = document.createElement("option"); node.value = value; node.textContent = label; return node;
     };
     this.$("#ha-device").replaceChildren(option("", this.t("ha_choose")),
-      ...devices.map(device => option(device.address, `${device.name} · ${device.address}`)));
+      ...devices.map(device => {
+        const label = [device.name, device.address];
+        if (device.ha_name && device.ha_name !== device.name) label.unshift(device.ha_name);
+        return option(device.address, label.join(" · "));
+      }));
     if (devices.some(device => device.address === selected)) this.$("#ha-device").value = selected;
   }
 
@@ -394,7 +412,7 @@ class QingpingPanel extends HTMLElement {
       const result = await this.rpc("ble_scan");
       this.renderDevices(result.devices);
       this.bleMessage = result.devices.length ? "ha_devices_found" : "ha_devices_empty";
-    } catch (error) { this.renderDevices([]); this.bleMessage = null; this.$("#ble-status").textContent = ""; this.fail(error); }
+    } catch (error) { this.renderDevices([]); this.bleMessage = null; this.fail(error); }
     finally { this.scanning = false; this.updateTransport(); this.connectionControls(); }
   }
 

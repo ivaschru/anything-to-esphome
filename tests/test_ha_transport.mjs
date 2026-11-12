@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import vm from "node:vm";
 import {HABluetoothConnection} from "../custom_components/qingping_esphome/frontend/ha-transport.mjs";
 import {requireLiteProfile} from "../custom_components/qingping_esphome/frontend/compatibility.mjs";
-import {t, failure, errorKey} from "../custom_components/qingping_esphome/frontend/i18n.mjs";
+import {t, failure, errorKey, scanSummary} from "../custom_components/qingping_esphome/frontend/i18n.mjs";
 
 const identity = {model: "CGDN1", stock_version: "4.5.8", hardware: "0001", mac: "001122334455"};
 const calls = [];
@@ -33,7 +33,7 @@ let Panel;
 const context = vm.createContext({
   HTMLElement: class {}, customElements: {define(_name, type) { Panel = type; }},
   navigator: {}, TextDecoder, TextEncoder, Uint8Array, Map, Promise,
-  requireLiteProfile, HABluetoothConnection, t, failure, errorKey,
+  requireLiteProfile, HABluetoothConnection, t, failure, errorKey, scanSummary,
   readLanguage: () => "en", saveLanguage() {}, normalizeLanguage: value => value,
   document: {createElement: () => ({})},
 });
@@ -69,13 +69,22 @@ panel.busy = false;
 
 panel.rpc = async operation => {
   assert.equal(operation, "ble_scan");
-  return {devices: [{address: "selected", name: "<img src=x onerror=bad()>"}]};
+  assert.match(panel.$("#ble-status").textContent, /^Searching/);
+  assert.equal(panel.$("#ble-status").classList.values.has("scan-success"), false);
+  return {devices: [{address: "selected", name: "CGDN1", ha_name: "<img src=x onerror=bad()>"},
+                    {address: "other", name: "Air Monitor"}]};
 };
 await panel.scan();
-assert.equal(panel.$("#ha-device").children[1].textContent, "<img src=x onerror=bad()> · selected");
+assert.equal(panel.$("#ha-device").children[1].textContent, "<img src=x onerror=bad()> · CGDN1 · selected");
 assert.equal(panel.$("#ha-device").children[1].innerHTML, undefined);
+assert.equal(panel.$("#ha-device").children[1].value, "selected");
+assert.equal(panel.$("#ha-device").children[2].textContent, "Air Monitor · other");
+assert.equal(panel.$("#ble-status").textContent, "Search complete. Found 2 devices.");
+assert.equal(panel.$("#ble-status").classList.values.has("scan-success"), true);
 panel.language = "ru"; panel.updateTransport();
 assert.match(panel.$("#transport-help").textContent, /прокси/);
+assert.equal(panel.$("#ble-status").textContent, "Поиск завершён. Найдено 2 устройства.");
+assert.match(panel.$("#ble-hint").textContent, /^Выберите прибор/);
 
 panel.catalog = [{id: "lite", model: "CGDN1", stock_versions: ["4.5.8"], hardware_versions: ["0001"], installer: "beta", firmware: "lite"}];
 panel.catalogReady = Promise.resolve();
@@ -96,4 +105,15 @@ const pending = panel.connect();
 assert.equal(pickerCalled, true, "Browser picker must run synchronously inside the click activation");
 await pending;
 assert.equal(panel.identity, null, "Cancelled/rejected selection must not retain the preceding HA identity");
+
+panel.transport = "ha";
+panel.rpc = async () => ({devices: []});
+await panel.scan();
+assert.equal(panel.$("#ble-status").textContent, "Поиск завершён. Найдено 0 устройств.");
+assert.equal(panel.$("#ble-status").classList.values.has("scan-success"), false);
+assert.match(panel.$("#ble-hint").textContent, /^Включите/);
+panel.rpc = async () => { throw failure("ha_bluetooth_unavailable"); };
+await panel.scan();
+assert.equal(panel.$("#ble-status").textContent, "");
+assert.equal(panel.$("#ble-hint").classList.values.has("hidden"), true);
 console.log("HA/browser transport selection, no-radio browser, safe text, owner session RPC and no replay passed");
