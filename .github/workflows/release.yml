@@ -13,6 +13,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Prepare notes for this release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python tools/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
       - run: pip install -r ports/lite/requirements.txt
       # Installer-only updates keep the exact tested public firmware. A
       # known source change still uses the pinned public-placeholder compiler;
@@ -65,5 +68,5 @@ jobs:
             if [ "$prerelease" = false ]; then
               assets+=(".build/legacy-feed/firmware-catalog.json")
             fi
-            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md --prerelease="$prerelease"
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md" --prerelease="$prerelease"
           fi
