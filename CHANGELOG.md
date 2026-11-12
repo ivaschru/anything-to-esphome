@@ -1,3 +1,8 @@
+## 0.3.4 – Installer panel URL
+
+- Open the installer at `/anything-to-esphome`. The sidebar and existing
+  installer device both point to the new URL.
+
 ## 0.3.3 – Lite Bluetooth search feedback
 
 - Show when the Home Assistant Bluetooth search finishes and how many

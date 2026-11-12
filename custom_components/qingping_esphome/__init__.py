@@ -18,6 +18,9 @@ from .sonoff import Sonoff
 from .sonoff_policy import SonoffError
 
 NETWORK_KEYS = ("automatic_network", "lan_host", "http_port", "mqtt_port")
+# The public panel path is independent of HA's integration identity. Keep
+# DOMAIN for config entries, persistent data, static assets and the WS API.
+PANEL_PATH = "anything-to-esphome"
 
 
 def register_installer_device(hass, entry):
@@ -25,14 +28,14 @@ def register_installer_device(hass, entry):
     return dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "installer")}, entry_type=dr.DeviceEntryType.SERVICE,
         name="Anything to ESPHome", model="Firmware installer",
-        configuration_url=f"homeassistant://{DOMAIN}")
+        configuration_url=f"homeassistant://{PANEL_PATH}")
 
 
 def apply_sidebar(hass, show_sidebar):
     """Update navigation in place; never stop the broker or an active session."""
-    panel = hass.data[frontend.DATA_PANELS][DOMAIN]
+    panel = hass.data[frontend.DATA_PANELS][PANEL_PATH]
     frontend.async_register_built_in_panel(hass, component_name=panel.component_name,
-        frontend_url_path=DOMAIN, sidebar_title="Anything to ESPHome" if show_sidebar else None,
+        frontend_url_path=PANEL_PATH, sidebar_title="Anything to ESPHome" if show_sidebar else None,
         sidebar_icon="mdi:chip", config=panel.config, require_admin=True,
         show_in_sidebar=show_sidebar, update=True)
 
@@ -72,8 +75,6 @@ async def async_setup_entry(hass, entry):
         await manager.monitor1.stop()
         await manager.sonoff.stop()
         await manager.stop()
-        if DOMAIN in hass.data.get(frontend.DATA_PANELS, {}):
-            frontend.async_remove_panel(hass, DOMAIN)
         raise
 
 
@@ -89,23 +90,28 @@ async def _async_setup_loaded_entry(hass, entry, manager):
         hass.http.register_view(SonoffDiagnosticsView())
         hass.http.register_view(Monitor1View())
         hass.data[marker] = True
-    await panel_custom.async_register_panel(hass, frontend_url_path=DOMAIN,
+    await panel_custom.async_register_panel(hass, frontend_url_path=PANEL_PATH,
         webcomponent_name="qingping-installer-panel", sidebar_title="Anything to ESPHome",
         sidebar_icon="mdi:chip", module_url=f"/api/{DOMAIN}/static/panel.js", require_admin=True)
-    apply_sidebar(hass, manager.settings.get("show_sidebar", True))
-    # This is an explicit service device, not a physical Qingping monitor.
-    # HA rewrites homeassistant:// links to the current frontend origin, so
-    # this works through local URLs, reverse proxies and remote HTTPS alike.
-    register_installer_device(hass, entry)
-    from .firmware_update import FirmwareUpdates
-    version = await hass.async_add_executor_job(
-        lambda: json.loads((Path(__file__).parent / "manifest.json").read_text())["version"])
-    manager.updates = FirmwareUpdates(manager, version)
-    await hass.config_entries.async_forward_entry_setups(entry, [Platform.UPDATE])
-    from .auto_adoption import AutoAdoption
-    manager.adoption = AutoAdoption(manager)
-    manager.adoption.start()
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    try:
+        apply_sidebar(hass, manager.settings.get("show_sidebar", True))
+        # HA resolves the service device's homeassistant:// link against the
+        # current frontend origin, including behind a reverse proxy.
+        register_installer_device(hass, entry)
+        from .firmware_update import FirmwareUpdates
+        version = await hass.async_add_executor_job(
+            lambda: json.loads((Path(__file__).parent / "manifest.json").read_text())["version"])
+        manager.updates = FirmwareUpdates(manager, version)
+        await hass.config_entries.async_forward_entry_setups(entry, [Platform.UPDATE])
+        from .auto_adoption import AutoAdoption
+        manager.adoption = AutoAdoption(manager)
+        manager.adoption.start()
+        entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    except BaseException:
+        # Clean up only after we registered the panel. If the route was
+        # already taken, registration raises without touching its owner.
+        frontend.async_remove_panel(hass, PANEL_PATH)
+        raise
     return True
 
 
@@ -126,7 +132,7 @@ async def async_unload_entry(hass, entry):
     await manager.monitor1.stop()
     await manager.sonoff.stop()
     await manager.stop()
-    frontend.async_remove_panel(hass, DOMAIN)
+    frontend.async_remove_panel(hass, PANEL_PATH)
     return True
 
 

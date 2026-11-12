@@ -122,7 +122,7 @@ HA setting; it takes effect immediately and is retained after restart.
 
 With the item hidden, open **Settings → Devices & services → Anything to ESPHome
 → installer device → Visit**. The direct path on the same HA is
-`/qingping_esphome`. Administrator access is still required.
+`/anything-to-esphome`. Administrator access is still required.
 
 The **Anything to ESPHome** service device is an installer shortcut, not a
 physical monitor. Flashed monitors and their readings belong to the standard
