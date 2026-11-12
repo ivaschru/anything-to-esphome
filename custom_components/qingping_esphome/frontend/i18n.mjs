@@ -32,8 +32,8 @@ export const MESSAGES = {
     "ha_scan": "Search near Home Assistant",
     "ha_choose": "Select a monitor",
     "ha_scanning": "Searching through Home Assistant's Bluetooth adapters and proxies…",
-    "ha_devices_found": "Select the monitor, then connect. The model and firmware will be read before setup.",
-    "ha_devices_empty": "No matching monitors found. Enable the large Wi-Fi icon near HA's adapter or an active proxy, then search again.",
+    "ha_devices_found": "Select a monitor and connect to read its model and firmware.",
+    "ha_devices_empty": "Enable the large Wi-Fi icon near HA's adapter or an active proxy and search again.",
     "ha_bluetooth_unavailable": "Home Assistant has no connectable Bluetooth adapter or proxy. Configure one, or use this device's Bluetooth.",
     "ha_bluetooth_not_found": "Home Assistant cannot reach this monitor. Enable pairing mode near an adapter or active proxy and search again.",
     "ha_bluetooth_busy": "Bluetooth discovery or this monitor is already in use. Wait for the current operation to finish.",
@@ -135,8 +135,8 @@ export const MESSAGES = {
     "ha_scan": "Найти рядом с Home Assistant",
     "ha_choose": "Выберите прибор",
     "ha_scanning": "Ищем через Bluetooth-адаптеры и прокси Home Assistant…",
-    "ha_devices_found": "Выберите прибор и подключитесь. До настройки будут прочитаны модель и версия прошивки.",
-    "ha_devices_empty": "Подходящие приборы не найдены. Включите большой значок Wi-Fi рядом с адаптером HA или активным прокси и повторите поиск.",
+    "ha_devices_found": "Выберите прибор и подключитесь, чтобы прочитать модель и версию прошивки.",
+    "ha_devices_empty": "Включите большой значок Wi-Fi рядом с адаптером HA или активным прокси и повторите поиск.",
     "ha_bluetooth_unavailable": "У Home Assistant нет Bluetooth-адаптера или прокси с поддержкой подключений. Настройте его или выберите Bluetooth этого устройства.",
     "ha_bluetooth_not_found": "Home Assistant не видит этот прибор. Включите режим подключения рядом с адаптером или активным прокси и повторите поиск.",
     "ha_bluetooth_busy": "Уже идёт поиск Bluetooth или работа с этим прибором. Дождитесь завершения.",
@@ -213,6 +213,13 @@ export const MESSAGES = {
 export const LANGUAGE_KEY = "qingping-esphome-language";
 export const normalizeLanguage = value => value === "ru" ? "ru" : "en";
 export const t = (language, key) => (Object.hasOwn(MESSAGES.en, key) ? MESSAGES[normalizeLanguage(language)][key] : MESSAGES.en.operation_failed);
+export function scanSummary(language, count) {
+  const locale = normalizeLanguage(language);
+  const plural = new Intl.PluralRules(locale).select(count);
+  if (locale === "en") return `Search complete. Found ${count} ${plural === "one" ? "device" : "devices"}.`;
+  const noun = {one: "устройство", few: "устройства"}[plural] ?? "устройств";
+  return `Поиск завершён. Найдено ${count} ${noun}.`;
+}
 export const failure = code => Object.assign(new Error(t("en", code)), {code});
 export function readLanguage() {
   try { return normalizeLanguage(globalThis.localStorage?.getItem(LANGUAGE_KEY)); }

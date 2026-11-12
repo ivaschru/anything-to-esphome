@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
-import {MESSAGES, t, readLanguage, saveLanguage, LANGUAGE_KEY, errorKey} from "../custom_components/qingping_esphome/frontend/i18n.mjs";
+import {MESSAGES, t, readLanguage, saveLanguage, LANGUAGE_KEY, errorKey, scanSummary} from "../custom_components/qingping_esphome/frontend/i18n.mjs";
 
 assert.deepEqual(Object.keys(MESSAGES.en).sort(), Object.keys(MESSAGES.ru).sort());
 for (const language of ["en", "ru"]) {
@@ -28,4 +28,11 @@ assert.doesNotThrow(() => saveLanguage("ru"));
 assert.equal(t("unknown", "connect"), MESSAGES.en.connect);
 assert.equal(errorKey({name: "NotFoundError"}), "bluetooth_cancelled");
 assert.equal(errorKey({message: "private arbitrary text"}), "operation_failed");
+assert.equal(scanSummary("ru", 0), "Поиск завершён. Найдено 0 устройств.");
+assert.equal(scanSummary("ru", 1), "Поиск завершён. Найдено 1 устройство.");
+assert.equal(scanSummary("ru", 3), "Поиск завершён. Найдено 3 устройства.");
+assert.equal(scanSummary("ru", 11), "Поиск завершён. Найдено 11 устройств.");
+assert.equal(scanSummary("ru", 21), "Поиск завершён. Найдено 21 устройство.");
+assert.equal(scanSummary("en", 1), "Search complete. Found 1 device.");
+assert.equal(scanSummary("en", 3), "Search complete. Found 3 devices.");
 console.log("Language defaults, storage, key parity and backend error translations passed");

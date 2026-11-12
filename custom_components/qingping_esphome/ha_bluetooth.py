@@ -16,6 +16,7 @@ import time
 import bleak
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
+from homeassistant.helpers import device_registry as dr
 
 from .catalog import factory_lite_profile
 from .errors import InstallerError
@@ -30,6 +31,32 @@ MAX_SELECTIONS = 16
 
 def characteristic(number):
     return f"{number:08x}-0000-1000-8000-00805f9b34fb"
+
+
+def registry_name(registry, address):
+    """Read a display label by exact address without linking device entries."""
+    mac = dr.format_mac(address)
+    try:
+        mac_normalize(mac)
+    except ValueError:
+        return None  # Some Bluetooth backends provide opaque identifiers.
+    # Prefer the connection on the same transport. A network MAC is useful
+    # only if it is exactly equal; adjacent vendor MACs are not interchangeable.
+    for connections in (
+        {(dr.CONNECTION_BLUETOOTH, value) for value in (address, mac, mac.upper())},
+        {(dr.CONNECTION_NETWORK_MAC, mac)},
+    ):
+        devices = registry.async_get_devices(connections=connections)
+        names = {device.name_by_user.strip() for device in devices if device.name_by_user}
+        names.discard("")
+        if not names:
+            names = {device.name.strip() for device in devices if device.name}
+            names.discard("")
+        if names:
+            # Registry entries are scoped per config entry. Conflicting names
+            # for the same address should not pick an arbitrary record.
+            return next(iter(names)) if len(names) == 1 else None
+    return None
 
 
 class StockClient:
@@ -175,8 +202,15 @@ class HABluetooth:
                 pass  # The entire window is intentional; return all matches.
             finally:
                 self.operations.discard(task)
-        return {"devices": [{"address": address, "name": info.name, "rssi": info.rssi}
-                            for address, info in sorted(self.devices().items())][:32]}
+        devices = sorted(self.devices().items())[:32]
+        registry = dr.async_get(self.hass)
+        result = []
+        for address, info in devices:
+            device = {"address": address, "name": info.name, "rssi": info.rssi}
+            if name := registry_name(registry, address):
+                device["ha_name"] = name
+            result.append(device)
+        return {"devices": result}
 
     @asynccontextmanager
     async def connection(self, address):
