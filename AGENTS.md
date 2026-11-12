@@ -1403,6 +1403,10 @@ separate even though the HACS wizard is shared.
   Keep hide_default_branch=true: zip_release cannot install a source branch
   without its own release asset. Hyphenated beta/rc tags remain prereleases;
   numeric stable tags must not inherit an unconditional --prerelease flag.
+  Keep the Marketplace icon at `brand/icon.png` (256 px) and
+  `brand/icon@2x.png` (512 px) inside the integration and at the same paths
+  relative to the release ZIP root. The HACS action checks those files; keep
+  its brands check enabled.
 
 - Lite firmware 2 is the qualified direct-I2C quiet profile, not a universal
   Lite image. GPIO13 LOW between bounded SCD4x transactions; 1ms settle/gaps,

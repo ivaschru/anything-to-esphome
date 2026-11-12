@@ -1,3 +1,8 @@
+## 0.3.5 – Marketplace icon
+
+- Ship the Anything to ESPHome icon with the Home Assistant integration so
+  Marketplace and restart notifications can display it.
+
 ## 0.3.4 – Installer panel URL
 
 - Open the installer at `/anything-to-esphome`. The sidebar and existing
