@@ -1367,6 +1367,17 @@ separate even though the HACS wizard is shared.
   tasks and releases connections. This route is source-tested, not yet hardware
   qualified. Run tests/test_ha_bluetooth.py with the real HA SDK plus that SDK's
   Bluetooth/USB manifest requirements, and node tests/test_ha_transport.mjs.
+- Lite starts a two-minute, read-only native verification after the stock peer
+  requests the image. Resolve only the exact generated name through HA mDNS,
+  with the stored LAN peer as fallback. Require Noise, exact MAC/name/profile/
+  public version, and live CO₂, temperature and humidity before enrollment.
+  The owner can retry from the durable installation record after restart. This
+  path never arms or sends OTA. Keep failure reasons and history safe to show.
+- An administrator may opt in to saving one home Wi-Fi pair after authenticated
+  connection. Reuse it server-side only via HA Bluetooth and allow forgetting
+  it, including outstanding opt-ins. A fallback AP password is revealed only on
+  request to the owning administrator. The preview is bound to the installed
+  image and history/status never include credentials.
 - A loaded installer/panel needs no duplicate config entry. Explain its zero
   device count: physical monitors belong to ESPHome. Follow Marketplace's
   actual restart requirement rather than prescribing restart unconditionally.

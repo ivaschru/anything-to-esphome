@@ -12,11 +12,11 @@ import base64
 import hashlib
 import json
 import logging
-import math
 from pathlib import Path
 import secrets
 import time
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from aiohttp import web
 
 from homeassistant.helpers.storage import Store
@@ -27,9 +27,11 @@ from .relay import Relay, Session
 from .network_setup import async_detect_lan_host
 from .errors import InstallerError
 from .ha_bluetooth import HABluetooth
+from .lite_verification import PROJECTS, history_entry, verify_native
 
 DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
+AP_PREVIEW_SECONDS = 30 * 60
 
 
 def _read_lite_template_metadata(root, profile, stock_version, hardware):
@@ -84,6 +86,11 @@ class Manager:
         self.http_port, self.mqtt_port = self.settings["http_port"], self.settings["mqtt_port"]
         self.store = Store(hass, 1, DOMAIN + ".installations", private=True, atomic_writes=True)
         self.records = {}
+        self.wifi_store = Store(hass, 1, DOMAIN + ".remembered_wifi", private=True, atomic_writes=True)
+        self.remembered_wifi = {}
+        self.wifi_lock = asyncio.Lock()
+        self.wifi_generation = {}
+        self.ap_previews = {}
         self.record_listeners = set()
         self.records_lock = asyncio.Lock()
         self.updates = None
@@ -102,6 +109,7 @@ class Manager:
             # configured entries remain manual until their owner changes it.
             self.host = await async_detect_lan_host(self.hass)
         self.records = await self.store.async_load() or {}
+        self.remembered_wifi = await self.wifi_store.async_load() or {}
         await self.relay.start(self.mqtt_port)
         # Stock expects plain HTTP even when HA itself is served over HTTPS.
         # A dedicated LAN listener avoids weakening HA authentication or TLS.
@@ -152,6 +160,9 @@ class Manager:
                 await asyncio.sleep(30)
                 self.relay.expire()
                 self.bluetooth.expire()
+                now = time.monotonic()
+                self.ap_previews = {owner: preview for owner, preview in self.ap_previews.items()
+                                    if preview["expires"] > now}
                 for key in list(self.ble_settings):
                     if key not in self.relay.sessions: self.ble_settings.pop(key)
                 expired_tasks = []
@@ -174,10 +185,14 @@ class Manager:
         peer = request.transport.get_extra_info("peername") if request.transport else None
         if not session or not session.sent or not session.image or not peer or peer[0] != session.peer:
             raise web.HTTPNotFound()
+        first_download = not session.downloaded
         session.downloaded = True
         # Serving bytes is only a reason to begin read-only native checks.
         # It is not a successful flash, nor dependent on a stock progress key.
-        session.state = "waiting_for_esphome"
+        record = self.records.get(session.mac)
+        if first_download and record and record.get("session_id") == session.id and not self._check_status(session.mac, record)["verified"]:
+            # Start the readback even if the browser has stopped polling.
+            self._start_check(session.mac, record, session)
         return web.Response(body=session.image, content_type="application/octet-stream",
                             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
@@ -207,7 +222,16 @@ class Manager:
         prior = self.records.get(mac)
         if prior and prior.get("command_consumed"):
             raise InstallerError("already_sent")
-        ssid, password = data["ssid"], data["wifi_password"]
+        wifi_generation = self.wifi_generation.get(owner, 0)
+        if data.get("use_saved_wifi") is True:
+            if transport != "ha":
+                raise InstallerError("invalid_request")
+            saved = self.remembered_wifi.get(owner)
+            if not saved or saved.get("revision") != data.get("saved_wifi_revision"):
+                raise InstallerError("lite_wifi_not_saved")
+            ssid, password = saved["ssid"], saved["password"]
+        else:
+            ssid, password = data["ssid"], data["wifi_password"]
         if not 1 <= len(ssid.encode()) <= 32 or len(password.encode()) > 63:
             raise InstallerError("wifi_length")
         if any(c in ssid + password for c in ('"', '\\', '\r', '\n', '\0')):
@@ -220,10 +244,13 @@ class Manager:
             raise InstallerError("template_missing") from None
         if manifest.get("size") != len(template):
             raise InstallerError("template_invalid")
+        # If the owner revealed a preview, require that exact still-valid
+        # password. Never silently substitute a password they did not copy.
+        ap_password = self._ap_password(owner, mac, data.get("ap_token"))
         psk = secrets.token_bytes(32)
         name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)[:9]
         values = {"display_feed_entity": "", "source_stock_version": data["stock_version"], "ssid": ssid, "wifi_password": password, "name": name,
-                  "ap_ssid": "Qingping-" + mac[-6:], "ap_password": secrets.token_hex(8),
+                  "ap_ssid": "Qingping-" + mac[-6:], "ap_password": ap_password,
                   "ota_password": secrets.token_hex(16), "noise_psk": psk}
         try:
             image = await self.hass.async_add_executor_job(personalize, template, values, manifest["sha256"])
@@ -238,6 +265,8 @@ class Manager:
         session.template_sha256 = manifest["sha256"]
         session.personalization = {key: value for key, value in values.items() if key != "noise_psk"}
         session.transport = transport
+        session.remember_wifi = (data.get("remember_wifi") is True and data.get("use_saved_wifi") is not True
+                                 and wifi_generation == self.wifi_generation.get(owner, 0))
         self.relay.add(session)
         if selected is not None:
             # Bind once to a verified, owner-scoped read selection. Credentials
@@ -331,79 +360,202 @@ class Manager:
             "public_version": session.public_version,
             "template_sha256": session.template_sha256,
             "personalization": dict(session.personalization),
+            "session_id": session.id,
+            "install_version": session.public_version,
+            "remember_wifi": session.remember_wifi,
             "outcome": "sent_requires_verification",
         }
         # This is private HA storage, never a GitHub file or a diagnostic log.
         await self.save_records()
+
+    def _owned_record(self, owner, mac):
+        mac = mac_normalize(mac)
+        record = self.records.get(mac)
+        if (not record or record.get("owner") != owner or not record.get("command_consumed")
+                or record.get("profile") not in PROJECTS):
+            raise InstallerError("session_missing")
+        return mac, record
+
+    def saved_wifi(self, owner):
+        saved = self.remembered_wifi.get(owner)
+        return {"ssid": saved["ssid"], "revision": saved["revision"]} if saved else {"ssid": None}
+
+    async def forget_wifi(self, owner):
+        async with self.wifi_lock:
+            self.wifi_generation[owner] = self.wifi_generation.get(owner, 0) + 1
+            self.remembered_wifi.pop(owner, None)
+            await self.wifi_store.async_save(self.remembered_wifi)
+            # Forget also revokes an outstanding opt-in on an unfinished
+            # install, so a later retry cannot silently recreate the entry.
+            for record in self.records.values():
+                if record.get("owner") == owner:
+                    record.pop("remember_wifi", None)
+            for session in self.relay.sessions.values():
+                if session.owner == owner:
+                    session.remember_wifi = False
+            await self.save_records()
+        return self.saved_wifi(owner)
+
+    async def _remember_verified_wifi(self, record):
+        async with self.wifi_lock:
+            if record.get("remember_wifi") is not True:
+                return
+            values = record["personalization"]
+            self.remembered_wifi[record["owner"]] = {
+                "ssid": values["ssid"], "password": values["wifi_password"], "revision": secrets.token_hex(8)}
+            await self.wifi_store.async_save(self.remembered_wifi)
+            record.pop("remember_wifi", None)
+
+    def preview_ap(self, owner, mac):
+        mac = mac_normalize(mac)
+        preview = self.ap_previews.get(owner)
+        if not preview or preview["mac"] != mac or preview["expires"] <= time.monotonic():
+            preview = {"mac": mac, "password": secrets.token_hex(8), "token": secrets.token_hex(16),
+                       "expires": time.monotonic() + AP_PREVIEW_SECONDS}
+            self.ap_previews[owner] = preview
+        return {"ssid": "Qingping-" + mac[-6:], "password": preview["password"], "token": preview["token"]}
+
+    def _ap_password(self, owner, mac, token):
+        if token is None:
+            return secrets.token_hex(8)
+        preview = self.ap_previews.get(owner)
+        if (not isinstance(token, str) or not preview or preview["mac"] != mac
+                or preview["expires"] <= time.monotonic() or token != preview["token"]):
+            raise InstallerError("lite_ap_preview_expired")
+        return preview["password"]
+
+    def reveal_ap(self, owner, mac):
+        _, record = self._owned_record(owner, mac)
+        values = record.get("personalization") or {}
+        if not values.get("ap_ssid") or not values.get("ap_password"):
+            raise InstallerError("lite_ap_unavailable")
+        return {"ssid": values["ap_ssid"], "password": values["ap_password"]}
+
+    def _check_status(self, mac, record):
+        task = self.checks.get(mac)
+        result = dict(record.get("verification") or {})
+        result["running"] = task is not None and not task.done()
+        result["verified"] = record.get("outcome") == "native_verified"
+        if result["verified"] and not result.get("stage"):
+            result["stage"] = ("lite_check_added" if record.get("ha_enrollment") == "created"
+                               else "lite_check_manual_add")
+        return result
+
+    def lite_installations(self, owner):
+        devices = []
+        for mac, record in self.records.items():
+            if (record.get("owner") != owner or not record.get("command_consumed")
+                    or record.get("profile") not in PROJECTS):
+                continue
+            values = record.get("personalization") or {}
+            attempt = record.get("update_attempt")
+            initial = {"at": record.get("at"), "from_version": record.get("source_stock_version"),
+                       "public_version": record.get("install_version") or
+                       (record.get("public_version") if not attempt else None),
+                       "state": ("verified" if record.get("outcome") == "native_verified" else "needs_review"),
+                       "error": (record.get("verification") or {}).get("error")}
+            history = [initial, *(history_entry(item) for item in record.get("update_history", []))]
+            if isinstance(attempt, dict):
+                history.append(history_entry(attempt))
+            devices.append({"mac": mac, "name": record["name"], "ap_ssid": values.get("ap_ssid"),
+                            "ap_available": bool(values.get("ap_password")),
+                            "verification": self._check_status(mac, record), "history": history[::-1]})
+        return {"devices": devices}
+
+    def _start_check(self, mac, record, session=None):
+        running = self.checks.get(mac)
+        if running and not running.done():
+            return
+        self.checks[mac] = asyncio.create_task(self._verify_installation(mac, record, session),
+                                              name="qingping-native-verification")
+
+    def retry_lite(self, owner, mac):
+        mac, record = self._owned_record(owner, mac)
+        if record.get("outcome") == "native_verified":
+            return self._check_status(mac, record)
+        if self.updates and self.updates.lock.locked():
+            raise InstallerError("firmware_update_busy")
+        if type(record.get("public_version")) is not int or record["public_version"] < 1 or not record.get("noise_key"):
+            raise InstallerError("lite_verification_unavailable")
+        session = self.relay.sessions.get(record.get("session_id"))
+        self._start_check(mac, record, session)
+        return self._check_status(mac, record)
 
     async def status(self, session_id, owner):
         session = self.get(session_id, owner)
         if session.sent and session.state == "sending" and time.monotonic() - session.sent_at > 180:
             session.state = "needs_review"
             session.error = "ota_timeout"
-        if session.sent and session.downloaded and session.state == "waiting_for_esphome" and session.id not in self.checks:
-            self.checks[session.id] = asyncio.create_task(self.verify(session), name="qingping-native-verification")
-        return session.public()
+        result = session.public()
+        record = self.records.get(session.mac)
+        if record and record.get("session_id") == session.id and record.get("owner") == owner:
+            result["verification"] = self._check_status(session.mac, record)
+            if result["verification"]["running"]:
+                result.update(state="waiting_for_esphome", error=None, error_code=None)
+            elif result["verification"]["verified"]:
+                result.update(state="installed", error=None, error_code=None)
+            elif code := result["verification"].get("error"):
+                result.update(state="needs_review", error=code, error_code=code)
+        return result
 
     async def verify(self, session):
-        from aioesphomeapi import APIClient, SensorInfo, SensorState
-        deadline = time.monotonic() + 100
-        client = None
+        await self._verify_installation(session.mac, self.records[session.mac], session)
+
+    async def _verify_installation(self, mac, record, session=None):
+        connected = False
+
+        def report(stage, missing=()):
+            nonlocal connected
+            connected |= stage == "lite_check_readings"
+            record["verification"] = {"stage": stage, "missing": list(missing)}
+
+        if session:
+            session.state = "waiting_for_esphome"
+            session.error = None
         try:
-            while time.monotonic() < deadline:
-                client = APIClient(session.peer, 6053, "", noise_psk=session.noise_key,
-                                   client_info="Qingping HACS installation check")
-                try:
-                    await asyncio.wait_for(client.connect(login=True, log_errors=False), 6)
-                    break
-                except Exception as error:
-                    # Read-only retries never resend the factory OTA command.
-                    await client.disconnect(); client = None
-                    if time.monotonic() >= deadline: raise TimeoutError from error
-                    await asyncio.sleep(2)
-            if client is None: raise TimeoutError
-            info = await client.device_info()
-            if mac_normalize(info.mac_address) != session.mac or info.name != session.name:
-                raise ValueError("Native identity mismatch")
-            project = "ivaschru.qingping_lite_434" if session.profile == "lite-434" else "ivaschru.qingping_lite_direct_i2c"
-            if info.project_name != project or info.project_version != str(session.public_version):
-                raise ValueError("Native firmware profile mismatch")
-            entities, _ = await client.list_entities_services()
-            keys = {e.key: e.name for e in entities if isinstance(e, SensorInfo) and e.name in ("CO2", "Temperature", "Humidity")}
-            values = {}
-            def state(value):
-                if isinstance(value, SensorState) and value.key in keys:
-                    values[keys[value.key]] = value.state
-            client.subscribe_states(state)
-            for _ in range(360):
-                if all(isinstance(values.get(k), (int, float)) and math.isfinite(values[k]) for k in ("CO2", "Temperature", "Humidity")):
-                    break
-                await asyncio.sleep(.25)
-            else: raise ValueError("No fresh physical sensor readings")
-            record = self.records[session.mac]
-            record.update(outcome="native_verified", build=info.compilation_time)
-            await self.save_records()
-            session.state = "installed"; session.image = b""; session.error = None
-            # Standard ESPHome registration is independent of firmware success.
-            # A flow conflict stays visible; it never causes another flash.
-            try:
-                record["ha_enrollment"] = await self.enroll(session)
-            except Exception:
-                # Enrollment failure must not mislabel a verified firmware
-                # install, or invite a second factory OTA attempt.
-                record["ha_enrollment"] = "manual_flow_required"
-            await self.save_records()
+            host, info = await verify_native(self.hass, mac, record, report)
         except asyncio.CancelledError:
             raise
+        except Exception as error:
+            code = error.code if isinstance(error, InstallerError) else "native_unconfirmed"
+            record.setdefault("verification", {})["error"] = code
+            if session:
+                session.state = "needs_review"
+                session.error = code
+        else:
+            record.update(outcome="native_verified", build=info.compilation_time, peer=host)
+            report("lite_check_enrollment")
+            try:
+                # A restarted HA needs only the durable identity and API key.
+                # Enrollment uses the authenticated current address, not the stock peer.
+                target = SimpleNamespace(peer=host, noise_key=record["noise_key"], mac=mac)
+                async with asyncio.timeout(20):
+                    record["ha_enrollment"] = await self.enroll(target)
+            except Exception:
+                record["ha_enrollment"] = "manual_flow_required"
+            report("lite_check_added" if record["ha_enrollment"] == "created" else "lite_check_manual_add")
+            if session:
+                session.state = "installed"
+                session.image = b""
+                session.error = None
+        try:
+            if connected:
+                await self._remember_verified_wifi(record)
+            await self.save_records()
         except Exception:
-            session.state = "needs_review"
-            session.error = "native_unconfirmed"
-        finally:
-            if client: await client.disconnect()
+            # Storage failures are visible without logging credential-bearing data.
+            record.setdefault("verification", {})["error"] = "lite_verification_storage"
 
     async def enroll(self, session):
         existing = [e for e in self.hass.config_entries.async_entries("esphome") if e.data.get("host") == session.peer]
-        if existing: return "existing_entry_check_required"
+        for entry in existing:
+            try:
+                if mac_normalize(entry.unique_id) == session.mac:
+                    return "created"
+            except (TypeError, ValueError, AttributeError):
+                continue
+        if existing:
+            return "existing_entry_check_required"
         flow = await self.hass.config_entries.flow.async_init("esphome", context={"source": "user"},
                                                            data={"host": session.peer, "port": 6053})
         for _ in range(4):

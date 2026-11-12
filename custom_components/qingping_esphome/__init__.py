@@ -158,6 +158,12 @@ def register_ws(hass):
             if operation.startswith("sonoff_"):
                 result = await manager.sonoff.call(connection.user.id, operation, message.get("data", {}))
             elif operation == "catalog": result = await manager.catalog()
+            elif operation == "lite_installations": result = manager.lite_installations(connection.user.id)
+            elif operation == "lite_verify": result = manager.retry_lite(connection.user.id, message["address"])
+            elif operation == "lite_ap_preview": result = manager.preview_ap(connection.user.id, message["address"])
+            elif operation == "lite_ap_reveal": result = manager.reveal_ap(connection.user.id, message["address"])
+            elif operation == "lite_saved_wifi": result = manager.saved_wifi(connection.user.id)
+            elif operation == "lite_forget_wifi": result = await manager.forget_wifi(connection.user.id)
             elif operation == "ble_scan": result = await manager.bluetooth.scan()
             elif operation == "ble_select": result = await manager.bluetooth.select(connection.user.id, message["address"])
             elif operation == "ble_provision": result = await manager.provision(message["session"], connection.user.id)
@@ -179,6 +185,8 @@ def register_ws(hass):
     handler = websocket_api.websocket_command({
         vol.Required("type"): DOMAIN + "/command",
         vol.Required("operation"): vol.In(["catalog", "create", "status", "arm", "cancel", "ble_scan", "ble_select", "ble_provision",
+                                           "lite_installations", "lite_verify", "lite_ap_preview", "lite_ap_reveal",
+                                           "lite_saved_wifi", "lite_forget_wifi",
                                            "sonoff_scan", "sonoff_login", "sonoff_select", "sonoff_install", "sonoff_status", "sonoff_jobs", "sonoff_recover"]),
         vol.Optional("data"): dict,
         vol.Optional("session"): str,
