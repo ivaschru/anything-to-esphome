@@ -141,13 +141,14 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         from custom_components.qingping_esphome import _async_setup_loaded_entry, async_reload_entry, async_unload_entry
         from custom_components.qingping_esphome.manager import DOMAIN
         route = "anything-to-esphome"
-        self.hass.data[DOMAIN + "_registered"] = True
+        self.hass.http = SimpleNamespace(async_register_static_paths=AsyncMock(), register_view=lambda _view: None)
         self.hass.data[DOMAIN] = self.manager
         self.manager.monitor1 = SimpleNamespace(stop=AsyncMock())
         self.manager.sonoff = SimpleNamespace(stop=AsyncMock())
         entry = SimpleNamespace(entry_id="fixture", data=self.entry.data, options={},
                                 async_on_unload=lambda _callback: None, add_update_listener=lambda _callback: None)
         with patch("custom_components.qingping_esphome.register_installer_device"), \
+             patch("custom_components.qingping_esphome.register_ws"), \
              patch("custom_components.qingping_esphome.firmware_update.FirmwareUpdates", autospec=True), \
              patch("custom_components.qingping_esphome.auto_adoption.AutoAdoption", autospec=True), \
              patch.object(self.hass.config_entries, "async_forward_entry_setups", AsyncMock()):
@@ -156,7 +157,15 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         original = panels[route].config
         self.assertEqual(set(panels), {route})
         self.assertTrue(panels[route].show_in_sidebar)
-        self.assertEqual(original["_panel_custom"]["module_url"], "/api/qingping_esphome/static/panel.js")
+        manifest_path = Path(__file__).resolve().parents[1] / "custom_components" / DOMAIN / "manifest.json"
+        version = json.loads(manifest_path.read_text())["version"]
+        legacy_static = f"/api/{DOMAIN}/static"
+        panel_static = f"{legacy_static}-{version}"
+        self.assertEqual(original["_panel_custom"]["module_url"], f"{panel_static}/panel.js")
+        self.hass.http.async_register_static_paths.assert_awaited_once()
+        static_paths = self.hass.http.async_register_static_paths.await_args.args[0]
+        self.assertEqual({path.url_path for path in static_paths}, {legacy_static, panel_static})
+        self.assertTrue(all(Path(path.path, "panel.js").is_file() for path in static_paths))
         entry.options = {"show_sidebar": False}
         with patch.object(self.hass.config_entries, "async_reload", AsyncMock()) as reload:
             await async_reload_entry(self.hass, entry)

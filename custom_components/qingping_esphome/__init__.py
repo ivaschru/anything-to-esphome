@@ -79,28 +79,37 @@ async def async_setup_entry(hass, entry):
 
 
 async def _async_setup_loaded_entry(hass, entry, manager):
+    legacy_static = f"/api/{DOMAIN}/static"
     marker = DOMAIN + "_registered"
-    if not hass.data.get(marker):
+    # Reuse the version actually registered by this HA process on reload.
+    version = hass.data.get(marker)
+    if version is None:
+        component_path = Path(__file__).parent
+        version = await hass.async_add_executor_job(
+            lambda: json.loads((component_path / "manifest.json").read_text())["version"])
+        # The service worker can retain an old panel at the unversioned URL.
+        # Version the directory so the module and its relative imports refresh
+        # together. Keep the existing static URL for the embedded USB wizard.
+        frontend_path = str(component_path / "frontend")
         await hass.http.async_register_static_paths([
-            StaticPathConfig(f"/api/{DOMAIN}/static", str(Path(__file__).parent / "frontend"), cache_headers=False)
+            StaticPathConfig(legacy_static, frontend_path, cache_headers=False),
+            StaticPathConfig(f"{legacy_static}-{version}", frontend_path, cache_headers=False),
         ])
         register_ws(hass)
         from .sonoff_view import SonoffBackupView, SonoffDiagnosticsView
         hass.http.register_view(SonoffBackupView())
         hass.http.register_view(SonoffDiagnosticsView())
         hass.http.register_view(Monitor1View())
-        hass.data[marker] = True
+        hass.data[marker] = version
     await panel_custom.async_register_panel(hass, frontend_url_path=PANEL_PATH,
         webcomponent_name="qingping-installer-panel", sidebar_title="Anything to ESPHome",
-        sidebar_icon="mdi:chip", module_url=f"/api/{DOMAIN}/static/panel.js", require_admin=True)
+        sidebar_icon="mdi:chip", module_url=f"{legacy_static}-{version}/panel.js", require_admin=True)
     try:
         apply_sidebar(hass, manager.settings.get("show_sidebar", True))
         # HA resolves the service device's homeassistant:// link against the
         # current frontend origin, including behind a reverse proxy.
         register_installer_device(hass, entry)
         from .firmware_update import FirmwareUpdates
-        version = await hass.async_add_executor_job(
-            lambda: json.loads((Path(__file__).parent / "manifest.json").read_text())["version"])
         manager.updates = FirmwareUpdates(manager, version)
         await hass.config_entries.async_forward_entry_setups(entry, [Platform.UPDATE])
         from .auto_adoption import AutoAdoption

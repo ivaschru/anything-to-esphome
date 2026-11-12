@@ -19,6 +19,9 @@
   first when the matching records agree on the assigned area. Conflicting
   names suppress registry labels. Conflicting or missing areas stay unlabeled.
   Keep the discovery address and fresh GATT identity checks intact.
+  Load the panel and its relative imports from a release-versioned static
+  directory to avoid stale Home Assistant service worker responses. Keep the
+  unversioned static route for the embedded USB wizard.
 - Monitor 1 source release notices use the existing catalog refresh and the
   cached identity, project name and version of a connected ESPHome entry.
   Preserve the separate S8 and SCD40 source lines. Report releases on the
