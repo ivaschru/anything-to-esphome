@@ -176,9 +176,18 @@ slots in the public template and rebuilds the ESP32 checksum, SHA-256 and
 Qingping CRC. Each monitor gets its own name, Noise key, OTA password and
 fallback AP. Wi-Fi credentials and keys are never sent to GitHub.
 
-Success requires an encrypted ESPHome connection, matching MAC/name and live
-CO₂, temperature and humidity. HA then starts standard ESPHome enrollment;
-you can choose the room yourself.
+After transfer starts, the installer has up to two minutes to find the monitor,
+authenticate ESPHome, match the device and firmware version, and read live CO₂,
+temperature and humidity. It then starts standard ESPHome enrollment. **Previous
+Lite installations** shows the result and the firmware history for each monitor.
+**Check again** can find the monitor at its current address and retry verification
+after an HA restart without sending another image. Older history shows the data
+that was available in HA's installation records.
+
+Use **Show password** under **Fallback Wi-Fi** before flashing or in a previous
+installation. If you opt in to remembering your home Wi-Fi, HA saves the last
+network for your administrator account after the monitor connects. HA Bluetooth
+can reuse it directly. You can enter a different network or forget the saved one.
 
 Timeouts never resend OTA automatically. The consumed intent and recovery keys
 are saved in private `.storage/qingping_esphome.installations` before sending.

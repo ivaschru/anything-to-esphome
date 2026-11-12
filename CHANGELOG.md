@@ -1,3 +1,9 @@
+## 0.3.9 – Lite installation recovery
+
+- Let administrators reuse their last confirmed Wi-Fi network in Home Assistant Bluetooth mode.
+- Show the fallback Wi-Fi password on request and keep a per-monitor firmware history.
+- Check for ESPHome and sensor readings for up to two minutes. Show where verification stopped and let users check again without flashing.
+
 ## 0.3.8 – Lite firmware details and Bluetooth hint
 
 - Show the bundled ESPHome firmware version and the PM2.5 and fan behavior for each Lite profile before installation. Explain why Lite 4.2.1 has no installation image.

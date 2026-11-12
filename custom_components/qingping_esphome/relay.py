@@ -115,6 +115,7 @@ class Session:
     transport: str = "browser"
     provisioning_started: bool = False
     provisioned: bool = False
+    remember_wifi: bool = False
 
     # Recovery material for later credential-preserving updates. Never include
     # it in public(), repr(), WebSocket status or diagnostic logs.
@@ -197,7 +198,7 @@ class Relay:
             raise
 
     async def report(self, session, data):
-        if session.state == "identity_mismatch": return
+        if session.state in ("identity_mismatch", "installed"): return
         if not isinstance(data, dict): return
         kind = str(data.get("type"))
         if kind == "13":
@@ -220,7 +221,8 @@ class Relay:
             if isinstance(progress, (int, float)): session.progress = max(0, min(100, int(progress)))
             if data.get("error_code") not in (None, 0, "0"):
                 session.error = "stock_ota_error"; session.state = "needs_review"
-            elif session.progress == 100: session.state = "waiting_for_esphome"
+            elif session.progress == 100 and session.state != "needs_review":
+                session.state = "waiting_for_esphome"
         if session.mac_verified and session.version_verified and not session.sent:
             session.state = "ready"
         if session.state != "identity_mismatch": await self.maybe_flash(session)

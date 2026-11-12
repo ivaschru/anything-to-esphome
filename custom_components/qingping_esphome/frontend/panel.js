@@ -136,10 +136,20 @@ class QingpingPanel extends HTMLElement {
   get hass() { return this._hass; }
   connectedCallback() {
     if (this.hass && !this.initialized) this.initialize();
-    else if (this.initialized) this.watchPageSettings();
+    else if (this.initialized) {
+      this.watchPageSettings();
+      this.loadLiteInstallations();
+      this.loadSavedWifi();
+      if (this.session) this.startPolling();
+    }
   }
   disconnectedCallback() {
     clearInterval(this.poller); this.stock?.disconnect();
+    clearTimeout(this.recoveryPoll);
+    if (this.initialized) {
+      this.hideLitePassword("preview");
+      this.hideLitePassword("recovery");
+    }
     for (const type of ["pointerdown", "focusin", "keydown"]) this.ownerDocument.removeEventListener(type, this.dismissPageSettings);
   }
 
@@ -201,12 +211,36 @@ class QingpingPanel extends HTMLElement {
        <div id="identity" class="identity" aria-live="polite"></div>
        <p id="profile-version" class="note status hidden"></p>
        <p id="profile-note" class="note hidden"></p>
-       <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2><div class="grid">
+       <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2>
+       <div id="saved-wifi" class="hidden">
+        <label class="check"><input id="use-saved-wifi" type="checkbox"><span><span data-i18n="lite_saved_wifi"></span> · <b id="saved-ssid"></b></span></label>
+        <button id="forget-wifi" type="button" class="secondary" data-i18n="lite_forget_wifi"></button>
+       </div>
+       <div id="manual-wifi"><div class="grid">
         <label><span data-i18n="ssid"></span><input id="ssid" type="text" required autocomplete="off" spellcheck="false"></label>
         <div class="password"><label><span data-i18n="wifi_password"></span><input id="password" type="password" autocomplete="off"></label><button id="show-password" class="secondary" type="button" data-i18n-aria="show_password"></button></div>
-       </div><label class="check"><input id="usb" type="checkbox" required><span><span data-i18n="usb_ack"></span></span></label>
+       </div>
+       <label class="check"><input id="remember-wifi" type="checkbox"><span data-i18n="lite_remember_wifi"></span></label></div>
+       <div class="note">
+        <p><span data-i18n="lite_backup_wifi"></span> · <b id="preview-ap-ssid"></b></p>
+        <button id="preview-ap" type="button" class="secondary" data-i18n="show_password"></button>
+        <p id="preview-ap-password" class="hidden" role="status"></p>
+       </div>
+       <label class="check"><input id="usb" type="checkbox" required><span><span data-i18n="usb_ack"></span></span></label>
        <p class="note muted"><span data-i18n="install_note"></span></p>
        <button id="flash" type="submit" class="primary"><span data-i18n="flash"></span></button></form>
+       <details id="lite-recovery" class="note hidden"><summary data-i18n="lite_previous_installs"></summary>
+        <label for="recovery-device"><span data-i18n="lite_choose_install"></span></label>
+        <select id="recovery-device"></select>
+        <div id="recovery-info" class="hidden">
+         <p id="recovery-status" role="status"></p>
+         <button id="recovery-check" type="button" class="secondary" data-i18n="lite_check_again"></button>
+         <p id="recovery-ap-network"></p>
+         <button id="recovery-ap" type="button" class="secondary" data-i18n="show_password"></button>
+         <p id="recovery-ap-password" class="hidden" role="status"></p>
+         <h3 data-i18n="lite_history"></h3><ul id="recovery-history"></ul>
+        </div>
+       </details>
       </section>
       <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
@@ -236,6 +270,30 @@ class QingpingPanel extends HTMLElement {
       this.updatePasswordLabel();
     };
     this.$("#form").onsubmit = event => {event.preventDefault(); this.flash();};
+    this.$("#use-saved-wifi").onchange = () => this.renderSavedWifi();
+    this.$("#forget-wifi").onclick = async () => {
+      try {
+        this.savedWifi = await this.rpc("lite_forget_wifi");
+        this.renderSavedWifi();
+      } catch (error) { this.fail(error); }
+    };
+    this.$("#preview-ap").onclick = () => this.toggleLitePassword("preview");
+    this.$("#recovery-ap").onclick = () => this.toggleLitePassword("recovery");
+    this.$("#lite-recovery").ontoggle = event => {
+      if (!event.target.open) this.hideLitePassword("recovery");
+    };
+    this.$("#recovery-device").onchange = () => {
+      this.hideLitePassword("recovery");
+      this.renderLiteInstallation();
+    };
+    this.$("#recovery-check").onclick = async () => {
+      const address = this.$("#recovery-device").value;
+      this.$("#recovery-check").disabled = true;
+      this.lastError = null; this.$("#error").textContent = "";
+      try { await this.rpc("lite_verify", {address}); }
+      catch (error) { this.fail(error); }
+      finally { await this.loadLiteInstallations(); }
+    };
     this.$("#resume").onclick = async () => {
       this.$("#resume").disabled = true;
       try { await this.rpc("arm", {session: this.session}); this.startPolling(); }
@@ -258,6 +316,8 @@ class QingpingPanel extends HTMLElement {
     // request independently. Await this promise before showing the flash form.
     this.catalogReady = this.rpc("catalog").then(result => { this.catalog = result.models; });
     this.catalogReady.catch(error => this.fail(error));
+    this.loadSavedWifi();
+    this.loadLiteInstallations();
   }
 
   renderSidebar() {
@@ -312,6 +372,7 @@ class QingpingPanel extends HTMLElement {
     if (this.busy || this.connecting || this.scanning) return;
     this.shadowRoot.querySelectorAll("[data-model]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.model === model)));
     this.$("#wizard").classList.toggle("hidden", this.brand !== "qingping" || model !== "lite");
+    if (this.brand !== "qingping" || model !== "lite") this.hideLitePassword("recovery");
     this.$("#unsupported").classList.toggle("hidden", this.brand !== "qingping" || model === "lite");
     this.model = model;
     this.updateModelText();
@@ -339,6 +400,8 @@ class QingpingPanel extends HTMLElement {
       if (profile.template_error) throw failure(profile.template_error);
       this.profile = profile;
       this.identity = identity;
+      this.$("#preview-ap-ssid").textContent = "Qingping-" + identity.mac.slice(-6);
+      this.renderSavedWifi();
       this.renderProfileInfo();
       this.$("#form").classList.remove("hidden");
     } catch (error) { this.stock.disconnect(); this.fail(error); }
@@ -359,6 +422,8 @@ class QingpingPanel extends HTMLElement {
 
   invalidateSelection() {
     this.identity = null; this.profile = null;
+    this.apToken = null;
+    this.hideLitePassword("preview");
     this.stock?.disconnect(); this.stock = null;
     this.$("#identity").replaceChildren();
     this.renderProfileInfo();
@@ -369,6 +434,7 @@ class QingpingPanel extends HTMLElement {
     if (this.busy || this.connecting || this.scanning) { this.$("#transport").value = this.transport; return; }
     this.transport = this.$("#transport").value;
     this.invalidateSelection();
+    this.renderSavedWifi();
     this.lastError = null; this.$("#error").textContent = "";
     this.updateTransport(); this.connectionControls();
   }
@@ -446,10 +512,17 @@ class QingpingPanel extends HTMLElement {
     this.$("#brands").setAttribute("aria-label", this.language === "ru" ? "Бренд устройства" : "Device brand");
     this.updatePasswordLabel(); this.updateModelText();
     this.renderProfileInfo();
+    this.renderSavedWifi();
+    this.renderLiteInstallation();
+    for (const scope of ["preview", "recovery"]) {
+      const password = this.$(`#${scope}-ap-password`).textContent;
+      this.$(`#${scope}-ap`).textContent = this.t(password ? "lite_hide_password" : "show_password");
+    }
     this.updateTransport();
     if (this.devices) this.renderDevices(this.devices);
     if (this.messageKey) this.$("#status").textContent = this.t(this.messageKey);
-    if (this.installationComplete) this.$("#detail").textContent = this.t("installed_detail");
+    if (this.installationComplete) this.$("#detail").textContent =
+      this.liteCheckText(this.installationCheck) || this.t("installed_detail");
     if (this.lastError) this.$("#error").textContent = this.t(errorKey(this.lastError));
   }
 
@@ -475,16 +548,132 @@ class QingpingPanel extends HTMLElement {
   }
   fail(error) { this.lastError = error; this.$("#error").textContent = this.t(errorKey(error)); }
 
+  async loadSavedWifi() {
+    try {
+      this.savedWifi = await this.rpc("lite_saved_wifi");
+      this.renderSavedWifi();
+    } catch (error) { this.fail(error); }
+  }
+
+  renderSavedWifi() {
+    const available = this.transport === "ha" && Boolean(this.savedWifi?.ssid);
+    const choice = this.$("#use-saved-wifi");
+    if (!available) choice.checked = false;
+    const selected = available && choice.checked;
+    this.$("#saved-wifi").classList.toggle("hidden", !available);
+    this.$("#saved-ssid").textContent = available ? this.savedWifi.ssid : "";
+    this.$("#manual-wifi").classList.toggle("hidden", selected);
+    this.$("#ssid").disabled = selected;
+    this.$("#password").disabled = selected;
+  }
+
+  hideLitePassword(scope) {
+    const password = this.$(`#${scope}-ap-password`);
+    if (password.textContent) this.$(`#${scope}-ap`).textContent = this.t("show_password");
+    password.textContent = "";
+    password.classList.toggle("hidden", true);
+    // Invalidate an in-flight reveal if selection or visibility changed.
+    this.apRequests ??= {};
+    this.apRequests[scope] = null;
+  }
+
+  async toggleLitePassword(scope) {
+    const element = this.$(`#${scope}-ap-password`);
+    if (element.textContent) { this.hideLitePassword(scope); return; }
+    const preview = scope === "preview";
+    if (preview && this.busy) return;
+    const address = preview ? this.identity?.mac : this.$("#recovery-device").value;
+    if (!address) return;
+    const request = {};
+    this.apRequests ??= {};
+    this.apRequests[scope] = request;
+    try {
+      const result = await this.rpc(preview ? "lite_ap_preview" : "lite_ap_reveal", {address});
+      if (this.apRequests[scope] !== request) return;
+      if (preview) this.apToken = result.token;
+      element.textContent = result.password;
+      element.classList.remove("hidden");
+      this.$(`#${scope}-ap`).textContent = this.t("lite_hide_password");
+    } catch (error) {
+      if (this.apRequests[scope] === request) this.fail(error);
+    }
+  }
+
+  liteCheckText(check) {
+    if (!check) return "";
+    const text = check.error ? this.t(errorKey({code: check.error}))
+      : this.t(check.stage || "lite_check_unknown");
+    const sensors = (check.missing || []).filter(name => ["CO2", "Temperature", "Humidity"].includes(name));
+    return sensors.length ? `${text} ${this.t("lite_waiting_sensors")} ${sensors.map(name => this.t("lite_sensor_" + name)).join(", ")}.` : text;
+  }
+
+  async loadLiteInstallations(showAddress) {
+    clearTimeout(this.recoveryPoll);
+    try {
+      const {devices} = await this.rpc("lite_installations");
+      this.liteInstallations = devices;
+      const picker = this.$("#recovery-device");
+      const old = picker.value;
+      const signature = JSON.stringify(devices.map(({mac, name}) => [mac, name]));
+      if (signature !== this.recoverySignature) {
+        this.recoverySignature = signature;
+        picker.replaceChildren(...devices.map(({mac, name}) => {
+          const option = document.createElement("option");
+          option.value = mac;
+          option.textContent = name;
+          return option;
+        }));
+        if (devices.some(item => item.mac === old)) picker.value = old;
+        if (picker.value !== old) this.hideLitePassword("recovery");
+      }
+      if (showAddress && devices.some(item => item.mac === showAddress)) {
+        picker.value = showAddress;
+        if (picker.value !== old) this.hideLitePassword("recovery");
+        this.$("#lite-recovery").open = true;
+      }
+      this.$("#lite-recovery").classList.toggle("hidden", !devices.length);
+      this.renderLiteInstallation();
+      if (this.isConnected && devices.some(item => item.verification.running)) {
+        this.recoveryPoll = setTimeout(() => this.loadLiteInstallations(), 2000);
+      }
+    } catch (error) { this.fail(error); }
+  }
+
+  renderLiteInstallation() {
+    const item = this.liteInstallations?.find(device => device.mac === this.$("#recovery-device").value);
+    this.$("#recovery-info").classList.toggle("hidden", !item);
+    if (!item) return;
+    this.$("#recovery-status").textContent = this.liteCheckText(item.verification);
+    this.$("#recovery-check").disabled = item.verification.running || item.verification.verified;
+    this.$("#recovery-ap").classList.toggle("hidden", !item.ap_available);
+    this.$("#recovery-ap-network").textContent = item.ap_ssid ? `${this.t("lite_backup_wifi")} · ${item.ap_ssid}` : "";
+    this.$("#recovery-history").replaceChildren(...item.history.map(row => {
+      const node = document.createElement("li");
+      const status = ["verified", "needs_review", "acknowledged", "consumed"].includes(row.state)
+        ? this.t("lite_history_" + row.state) : this.t("lite_history_unknown");
+      const version = number => number ?? "—";
+      const date = row.at ? new Date(row.at).toLocaleString(this.language) : "—";
+      node.textContent = `${date} · ${version(row.from_version)} → ${version(row.public_version)} · ${status}`;
+      if (row.error) node.textContent += ` · ${this.t(errorKey({code: row.error}))}`;
+      return node;
+    }));
+  }
+
   async flash() {
     if (this.busy) return;
     if (!this.identity || !this.profile) return;
     this.busy = true; this.$("#flash").disabled = true; this.connectionControls();
     this.lastError = null; this.$("#error").textContent = "";
     const ssid = this.$("#ssid").value, password = this.$("#password").value;
+    const useSaved = this.transport === "ha" && this.$("#use-saved-wifi").checked;
+    const wifi = useSaved ? {use_saved_wifi: true, saved_wifi_revision: this.savedWifi.revision}
+      : {ssid, wifi_password: password, remember_wifi: this.$("#remember-wifi").checked};
+    this.hideLitePassword("preview");
     try {
       this.provisioning = true;
       this.message("preparing");
-      const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ssid, wifi_password: password,
+      const result = await this.rpc("create", {data: {...this.identity, profile: this.profile.id, ...wifi,
+        ...(this.apToken ? {ap_token: this.apToken} : {}),
         usb: this.$("#usb").checked, transport: this.transport, selection: this.stock.selection}});
       this.session = result.id;
       // Session ID is not an authorization credential; HA checks its owner.
@@ -515,17 +704,36 @@ class QingpingPanel extends HTMLElement {
         const haProvisioning = result.transport === "ha" && result.provisioning_started && !result.provisioned && !result.error_code;
         this.$("#resume").classList.toggle("hidden", result.state !== "ready" || result.armed || this.provisioning || (result.transport === "ha" && !result.provisioned));
         this.$("#cancel").classList.toggle("hidden", result.sent || this.provisioning || haProvisioning);
-        this.$("#detail").textContent = result.name + (result.progress ? ` · ${result.progress}%` : "");
-        if (result.error) this.fail({code: result.error_code || "operation_failed"});
+        const transfer = result.progress ? this.t("lite_transfer_progress").replace("{progress}", result.progress) : "";
+        const check = this.liteCheckText(result.verification);
+        this.$("#detail").textContent = [result.name, transfer, check].filter(Boolean).join(" · ");
+        if (result.error && !result.verification?.error) this.fail({code: result.error_code || "operation_failed"});
         if (["installed", "needs_review", "identity_mismatch"].includes(result.state)) {
           clearInterval(this.poller);
           if (result.state === "installed") {
             sessionStorage.removeItem("qingping-installer-session");
             this.installationComplete = true;
-            this.$("#detail").textContent = this.t("installed_detail");
+            this.installationCheck = result.verification;
+          }
+          if (result.sent) {
+            this.loadLiteInstallations(result.state === "needs_review" ? result.mac : undefined);
+            this.loadSavedWifi();
           }
         }
-      } catch (error) { this.fail(error); clearInterval(this.poller); }
+      } catch (error) {
+        this.fail(error);
+        clearInterval(this.poller);
+        if (errorKey(error) === "session_missing") {
+          // A restart removes the transfer session. The durable installation
+          // record still supports verification through the recovery section.
+          sessionStorage.removeItem("qingping-installer-session");
+          this.session = null;
+          this.busy = false;
+          this.$("#flash").disabled = false;
+          this.connectionControls();
+          this.loadLiteInstallations();
+        }
+      }
       finally { this.polling = false; }
     };
     update(); this.poller = setInterval(update, 2000);

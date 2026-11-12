@@ -27,6 +27,7 @@ from .firmware_catalog import (
 )
 from .image import SLOTS, layout, mac_normalize, personalize, private_ipv4
 from .native_ota import encryption_available, upload_app
+from .lite_verification import history_entry
 
 SETTINGS = {"PM sensor", "LED", "Night mode", "Bluetooth", "Bluetooth heat compensation",
             "Display design", "Screen transitions", "Display brightness", "Idle screen", "Idle screen delay", "Heat model",
@@ -322,6 +323,7 @@ class FirmwareUpdates:
             if attempt.get("public_version") is not None:
                 record["public_version"] = attempt["public_version"]
             attempt["state"] = "verified"
+            attempt.pop("error", None)
             await self.manager.save_records()
         finally:
             if client: await client.disconnect()
@@ -343,6 +345,8 @@ class FirmwareUpdates:
                 phase("verifying")
                 await self.verify(mac, record, record["update_attempt"])
                 return  # Never fall through into another OTA after recovery.
+            if any(not task.done() for task in getattr(self.manager, "checks", {}).values()):
+                raise FirmwareError("firmware_update_busy")
             if any(s.sent and s.state in ("sending", "waiting_for_esphome")
                    for s in self.manager.relay.sessions.values()):
                 raise FirmwareError("firmware_update_busy")
@@ -389,10 +393,15 @@ class FirmwareUpdates:
                 if client: await client.disconnect()
             attempt = {"id": secrets.token_hex(16), "at": datetime.now(timezone.utc).isoformat(),
                        "version": release.version, "revision": release.revision, "profile": release.profile, "state": "consumed",
+                       "from_version": record.get("public_version"),
                        "public_version": release.public_version,
                        "native_update": json.loads(metadata).get("native_update", {}).get("format") == "qingping-native-update-v1",
                        "template_sha256": release.image.sha256, "image_sha256": hashlib.sha256(app).hexdigest(),
                        "settings_before": {name: snapshot[name] for name in SETTINGS if name in snapshot}}
+            # Archive only safe history fields before replacing the latest
+            # attempt. The active attempt keeps its existing recovery snapshot.
+            if previous := record.get("update_attempt"):
+                record.setdefault("update_history", []).append(history_entry(previous))
             record["update_attempt"] = attempt
             # A failed journal prevents the first OTA connection; a persisted
             # consumed intent survives HA restart and cannot become a retry.
@@ -402,8 +411,9 @@ class FirmwareUpdates:
                 await upload_app(host, app, record["noise_key"], record["ota_password"], progress)
                 attempt["state"] = "acknowledged"
                 await self.manager.save_records()
-            except BaseException:
+            except BaseException as error:
                 attempt["state"] = "needs_review"
+                attempt["error"] = str(error) if isinstance(error, FirmwareError) else "native_unconfirmed"
                 await asyncio.shield(self.manager.save_records())
                 raise
             finally:
@@ -411,7 +421,8 @@ class FirmwareUpdates:
             phase("verifying")
             try:
                 await self.verify(mac, record, attempt)
-            except BaseException:
+            except BaseException as error:
                 attempt["state"] = "needs_review"
+                attempt["error"] = str(error) if isinstance(error, FirmwareError) else "native_unconfirmed"
                 await asyncio.shield(self.manager.save_records())
                 raise
