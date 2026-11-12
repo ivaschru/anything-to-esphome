@@ -32,6 +32,50 @@ DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
 
 
+def _read_lite_template_metadata(root, profile, stock_version, hardware):
+    """Resolve the same bundled template for preview and installation."""
+    # Factory stock provenance selects its own PM policy and image. A missing
+    # package for 4.3.4 must never fall back to the 4.5.8 template.
+    if profile["id"] == "lite-434":
+        stem, policy = "lite-434-template", "lite-434-polling-only-v1"
+    else:
+        stem, policy = "lite-template", "quiet-scd4x-window-v1"
+    binary = root / (stem + ".bin")
+    try:
+        manifest = json.loads((root / (stem + ".json")).read_text(encoding="utf-8"))
+        if not binary.is_file():
+            raise InstallerError("template_missing")
+    except FileNotFoundError:
+        raise InstallerError("template_missing") from None
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise InstallerError("template_invalid") from None
+    if (not isinstance(manifest, dict) or manifest.get("profile") != profile["id"]
+            or manifest.get("model") != profile["model"]
+            or manifest.get("source_stock_version") != stock_version
+            or manifest.get("hardware") != hardware or manifest.get("pm_policy") != policy
+            or manifest.get("format") != "esp32-app-fixed-slots-v1"
+            or not isinstance(manifest.get("ui"), str) or not manifest["ui"]
+            or type(manifest.get("public_version")) is not int or manifest["public_version"] < 1):
+        raise InstallerError("template_invalid")
+    return manifest, binary
+
+
+def _catalog_with_lite_versions(root):
+    models = []
+    for profile in CATALOG:
+        model = dict(profile)
+        if profile["id"] in ("lite", "lite-434"):
+            try:
+                manifest, _ = _read_lite_template_metadata(
+                    root, profile, profile["stock_versions"][0], profile["hardware_versions"][0])
+                model["public_version"] = manifest["public_version"]
+            except InstallerError as error:
+                # Keep other profiles usable when a Lite release pair is missing.
+                model["template_error"] = error.code
+        models.append(model)
+    return {"models": models, "brands": ["qingping", "sonoff"]}
+
+
 class Manager:
     def __init__(self, hass, entry):
         self.hass, self.entry = hass, entry
@@ -144,6 +188,9 @@ class Manager:
             raise InstallerError("session_missing")
         return session
 
+    async def catalog(self):
+        return await self.hass.async_add_executor_job(_catalog_with_lite_versions, TEMPLATE_ROOT)
+
     async def create(self, owner, data):
         profile = admission(data["profile"], data["model"], data["stock_version"])
         if data.get("hardware") != "0001": raise InstallerError("hardware_unverified")
@@ -165,26 +212,13 @@ class Manager:
             raise InstallerError("wifi_length")
         if any(c in ssid + password for c in ('"', '\\', '\r', '\n', '\0')):
             raise InstallerError("wifi_characters")
-        root = TEMPLATE_ROOT
-        # Factory stock provenance selects a separate template, PM policy and
-        # native-update line. Never install the quiet 4.5.8 image on 4.3.4 or
-        # fall back to it when the complete 4.3.4 release pair is unavailable.
-        stem = "lite-434-template" if profile["id"] == "lite-434" else "lite-template"
-        manifest_path = root / (stem + ".json")
-        if not manifest_path.is_file():
-            raise InstallerError("template_missing")
-        manifest = await self.hass.async_add_executor_job(lambda: json.loads(manifest_path.read_text()))
+        manifest, binary = await self.hass.async_add_executor_job(
+            _read_lite_template_metadata, TEMPLATE_ROOT, profile, data["stock_version"], data["hardware"])
         try:
-            template = await self.hass.async_add_executor_job((root / (stem + ".bin")).read_bytes)
+            template = await self.hass.async_add_executor_job(binary.read_bytes)
         except OSError:
             raise InstallerError("template_missing") from None
-        policy = "lite-434-polling-only-v1" if profile["id"] == "lite-434" else "quiet-scd4x-window-v1"
-        if (manifest.get("profile") != profile["id"] or manifest.get("model") != "CGDN1"
-                or manifest.get("source_stock_version") != data["stock_version"]
-                or manifest.get("hardware") != data["hardware"] or manifest.get("pm_policy") != policy
-                or manifest.get("format") != "esp32-app-fixed-slots-v1" or manifest.get("size") != len(template)
-                or not isinstance(manifest.get("ui"), str) or not manifest["ui"]
-                or type(manifest.get("public_version")) is not int or manifest["public_version"] < 1):
+        if manifest.get("size") != len(template):
             raise InstallerError("template_invalid")
         psk = secrets.token_bytes(32)
         name = "qingping-" + mac.lower() + "-" + secrets.token_hex(5)[:9]

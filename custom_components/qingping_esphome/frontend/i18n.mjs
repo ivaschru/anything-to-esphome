@@ -47,7 +47,7 @@ export const MESSAGES = {
     "show_password": "Show",
     "hide_password": "Hide",
     "usb_ack": "The monitor is connected to USB. Keep it powered throughout installation.",
-    "install_note": "Installs UI25. Home Assistant generates a unique name and keys locally. This replaces the stock firmware; recovering from an early boot failure may require opening the case.",
+    "install_note": "Home Assistant generates a unique name and keys locally. This replaces the stock firmware; recovering from an early boot failure may require opening the case.",
     "flash": "Install on Lite",
     "progress_label": "Firmware transfer",
     "resume": "Continue installation",
@@ -103,8 +103,10 @@ export const MESSAGES = {
     "native_unconfirmed": "ESPHome has not confirmed the result. The firmware has not been resent.",
     "profile_unavailable": "The installer for this hardware profile is not ready.",
     "identity_unsupported": "This model or stock firmware has not been verified. Settings have not changed.",
-    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. A raw UART receiver is built, but startup, measurement scales, power and display are not qualified. No installation image is available. Settings have not changed.",
-    "profile_lite434": "Experimental factory installation for stock 4.3.4. This uses its separate firmware line: PM OFF stops readings only; fan shutdown is not supported."
+    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. The port is in development. Firmware is not available for installation yet.",
+    "profile_install_version": "Installs ESPHome firmware {version}.",
+    "profile_lite": "Screen and CO₂, PM2.5, temperature and humidity readings in Home Assistant. PM OFF stops PM2.5 readings and the fan.",
+    "profile_lite434": "Screen and CO₂, PM2.5, temperature and humidity readings in Home Assistant. PM OFF stops PM2.5 readings. The fan keeps running. Bluetooth installation is available. A complete migration from stock 4.3.4 through this wizard has yet to be verified on a device."
   },
   "ru": {
     "firmware_update_busy": "Уже выполняется операция с прошивкой. Дождитесь её завершения.",
@@ -150,7 +152,7 @@ export const MESSAGES = {
     "show_password": "Показать",
     "hide_password": "Скрыть",
     "usb_ack": "Прибор подключён к USB. Во время установки питание не отключать.",
-    "install_note": "Будет установлена UI25. Имя и индивидуальные ключи создаются автоматически внутри Home Assistant. Это заменяет заводскую прошивку; при неудачном раннем запуске восстановление может потребовать вскрытия.",
+    "install_note": "Имя и индивидуальные ключи создаются автоматически внутри Home Assistant. Это заменяет заводскую прошивку; при неудачном раннем запуске восстановление может потребовать вскрытия.",
     "flash": "Прошить Lite",
     "progress_label": "Передача прошивки",
     "resume": "Продолжить установку",
@@ -206,8 +208,10 @@ export const MESSAGES = {
     "native_unconfirmed": "ESPHome пока не подтвердил результат. Повторная прошивка не отправлялась.",
     "profile_unavailable": "Для этого аппаратного профиля установщик ещё не готов.",
     "identity_unsupported": "Эта модель или заводская версия ещё не проверена. Настройки не менялись.",
-    "profile_mcu421": "Lite 4.2.1 использует отдельный MCU. Raw UART receiver собран, но запуск, шкалы измерений, питание и экран ещё не квалифицированы. Образ для установки недоступен. Настройки не менялись.",
-    "profile_lite434": "Экспериментальная первичная установка для stock 4.3.4. Используется отдельная прошивка: PM OFF останавливает измерения, но не вентилятор."
+    "profile_mcu421": "Lite 4.2.1 использует внешний MCU. Порт в разработке. Прошивка для установки пока недоступна.",
+    "profile_install_version": "Будет установлена прошивка ESPHome №{version}.",
+    "profile_lite": "Экран и показания CO₂, PM2.5, температуры и влажности в Home Assistant. При PM OFF измерения PM2.5 прекращаются, вентилятор останавливается.",
+    "profile_lite434": "Экран и показания CO₂, PM2.5, температуры и влажности в Home Assistant. При PM OFF измерения PM2.5 прекращаются, вентилятор продолжает работать. Установка через Bluetooth доступна. Полный переход с заводской 4.3.4 через этот мастер ещё не проверен на приборе."
   }
 };
 export const LANGUAGE_KEY = "qingping-esphome-language";

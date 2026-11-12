@@ -88,7 +88,14 @@ assert.match(panel.$("#transport-help").textContent, /прокси/);
 assert.equal(panel.$("#ble-status").textContent, "Поиск завершён. Найдено 2 устройства.");
 assert.match(panel.$("#ble-hint").textContent, /^Выберите прибор/);
 
-panel.catalog = [{id: "lite", model: "CGDN1", stock_versions: ["4.5.8"], hardware_versions: ["0001"], installer: "beta", firmware: "lite"}];
+panel.catalog = [
+  {id: "lite", model: "CGDN1", stock_versions: ["4.5.8"], hardware_versions: ["0001"],
+    installer: "beta", firmware: "lite", public_version: 17, description_key: "profile_lite"},
+  {id: "lite-434", model: "CGDN1", stock_versions: ["4.3.4"], hardware_versions: ["0001"],
+    installer: "beta", firmware: "lite-434", public_version: 42, description_key: "profile_lite434"},
+  {id: "lite-mcu421", model: "CGDN1", stock_versions: ["4.2.1"], hardware_versions: ["0001"],
+    installer: "in_development", firmware: null, note_key: "profile_mcu421"},
+];
 panel.catalogReady = Promise.resolve();
 panel.rpc = async operation => {
   assert.equal(operation, "ble_select");
@@ -99,6 +106,20 @@ await panel.connect();
 assert.deepEqual(panel.identity, identity);
 assert.equal(panel.profile.id, "lite");
 assert.equal(panel.stock.selection, "opaque-selection");
+assert.equal(panel.$("#profile-version").textContent, "Будет установлена прошивка ESPHome №17.");
+assert.match(panel.$("#profile-note").textContent, /вентилятор останавливается/);
+
+panel.rpc = async () => ({identity: {...identity, stock_version: "4.3.4"}, selection: "opaque-selection"});
+await panel.connect();
+assert.equal(panel.$("#profile-version").textContent, "Будет установлена прошивка ESPHome №42.");
+assert.match(panel.$("#profile-note").textContent, /вентилятор продолжает работать/);
+assert.match(panel.$("#profile-note").textContent, /ещё не проверен на приборе/);
+
+panel.rpc = async () => { throw {code: "qingping_profile_mcu421"}; };
+await panel.connect();
+assert.equal(panel.$("#form").classList.values.has("hidden"), true);
+assert.equal(panel.$("#profile-version").textContent, "");
+assert.match(panel.$("#error").textContent, /Прошивка для установки пока недоступна/);
 
 panel.transport = "browser";
 let pickerCalled = false;

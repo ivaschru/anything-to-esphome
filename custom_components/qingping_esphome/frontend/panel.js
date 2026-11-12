@@ -199,7 +199,8 @@ class QingpingPanel extends HTMLElement {
        <div id="ha-picker" class="hidden"><div class="row"><div class="ha-device-field"><label for="ha-device"><span data-i18n="ha_device_label"></span></label><select id="ha-device" aria-describedby="ble-hint"></select></div><button id="scan" class="secondary"><span data-i18n="ha_scan"></span></button></div><p id="ble-status" class="note muted" role="status" aria-atomic="true"></p><p id="ble-hint" class="note muted hidden"></p></div>
        <button id="connect" class="secondary"><span data-i18n="connect"></span></button>
        <div id="identity" class="identity" aria-live="polite"></div>
-       <p id="profile-note" class="note muted hidden" data-i18n="profile_lite434"></p>
+       <p id="profile-version" class="note status hidden"></p>
+       <p id="profile-note" class="note hidden"></p>
        <form id="form" class="hidden"><h2><span data-i18n="install_title"></span></h2><div class="grid">
         <label><span data-i18n="ssid"></span><input id="ssid" type="text" required autocomplete="off" spellcheck="false"></label>
         <div class="password"><label><span data-i18n="wifi_password"></span><input id="password" type="password" autocomplete="off"></label><button id="show-password" class="secondary" type="button" data-i18n-aria="show_password"></button></div>
@@ -322,10 +323,7 @@ class QingpingPanel extends HTMLElement {
     this.lastError = null; this.$("#error").textContent = "";
     // Selecting an unsupported second device must not leave the previous
     // supported device's form/identity armed and available for submission.
-    this.identity = null; this.profile = null;
-    this.$("#profile-note").classList.add("hidden");
-    this.$("#form").classList.add("hidden");
-    this.stock?.disconnect();
+    this.invalidateSelection();
     this.stock = this.transport === "ha"
       ? new HABluetoothConnection((operation, data) => this.rpc(operation, data), this.$("#ha-device").value)
       : new StockConnection();
@@ -337,19 +335,33 @@ class QingpingPanel extends HTMLElement {
       this.$("#identity").replaceChildren(...[identity.model, "stock " + identity.stock_version, "HW " + identity.hardware, identity.mac].map(value => {
         const e = document.createElement("span"); e.textContent = value; return e;
       }));
-      this.profile = requireLiteProfile(this.catalog, identity);
-      this.$("#profile-note").classList.toggle("hidden", this.profile.id !== "lite-434");
+      const profile = requireLiteProfile(this.catalog, identity);
+      if (profile.template_error) throw failure(profile.template_error);
+      this.profile = profile;
       this.identity = identity;
+      this.renderProfileInfo();
       this.$("#form").classList.remove("hidden");
     } catch (error) { this.stock.disconnect(); this.fail(error); }
     finally { this.connecting = false; this.connectionControls(); }
+  }
+
+  renderProfileInfo() {
+    const version = this.profile?.public_version;
+    const versionText = this.$("#profile-version");
+    const hasVersion = Number.isSafeInteger(version) && version > 0;
+    versionText.textContent = hasVersion ? this.t("profile_install_version").replace("{version}", version) : "";
+    versionText.classList.toggle("hidden", !hasVersion);
+    const note = this.$("#profile-note");
+    const description = this.profile?.description_key;
+    note.textContent = description ? this.t(description) : "";
+    note.classList.toggle("hidden", !description);
   }
 
   invalidateSelection() {
     this.identity = null; this.profile = null;
     this.stock?.disconnect(); this.stock = null;
     this.$("#identity").replaceChildren();
-    this.$("#profile-note").classList.add("hidden");
+    this.renderProfileInfo();
     this.$("#form").classList.add("hidden");
   }
 
@@ -433,6 +445,7 @@ class QingpingPanel extends HTMLElement {
     this.$("#sonoff").hass = this.hass;
     this.$("#brands").setAttribute("aria-label", this.language === "ru" ? "Бренд устройства" : "Device brand");
     this.updatePasswordLabel(); this.updateModelText();
+    this.renderProfileInfo();
     this.updateTransport();
     if (this.devices) this.renderDevices(this.devices);
     if (this.messageKey) this.$("#status").textContent = this.t(this.messageKey);

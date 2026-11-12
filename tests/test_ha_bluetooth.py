@@ -28,7 +28,7 @@ class FakeGatt:
         self.fragments = {}
         self.commands = []
         self.fail_setup, self.reject_ack = fail_setup, reject_ack
-        self.macs = list(macs or [IDENTITY["mac"]] * 3)
+        self.macs = list([IDENTITY["mac"]] * 3 if macs is None else macs)
         self.stock_version = stock_version
         self.disconnect = AsyncMock()
 
@@ -50,7 +50,8 @@ class FakeGatt:
         buffer.clear()
         if number == 0x17:
             mac_uuid = "00000018-0000-1000-8000-00805f9b34fb"
-            self.notifications[mac_uuid](None, b"\x07\x0b" + bytes.fromhex(self.macs.pop(0)))
+            if self.macs:
+                self.notifications[mac_uuid](None, b"\x07\x0b" + bytes.fromhex(self.macs.pop(0)))
         elif number == 1:
             if self.fail_setup: raise RuntimeError("private-packet-contents")
             ack_uuid = "00000002-0000-1000-8000-00805f9b34fb"
@@ -196,6 +197,20 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
         with stack, patch(MODULE + ".bleak.BleakClient", wrapper):
             await self.radio.select("owner", ADDRESS)
         self.assertIs(connector.call_args.args[0], wrapper)
+
+    async def test_missing_mac_reply_returns_browser_hint_and_releases_connection(self):
+        from custom_components.qingping_esphome.errors import InstallerError
+
+        client = FakeGatt(macs=[])
+        stack, _, _, _ = self.radio_patches(client)
+        with stack, patch(MODULE + ".MAC_REPLY_SECONDS", 0):
+            with self.assertRaises(InstallerError) as caught:
+                await self.radio.select("owner", ADDRESS)
+
+        self.assertEqual(caught.exception.code, "mac_timeout")
+        self.assertEqual(client.commands, [(0x17, 0x0b, b"")])
+        client.disconnect.assert_awaited_once()
+        self.assertFalse(self.radio.selections or self.radio.in_use or self.radio.operations)
 
     async def test_unload_cancels_pending_identity_read_and_disconnects(self):
         client = FakeGatt()

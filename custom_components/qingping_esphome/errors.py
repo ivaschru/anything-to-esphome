@@ -13,6 +13,7 @@ MESSAGES = {
     "ha_bluetooth_setup_started": "Bluetooth setup has already started for this session. Check its status; it has not been repeated.",
     "ha_bluetooth_setup_incomplete": "Home Assistant has not confirmed Bluetooth setup. Check the session before continuing.",
     "selected_changed": "The selected monitor changed.",
+    "mac_timeout": "No MAC response. Hold the top strip for 8 seconds until the large Wi-Fi icon appears, then reconnect.",
     "ble_packet_length": "The settings do not fit in the stock Bluetooth packet.",
     "ble_rejected": "The monitor rejected setup. No new firmware was sent; check pairing mode.",
     "ble_ack_timeout": "Setup was not acknowledged. Check the session before retrying.",
@@ -40,7 +41,7 @@ MESSAGES = {
     "native_unconfirmed": "ESPHome has not confirmed the result. The firmware has not been resent.",
     "profile_unavailable": "The installer for this hardware profile is not ready.",
     "identity_unsupported": "This model or stock firmware has not been verified. Settings have not changed.",
-    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. A raw UART receiver is built, but startup, measurement scales, power and display are not qualified. No installation image is available. Settings have not changed.",
+    "profile_mcu421": "Lite 4.2.1 uses a separate MCU. The port is in development. Firmware is not available for installation yet.",
 }
 
 
