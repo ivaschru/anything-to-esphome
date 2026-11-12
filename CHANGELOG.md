@@ -1,7 +1,8 @@
-## 0.3.7 – Lite firmware details and Bluetooth hint
+## 0.3.8 – Lite firmware details and Bluetooth hint
 
 - Show the bundled ESPHome firmware version and the PM2.5 and fan behavior for each Lite profile before installation. Explain why Lite 4.2.1 has no installation image.
 - Show the pairing-mode instructions when Home Assistant receives no MAC reply from the monitor.
+- Update the installer tagline in English and Russian.
 
 ## 0.3.6 – Areas in Lite Bluetooth discovery
 
