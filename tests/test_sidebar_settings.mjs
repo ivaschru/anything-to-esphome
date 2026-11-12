@@ -77,7 +77,7 @@ await panel.saveSidebar(); assert.equal(panel.$("#show-sidebar").checked, false)
 assert.equal(panel.sidebarMessage, "sidebar_failed");
 panel.initialized = true;
 stored = true;
-panel.hass = {...hass, panels: {qingping_esphome: {title: "Qingping ESPHome"}}};
+panel.hass = {...hass, panels: {"anything-to-esphome": {title: "Anything to ESPHome"}}};
 await new Promise(resolve => setImmediate(resolve));
 assert.equal(panel.$("#show-sidebar").checked, true, "Native Configure changes update the panel too");
 console.log("Sidebar native flow, persistence, lost ACK reconciliation and panel pending/rollback passed");

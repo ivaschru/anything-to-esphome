@@ -122,7 +122,7 @@ class QingpingPanel extends HTMLElement {
       this.$("#sonoff").hass = value;
       // HA broadcasts panel updates when Configure → Interface changes too.
       // Never replace a pending user's selection with an earlier broadcast.
-      const panel = value.panels?.qingping_esphome;
+      const panel = value.panels?.["anything-to-esphome"];
       const signature = panel ? JSON.stringify([panel.title, panel.show_in_sidebar]) : null;
       if (signature !== this.sidebarPanelSignature) {
         this.sidebarPanelSignature = signature;

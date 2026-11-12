@@ -1,7 +1,7 @@
 # Anything to ESPHome
 
 
-- The historical `qingping_esphome` domain, routes, Store keys, service device
+- The historical `qingping_esphome` domain, API routes, Store keys, service device
   identifier, language key and HACS ZIP filename are compatibility contracts.
   The canonical repository is now `ivaschru/anything-to-esphome`. Accept only
   this exact repository and the original `ivaschru/qingping-esphome` for old
@@ -1281,10 +1281,11 @@ separate even though the HACS wizard is shared.
   The control belongs in the compact header's Page settings disclosure beside
   language, not a separate wizard card. Keep native keyboard expanded state,
   Escape/outside dismissal, mobile bounds and listener cleanup on disconnect.
-- Register one SERVICE device (`installer`) with a stable identifier and
-  `homeassistant://qingping_esphome` configuration URL. It is an installer
-  shortcut, never a physical monitor or an ESPHome device. Keep admin checks
-  and direct routing when hiding navigation. README.md is English by default;
+- Register the installer panel only at `/anything-to-esphome`, including when
+  hidden from the sidebar. Register one SERVICE device (`installer`) with a
+  stable identifier and `homeassistant://anything-to-esphome` configuration URL.
+  It is an installer shortcut, never a physical monitor or an ESPHome device.
+  Keep admin checks and direct routing when hiding navigation. README.md is English by default;
   README.ru.md is its Russian counterpart, with reciprocal language links.
   The panel footer keeps the source-code link and a separate developer credit
   to https://ivasch.ru/ with the owner's name; localize both label and name in

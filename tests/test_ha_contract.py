@@ -136,30 +136,62 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(manual["data"]["show_sidebar"])
 
     async def test_sidebar_update_preserves_registered_route_admin_gate_and_manager(self):
-        from homeassistant.components import frontend, panel_custom
-        from custom_components.qingping_esphome import async_reload_entry
+        from aiohttp.test_utils import make_mocked_request
+        from homeassistant.components import frontend
+        from custom_components.qingping_esphome import _async_setup_loaded_entry, async_reload_entry, async_unload_entry
         from custom_components.qingping_esphome.manager import DOMAIN
-        await panel_custom.async_register_panel(self.hass, frontend_url_path=DOMAIN,
-            webcomponent_name="qingping-installer-panel", sidebar_title="Qingping ESPHome",
-            module_url="/api/qingping_esphome/static/panel.js", require_admin=True)
-        original = self.hass.data[frontend.DATA_PANELS][DOMAIN].config
+        route = "anything-to-esphome"
+        self.hass.data[DOMAIN + "_registered"] = True
         self.hass.data[DOMAIN] = self.manager
-        entry = SimpleNamespace(entry_id="fixture", data=self.entry.data, options={"show_sidebar": False})
+        self.manager.monitor1 = SimpleNamespace(stop=AsyncMock())
+        self.manager.sonoff = SimpleNamespace(stop=AsyncMock())
+        entry = SimpleNamespace(entry_id="fixture", data=self.entry.data, options={},
+                                async_on_unload=lambda _callback: None, add_update_listener=lambda _callback: None)
+        with patch("custom_components.qingping_esphome.register_installer_device"), \
+             patch("custom_components.qingping_esphome.firmware_update.FirmwareUpdates", autospec=True), \
+             patch("custom_components.qingping_esphome.auto_adoption.AutoAdoption", autospec=True), \
+             patch.object(self.hass.config_entries, "async_forward_entry_setups", AsyncMock()):
+            await _async_setup_loaded_entry(self.hass, entry, self.manager)
+        panels = self.hass.data[frontend.DATA_PANELS]
+        original = panels[route].config
+        self.assertEqual(set(panels), {route})
+        self.assertTrue(panels[route].show_in_sidebar)
+        self.assertEqual(original["_panel_custom"]["module_url"], "/api/qingping_esphome/static/panel.js")
+        entry.options = {"show_sidebar": False}
         with patch.object(self.hass.config_entries, "async_reload", AsyncMock()) as reload:
             await async_reload_entry(self.hass, entry)
             reload.assert_not_called()
-            panel = self.hass.data[frontend.DATA_PANELS][DOMAIN]
+            panel = panels[route]
             self.assertFalse(panel.show_in_sidebar)
             self.assertIsNone(panel.sidebar_title)
             self.assertTrue(panel.require_admin)
             self.assertIs(panel.config, original)
             self.assertIs(self.hass.data[DOMAIN], self.manager)
+            index = frontend.IndexView(None, self.hass)
+            match, _ = await index.resolve(make_mocked_request("GET", f"/{route}"))
+            self.assertIsNotNone(match)
+            match, _ = await index.resolve(make_mocked_request("GET", "/qingping_esphome"))
+            self.assertIsNone(match)
             entry.options = {"show_sidebar": True}
             await async_reload_entry(self.hass, entry)
-            self.assertTrue(self.hass.data[frontend.DATA_PANELS][DOMAIN].show_in_sidebar)
+            self.assertTrue(panels[route].show_in_sidebar)
             entry.options = {"http_port": 1991}
             await async_reload_entry(self.hass, entry)
             reload.assert_awaited_once_with("fixture")
+        with patch.object(self.hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True)):
+            self.assertTrue(await async_unload_entry(self.hass, entry))
+        self.assertEqual(panels, {})
+
+        # A partial setup removes our route. A collision leaves the existing
+        # panel under that URL in place.
+        with patch("custom_components.qingping_esphome.register_installer_device", side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                await _async_setup_loaded_entry(self.hass, entry, self.manager)
+        self.assertEqual(panels, {})
+        frontend.async_register_built_in_panel(self.hass, "other", frontend_url_path=route)
+        with self.assertRaises(ValueError):
+            await _async_setup_loaded_entry(self.hass, entry, self.manager)
+        self.assertEqual(panels[route].component_name, "other")
 
     async def test_service_device_internal_link_and_idempotency(self):
         from types import MappingProxyType
@@ -174,11 +206,15 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         registry = dr.DeviceRegistry(self.hass)
         self.hass.data[dr.DATA_REGISTRY] = registry
         await registry.async_load()
+        legacy = registry.async_get_or_create(config_entry_id=entry.entry_id,
+            identifiers={("qingping_esphome", "installer")}, entry_type=dr.DeviceEntryType.SERVICE,
+            configuration_url="homeassistant://qingping_esphome")
         first = register_installer_device(self.hass, entry)
         again = register_installer_device(self.hass, entry)
+        self.assertEqual(first.id, legacy.id)
         self.assertEqual(first.id, again.id)
         self.assertEqual(first.entry_type, dr.DeviceEntryType.SERVICE)
-        self.assertEqual(first.configuration_url, "homeassistant://qingping_esphome")
+        self.assertEqual(first.configuration_url, "homeassistant://anything-to-esphome")
         self.assertEqual(first.identifiers, {("qingping_esphome", "installer")})
         self.assertEqual(first.connections, set())
 
