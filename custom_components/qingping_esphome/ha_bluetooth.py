@@ -16,7 +16,7 @@ import time
 import bleak
 from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 
 from .catalog import factory_lite_profile
 from .errors import InstallerError
@@ -33,15 +33,16 @@ def characteristic(number):
     return f"{number:08x}-0000-1000-8000-00805f9b34fb"
 
 
-def registry_name(registry, address):
-    """Read a display label by exact address without linking device entries."""
+def registry_labels(registry, areas, address):
+    """Read the HA name and area by exact address without modifying the registry."""
     mac = dr.format_mac(address)
     try:
         mac_normalize(mac)
     except ValueError:
-        return None  # Some Bluetooth backends provide opaque identifiers.
+        return {}  # Some Bluetooth backends provide opaque identifiers.
     # Prefer the connection on the same transport. A network MAC is useful
     # only if it is exactly equal; adjacent vendor MACs are not interchangeable.
+    area_only = {}
     for connections in (
         {(dr.CONNECTION_BLUETOOTH, value) for value in (address, mac, mac.upper())},
         {(dr.CONNECTION_NETWORK_MAC, mac)},
@@ -52,11 +53,21 @@ def registry_name(registry, address):
         if not names:
             names = {device.name.strip() for device in devices if device.name}
             names.discard("")
+        # Several registry entries can refer to the exact same address.
+        # Keep the name lookup's precedence, and only show an assigned area
+        # when the records at that same precedence do not disagree.
+        if len(names) > 1:
+            return {}
+        labels = {}
+        area_ids = {device.area_id for device in devices if device.area_id}
+        if len(area_ids) == 1 and (area := areas.async_get_area(next(iter(area_ids)))):
+            labels["ha_area"] = area.name
         if names:
-            # Registry entries are scoped per config entry. Conflicting names
-            # for the same address should not pick an arbitrary record.
-            return next(iter(names)) if len(names) == 1 else None
-    return None
+            labels["ha_name"] = next(iter(names))
+            return labels
+        if not area_only:
+            area_only = labels
+    return area_only
 
 
 class StockClient:
@@ -204,11 +215,11 @@ class HABluetooth:
                 self.operations.discard(task)
         devices = sorted(self.devices().items())[:32]
         registry = dr.async_get(self.hass)
+        areas = ar.async_get(self.hass)
         result = []
         for address, info in devices:
             device = {"address": address, "name": info.name, "rssi": info.rssi}
-            if name := registry_name(registry, address):
-                device["ha_name"] = name
+            device.update(registry_labels(registry, areas, address))
             result.append(device)
         return {"devices": result}
 

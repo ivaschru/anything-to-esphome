@@ -1,3 +1,10 @@
+## 0.3.6 – Areas in Lite Bluetooth discovery
+
+- Show the Home Assistant area first when a discovered Lite matches the device
+  registry by exact MAC. Keep the names and MAC visible for identification.
+- Load the installer panel and its relative imports from a versioned URL so
+  a cached panel from an earlier release cannot hide the new labels.
+
 ## 0.3.5 – Marketplace icon
 
 - Ship the Anything to ESPHome icon with the Home Assistant integration so

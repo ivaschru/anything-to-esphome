@@ -71,11 +71,13 @@ panel.rpc = async operation => {
   assert.equal(operation, "ble_scan");
   assert.match(panel.$("#ble-status").textContent, /^Searching/);
   assert.equal(panel.$("#ble-status").classList.values.has("scan-success"), false);
-  return {devices: [{address: "selected", name: "CGDN1", ha_name: "<img src=x onerror=bad()>"},
+  return {devices: [{address: "selected", name: "CGDN1", ha_name: "<img src=x onerror=bad()>",
+                     ha_area: "Room <A>"},
                     {address: "other", name: "Air Monitor"}]};
 };
 await panel.scan();
-assert.equal(panel.$("#ha-device").children[1].textContent, "<img src=x onerror=bad()> · CGDN1 · selected");
+assert.equal(panel.$("#ha-device").children[1].textContent,
+             "Room <A> · <img src=x onerror=bad()> · CGDN1 · selected");
 assert.equal(panel.$("#ha-device").children[1].innerHTML, undefined);
 assert.equal(panel.$("#ha-device").children[1].value, "selected");
 assert.equal(panel.$("#ha-device").children[2].textContent, "Air Monitor · other");
