@@ -26,6 +26,7 @@ PREFIXES = ("Qingping", "CGDN1", "Air Monitor")
 VENDOR = "22210000-554a-4546-5542-46534450464d"
 INFO = "0000180a-0000-1000-8000-00805f9b34fb"
 SELECTION_SECONDS = 300
+MAC_REPLY_SECONDS = 7
 MAX_SELECTIONS = 16
 
 
@@ -115,7 +116,12 @@ class StockClient:
         self.mac_reply = asyncio.get_running_loop().create_future()
         try:
             await self.send(0x17, 0x0b, b"")
-            return await asyncio.wait_for(self.mac_reply, 7)
+            try:
+                return await asyncio.wait_for(self.mac_reply, MAC_REPLY_SECONDS)
+            except TimeoutError as error:
+                # This is the missing reply to a sent MAC request. Transport
+                # and GATT write errors use the existing generic diagnostic.
+                raise InstallerError("mac_timeout") from error
         finally:
             self.mac_reply = None
 

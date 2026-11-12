@@ -1356,6 +1356,8 @@ separate even though the HACS wizard is shared.
   neither Web Bluetooth nor a browser radio. Keep the same three name prefixes.
   Selection is a bounded, owner-scoped identity read with immediate disconnect;
   before provisioning reconnect and recheck model/version/hardware/factory MAC.
+  A missing reply after the MAC request uses the browser's pairing-mode hint;
+  keep transport and GATT write errors distinct from this reply timeout.
   Reserve setup before awaiting, never replay writes, and gate arm until setup
   has completed. A disconnected WebSocket never arms OTA; unload cancels owned
   tasks and releases connections. This route is source-tested, not yet hardware

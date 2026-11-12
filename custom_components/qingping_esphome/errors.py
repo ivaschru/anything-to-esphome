@@ -13,6 +13,7 @@ MESSAGES = {
     "ha_bluetooth_setup_started": "Bluetooth setup has already started for this session. Check its status; it has not been repeated.",
     "ha_bluetooth_setup_incomplete": "Home Assistant has not confirmed Bluetooth setup. Check the session before continuing.",
     "selected_changed": "The selected monitor changed.",
+    "mac_timeout": "No MAC response. Hold the top strip for 8 seconds until the large Wi-Fi icon appears, then reconnect.",
     "ble_packet_length": "The settings do not fit in the stock Bluetooth packet.",
     "ble_rejected": "The monitor rejected setup. No new firmware was sent; check pairing mode.",
     "ble_ack_timeout": "Setup was not acknowledged. Check the session before retrying.",
