@@ -6,7 +6,7 @@ export const MESSAGES = {
   "en": {
     "firmware_update_busy": "A firmware operation is already running. Wait for it to finish.",
     "session_closed": "No firmware was sent. Enable the large Wi-Fi icon again before starting a new setup.",
-    "tagline": "One project. A separate profile for each device",
+    "tagline": "Off-the-shelf devices, without brand lock-in",
     "language": "Language",
     "sidebar_label": "Show in sidebar",
     "page_settings": "Page settings",
@@ -111,7 +111,7 @@ export const MESSAGES = {
   "ru": {
     "firmware_update_busy": "Уже выполняется операция с прошивкой. Дождитесь её завершения.",
     "session_closed": "Прошивка не отправлялась. Для новой настройки снова включите большой значок Wi-Fi.",
-    "tagline": "Один проект. Отдельный профиль для каждого прибора",
+    "tagline": "Серийные устройства без привязки к бренду",
     "language": "Язык",
     "sidebar_label": "Показывать в боковом меню",
     "page_settings": "Настройки страницы",
