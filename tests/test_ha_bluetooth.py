@@ -127,16 +127,21 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.radio.selected("owner", result["selection"], result["identity"]).identity,
                          result["identity"])
 
-    async def test_scan_filters_names_and_requires_connectable_scanner(self):
+    async def test_scan_resolves_registry_labels_and_requires_connectable_scanner(self):
         from homeassistant.config_entries import ConfigEntry
-        from homeassistant.helpers import device_registry as dr
+        from homeassistant.helpers import area_registry as ar, device_registry as dr
         from custom_components.qingping_esphome.errors import InstallerError
-        labels = ("Qingping Lite", "CGDN1 Test", "Air Monitor Test", "Qingping conflict", "Unrelated", None)
-        addresses = [f"00:11:22:33:44:{n:02X}" for n in (0x50, 0x52, 0x54, 0x56, 0x58, 0x5A)]
+        labels = ("Qingping Lite", "CGDN1 Test", "Air Monitor Test", "Qingping conflict",
+                  "Qingping two areas", "Unrelated", None)
+        addresses = [f"00:11:22:33:44:{n:02X}" for n in (0x50, 0x52, 0x54, 0x56, 0x57, 0x58, 0x5A)]
         infos = [SimpleNamespace(address=address, name=name, rssi=-50) for address, name in zip(addresses, labels)]
         registry = dr.DeviceRegistry(self.hass)
         self.hass.data[dr.DATA_REGISTRY] = registry
         await registry.async_load()
+        await ar.async_load(self.hass)
+        areas = ar.async_get(self.hass)
+        room_a = areas.async_create("Room A")
+        room_b = areas.async_create("Room B")
         entries = [ConfigEntry(version=1, minor_version=1, domain=domain, title=domain,
                                data={}, options={}, source="user", unique_id=domain,
                                discovery_keys=MappingProxyType({}), subentries_data=[])
@@ -146,16 +151,22 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
                 await self.hass.config_entries.async_add(entry)
         first = registry.async_get_or_create(config_entry_id=entries[0].entry_id, name="Default name",
                                              connections={(dr.CONNECTION_BLUETOOTH, addresses[0].lower())})
-        registry.async_update_device(first.id, name_by_user="Кабинет")
-        registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Network entry",
-                                     connections={(dr.CONNECTION_NETWORK_MAC, addresses[0])})
-        registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Гостиная",
-                                     connections={(dr.CONNECTION_NETWORK_MAC, addresses[1].replace(":", ""))})
+        registry.async_update_device(first.id, name_by_user="Кабинет", area_id=room_a.id)
+        network_duplicate = registry.async_get_or_create(config_entry_id=entries[1].entry_id,
+            name="Network entry", connections={(dr.CONNECTION_NETWORK_MAC, addresses[0])})
+        registry.async_update_device(network_duplicate.id, area_id=room_b.id)
+        network_only = registry.async_get_or_create(config_entry_id=entries[1].entry_id,
+            name="Гостиная", connections={(dr.CONNECTION_NETWORK_MAC, addresses[1].replace(":", ""))})
+        registry.async_update_device(network_only.id, area_id=room_b.id)
         registry.async_get_or_create(config_entry_id=entries[1].entry_id, name="Adjacent device",
                                      connections={(dr.CONNECTION_NETWORK_MAC, "00:11:22:33:44:55")})
         for entry in entries:
             registry.async_get_or_create(config_entry_id=entry.entry_id, name=entry.domain,
                                          connections={(dr.CONNECTION_BLUETOOTH, addresses[3])})
+        for entry, room in zip(entries, (room_a, room_b)):
+            duplicate = registry.async_get_or_create(config_entry_id=entry.entry_id, name="Shared name",
+                connections={(dr.CONNECTION_BLUETOOTH, addresses[4])})
+            registry.async_update_device(duplicate.id, area_id=room.id)
         with patch(MODULE + ".bluetooth.async_scanner_count", return_value=0):
             with self.assertRaises(InstallerError) as error: await self.radio.scan()
         self.assertEqual(error.exception.code, "ha_bluetooth_unavailable")
@@ -163,9 +174,12 @@ class HABluetoothTests(unittest.IsolatedAsyncioTestCase):
              patch(MODULE + ".bluetooth.async_discovered_service_info", return_value=infos) as discovered, \
              patch(MODULE + ".bluetooth.async_process_advertisements", AsyncMock(side_effect=TimeoutError)) as active:
             result = await self.radio.scan()
-        self.assertEqual([d["address"] for d in result["devices"]], addresses[:4])
-        self.assertEqual([d["name"] for d in result["devices"]], list(labels[:4]))
-        self.assertEqual([d.get("ha_name") for d in result["devices"]], ["Кабинет", "Гостиная", None, None])
+        self.assertEqual([d["address"] for d in result["devices"]], addresses[:5])
+        self.assertEqual([d["name"] for d in result["devices"]], list(labels[:5]))
+        self.assertEqual([d.get("ha_name") for d in result["devices"]],
+                         ["Кабинет", "Гостиная", None, None, "Shared name"])
+        self.assertEqual([d.get("ha_area") for d in result["devices"]],
+                         ["Room A", "Room B", None, None, None])
         discovered.assert_called_once_with(self.hass, connectable=True)
         self.assertEqual(active.call_args.args[2], {"connectable": True})
 

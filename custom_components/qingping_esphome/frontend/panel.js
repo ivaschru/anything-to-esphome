@@ -389,8 +389,8 @@ class QingpingPanel extends HTMLElement {
   renderDevices(devices) {
     this.devices = devices;
     const selected = this.$("#ha-device").value;
-    // Both names are display-only. Keep the BLE address as the option value
-    // passed to the independent identity read. Render names as plain text.
+    // Registry labels are display-only. Render them as plain text and keep
+    // the BLE address as the option value for the independent identity read.
     const option = (value, label) => {
       const node = document.createElement("option"); node.value = value; node.textContent = label; return node;
     };
@@ -398,6 +398,7 @@ class QingpingPanel extends HTMLElement {
       ...devices.map(device => {
         const label = [device.name, device.address];
         if (device.ha_name && device.ha_name !== device.name) label.unshift(device.ha_name);
+        if (device.ha_area && !label.includes(device.ha_area)) label.unshift(device.ha_area);
         return option(device.address, label.join(" · "));
       }));
     if (devices.some(device => device.address === selected)) this.$("#ha-device").value = selected;

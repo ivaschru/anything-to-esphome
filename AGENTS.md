@@ -15,8 +15,10 @@
   CAS. Never replace app/tag bytes or relax the device's exact URL check.
 - Lite's HA Bluetooth search announces the completed result and count in one
   live region. Optional registry labels use exact BLE/network MAC matches,
-  preferring BLE connections and user-assigned names. Ambiguous matches stay
-  unlabeled. Keep the discovery address and fresh GATT identity checks intact.
+  preferring BLE connections and user-assigned names. Show the HA area name
+  first when the matching records agree on the assigned area. Conflicting
+  names suppress registry labels. Conflicting or missing areas stay unlabeled.
+  Keep the discovery address and fresh GATT identity checks intact.
 - Monitor 1 source release notices use the existing catalog refresh and the
   cached identity, project name and version of a connected ESPHome entry.
   Preserve the separate S8 and SCD40 source lines. Report releases on the
