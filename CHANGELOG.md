@@ -1,3 +1,8 @@
+## 0.3.10 – Lite installation result
+
+- Give ESPHome two full minutes to start and report readings after the stock firmware confirms the transfer.
+- Check again without reflashing from the result card. A successful check replaces the old error and links to the device in Home Assistant.
+
 ## 0.3.9 – Lite installation recovery
 
 - Let administrators reuse their last confirmed Wi-Fi network in Home Assistant Bluetooth mode.

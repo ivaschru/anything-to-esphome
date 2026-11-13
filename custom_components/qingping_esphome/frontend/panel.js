@@ -188,6 +188,10 @@ class QingpingPanel extends HTMLElement {
       @media(max-width:650px){main{padding:25px 16px}.cards{grid-template-columns:1fr}.model{min-height:72px}.box{padding:20px}.grid{grid-template-columns:1fr}h1{font-size:27px}}@media(prefers-reduced-motion:reduce){button{transition:none}}
       #transport,#ha-device{display:block;width:100%;max-width:100%;margin:7px 0 12px}.ha-device-field{flex:1;min-width:0}#ha-picker .row{align-items:flex-end}#ha-picker .row>button{margin-bottom:12px}
       #ble-status:empty{margin:0}#ble-status.scan-complete{margin-bottom:4px}#ble-status.scan-success{color:var(--primary-text-color,#202124);color:color-mix(in srgb,var(--success-color,#198754) 48%,var(--primary-text-color,#202124));font-weight:600}
+      #progress-box{margin-top:24px;padding:0;overflow-wrap:anywhere}#lite-result-header{justify-content:space-between;align-items:end;padding:16px 18px;border-bottom:1px solid var(--divider-color,#d8dde2)}#lite-result-header h3,#progress-box h4{margin:0}#lite-result-name{margin:4px 0 0}#lite-result-header select{width:100%;max-width:100%}#lite-result-header label{margin-bottom:4px}#lite-result-header>div{min-width:0;max-width:100%}
+      .lite-result-body{padding:14px 18px 6px}.lite-result-status{padding:14px;background:var(--secondary-background-color,#f0f2f5);border-radius:12px}.lite-result-status .status{margin:0 0 4px}.lite-result-status p{margin:0}.lite-result-status progress{height:6px;margin:10px 0 0}.lite-result-status[data-tone=warning] .status{color:var(--warning-color,var(--primary-text-color,#202124))}.lite-result-status[data-tone=success] .status{color:color-mix(in srgb,var(--success-color,#198754) 65%,var(--primary-text-color,#202124))}
+      .lite-result-actions{margin-top:10px}.lite-result-actions a{display:inline-flex;align-items:center;min-height:44px;font-weight:600}.lite-steps{display:flex;flex-wrap:wrap;gap:3px 14px;list-style:none;margin:10px 0 0;padding:0;font-size:13px}.lite-steps [data-phase=done]{color:color-mix(in srgb,var(--success-color,#198754) 60%,var(--primary-text-color,#202124))}.lite-steps [data-phase=active]{font-weight:600}.lite-result-row{justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--divider-color,#d8dde2)}.lite-result-row p{margin:0}.lite-result-row button{min-height:44px}#recovery-ap-password{flex-basis:100%;font:14px ui-monospace,monospace}
+      .lite-history{padding:8px 0}.lite-history summary{min-height:44px;align-content:center;cursor:pointer;font-weight:600}.lite-history ul{margin:0;padding:0;list-style:none}.lite-history li{display:flex;flex-wrap:wrap;gap:2px 12px;padding:6px 0}.lite-history strong{font-weight:600}
       #brands button[aria-pressed=true]{border:2px solid var(--accent);color:var(--accent)}.header-controls{display:flex;align-items:center;gap:12px;margin-left:auto}.page-settings{position:relative}.page-settings>summary{display:flex;align-items:center;justify-content:center;list-style:none;width:44px;height:44px;border:1px solid transparent;border-radius:9px;cursor:pointer;color:var(--secondary-text-color,#58616b)}.page-settings>summary::-webkit-details-marker{display:none}.page-settings>summary:hover,.page-settings[open]>summary{background:var(--secondary-background-color,#f0f2f5);color:var(--primary-text-color,#202124)}.page-settings>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.page-settings svg{width:22px;height:22px}.sidebar-setting{position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:min(340px,calc(100vw - 32px));padding:16px;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8dde2);border-radius:12px;box-shadow:0 8px 24px #0003}.sidebar-setting .check{min-height:44px;align-items:center;margin:0;cursor:pointer}.sidebar-setting .check:has(input:disabled){opacity:.55;cursor:default}.sidebar-setting p{margin:6px 0 0}.sidebar-setting input{flex:none;margin:0}.sidebar-setting #sidebar-status:empty{display:none}
       </style>
       <main><header><div class="heading"><h1>Anything → ESPHome</h1><div class="header-controls"><label class="language"><span data-i18n="language"></span><select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label><details id="page-settings" class="page-settings"><summary data-i18n-aria="page_settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card-background-color,#fff)"/><circle cx="15" cy="17" r="3" fill="var(--card-background-color,#fff)"/></svg></summary><div class="sidebar-setting"><label class="check"><input id="show-sidebar" type="checkbox" role="switch" disabled aria-describedby="sidebar-help"><span data-i18n="sidebar_label"></span></label><p id="sidebar-help" class="note muted" data-i18n="sidebar_help"></p><p id="sidebar-status" class="note muted" role="status" aria-live="polite"></p><button id="sidebar-retry" class="secondary hidden" data-i18n="sidebar_retry"></button></div></details></div></div><p class="muted"><span data-i18n="tagline"></span></p></header>
@@ -229,20 +233,35 @@ class QingpingPanel extends HTMLElement {
        <label class="check"><input id="usb" type="checkbox" required><span><span data-i18n="usb_ack"></span></span></label>
        <p class="note muted"><span data-i18n="install_note"></span></p>
        <button id="flash" type="submit" class="primary"><span data-i18n="flash"></span></button></form>
-       <details id="lite-recovery" class="note hidden"><summary data-i18n="lite_previous_installs"></summary>
-        <label for="recovery-device"><span data-i18n="lite_choose_install"></span></label>
-        <select id="recovery-device"></select>
-        <div id="recovery-info" class="hidden">
-         <p id="recovery-status" role="status"></p>
-         <button id="recovery-check" type="button" class="secondary" data-i18n="lite_check_again"></button>
-         <p id="recovery-ap-network"></p>
-         <button id="recovery-ap" type="button" class="secondary" data-i18n="show_password"></button>
-         <p id="recovery-ap-password" class="hidden" role="status"></p>
-         <h3 data-i18n="lite_history"></h3><ul id="recovery-history"></ul>
+       <section id="progress-box" class="box hidden" aria-labelledby="lite-result-title">
+        <header id="lite-result-header" class="row" style="margin:0">
+         <div><h3 id="lite-result-title" data-i18n="lite_result_title"></h3><p id="lite-result-name" class="note muted hidden"></p></div>
+         <div id="lite-result-picker" class="hidden"><label for="recovery-device" data-i18n="lite_result_device"></label><select id="recovery-device"></select></div>
+        </header>
+        <div class="lite-result-body">
+         <div id="lite-result-status" class="lite-result-status">
+          <div role="status" aria-atomic="true"><h4 id="status" class="status"></h4><p id="detail" class="note muted"></p></div>
+          <progress id="progress" class="hidden" max="100" value="0" data-i18n-aria="progress_label"></progress>
+          <ol id="lite-steps" class="lite-steps hidden" data-i18n-aria="lite_result_steps"><li></li><li></li><li></li></ol>
+          <div id="lite-result-actions" class="row lite-result-actions hidden">
+           <button id="recovery-check" type="button" class="primary hidden" data-i18n="lite_check_again"></button>
+           <span id="lite-retry-note" class="note muted hidden" data-i18n="lite_check_only"></span>
+           <a id="lite-device-link" class="hidden" data-i18n="lite_open_device"></a>
+           <button id="resume" type="button" class="primary hidden" data-i18n="resume"></button>
+           <button id="cancel" type="button" class="secondary hidden" data-i18n="cancel"></button>
+          </div>
+         </div>
+         <div id="recovery-info" class="hidden">
+          <section id="lite-result-wifi" class="row lite-result-row" aria-labelledby="lite-result-wifi-title">
+           <div><h4 id="lite-result-wifi-title" data-i18n="lite_backup_wifi"></h4><p id="recovery-ap-network" class="note muted"></p></div>
+           <button id="recovery-ap" type="button" class="secondary" aria-controls="recovery-ap-password" aria-expanded="false" data-i18n="lite_show_password"></button>
+           <p id="recovery-ap-password" class="hidden" role="status"></p>
+          </section>
+          <details class="lite-history"><summary data-i18n="lite_history"></summary><ul id="recovery-history"></ul></details>
+         </div>
         </div>
-       </details>
+       </section>
       </section>
-      <section id="progress-box" class="box hidden" aria-live="polite"><div id="status" class="status"></div><progress id="progress" max="100" value="0" data-i18n-aria="progress_label"></progress><p id="detail" class="note muted"></p><button id="resume" class="primary hidden"><span data-i18n="resume"></span></button><button id="cancel" class="secondary hidden"><span data-i18n="cancel"></span></button></section>
       <p id="error" class="error" role="alert"></p>
       <footer><div><span data-i18n="footer"></span> <a href="https://github.com/ivaschru/anything-to-esphome" target="_blank" rel="noreferrer"><span data-i18n="source"></span></a></div><div><span data-i18n="development"></span> – <a href="https://ivasch.ru/" target="_blank" rel="noopener noreferrer"><span data-i18n="developer_name"></span></a></div></footer></main>`;
     this.$ = selector => this.shadowRoot.querySelector(selector);
@@ -279,21 +298,11 @@ class QingpingPanel extends HTMLElement {
     };
     this.$("#preview-ap").onclick = () => this.toggleLitePassword("preview");
     this.$("#recovery-ap").onclick = () => this.toggleLitePassword("recovery");
-    this.$("#lite-recovery").ontoggle = event => {
-      if (!event.target.open) this.hideLitePassword("recovery");
-    };
     this.$("#recovery-device").onchange = () => {
       this.hideLitePassword("recovery");
       this.renderLiteInstallation();
     };
-    this.$("#recovery-check").onclick = async () => {
-      const address = this.$("#recovery-device").value;
-      this.$("#recovery-check").disabled = true;
-      this.lastError = null; this.$("#error").textContent = "";
-      try { await this.rpc("lite_verify", {address}); }
-      catch (error) { this.fail(error); }
-      finally { await this.loadLiteInstallations(); }
-    };
+    this.$("#recovery-check").onclick = () => this.retryLiteInstallation();
     this.$("#resume").onclick = async () => {
       this.$("#resume").disabled = true;
       try { await this.rpc("arm", {session: this.session}); this.startPolling(); }
@@ -305,11 +314,13 @@ class QingpingPanel extends HTMLElement {
         clearInterval(this.poller); sessionStorage.removeItem("qingping-installer-session");
         this.session = null; this.busy = false;
         this.connectionControls(); this.$("#flash").disabled = false;
-        this.$("#progress-box").classList.add("hidden"); this.$("#form").classList.add("hidden");
+        this.sessionStatus = null; this.messageKey = null;
+        this.renderLiteInstallation(); this.$("#form").classList.add("hidden");
         this.fail({code: "session_closed"});
       } catch (error) { this.fail(error); }
     };
     this.session = sessionStorage.getItem("qingping-installer-session");
+    this.activeLite = sessionStorage.getItem("qingping-installer-device");
     if (this.session) { this.busy = true; this.$("#connect").disabled = true; this.startPolling(); }
     this.connectionControls();
     // Retain the same catalog for this page; the backend still checks a fresh
@@ -516,13 +527,10 @@ class QingpingPanel extends HTMLElement {
     this.renderLiteInstallation();
     for (const scope of ["preview", "recovery"]) {
       const password = this.$(`#${scope}-ap-password`).textContent;
-      this.$(`#${scope}-ap`).textContent = this.t(password ? "lite_hide_password" : "show_password");
+      this.$(`#${scope}-ap`).textContent = this.t(password ? "lite_hide_password" : scope === "recovery" ? "lite_show_password" : "show_password");
     }
     this.updateTransport();
     if (this.devices) this.renderDevices(this.devices);
-    if (this.messageKey) this.$("#status").textContent = this.t(this.messageKey);
-    if (this.installationComplete) this.$("#detail").textContent =
-      this.liteCheckText(this.installationCheck) || this.t("installed_detail");
     if (this.lastError) this.$("#error").textContent = this.t(errorKey(this.lastError));
   }
 
@@ -543,8 +551,7 @@ class QingpingPanel extends HTMLElement {
 
   message(key) {
     this.messageKey = key;
-    this.$("#progress-box").classList.remove("hidden");
-    this.$("#status").textContent = this.t(key);
+    this.renderLiteInstallation();
   }
   fail(error) { this.lastError = error; this.$("#error").textContent = this.t(errorKey(error)); }
 
@@ -569,7 +576,9 @@ class QingpingPanel extends HTMLElement {
 
   hideLitePassword(scope) {
     const password = this.$(`#${scope}-ap-password`);
-    if (password.textContent) this.$(`#${scope}-ap`).textContent = this.t("show_password");
+    const button = this.$(`#${scope}-ap`);
+    if (password.textContent) button.textContent = this.t(scope === "recovery" ? "lite_show_password" : "show_password");
+    if (scope === "recovery") button.setAttribute?.("aria-expanded", "false");
     password.textContent = "";
     password.classList.toggle("hidden", true);
     // Invalidate an in-flight reveal if selection or visibility changed.
@@ -594,6 +603,7 @@ class QingpingPanel extends HTMLElement {
       element.textContent = result.password;
       element.classList.remove("hidden");
       this.$(`#${scope}-ap`).textContent = this.t("lite_hide_password");
+      if (!preview) this.$("#recovery-ap").setAttribute("aria-expanded", "true");
     } catch (error) {
       if (this.apRequests[scope] === request) this.fail(error);
     }
@@ -607,54 +617,162 @@ class QingpingPanel extends HTMLElement {
     return sensors.length ? `${text} ${this.t("lite_waiting_sensors")} ${sensors.map(name => this.t("lite_sensor_" + name)).join(", ")}.` : text;
   }
 
-  async loadLiteInstallations(showAddress) {
+  async loadLiteInstallations(preferAddress) {
     clearTimeout(this.recoveryPoll);
+    const request = this.installationsRequest = (this.installationsRequest || 0) + 1;
     try {
       const {devices} = await this.rpc("lite_installations");
+      if (request !== this.installationsRequest) return;
+      const before = this.liteInstallations || [];
       this.liteInstallations = devices;
+      if (devices.some(item => item.verification.verified &&
+          before.some(previous => previous.mac === item.mac && !previous.verification.verified))) {
+        this.loadSavedWifi();
+      }
       const picker = this.$("#recovery-device");
       const old = picker.value;
-      const signature = JSON.stringify(devices.map(({mac, name}) => [mac, name]));
+      const signature = JSON.stringify(devices.map(({mac, name, label}) => [mac, name, label]));
       if (signature !== this.recoverySignature) {
         this.recoverySignature = signature;
-        picker.replaceChildren(...devices.map(({mac, name}) => {
+        picker.replaceChildren(...devices.map(({mac, name, label}) => {
           const option = document.createElement("option");
           option.value = mac;
-          option.textContent = name;
+          option.textContent = label || name;
           return option;
         }));
-        if (devices.some(item => item.mac === old)) picker.value = old;
-        if (picker.value !== old) this.hideLitePassword("recovery");
       }
-      if (showAddress && devices.some(item => item.mac === showAddress)) {
-        picker.value = showAddress;
-        if (picker.value !== old) this.hideLitePassword("recovery");
-        this.$("#lite-recovery").open = true;
-      }
-      this.$("#lite-recovery").classList.toggle("hidden", !devices.length);
+      const preferred = preferAddress || old || this.activeLite;
+      if (devices.some(item => item.mac === preferred)) picker.value = preferred;
+      if (picker.value !== old) this.hideLitePassword("recovery");
       this.renderLiteInstallation();
-      if (this.isConnected && devices.some(item => item.verification.running)) {
+      // HA may register the device a few seconds after creating the config
+      // entry. Give the link a bounded chance to appear without rechecking.
+      const awaitingLink = devices.some(item => item.verification.stage === "lite_check_added" && !item.device_id);
+      if (!awaitingLink) this.linkPolls = 0;
+      if (this.isConnected && (devices.some(item => item.verification.running || item.transferring)
+          || (awaitingLink && (this.linkPolls = (this.linkPolls || 0) + 1) <= 5))) {
         this.recoveryPoll = setTimeout(() => this.loadLiteInstallations(), 2000);
       }
-    } catch (error) { this.fail(error); }
+      return devices;
+    } catch (error) {
+      if (request !== this.installationsRequest) return;
+      this.fail(error);
+      if (this.isConnected && this.liteInstallations?.some(item => item.verification.running || item.transferring)) {
+        this.recoveryPoll = setTimeout(() => this.loadLiteInstallations(), 2000);
+      }
+    }
+  }
+
+  async retryLiteInstallation() {
+    const item = this.liteInstallations?.find(device => device.mac === this.$("#recovery-device").value);
+    if (!item || this.retryAddress || item.verification.running || item.verification.verified || item.transferring) return;
+    this.retryAddress = item.mac;
+    this.retryError = null;
+    this.$("#recovery-check").disabled = true;
+    this.lastError = null; this.$("#error").textContent = "";
+    try {
+      // Retry is owner-scoped by MAC. It has no arm, provision or flash path.
+      const verification = await this.rpc("lite_verify", {address: item.mac});
+      const current = this.liteInstallations.find(device => device.mac === item.mac);
+      if (current) current.verification = verification;
+    } catch (error) {
+      this.retryError = {mac: item.mac, code: errorKey(error)};
+    }
+    finally {
+      this.retryAddress = null;
+      this.renderLiteInstallation();
+      await this.loadLiteInstallations();
+    }
   }
 
   renderLiteInstallation() {
-    const item = this.liteInstallations?.find(device => device.mac === this.$("#recovery-device").value);
+    const live = this.sessionStatus;
+    // Before an OTA intent exists, the transient session owns its setup
+    // status. Afterwards the selected durable record is the single result.
+    const settingUp = Boolean(this.provisioning || (live && !live.sent) || (!live && this.session));
+    const picker = this.$("#recovery-device");
+    const devices = this.liteInstallations || [];
+    const item = settingUp ? null : devices.find(device => device.mac === picker.value);
+    const check = item?.verification || live?.verification;
+    const transferring = item?.transferring ?? (live?.state === "sending");
+    const verified = Boolean(check?.verified && !check.running);
+    const running = Boolean(check?.running);
+    const needsReview = Boolean(item && !transferring && !verified && !running);
+    const retryError = needsReview && this.retryError?.mac === item.mac ? this.retryError.code : null;
+    const error = retryError || check?.error || (!item ? live?.error_code : null);
+    const added = verified && (check.stage === "lite_check_added" || Boolean(item?.device_id));
+    let state = live?.state || this.messageKey;
+    if (transferring) state = "sending";
+    else if (running) {
+      const stages = {lite_check_readings: "lite_check_readings_title",
+        lite_check_enrollment: "lite_check_enrollment_title"};
+      state = stages[check.stage] || "lite_check_connecting_title";
+    } else if (verified) state = added ? "lite_check_added_title" : "installed";
+    else if (needsReview) state = "needs_review";
+    const detail = added ? this.t("lite_check_success_detail") : retryError ? this.t(retryError)
+      : (transferring ? this.t("lite_transfer_detail")
+        : this.liteCheckText(check?.stage || check?.error ? check : null))
+        || (error ? this.t(errorKey({code: error})) : needsReview ? this.t("lite_check_unknown") : "");
+
+    this.$("#progress-box").classList.toggle("hidden", !state);
+    this.$("#lite-result-picker").classList.toggle("hidden", settingUp || devices.length < 2);
+    const name = this.$("#lite-result-name");
+    name.textContent = devices.length === 1 && item ? item.label || item.name : "";
+    name.classList.toggle("hidden", !name.textContent);
     this.$("#recovery-info").classList.toggle("hidden", !item);
+    if (!state) return;
+    this.$("#status").textContent = this.t(state);
+    this.$("#detail").textContent = detail;
+    this.$("#lite-result-status").setAttribute("data-tone", needsReview ? "warning" : verified ? "success" : "active");
+
+    const progress = this.$("#progress");
+    progress.classList.toggle("hidden", !transferring);
+    progress.value = item?.progress ?? live?.progress ?? 0;
+    const steps = this.$("#lite-steps");
+    steps.classList.toggle("hidden", !(item || live?.sent));
+    const booted = verified || ["lite_check_readings", "lite_check_enrollment"].includes(check?.stage);
+    const transferDone = verified || booted || Boolean(item?.transfer_confirmed ?? live?.transfer_confirmed);
+    const phases = [transferDone ? "done" : transferring ? "active" : "waiting",
+      booted ? "done" : running ? "active" : needsReview && transferDone ? "warn" : "waiting",
+      verified ? "done" : booted && running ? "active" : booted && needsReview ? "warn" : "waiting"];
+    const symbols = {done: "✓", active: "◉", warn: "!", waiting: "○"};
+    for (const [index, key] of ["lite_step_transfer", "lite_step_boot", "lite_step_readings"].entries()) {
+      const step = steps.children[index];
+      step.textContent = symbols[phases[index]] + " " + this.t(key);
+      step.dataset.phase = phases[index];
+    }
+
+    const busyBLE = live?.transport === "ha" && live.provisioning_started && !live.provisioned && !live.error_code;
+    const resume = Boolean(settingUp && live?.state === "ready" && !live.armed && !this.provisioning
+      && (live.transport !== "ha" || live.provisioned));
+    const cancel = Boolean(settingUp && live && !live.sent && !this.provisioning && !busyBLE);
+    const button = this.$("#recovery-check");
+    button.classList.toggle("hidden", !needsReview);
+    button.disabled = this.retryAddress === item?.mac && Boolean(this.retryAddress);
+    this.$("#lite-retry-note").classList.toggle("hidden", !needsReview);
+    this.$("#resume").classList.toggle("hidden", !resume);
+    this.$("#cancel").classList.toggle("hidden", !cancel);
+    const link = this.$("#lite-device-link");
+    const deviceID = added && /^[a-f0-9]{32}$/.test(item?.device_id || "") ? item.device_id : null;
+    if (deviceID) link.href = "/config/devices/device/" + deviceID;
+    else link.removeAttribute("href");
+    link.classList.toggle("hidden", !deviceID);
+    this.$("#lite-result-actions").classList.toggle("hidden", !(needsReview || resume || cancel || deviceID));
     if (!item) return;
-    this.$("#recovery-status").textContent = this.liteCheckText(item.verification);
-    this.$("#recovery-check").disabled = item.verification.running || item.verification.verified;
+
+    this.$("#lite-result-wifi").classList.toggle("hidden", !item.ap_ssid);
     this.$("#recovery-ap").classList.toggle("hidden", !item.ap_available);
-    this.$("#recovery-ap-network").textContent = item.ap_ssid ? `${this.t("lite_backup_wifi")} · ${item.ap_ssid}` : "";
+    this.$("#recovery-ap-network").textContent = item.ap_ssid || "";
     this.$("#recovery-history").replaceChildren(...item.history.map(row => {
       const node = document.createElement("li");
-      const status = ["verified", "needs_review", "acknowledged", "consumed"].includes(row.state)
+      const date = document.createElement("span");
+      const versions = document.createElement("strong");
+      const status = document.createElement("span");
+      date.textContent = row.at ? new Date(row.at).toLocaleString(this.language) : "—";
+      versions.textContent = (row.from_version ?? "—") + " → " + (row.public_version ?? "—");
+      status.textContent = ["verified", "needs_review", "acknowledged", "consumed"].includes(row.state)
         ? this.t("lite_history_" + row.state) : this.t("lite_history_unknown");
-      const version = number => number ?? "—";
-      const date = row.at ? new Date(row.at).toLocaleString(this.language) : "—";
-      node.textContent = `${date} · ${version(row.from_version)} → ${version(row.public_version)} · ${status}`;
-      if (row.error) node.textContent += ` · ${this.t(errorKey({code: row.error}))}`;
+      node.append(versions, date, status);
       return node;
     }));
   }
@@ -676,68 +794,83 @@ class QingpingPanel extends HTMLElement {
         ...(this.apToken ? {ap_token: this.apToken} : {}),
         usb: this.$("#usb").checked, transport: this.transport, selection: this.stock.selection}});
       this.session = result.id;
+      this.activeLite = result.mac;
+      sessionStorage.setItem("qingping-installer-device", result.mac);
       // Session ID is not an authorization credential; HA checks its owner.
       sessionStorage.setItem("qingping-installer-session", this.session);
       this.startPolling();
       await this.stock.provision(ssid, password, result.broker, text => this.message(text), this.session);
       this.$("#password").value = "";
-      await this.rpc("arm", {session: this.session});
-      this.message("sending");
+      await this.rpc("arm", {session: result.id});
     } catch (error) {
       this.fail(error);
       if (!this.session) {this.busy = false; this.$("#flash").disabled = false; this.connectionControls();}
     } finally {
       this.provisioning = false;
       this.stock?.disconnect();
+      this.renderLiteInstallation();
     }
   }
 
   startPolling() {
     clearInterval(this.poller);
+    if (!this.session) return;
     const update = async () => {
-      if (this.polling) return;
+      if (this.polling || !this.session) return;
       this.polling = true;
+      const session = this.session;
       try {
-        const result = await this.rpc("status", {session: this.session});
-
-        this.message(result.state); this.$("#progress").value = result.progress;
-        const haProvisioning = result.transport === "ha" && result.provisioning_started && !result.provisioned && !result.error_code;
-        this.$("#resume").classList.toggle("hidden", result.state !== "ready" || result.armed || this.provisioning || (result.transport === "ha" && !result.provisioned));
-        this.$("#cancel").classList.toggle("hidden", result.sent || this.provisioning || haProvisioning);
-        const transfer = result.progress ? this.t("lite_transfer_progress").replace("{progress}", result.progress) : "";
-        const check = this.liteCheckText(result.verification);
-        this.$("#detail").textContent = [result.name, transfer, check].filter(Boolean).join(" · ");
-        if (result.error && !result.verification?.error) this.fail({code: result.error_code || "operation_failed"});
-        if (["installed", "needs_review", "identity_mismatch"].includes(result.state)) {
+        const result = await this.rpc("status", {session});
+        if (this.session !== session) return;
+        this.sessionStatus = result;
+        if (result.error && !result.sent) this.fail({code: result.error_code || "operation_failed"});
+        if (result.sent) {
+          // Hand off to the durable record as soon as the OTA is consumed.
+          // This keeps one result even if the short-lived session later expires.
+          this.activeLite = result.mac;
+          sessionStorage.setItem("qingping-installer-device", result.mac);
+          this.lastError = null; this.$("#error").textContent = "";
+          const devices = await this.loadLiteInstallations(result.mac);
+          if (!devices?.some(item => item.mac === result.mac)) {
+            this.renderLiteInstallation();
+            return;
+          }
           clearInterval(this.poller);
-          if (result.state === "installed") {
-            sessionStorage.removeItem("qingping-installer-session");
-            this.installationComplete = true;
-            this.installationCheck = result.verification;
-          }
-          if (result.sent) {
-            this.loadLiteInstallations(result.state === "needs_review" ? result.mac : undefined);
-            this.loadSavedWifi();
-          }
+          this.loadSavedWifi();
+          this.finishLiteSession();
+        } else {
+          this.renderLiteInstallation();
         }
       } catch (error) {
-        this.fail(error);
+        if (this.session !== session) return;
         clearInterval(this.poller);
         if (errorKey(error) === "session_missing") {
-          // A restart removes the transfer session. The durable installation
-          // record still supports verification through the recovery section.
-          sessionStorage.removeItem("qingping-installer-session");
-          this.session = null;
-          this.busy = false;
-          this.$("#flash").disabled = false;
-          this.connectionControls();
-          this.loadLiteInstallations();
+          this.finishLiteSession();
+          const devices = await this.loadLiteInstallations(this.activeLite);
+          if (devices && !devices.some(item => item.mac === this.activeLite)) this.fail(error);
+        } else {
+          this.fail(error);
         }
+      } finally {
+        this.polling = false;
       }
-      finally { this.polling = false; }
     };
-    update(); this.poller = setInterval(update, 2000);
+    this.poller = setInterval(update, 2000);
+    update();
   }
+
+  finishLiteSession() {
+    sessionStorage.removeItem("qingping-installer-session");
+    this.session = null;
+    this.sessionStatus = null;
+    this.messageKey = null;
+    this.busy = false;
+    this.connectionControls();
+    this.$("#flash").disabled = false;
+    this.$("#form").classList.add("hidden");
+    this.renderLiteInstallation();
+  }
+
 }
 
 customElements.define("qingping-installer-panel", QingpingPanel);
