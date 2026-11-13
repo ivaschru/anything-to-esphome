@@ -33,9 +33,10 @@ let Panel;
 const context = vm.createContext({
   HTMLElement: class {}, customElements: {define(_name, type) { Panel = type; }},
   navigator: {}, TextDecoder, TextEncoder, Uint8Array, Map, Promise,
+  clearTimeout, setTimeout,
   requireLiteProfile, HABluetoothConnection, t, failure, errorKey, scanSummary,
   readLanguage: () => "en", saveLanguage() {}, normalizeLanguage: value => value,
-  document: {createElement: () => ({})},
+  document: {createElement: () => ({append() {}})},
 });
 const panelSource = readFileSync(new URL("../custom_components/qingping_esphome/frontend/panel.js", import.meta.url), "utf8");
 vm.runInContext(panelSource.replace(/^import .*;$/gm, ""), context);
@@ -44,6 +45,7 @@ const elements = new Map();
 panel.$ = key => {
   if (!elements.has(key)) elements.set(key, {value: "", disabled: false, textContent: "", children: [],
     classList: {values: new Set(), add(key) {this.values.add(key);}, toggle(key, on) {on ? this.values.add(key) : this.values.delete(key);}, remove(key) {this.values.delete(key);}},
+    dataset: {}, setAttribute() {}, removeAttribute(key) {delete this[key];},
     replaceChildren(...children) {this.children = children;},
   });
   return elements.get(key);
@@ -139,4 +141,44 @@ panel.rpc = async () => { throw failure("ha_bluetooth_unavailable"); };
 await panel.scan();
 assert.equal(panel.$("#ble-status").textContent, "");
 assert.equal(panel.$("#ble-hint").classList.values.has("hidden"), true);
+
+// A durable retry replaces the old timeout in the one result card. Choosing
+// another device while a check runs never applies its result to that device.
+panel.$("#lite-steps").children = Array.from({length: 3}, () => ({dataset: {}}));
+const address = identity.mac;
+const second = {mac: "002233445566", name: "Other monitor", verification: {verified: false}, history: []};
+const failed = {mac: address, name: "Fixture monitor", transfer_confirmed: true,
+  verification: {error: "lite_api_timeout", running: false, verified: false}, history: []};
+panel.liteInstallations = [failed, second];
+panel.$("#recovery-device").value = address;
+panel.renderLiteInstallation();
+assert.equal(panel.$("#status").textContent, "Нужна проверка результата");
+assert.match(panel.$("#detail").textContent, /защищённому API ESPHome/);
+assert.equal(panel.$("#recovery-check").classList.values.has("hidden"), false);
+const retryCalls = [];
+const deviceId = "0123456789abcdef0123456789abcdef";
+const completed = {...failed, device_id: deviceId,
+  verification: {stage: "lite_check_added", verified: true, running: false}};
+panel.rpc = async (operation, extra) => {
+  retryCalls.push([operation, extra?.address]);
+  if (operation === "lite_verify") {
+    panel.$("#recovery-device").value = second.mac;
+    return {stage: "lite_check_connecting", running: true, verified: false};
+  }
+  if (operation === "lite_saved_wifi") return {ssid: null};
+  assert.equal(operation, "lite_installations");
+  return {devices: [completed, second]};
+};
+await panel.retryLiteInstallation();
+assert.deepEqual(retryCalls, [["lite_verify", address], ["lite_installations", undefined], ["lite_saved_wifi", undefined]]);
+assert.equal(panel.$("#status").textContent, "Нужна проверка результата");
+assert.equal(panel.$("#lite-device-link").href, undefined);
+panel.$("#recovery-device").value = address;
+panel.renderLiteInstallation();
+assert.equal(panel.$("#status").textContent, "Прибор добавлен в Home Assistant");
+assert.match(panel.$("#detail").textContent, /показания получены/);
+assert.equal(panel.$("#error").textContent, "");
+assert.equal(panel.$("#recovery-check").classList.values.has("hidden"), true);
+assert.equal(panel.$("#progress").classList.values.has("hidden"), true);
+assert.equal(panel.$("#lite-device-link").href, "/config/devices/device/" + deviceId);
 console.log("HA/browser transport selection, no-radio browser, safe text, owner session RPC and no replay passed");

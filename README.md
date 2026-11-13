@@ -176,11 +176,12 @@ slots in the public template and rebuilds the ESP32 checksum, SHA-256 and
 Qingping CRC. Each monitor gets its own name, Noise key, OTA password and
 fallback AP. Wi-Fi credentials and keys are never sent to GitHub.
 
-After transfer starts, the installer has up to two minutes to find the monitor,
+After the monitor confirms the transfer, the installer has up to two minutes to find it,
 authenticate ESPHome, match the device and firmware version, and read live CO₂,
-temperature and humidity. It then starts standard ESPHome enrollment. **Previous
-Lite installations** shows the result and the firmware history for each monitor.
-**Check again** can find the monitor at its current address and retry verification
+temperature and humidity. It then starts standard ESPHome enrollment. The
+**Installation result** card shows the result, the device link once registered,
+and the firmware history for each monitor. **Check again** in that card can
+find the monitor at its current address and retry verification
 after an HA restart without sending another image. Older history shows the data
 that was available in HA's installation records.
 

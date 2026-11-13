@@ -1,4 +1,5 @@
 """Lite recovery against HA storage and synthetic ESPHome API peers."""
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
@@ -104,3 +105,62 @@ class LiteRecoveryTests(unittest.IsolatedAsyncioTestCase):
         await self.manager._remember_verified_wifi(record)
         self.assertNotIn("remember_wifi", record)
         self.assertEqual(self.manager.saved_wifi("owner"), {"ssid": None})
+
+    async def test_only_confirmed_transfer_starts_automatic_readback_once(self):
+        from custom_components.qingping_esphome.errors import InstallerError
+        from custom_components.qingping_esphome.relay import Session
+
+        record, _ = self.record()
+        session = Session("fixture", "owner", MAC, "4.5.8", NAME, b"firmware", "fixture-key", "fixture-pass",
+                          peer=record["peer"], sent=True, sent_at=time.monotonic(), state="sending")
+        record["session_id"] = session.id
+        self.manager.relay.add(session)
+        request = SimpleNamespace(match_info={"session_id": session.id},
+                                  transport=SimpleNamespace(get_extra_info=lambda _: (session.peer, 1024)))
+        final = {"type": "24", "percent": 100, "error_code": 0}
+        with patch.object(self.manager, "_verify_installation", AsyncMock()) as verify:
+            await self.manager.relay.report(session, final)
+            self.assertFalse(self.manager.checks, "A report before the request cannot confirm this transfer")
+            await self.manager.download(request)
+            await self.manager.relay.report(session, {"type": "24", "percent": 99})
+            self.assertFalse(self.manager.checks, "A download request or partial progress cannot start the clock")
+            with self.assertRaisesRegex(InstallerError, "Wait for the firmware transfer"):
+                self.manager.retry_lite("owner", MAC)
+            self.assertTrue(self.manager.lite_installations("owner")["devices"][0]["transferring"])
+
+            # The transfer can outlast its own watchdog. A late confirmation
+            # still gives ESPHome the complete independent verification window.
+            session.sent_at -= 181
+            self.assertEqual((await self.manager.status(session.id, "owner"))["error_code"], "ota_timeout")
+            await self.manager.relay.report(session, final)
+            await self.manager.checks[MAC]
+            await self.manager.relay.report(session, final)
+            verify.assert_awaited_once_with(MAC, record, session)
+            self.assertTrue(record["transfer_confirmed"])
+
+    async def test_device_link_uses_the_matching_esphome_entry_and_mac(self):
+        from homeassistant.config_entries import ConfigEntry
+        from homeassistant.helpers import device_registry as dr
+        from types import MappingProxyType
+
+        record, _ = self.record()
+        record.update(outcome="native_verified", ha_enrollment="created")
+        registry = dr.DeviceRegistry(self.hass)
+        self.hass.data[dr.DATA_REGISTRY] = registry
+        await registry.async_load()
+        entries = {}
+        for domain in ("qingping", "esphome"):
+            entry = ConfigEntry(domain=domain, title=domain, unique_id=dr.format_mac(MAC),
+                                version=1, minor_version=1, data={"host": "192.168.50.8"}, options={},
+                                source="user", discovery_keys=MappingProxyType({}), subentries_data=[])
+            with patch.object(self.hass.config_entries, "async_setup", AsyncMock(return_value=True)):
+                await self.hass.config_entries.async_add(entry)
+            entries[domain] = entry
+        connection = (dr.CONNECTION_NETWORK_MAC, dr.format_mac(MAC))
+        registry.async_get_or_create(config_entry_id=entries["qingping"].entry_id, connections={connection})
+        self.assertNotIn("device_id", self.manager.lite_installations("owner")["devices"][0])
+        device = registry.async_get_or_create(config_entry_id=entries["esphome"].entry_id,
+                                              connections={connection}, name="Fixture monitor")
+        result = self.manager.lite_installations("owner")["devices"][0]
+        self.assertEqual((result["device_id"], result["label"]), (device.id, "Fixture monitor"))
+        self.assertEqual(await self.manager.enroll(SimpleNamespace(mac=MAC, peer="192.168.50.3")), "created")

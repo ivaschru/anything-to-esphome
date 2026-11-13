@@ -14,6 +14,7 @@ import asyncio
 from dataclasses import dataclass, field
 import hmac
 import json
+import math
 import secrets
 import time
 from typing import Awaitable, Callable
@@ -109,6 +110,7 @@ class Session:
     sent: bool = False
     sent_at: float = 0
     downloaded: bool = False
+    transfer_confirmed: bool = False
     state: str = "waiting_for_device"
     progress: int = 0
     error: str | None = None
@@ -138,6 +140,7 @@ class Session:
         return {"id": self.id, "mac": self.mac, "name": self.name,
                 "state": self.state, "progress": self.progress,
                 "sent": self.sent, "armed": self.armed, "downloaded": self.downloaded,
+                "transfer_confirmed": self.transfer_confirmed,
                 "transport": self.transport, "provisioning_started": self.provisioning_started,
                 "provisioned": self.provisioned,
                 "error_code": self.error,
@@ -145,9 +148,11 @@ class Session:
 
 
 class Relay:
-    def __init__(self, firmware_url: Callable[[Session], str], before_send: Callable[[Session], Awaitable[None]]):
+    def __init__(self, firmware_url: Callable[[Session], str], before_send: Callable[[Session], Awaitable[None]],
+                 on_transfer_confirmed: Callable[[Session], None] | None = None):
         self.sessions: dict[str, Session] = {}
         self.firmware_url, self.before_send = firmware_url, before_send
+        self.on_transfer_confirmed = on_transfer_confirmed
         self.server = None
         self.connections = set()
 
@@ -216,13 +221,21 @@ class Relay:
                 session.state = "identity_mismatch"; session.error = "mac_changed"
                 return
             session.mac_verified = True
-        if kind == "24" and session.sent:
+        if kind == "24" and session.sent and not session.transfer_confirmed:
             progress = data.get("percent")
-            if isinstance(progress, (int, float)): session.progress = max(0, min(100, int(progress)))
+            if type(progress) in (int, float) and 0 <= progress <= 100 and math.isfinite(progress):
+                session.progress = int(progress)
             if data.get("error_code") not in (None, 0, "0"):
                 session.error = "stock_ota_error"; session.state = "needs_review"
-            elif session.progress == 100 and session.state != "needs_review":
+            elif (progress == 100 and session.downloaded
+                  and session.error not in ("stock_ota_error", "outcome_unknown")):
+                # The authenticated stock peer has acknowledged the transfer.
+                # A GET alone cannot establish when the device can reboot.
+                session.transfer_confirmed = True
                 session.state = "waiting_for_esphome"
+                session.error = None
+                if self.on_transfer_confirmed:
+                    self.on_transfer_confirmed(session)
         if session.mac_verified and session.version_verified and not session.sent:
             session.state = "ready"
         if session.state != "identity_mismatch": await self.maybe_flash(session)

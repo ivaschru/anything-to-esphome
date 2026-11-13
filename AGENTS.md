@@ -1368,11 +1368,14 @@ separate even though the HACS wizard is shared.
   qualified. Run tests/test_ha_bluetooth.py with the real HA SDK plus that SDK's
   Bluetooth/USB manifest requirements, and node tests/test_ha_transport.mjs.
 - Lite starts a two-minute, read-only native verification after the stock peer
-  requests the image. Resolve only the exact generated name through HA mDNS,
+  reports 100% without a transfer error for a requested image. A download
+  request alone never starts the clock. Resolve the exact generated name through HA mDNS,
   with the stored LAN peer as fallback. Require Noise, exact MAC/name/profile/
   public version, and live CO₂, temperature and humidity before enrollment.
   The owner can retry from the durable installation record after restart. This
   path never arms or sends OTA. Keep failure reasons and history safe to show.
+  Render one result from the durable record after transfer. Link only a unique
+  HA registry device with the verified MAC under the matching ESPHome entry.
 - An administrator may opt in to saving one home Wi-Fi pair after authenticated
   connection. Reuse it server-side only via HA Bluetooth and allow forgetting
   it, including outstanding opt-ins. A fallback AP password is revealed only on

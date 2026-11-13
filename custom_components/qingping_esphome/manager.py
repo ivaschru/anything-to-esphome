@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from aiohttp import web
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 
 from .catalog import CATALOG, admission
@@ -32,6 +33,7 @@ from .lite_verification import PROJECTS, history_entry, verify_native
 DOMAIN = "qingping_esphome"
 TEMPLATE_ROOT = Path(__file__).parent / "firmware"
 AP_PREVIEW_SECONDS = 30 * 60
+TRANSFER_SECONDS = 180
 
 
 def _read_lite_template_metadata(root, profile, stock_version, hardware):
@@ -96,7 +98,7 @@ class Manager:
         self.updates = None
         self.adoption = None
         self.checks = {}
-        self.relay = Relay(self.firmware_url, self.consume_intent)
+        self.relay = Relay(self.firmware_url, self.consume_intent, self.transfer_confirmed)
         self.cleanup_task = None
         self.http_runner = None
         self.bluetooth = HABluetooth(hass)
@@ -114,7 +116,7 @@ class Manager:
         # Stock expects plain HTTP even when HA itself is served over HTTPS.
         # A dedicated LAN listener avoids weakening HA authentication or TLS.
         app = web.Application(client_max_size=1024)
-        app.router.add_get("/firmware/{session_id}.bin", self.download)
+        app.router.add_get("/firmware/{session_id}.bin", self.download, allow_head=False)
         self.http_runner = web.AppRunner(app, access_log=None)
         try:
             await self.http_runner.setup()
@@ -185,16 +187,18 @@ class Manager:
         peer = request.transport.get_extra_info("peername") if request.transport else None
         if not session or not session.sent or not session.image or not peer or peer[0] != session.peer:
             raise web.HTTPNotFound()
-        first_download = not session.downloaded
         session.downloaded = True
-        # Serving bytes is only a reason to begin read-only native checks.
-        # It is not a successful flash, nor dependent on a stock progress key.
-        record = self.records.get(session.mac)
-        if first_download and record and record.get("session_id") == session.id and not self._check_status(session.mac, record)["verified"]:
-            # Start the readback even if the browser has stopped polling.
-            self._start_check(session.mac, record, session)
         return web.Response(body=session.image, content_type="application/octet-stream",
                             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    def transfer_confirmed(self, session):
+        record = self.records.get(session.mac)
+        if (record and record.get("session_id") == session.id and record.get("owner") == session.owner
+                and record.get("outcome") != "native_verified"):
+            record["transfer_confirmed"] = True
+            # Start the two-minute readback from the stock completion report,
+            # independently of browser polling and repeated download requests.
+            self._start_check(session.mac, record, session)
 
     def get(self, session_id, owner):
         self.relay.expire()
@@ -441,6 +445,38 @@ class Manager:
                                else "lite_check_manual_add")
         return result
 
+    def _esphome_entries(self, mac):
+        for entry in self.hass.config_entries.async_entries("esphome"):
+            try:
+                if mac_normalize(entry.unique_id) == mac:
+                    yield entry
+            except (TypeError, ValueError, AttributeError):
+                continue
+
+    def _registered_device(self, mac):
+        # A MAC may also belong to a separate Bluetooth integration. Only
+        # resolve the ESPHome device under its matching ESPHome config entry.
+        entries = list(self._esphome_entries(mac))
+        if len(entries) != 1:
+            return {}
+        try:
+            registry = dr.async_get(self.hass)
+        except RuntimeError:
+            return {}
+        connection = (dr.CONNECTION_NETWORK_MAC, dr.format_mac(mac))
+        devices = [device for device in dr.async_entries_for_config_entry(registry, entries[0].entry_id)
+                   if connection in device.connections]
+        if len(devices) != 1:
+            return {}
+        device = devices[0]
+        return {"device_id": device.id, "label": device.name_by_user or device.name}
+
+    @staticmethod
+    def _expire_transfer(session):
+        if session and session.state == "sending" and time.monotonic() - session.sent_at >= TRANSFER_SECONDS:
+            session.state = "needs_review"
+            session.error = "ota_timeout"
+
     def lite_installations(self, owner):
         devices = []
         for mac, record in self.records.items():
@@ -449,23 +485,34 @@ class Manager:
                 continue
             values = record.get("personalization") or {}
             attempt = record.get("update_attempt")
+            session = self.relay.sessions.get(record.get("session_id"))
+            self._expire_transfer(session)
+            check = self._check_status(mac, record)
+            transferring = bool(session and session.state == "sending")
+            if not (check["verified"] or check["running"] or transferring or check.get("error")) and session and session.error:
+                check["error"] = session.error
             initial = {"at": record.get("at"), "from_version": record.get("source_stock_version"),
                        "public_version": record.get("install_version") or
                        (record.get("public_version") if not attempt else None),
-                       "state": ("verified" if record.get("outcome") == "native_verified" else "needs_review"),
-                       "error": (record.get("verification") or {}).get("error")}
+                       "state": ("verified" if check["verified"] else
+                                 "consumed" if check["running"] or transferring else "needs_review"),
+                       "error": check.get("error")}
             history = [initial, *(history_entry(item) for item in record.get("update_history", []))]
             if isinstance(attempt, dict):
                 history.append(history_entry(attempt))
             devices.append({"mac": mac, "name": record["name"], "ap_ssid": values.get("ap_ssid"),
                             "ap_available": bool(values.get("ap_password")),
-                            "verification": self._check_status(mac, record), "history": history[::-1]})
+                            "transferring": transferring, "progress": session.progress if session else 0,
+                            "transfer_confirmed": bool(record.get("transfer_confirmed")),
+                            "verification": check, "history": history[::-1],
+                            **(self._registered_device(mac) if check["verified"] else {})})
         return {"devices": devices}
 
     def _start_check(self, mac, record, session=None):
         running = self.checks.get(mac)
         if running and not running.done():
             return
+        record["verification"] = {"stage": "lite_check_connecting"}
         self.checks[mac] = asyncio.create_task(self._verify_installation(mac, record, session),
                                               name="qingping-native-verification")
 
@@ -478,14 +525,15 @@ class Manager:
         if type(record.get("public_version")) is not int or record["public_version"] < 1 or not record.get("noise_key"):
             raise InstallerError("lite_verification_unavailable")
         session = self.relay.sessions.get(record.get("session_id"))
+        self._expire_transfer(session)
+        if session and session.state == "sending":
+            raise InstallerError("lite_transfer_in_progress")
         self._start_check(mac, record, session)
         return self._check_status(mac, record)
 
     async def status(self, session_id, owner):
         session = self.get(session_id, owner)
-        if session.sent and session.state == "sending" and time.monotonic() - session.sent_at > 180:
-            session.state = "needs_review"
-            session.error = "ota_timeout"
+        self._expire_transfer(session)
         result = session.public()
         record = self.records.get(session.mac)
         if record and record.get("session_id") == session.id and record.get("owner") == owner:
@@ -547,13 +595,9 @@ class Manager:
             record.setdefault("verification", {})["error"] = "lite_verification_storage"
 
     async def enroll(self, session):
+        if any(self._esphome_entries(session.mac)):
+            return "created"
         existing = [e for e in self.hass.config_entries.async_entries("esphome") if e.data.get("host") == session.peer]
-        for entry in existing:
-            try:
-                if mac_normalize(entry.unique_id) == session.mac:
-                    return "created"
-            except (TypeError, ValueError, AttributeError):
-                continue
         if existing:
             return "existing_entry_check_required"
         flow = await self.hass.config_entries.flow.async_init("esphome", context={"source": "user"},
