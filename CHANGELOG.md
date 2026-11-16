@@ -1,3 +1,9 @@
+## 0.3.11 – Monitor 1 USB setup
+
+- Show how to enable ADB and connect a USB-C data cable on the first Air
+  Monitor 1 screen in English and Russian. If the USB picker is empty, the
+  wizard points back to those checks.
+
 ## 0.3.10 – Lite installation result
 
 - Give ESPHome two full minutes to start and report readings after the stock firmware confirms the transfer.
