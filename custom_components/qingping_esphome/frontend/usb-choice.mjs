@@ -11,13 +11,24 @@ class UsbChoice extends HTMLElement {
   connectedCallback() {
     if (this.root) return;
     this.root=this.attachShadow({mode:"open"});
+    // Both transports need ADB enabled on the monitor before they can list it.
+    // Use the same translated instructions as the detailed setup screen.
     this.root.innerHTML=`<style>
       :host{display:block;margin:22px 0}label{display:block;font-weight:600}select{display:block;min-height:46px;max-width:100%;margin:8px 0;padding:8px;border:1px solid var(--divider-color,#c8cfd6);border-radius:8px;font:inherit;background:var(--card-background-color,#fff);color:inherit}
       button{min-height:46px;padding:10px 18px;margin:8px 0;border:1px solid var(--primary-color,#087f8c);border-radius:8px;background:var(--primary-color,#087f8c);color:var(--text-primary-color,#fff);font:600 15px system-ui;cursor:pointer}button:disabled{opacity:.55;cursor:default}:focus-visible{outline:3px solid var(--primary-color,#087f8c);outline-offset:3px}
       button.secondary{background:var(--card-background-color,#fff);color:var(--primary-text-color,#18222c)}progress{display:block;width:100%;max-width:320px}progress[hidden]{display:none}
       p{margin:12px 0;font-size:14px}.muted{color:var(--secondary-text-color,#58616b)}#error{color:var(--error-color,#b42318)}dl{overflow-wrap:anywhere}dt{font-weight:600}dd{margin:0 0 8px}a{color:var(--primary-color,#087f8c)}
-      </style><label for="location" data-label="transport"></label>
-      <select id="location"><option value="browser" data-label="computer"></option><option value="ha" data-label="server"></option></select>
+      h3{margin:0 0 8px;font-size:1em}
+      ol{margin:0 0 18px;padding-inline-start:22px;font-size:14px;line-height:1.5}
+      li+li{margin-top:4px}
+      </style>
+      <h3 data-label="prepare"></h3>
+      <ol>
+        <li data-label="enable"></li>
+        <li data-label="cable"></li>
+      </ol>
+      <label for="location" data-label="transport"></label>
+      <select id="location" aria-describedby="help"><option value="browser" data-label="computer"></option><option value="ha" data-label="server"></option></select>
       <p id="help" class="muted"></p><p class="muted" data-label="boundary"></p>
       <button id="check" data-label="inspect"></button> <button id="capture" class="secondary" data-label="capture"></button>
       <button id="prepare" class="secondary" data-label="open_preparation"></button>

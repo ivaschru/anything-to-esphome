@@ -1278,6 +1278,10 @@ separate even though the HACS wizard is shared.
   place: never rebuild the form, repeat setup, disconnect BLE or restart a
   session when switching languages. Keep UI/backend error code coverage in
   `tests/test_i18n.mjs`; unknown errors must not expose arbitrary details.
+- On the first Air Monitor 1 screen, show how to enable `#adb=on#` on the
+  monitor and use a USB-C data cable before either connection option. Reuse
+  the detailed wizard's EN/RU USB labels and keep the empty picker hint
+  conditional because Chrome reports dismissal the same way.
 - `show_sidebar` is an integration option, default true. Changing it updates
   the existing HA panel in place and preserves Manager/broker/session state.
   Network option changes retain their normal reload behavior. Preserve all

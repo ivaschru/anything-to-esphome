@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {execFileSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import {MESSAGES, t, readLanguage, saveLanguage, LANGUAGE_KEY, errorKey, scanSummary} from "../custom_components/qingping_esphome/frontend/i18n.mjs";
+import {strings as usbLabels} from "../custom_components/qingping_esphome/frontend/usb-labels.mjs";
+import {strings as bundledUsbLabels} from "../custom_components/qingping_esphome/frontend/usb-probe-bundle.mjs";
 
 assert.deepEqual(Object.keys(MESSAGES.en).sort(), Object.keys(MESSAGES.ru).sort());
 for (const language of ["en", "ru"]) {
@@ -35,4 +37,14 @@ assert.equal(scanSummary("ru", 11), "Поиск завершён. Найдено
 assert.equal(scanSummary("ru", 21), "Поиск завершён. Найдено 21 устройство.");
 assert.equal(scanSummary("en", 1), "Search complete. Found 1 device.");
 assert.equal(scanSummary("en", 3), "Search complete. Found 3 devices.");
+
+// The first USB screen and the detailed wizard ship bundled strings. Each
+// language must retain the stock command verbatim and carry its own USB help.
+assert.deepEqual(Object.keys(usbLabels.en).sort(), Object.keys(usbLabels.ru).sort());
+assert.deepEqual(bundledUsbLabels, usbLabels);
+for (const key of ["prepare", "enable", "cable", "usb_selection_cancelled"]) {
+  assert.notEqual(usbLabels.en[key], usbLabels.ru[key]);
+}
+assert.match(usbLabels.en.enable, /#adb=on#/);
+assert.match(usbLabels.ru.enable, /#adb=on#/);
 console.log("Language defaults, storage, key parity and backend error translations passed");
