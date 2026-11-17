@@ -28,7 +28,7 @@ const channel='c'.repeat(32);
 {
  let selected=0,closed=0;const calls=[];
  const link={select:()=>{selected++;return Promise.resolve({kind:'browser_webusb'});},close:async()=>{closed++;}};
- const rpc=async(op)=>{calls.push(op);throw Error('synthetic lost registration ACK');};
+ const rpc=async(op)=>{calls.push(op);throw {code:'usb_interface_busy'};};
  const pending=openBrowserControl(link,rpc);assert.equal(selected,1);
  await assert.rejects(pending,e=>e.code==='usb_channel_unverified');
  assert.deepEqual(calls,['browser/open']);assert.equal(closed,1);

@@ -1299,7 +1299,13 @@ separate even though the HACS wizard is shared.
 - On the first Air Monitor 1 screen, show how to enable `#adb=on#` on the
   monitor and use a USB-C data cable before either connection option. Reuse
   the detailed wizard's EN/RU USB labels and keep the empty picker hint
-  conditional because Chrome reports dismissal the same way.
+  conditional because Chrome reports dismissal the same way. Translate Tango’s
+  typed WebUSB interface-claim failure into `usb_interface_busy` in the check,
+  capture and detailed browser wizard before channel registration. Put the
+  localized recovery instructions next to the action that failed. The browser
+  cannot name the process holding the interface. Mention local ADB and other
+  tabs conditionally, preserve unknown/cleanup outcomes, and never retry the
+  same selection. Test the delivered bundle’s actual adapter.
 - `show_sidebar` is an integration option, default true. Changing it updates
   the existing HA panel in place and preserves Manager/broker/session state.
   Network option changes retain their normal reload behavior. Preserve all

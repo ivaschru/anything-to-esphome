@@ -9,7 +9,7 @@ let language = "en", busy = embedded, probe, lastError, lastStatus, devices = []
 let pendingPreparation, preparationReady=false;
 let storedJobs=[];
 let buildState, buildTimer;
-let planState,browserScopeState,browserControl,browserLink,unloading=false;
+let planState,browserReviewMessage,browserControl,browserLink,unloading=false;
 let browserWizard,browserWizardMessage;const attemptedBrowserPhases=new Set();
 let installState,installReview,bootState;
 let installRunning=false,bootReading=false;
@@ -72,7 +72,7 @@ function renderBuild() {
     (["plan_prepared","browser_plan_prepared"].includes(planState.state) ? ` ${Math.ceil(planState.requested_data_free_bytes/1048576)} MiB` : "") : "";
   $("browser-review-controls").hidden=!browserPlanning() || planState?.state!=="browser_plan_prepared";
   $("browser-review").disabled=busy;
-  $("browser-review-result").textContent=browserScopeState ? text("browser_review_"+browserScopeState) : "";
+  $("browser-review-result").textContent=browserReviewMessage ? text(browserReviewMessage) : "";
   $("browser-wizard-controls").hidden=!browserPlanning() || planState?.state!=="browser_plan_prepared";
   const phase=browserWizard?.phase;
   $("browser-wizard-title").textContent=phase ? text("browser_step_"+phase) : text("browser_wizard_title");
@@ -88,10 +88,10 @@ function renderBuild() {
   $("browser-wizard-observe").disabled=busy;
   $("browser-wizard-full-review").hidden=phase!=="full-trial";
   $("browser-wizard-full-review").disabled=busy;
-  $("browser-wizard-result").textContent=browserWizardMessage ? text("browser_state_"+browserWizardMessage) : "";
-  $("browser-wizard-progress").hidden=!busy || !browserWizardMessage || browserWizardMessage!=="running";
+  $("browser-wizard-result").textContent=browserWizardMessage ? text(browserWizardMessage) : "";
+  $("browser-wizard-progress").hidden=!busy || !browserWizardMessage || browserWizardMessage!=="browser_state_running";
   $("browser-wizard-progress").setAttribute("aria-label", text("browser_state_running"));
-  $("browser-wizard-controls").setAttribute("aria-busy",String(busy && browserWizardMessage==="running"));
+  $("browser-wizard-controls").setAttribute("aria-busy",String(busy && browserWizardMessage==="browser_state_running"));
   const consumed=installState && installState.state!=="not_started";
   $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
   $("export-computer").disabled=busy || !pendingPreparation || !!consumed;
@@ -164,7 +164,7 @@ function renderBuild() {
   $("enrollment-progress").setAttribute("aria-label",text("enrollment_running"));
   $("enrollment-controls").setAttribute("aria-busy",String(enrollmentRunning));
 }
-function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;browserScopeState=undefined;browserWizard=browserWizardMessage=undefined;computerDownloaded=false;
+function resetBuild() {clearTimeout(buildTimer);buildTimer=undefined;buildState=undefined;planState=undefined;browserReviewMessage=undefined;browserWizard=browserWizardMessage=undefined;computerDownloaded=false;
   installState=installReview=bootState=fullReviewState=fullTrialState=fullActivationState=pmState=enrollmentState=undefined;
   $("browser-wizard-ack").checked=$("browser-wizard-screen").checked=false;
   $("install-ack").checked=$("full-trial-ack").checked=$("full-screen-ack").checked=$("full-activation-ack").checked=$("pm-ack").checked=$("enrollment-ack").checked=false;renderBuild();}
@@ -452,20 +452,21 @@ $("browser-review").onclick=async()=>{
   // The picker executes in this original click, before any network await.
   const link=createNativeChannel();browserLink=link;
   const selection=openBrowserControl(link,rpc);
-  busy=true;browserScopeState="running";controls();
+  busy=true;browserReviewMessage="browser_review_running";controls();
   try {
     browserControl=await selection;
     if(unloading) throw {code:"usb_channel_unverified"};
     await reviewBrowserPlan(rpc,pendingPreparation.id,planState.plan_sha256,browserControl.channel_id);
-    browserScopeState="verified";
-  } catch {browserScopeState="unverified";}
-  finally {
+    browserReviewMessage="browser_review_verified";
+  } catch (error) {
+    browserReviewMessage = !browserControl && error?.code === "usb_interface_busy" ? "usb_interface_busy" : "browser_review_unverified";
+  } finally {
     if(browserControl) {
-      try {if((await browserControl.close())?.state!=="closed") browserScopeState="unverified";}
-      catch {browserScopeState="unverified";}
+      try {if((await browserControl.close())?.state!=="closed") browserReviewMessage="browser_review_unverified";}
+      catch {browserReviewMessage="browser_review_unverified";}
       browserControl=undefined;
     }
-    try {await link.close();}catch {browserScopeState="unverified";}
+    try {await link.close();}catch {browserReviewMessage="browser_review_unverified";}
     if(browserLink===link) browserLink=undefined;
     busy=false;controls();
   }
@@ -476,8 +477,8 @@ async function checkBrowserWizard(manual=true) {
   if(manual){busy=true;controls();}
   try {
     browserWizard=await readBrowserWizard(rpc,id,planState.plan_sha256);
-    browserWizardMessage=browserWizard.phase==="complete" ? "complete" : browserWizard.can_start ? "ready" : "unverified";
-  }catch{browserWizard=undefined;browserWizardMessage="unverified";}
+    browserWizardMessage=browserWizard.phase==="complete" ? "browser_state_complete" : browserWizard.can_start ? "browser_state_ready" : "browser_state_unverified";
+  }catch{browserWizard=undefined;browserWizardMessage="browser_state_unverified";}
   finally{if(manual)busy=false;controls();}
 }
 $("browser-wizard-status").onclick=()=>checkBrowserWizard();
@@ -494,7 +495,8 @@ async function browserStep(readPhase) {
   const picker=["full-review","full-trial","full-activate","enroll"].includes(phase) ? openBrowserFullUiControl :
     phase==="stage" ? openBrowserControl : openBrowserReviewControl;
   const selection=picker(link,rpc);
-  busy=true;browserWizardMessage="running";controls();
+  busy=true;browserWizardMessage="browser_state_running";
+  lastError=null;$("error").textContent="";controls();
   let issued=false;
   try {
     browserControl=await selection;
@@ -503,19 +505,28 @@ async function browserStep(readPhase) {
     issued=true;
     const result=await startBrowserWizard(rpc,id,sha,browserControl.channel_id,phase,
       {reviewed:$("browser-wizard-ack").checked,screenReviewed:$("browser-wizard-screen").checked,trialProof:browserWizard.trial_proof_sha256});
-    browserWizardMessage=result.state;
+    browserWizardMessage="browser_state_"+result.state;
     // Read only AFTER the original operation has its terminal response. This
     // updates the next button, never starts it or replays a previous intent.
     if(!readPhase) {
       browserWizard=await readBrowserWizard(rpc,id,sha);
-      if(browserWizard.phase==="complete")browserWizardMessage="complete";
+      if(browserWizard.phase==="complete")browserWizardMessage="browser_state_complete";
     }
   }catch(error) {
     if(issued && !readPhase)browserWizard={...browserWizard,can_start:false};
-    browserWizardMessage="unverified";lastError=error.code || "usb_browser_scope_unverified";$("error").textContent=text(lastError);
+    const code = error?.code;
+    if (!issued && code === "usb_interface_busy") {
+      // Nothing has reached Core. Show the connection fix by the step and
+      // allow a new manual selection after the interface is available.
+      browserWizardMessage="usb_interface_busy";
+    } else {
+      browserWizardMessage="browser_state_unverified";
+      lastError=code && code !== "usb_interface_busy" ? code : "usb_browser_scope_unverified";
+      $("error").textContent=text(lastError);
+    }
   }finally {
-    if(browserControl){try{if((await browserControl.close())?.state!=="closed")browserWizardMessage="unverified";}catch{browserWizardMessage="unverified";}browserControl=undefined;}
-    try{await link.close();}catch{browserWizardMessage="unverified";}
+    if(browserControl){try{if((await browserControl.close())?.state!=="closed")browserWizardMessage="browser_state_unverified";}catch{browserWizardMessage="browser_state_unverified";}browserControl=undefined;}
+    try{await link.close();}catch{browserWizardMessage="browser_state_unverified";}
     if(browserLink===link)browserLink=undefined;
     $("browser-wizard-ack").checked=$("browser-wizard-screen").checked=false;
     busy=false;controls();
