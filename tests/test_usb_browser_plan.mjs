@@ -38,7 +38,7 @@ const builds=await import("../custom_components/qingping_esphome/frontend/usb-bu
 const nativePlans=await import("../custom_components/qingping_esphome/frontend/usb-plan.mjs");
 const browserPlans=await import("../custom_components/qingping_esphome/frontend/usb-browser-plan.mjs");
 const appSource=await readFile(new URL("../apps/monitor1_usb/rootfs/static/app.mjs",import.meta.url),"utf8");
-async function appFixture(lost=false,late=false) {
+async function appFixture(lost=false,late=false,unclaimed=false) {
   const elements=new Map(),requests=[],events=new Map();
   let releaseSelection,updateLanguage,closedLinks=0;
   function element(id) {
@@ -51,7 +51,10 @@ async function appFixture(lost=false,late=false) {
   let status=empty;
   const control={channel_id:"e".repeat(32),close:async()=>({state:"closed"})};
   const deps={embedded:true,watchCoreLanguage: callback => {updateLanguage = callback;},strings,createNativeChannel:()=>({close:async()=>{closedLinks++;}}),
-    openBrowserControl:()=>late ? new Promise(resolve=>{releaseSelection=()=>resolve(control);}) : Promise.resolve(control),...preparation,...builds,...nativePlans,...browserPlans,
+    openBrowserControl:()=>{
+      if(unclaimed) return Promise.reject({code:"usb_interface_busy"});
+      return late ? new Promise(resolve=>{releaseSelection=()=>resolve(control);}) : Promise.resolve(control);
+    },...preparation,...builds,...nativePlans,...browserPlans,
     coreFetch:async(operation,data)=>{
       requests.push([operation,data]);
       let result;
@@ -93,8 +96,13 @@ async function appFixture(lost=false,late=false) {
       releaseSelection();
     }
     await checking;
-    assert.equal(requests.filter(([op])=>op==="browser-review").length,late ? 0 : 1);
-    assert.ok(element("browser-review-result").textContent.includes(strings.en[late ? "browser_review_unverified" : "browser_review_verified"]));
+    assert.equal(requests.filter(([op])=>op==="browser-review").length,late || unclaimed ? 0 : 1);
+    const expected = unclaimed ? "usb_interface_busy" : late ? "browser_review_unverified" : "browser_review_verified";
+    assert.equal(element("browser-review-result").textContent,strings.en[expected]);
+    if (unclaimed) {
+      updateLanguage("ru");
+      assert.equal(element("browser-review-result").textContent,strings.ru.usb_interface_busy);
+    }
   }
   assert.ok(element("prepare-plan").disabled,"Consumed/unknown preparation is not repeatable");
   const before=requests.length;
@@ -107,4 +115,5 @@ async function appFixture(lost=false,late=false) {
 await appFixture();
 await appFixture(true);
 await appFixture(false,true);
+await appFixture(false,false,true);
 console.log("Actual shared wizard: browser job restore, detached plan, RU retention, lost ACK and no native writer passed");

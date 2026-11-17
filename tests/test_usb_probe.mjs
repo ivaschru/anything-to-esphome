@@ -110,7 +110,57 @@ for (const identity of [{version: "unknown"}, {co2_type: "1"}, {arch: "aarch64"}
   const probe = createProbe();
   assert.throws(() => probe.select(), {code: "webusb_unavailable"});
 }
-console.log("Browser USB: fixed source/identity reads, synchronous picker, no replay/writes, bounded/later cleanup passed");
+{
+  // Exercise the pinned Tango adapter in the shipped bundle. A failed USB
+  // claim takes place before any ADB authentication or device IO.
+  const alternate = {interfaceClass: 255, interfaceSubclass: 66, interfaceProtocol: 1};
+  const configuration = {configurationValue: 1, interfaces: [{
+    interfaceNumber: 0, claimed: false, alternates: [alternate],
+  }]};
+  const calls = [];
+  let errorName = "NetworkError";
+  const device = {
+    serialNumber: "fixture", configuration, configurations: [configuration],
+    opened: true,
+    async claimInterface(number) {
+      calls.push(number);
+      throw new DOMException("private host USB details", errorName);
+    },
+  };
+  const usb = {async requestDevice() {return device;}, dispatchEvent() {}};
+  const navigatorProperty = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const eventProperty = Object.getOwnPropertyDescriptor(globalThis, "USBConnectionEvent");
+  Object.defineProperty(globalThis, "navigator", {configurable: true, value: {usb}});
+  Object.defineProperty(globalThis, "USBConnectionEvent", {configurable: true, value: class {}});
+  try {
+    const {createProbe: createBundledProbe, createNativeChannel, openBrowserControl,
+      openBrowserReviewControl, openBrowserFullUiControl, strings} =
+      await import("../custom_components/qingping_esphome/frontend/usb-probe-bundle.mjs?busy-fixture");
+    await assert.rejects(createBundledProbe().select(), {code: "usb_interface_busy", message: "usb_interface_busy"});
+    await assert.rejects(createBundledProbe().capture(), {code: "usb_interface_busy"});
+    for (const open of [openBrowserControl, openBrowserReviewControl, openBrowserFullUiControl]) {
+      const rpc = () => assert.fail("A failed local claim must not register or poll a channel");
+      const link = createNativeChannel();
+      await assert.rejects(open(link, rpc), {code: "usb_interface_busy"});
+      assert.throws(() => link.select(), {code: "usb_selection_consumed"});
+    }
+    errorName = "NotFoundError";
+    await assert.rejects(createBundledProbe().select(), {code: "usb_probe_failed", message: "usb_probe_failed"});
+    assert.deepEqual(calls, [0, 0, 0, 0, 0, 0], "A single claim per explicit selection");
+    for (const lang of ["en", "ru"]) {
+      assert.match(strings[lang].usb_interface_busy, /adb kill-server/);
+      for (const code of ["usb_connect_timeout", "usb_auth_timeout", "usb_read_timeout"]) {
+        assert.ok(strings[lang][code]);
+      }
+    }
+  } finally {
+    if (navigatorProperty) Object.defineProperty(globalThis, "navigator", navigatorProperty);
+    else delete globalThis.navigator;
+    if (eventProperty) Object.defineProperty(globalThis, "USBConnectionEvent", eventProperty);
+    else delete globalThis.USBConnectionEvent;
+  }
+}
+console.log("Browser USB: fixed reads, original picker, claim diagnostics, no replay/writes and bounded cleanup passed");
 await import("./test_usb_capture.mjs");
 await import("./test_usb_preparation.mjs");
 await import("./test_usb_build.mjs");

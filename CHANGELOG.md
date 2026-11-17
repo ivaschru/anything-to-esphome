@@ -1,3 +1,11 @@
+## 0.3.13 – Monitor 1 USB diagnostics
+
+- Explain when the browser detects the monitor but cannot claim its USB interface.
+  The connection check, original-file capture and USB wizard show how to release
+  the interface if another tab or a local ADB server is using it.
+- Give USB connection, ADB authorization and USB read timeouts their own messages
+  in English and Russian.
+
 ## 0.3.12 – Responsive USB checks and installer language
 
 - Read and verify Monitor 1 USB package files in Home Assistant's executor so

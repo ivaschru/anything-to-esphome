@@ -104,7 +104,15 @@ export class BrowserUsbProbe {
       this.#deadline = Date.now() + (capture ? 240000 : 60000);
       const serial = scalar(device.serial, /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/);
       await this.#bounded(async () => {
-        const connection = await device.connect();
+        let connection;
+        try {
+          connection = await device.connect();
+        } catch (error) {
+          // Tango tags a failed claim separately from open and ADB auth.
+          // Report the fixed code without exposing host or USB error details.
+          if (this.#library.isInterfaceBusy?.(error)) refused("usb_interface_busy");
+          throw error;
+        }
         if (this.#closed) {
           void Promise.allSettled([connection.readable.cancel(), connection.writable.close()]);
           refused("usb_selection_consumed");

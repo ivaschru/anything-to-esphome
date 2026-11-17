@@ -1,7 +1,7 @@
 import {BrowserNativeChannel} from "../../custom_components/qingping_esphome/frontend/usb-native-channel.mjs";
 export {openBrowserControl,openBrowserReviewControl,openBrowserFullUiControl} from "../../custom_components/qingping_esphome/frontend/usb-browser-control.mjs";
 import {Adb, AdbDaemonTransport, AdbSyncSocket, adbSyncPushV1} from "@yume-chan/adb";
-import {AdbDaemonWebUsbDeviceManager} from "@yume-chan/adb-daemon-webusb";
+import {AdbDaemonWebUsbDevice, AdbDaemonWebUsbDeviceManager} from "@yume-chan/adb-daemon-webusb";
 import {BrowserUsbProbe} from "../../custom_components/qingping_esphome/frontend/usb-probe.mjs";
 import {contract} from "../../custom_components/qingping_esphome/frontend/usb-probe-contract.mjs";
 export {strings} from "../../custom_components/qingping_esphome/frontend/usb-labels.mjs";
@@ -33,10 +33,14 @@ function ephemeralCredentials() {
   };
 }
 
+// The pinned adapter emits this class only when WebUSB cannot claim the ADB interface.
+const isInterfaceBusy = error => error instanceof AdbDaemonWebUsbDevice.DeviceBusyError;
+
 /** Imported before enabling the button so WebUSB stays in its click gesture. */
 export function createProbe() {
   return new BrowserUsbProbe({
     manager: AdbDaemonWebUsbDeviceManager.BROWSER,
+    isInterfaceBusy,
     authenticate: options => AdbDaemonTransport.authenticate(options),
     createClient: transport => new Adb(transport),
     ephemeralCredentials,
@@ -47,6 +51,7 @@ export function createProbe() {
 export function createNativeChannel() {
   return new BrowserNativeChannel({
     manager:AdbDaemonWebUsbDeviceManager.BROWSER,
+    isInterfaceBusy,
     authenticate:options=>AdbDaemonTransport.authenticate(options),
     createClient:transport=>new Adb(transport),ephemeralCredentials,
     createSyncSocket:socket=>new AdbSyncSocket(socket,65536),pushV1:adbSyncPushV1,

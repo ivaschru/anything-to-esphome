@@ -19,15 +19,23 @@ export function openBrowserReviewControl(link,rpc) {return openControl(link,rpc,
 export function openBrowserFullUiControl(link,rpc) {return openControl(link,rpc,'full-ui');}
 
 async function openControl(link,rpc,purpose) {
-  let registration;
+  let registration, registrationStarted = false;
   const peer=new BrowserChannelPeer(link,{purpose:purpose==='full-ui'?'full-ui':'standard'});
   try {
     const evidence=await (purpose==='full-ui'?link.selectForFullUiReview():purpose==='review'?link.selectForReview():link.select());
+    registrationStarted = true;
     registration=await rpc('browser/open',purpose==='full-ui'?{evidence,purpose:'full-ui'}:{evidence});
     if(!registration || Object.keys(registration).sort().join()!==['channel_id','state','writer_enabled'].sort().join() ||
        typeof registration.channel_id!=='string' || !/^[a-f0-9]{32}$/.test(registration.channel_id) ||
        registration.state!=='registered' || registration.writer_enabled!==false) throw Error();
-  } catch {await peer.close().catch(()=>{});throw {code:'usb_channel_unverified'};}
+  } catch (failure) {
+    await peer.close().catch(()=>{});
+    // Preserve the local claim diagnostic only before the browser registers
+    // a channel. An uncertain Home Assistant response is a separate outcome.
+    const code = !registrationStarted && failure?.code === 'usb_interface_busy'
+      ? 'usb_interface_busy' : 'usb_channel_unverified';
+    throw {code};
+  }
   const identity=registration.channel_id,tasks=new Set();
   let closed=false,stopping=false,failed=false,retiring;
   function retire() {

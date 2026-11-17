@@ -24,7 +24,7 @@ assert.equal(issued,1,'No request without both separate confirmations');
 for(const lang of ['en','ru'])for(const phase of phases){assert.ok(strings[lang]['browser_step_'+phase]);assert.ok(strings[lang]['browser_help_'+phase]);}
 const source=(await readFile(new URL('../apps/monitor1_usb/rootfs/static/app.mjs',import.meta.url),'utf8'))
  .replace(/import\s*\{([\s\S]*?)\}\s*from\s*"[^"]+";/g,(_,names)=>`const {${names}}=deps;`);
-async function fixture(lost=false) {
+async function fixture(lost=false,unclaimed=false) {
  const nodes=new Map(),calls=[],events=new Map();let index=0,pickers=0,updateLanguage;
  function element(id){if(!nodes.has(id))nodes.set(id,{value:id==='transport'?'browser':'',checked:false,disabled:false,hidden:false,
  textContent:'',dataset:{},style:{},setAttribute(){},removeAttribute(){},replaceChildren(){},append(){}});return nodes.get(id);}
@@ -33,7 +33,11 @@ async function fixture(lost=false) {
  const plan={job_id:id,state:'browser_plan_prepared',plan_id:'a'.repeat(32),plan_sha256:sha,requested_data_free_bytes:16000000,
  transport_kind:'browser_webusb',native_get_devpath:false,hardware_contacted:false,device_writes:0,installed:false,
  installation_ready:false,writer_enabled:false,live_recheck_required:true};
- const select=()=>{pickers++;calls.push(['picker']);return Promise.resolve({channel_id:channel,close:async()=>({state:'closed'})});};
+ const select=()=>{
+  pickers++;calls.push(['picker']);
+  if(unclaimed && pickers===1)return Promise.reject({code:'usb_interface_busy'});
+  return Promise.resolve({channel_id:channel,close:async()=>({state:'closed'})});
+ };
  const deps={embedded:true,watchCoreLanguage: callback => {updateLanguage = callback;},strings,...preparation,...builds,...plans,...workflow,
  createNativeChannel:()=>({close:async()=>{}}),openBrowserControl:select,openBrowserReviewControl:select,openBrowserFullUiControl:select,
  coreFetch:async(op,data)=>{
@@ -59,6 +63,16 @@ async function fixture(lost=false) {
  setTimeout,clearTimeout,AbortSignal,Response,crypto:globalThis.crypto,console},{filename:'actual-browser-wizard.mjs'});
  await new Promise(resolve=>setImmediate(resolve));element('saved-job').value=id;await element('saved-job').onchange();
  assert.equal(element('browser-wizard-controls').hidden,false);assert.equal(element('install-controls').hidden,true,'No native USB authority is inferred');
+ if(unclaimed) {
+  element('browser-wizard-ack').checked=true;
+  await element('browser-wizard-start').onclick();
+  assert.equal(element('browser-wizard-result').textContent,strings.en.usb_interface_busy);
+  updateLanguage('ru');
+  assert.equal(element('browser-wizard-result').textContent,strings.ru.usb_interface_busy);
+  assert.equal(element('error').textContent,'','Use the result beside the failed action');
+  assert.equal(calls.filter(([op])=>op==='browser-wizard-stage').length,0);
+  assert.equal(pickers,1,'No automatic second selection');
+ }
  for(const phase of phases.filter(p=>p!=='complete')){
   element('browser-wizard-ack').checked=true;
   if(phase==='full-activate'){
@@ -82,5 +96,5 @@ async function fixture(lost=false) {
  assert.equal(element('browser-wizard-result').textContent,strings.ru.browser_state_complete);
  assert.equal(calls.filter(([op])=>/^browser-wizard-(?!status)/.test(op)).length,8);
 }
-await fixture();await fixture(true);
+await fixture();await fixture(true);await fixture(false,true);
 console.log('Browser wizard: actual eight-step DOM, original picker, two human confirmations, language retention and no lost-response replay passed');

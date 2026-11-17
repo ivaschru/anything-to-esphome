@@ -115,9 +115,11 @@ export class BrowserNativeChannel {
         if(JSON.stringify(await this.#identity())!==JSON.stringify(this.#scope)) error('usb_selection_changed');
       } else await this.checkInitialScope();
       return this.evidence();
-    } catch {
+    } catch (failure) {
       await this.close();
-      error('usb_channel_unverified');
+      // Only the local adapter can diagnose a failed claim. Auth, identity
+      // and cleanup failures still refuse the channel without this hint.
+      error(this.#library.isInterfaceBusy?.(failure) ? 'usb_interface_busy' : 'usb_channel_unverified');
     }
   }
 
