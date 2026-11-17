@@ -1,10 +1,21 @@
 ## 0.3.13 – Monitor 1 USB diagnostics
 
+### English
+
 - Explain when the browser detects the monitor but cannot claim its USB interface.
   The connection check, original-file capture and USB wizard show how to release
   the interface if another tab or a local ADB server is using it.
 - Give USB connection, ADB authorization and USB read timeouts their own messages
   in English and Russian.
+
+### Русский
+
+- Проверка подключения, сохранение исходных файлов и USB-мастер показывают
+  отдельное сообщение, если браузер видит монитор, но не может открыть его
+  USB-интерфейс. Подсказка объясняет, как освободить интерфейс, если его
+  использует другая вкладка или локальный сервер ADB.
+- У тайм-аутов открытия USB, авторизации ADB и чтения данных теперь отдельные
+  сообщения на английском и русском.
 
 ## 0.3.12 – Responsive USB checks and installer language
 

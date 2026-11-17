@@ -1456,8 +1456,12 @@ separate even though the HACS wizard is shared.
   Keep hide_default_branch=true: zip_release cannot install a source branch
   without its own release asset. Hyphenated beta/rc tags remain prereleases;
   numeric stable tags must not inherit an unconditional --prerelease flag.
-  Use only the body of the exact tag's section of CHANGELOG.md as release
-  notes. Marketplace shows the GitHub release body in its update dialog.
+  Write the notes for each new release in English and Russian in one
+  CHANGELOG.md entry, with `### English` followed by `### Русский`.
+  Marketplace shows the GitHub release body in its update dialog, so include
+  both sections in that body. For a new tag, extract the notes from its own
+  CHANGELOG.md. When adding a translation to an existing release, update the
+  matching entry on main and the GitHub release description.
   Keep the Marketplace icon at `brand/icon.png` (256 px) and
   `brand/icon@2x.png` (512 px) inside the integration and at the same paths
   relative to the release ZIP root. The HACS action checks those files; keep
