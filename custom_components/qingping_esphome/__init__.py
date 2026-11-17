@@ -88,7 +88,8 @@ async def _async_setup_loaded_entry(hass, entry, manager):
             lambda: json.loads((component_path / "manifest.json").read_text())["version"])
         # The service worker can retain an old panel at the unversioned URL.
         # Version the directory so the module and its relative imports refresh
-        # together. Keep the existing static URL for the embedded USB wizard.
+        # together, including the embedded USB wizard. Keep the existing
+        # unversioned static URL for older clients.
         frontend_path = str(component_path / "frontend")
         await hass.http.async_register_static_paths([
             StaticPathConfig(legacy_static, frontend_path, cache_headers=False),

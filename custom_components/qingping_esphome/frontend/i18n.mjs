@@ -318,7 +318,10 @@ export const MESSAGES = {
 };
 export const LANGUAGE_KEY = "qingping-esphome-language";
 export const normalizeLanguage = value => value === "ru" ? "ru" : "en";
-export const t = (language, key) => (Object.hasOwn(MESSAGES.en, key) ? MESSAGES[normalizeLanguage(language)][key] : MESSAGES.en.operation_failed);
+export const t = (language, key) => {
+  const messages = MESSAGES[normalizeLanguage(language)];
+  return Object.hasOwn(messages, key) ? messages[key] : messages.operation_failed;
+};
 export function scanSummary(language, count) {
   const locale = normalizeLanguage(language);
   const plural = new Intl.PluralRules(locale).select(count);

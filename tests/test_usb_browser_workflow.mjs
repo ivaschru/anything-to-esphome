@@ -25,7 +25,7 @@ for(const lang of ['en','ru'])for(const phase of phases){assert.ok(strings[lang]
 const source=(await readFile(new URL('../apps/monitor1_usb/rootfs/static/app.mjs',import.meta.url),'utf8'))
  .replace(/import\s*\{([\s\S]*?)\}\s*from\s*"[^"]+";/g,(_,names)=>`const {${names}}=deps;`);
 async function fixture(lost=false) {
- const nodes=new Map(),calls=[],events=new Map();let index=0,pickers=0;
+ const nodes=new Map(),calls=[],events=new Map();let index=0,pickers=0,updateLanguage;
  function element(id){if(!nodes.has(id))nodes.set(id,{value:id==='transport'?'browser':'',checked:false,disabled:false,hidden:false,
  textContent:'',dataset:{},style:{},setAttribute(){},removeAttribute(){},replaceChildren(){},append(){}});return nodes.get(id);}
  const job={job_id:id,stage:'profile_prepared',model:'CGS1',co2_type:2,transport:'browser_usb',node_name:'fixture-cgs1',friendly_name:'Synthetic monitor',
@@ -34,7 +34,7 @@ async function fixture(lost=false) {
  transport_kind:'browser_webusb',native_get_devpath:false,hardware_contacted:false,device_writes:0,installed:false,
  installation_ready:false,writer_enabled:false,live_recheck_required:true};
  const select=()=>{pickers++;calls.push(['picker']);return Promise.resolve({channel_id:channel,close:async()=>({state:'closed'})});};
- const deps={embedded:true,strings,...preparation,...builds,...plans,...workflow,
+ const deps={embedded:true,watchCoreLanguage: callback => {updateLanguage = callback;},strings,...preparation,...builds,...plans,...workflow,
  createNativeChannel:()=>({close:async()=>{}}),openBrowserControl:select,openBrowserReviewControl:select,openBrowserFullUiControl:select,
  coreFetch:async(op,data)=>{
   calls.push([op,data]);let r;
@@ -64,7 +64,9 @@ async function fixture(lost=false) {
   if(phase==='full-activate'){
    const before=pickers;await element('browser-wizard-start').onclick();assert.equal(pickers,before);
    element('browser-wizard-screen').checked=true;
-   const count=calls.length;element('language').value='ru';element('language').onchange();
+   const count=calls.length;updateLanguage('ru');
+   assert.equal(element('language-picker').hidden,true);
+   assert.equal(element('browser-wizard-title').textContent,strings.ru['browser_step_full-activate']);
    assert.equal(element('browser-wizard-screen').checked,true);assert.equal(element('browser-wizard-ack').checked,true);assert.equal(calls.length,count);
   }
   await element('browser-wizard-start').onclick();

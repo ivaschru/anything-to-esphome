@@ -1,3 +1,5 @@
+import {normalizeLanguage} from "./i18n.mjs";
+
 /** Embed the shared offline wizard inside the authenticated HACS panel.
  * Same-origin srcdoc keeps WebUSB's original click and standard downloads.
  * The parent retains HA authentication; no bearer token/session URL is passed
@@ -10,14 +12,22 @@ export async function openCoreWizard(container,hass,language="en") {
   if(!page.ok) throw {code:"usb_core_unavailable"};
   const {nonce}=await page.json();
   if(!/^[a-f0-9]{64}$/.test(nonce)) throw {code:"usb_core_unverified"};
-  const template=await fetch("/api/qingping_esphome/static/monitor1/index.html",{credentials:"same-origin"});
+  // Resolve the HTML and its modules under the parent panel release so an
+  // older cached Core bridge cannot be paired with a newer child script.
+  const assets = new URL("./monitor1/", import.meta.url);
+  const template=await fetch(new URL("index.html", assets).pathname,{credentials:"same-origin"});
   if(!template.ok) throw {code:"usb_core_unavailable"};
   const html=await template.text();
   const channel=crypto.randomUUID(),frame=document.createElement("iframe");
-  frame.title=language==="ru" ? "Установка Qingping Monitor 1" : "Qingping Monitor 1 installation";
+  let closed=false,busy=false,frameRequests=0;
+  let locale = normalizeLanguage(language);
+  const setLanguage = value => {
+    locale = normalizeLanguage(value);
+    frame.title = locale === "ru" ? "Установка Qingping Monitor 1" : "Qingping Monitor 1 installation";
+    if (!closed) frame.contentWindow?.postMessage({kind:"qingping-core-language", channel, language:locale}, location.origin);
+  };
   frame.setAttribute("allow","usb");
   frame.style.cssText="width:100%;height:1100px;border:0;display:block;background:var(--card-background-color,#fff)";
-  let closed=false,busy=false,frameRequests=0;
   const seen=new Set(),frameSeen=new Set();let frameLimit=4096;
   const listener=async event=>{
     const data=event.data;
@@ -61,7 +71,18 @@ export async function openCoreWizard(container,hass,language="en") {
     finally {if(frameIO) frameRequests--;else busy=false;}
   };
   window.addEventListener("message",listener);
-  frame.srcdoc=html.replace("__PAGE_NONCE__",nonce).replace("<head>",`<head><base href="/api/qingping_esphome/static/monitor1/"><meta name="qingping-core-channel" content="${channel}">`);
+  // Seed the first render before the child's modules run. Reapply the latest
+  // selection once it loads in case the parent changed during that interval.
+  frame.srcdoc = html.replace('<html lang="en">', `<html lang="${locale}">`)
+    .replace("__PAGE_NONCE__", nonce)
+    .replace("<head>", `<head><base href="${assets.pathname}"><meta name="qingping-core-channel" content="${channel}">`);
+  frame.onload = () => setLanguage(locale);
   container.replaceChildren(frame);
-  return ()=>{closed=true;window.removeEventListener("message",listener);frame.remove();};
+  setLanguage(locale);
+  return {setLanguage, close() {
+    closed=true;
+    frame.onload=null;
+    window.removeEventListener("message",listener);
+    frame.remove();
+  }};
 }

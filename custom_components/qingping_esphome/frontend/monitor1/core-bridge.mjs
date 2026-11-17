@@ -8,10 +8,18 @@ const channel=document.querySelector('meta[name="qingping-core-channel"]')?.cont
 // that real document origin instead of weakening postMessage to "*".
 const origin=new URL(document.baseURI).origin;
 const pending=new Map();
+let onLanguageChange;
+export function watchCoreLanguage(callback) {onLanguageChange = callback;}
 if (channel) window.addEventListener("message",event=>{
   const data=event.data;
-  if(event.source!==window.parent || event.origin!==origin || data?.channel!==channel
-      || data.kind!=="qingping-core-response" || !pending.has(data.id)) return;
+  if(event.source!==window.parent || event.origin!==origin || data?.channel!==channel) return;
+  // Locale messages share the frame's origin and channel checks. They never
+  // forward a request, consume an ID or change the USB session.
+  if (data.kind === "qingping-core-language") {
+    if (data.language === "en" || data.language === "ru") onLanguageChange?.(data.language);
+    return;
+  }
+  if (data.kind !== "qingping-core-response" || !pending.has(data.id)) return;
   const callback=pending.get(data.id);pending.delete(data.id);
   callback(data);
 });

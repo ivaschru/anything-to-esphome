@@ -518,7 +518,7 @@ class QingpingPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-i18n-aria]").forEach(node => {
       node.setAttribute("aria-label", this.t(node.dataset.i18nAria));
     });
-    this.$("#sonoff").lang = this.language;
+    this.$("#sonoff").setLanguage(this.language);
     this.$("#sonoff").hass = this.hass;
     this.$("#brands").setAttribute("aria-label", this.language === "ru" ? "Бренд устройства" : "Device brand");
     this.updatePasswordLabel(); this.updateModelText();
@@ -545,7 +545,7 @@ class QingpingPanel extends HTMLElement {
     this.$("#unsupported-title").textContent = this.t(model + "_title");
     this.$("#unsupported-text").textContent = this.t(model + "_info");
     this.$("#usb-choice").classList.toggle("hidden", this.model !== "monitor1");
-    this.$("#usb-choice").lang = this.language;
+    this.$("#usb-choice").setLanguage(this.language);
     this.$("#usb-choice").hass = this.hass;
   }
 

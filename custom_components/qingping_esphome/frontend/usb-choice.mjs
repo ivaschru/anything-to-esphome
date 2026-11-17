@@ -1,12 +1,22 @@
 import {createProbe, strings, downloadCapture} from "./usb-probe-bundle.mjs";
 import {openCoreWizard} from "./monitor1-core.mjs";
+import {normalizeLanguage} from "./i18n.mjs";
 
 /** The main HACS panel's real first USB step. Computer mode needs no app;
  * server mode opens the exact installed companion through native HA ingress.
  * This component grants no setup/write/trial/activation permission.
  */
 class UsbChoice extends HTMLElement {
-  static get observedAttributes() {return ["lang"];}
+  language = "en";
+
+  setLanguage(language) {
+    this.language = normalizeLanguage(language);
+    // HA can reflect the lang property without running a custom-element
+    // callback. Apply the panel's locale directly to the existing controls.
+    this.setAttribute("lang", this.language);
+    if (this.root) this.renderLanguage();
+    this.wizard?.setLanguage(this.language);
+  }
   set hass(value) {this._hass=value;}
   connectedCallback() {
     if (this.root) return;
@@ -37,18 +47,24 @@ class UsbChoice extends HTMLElement {
       <a href="https://github.com/ivaschru/qingping-esphome/tree/main/apps/monitor1_usb" target="_blank" rel="noreferrer" data-label="docs"></a>`;
     this.$=id=>this.root.getElementById(id);
     this.$("location").value=navigator.usb && window.isSecureContext ? "browser" : "ha";
-    this.$("location").onchange=()=>{if (!this.busy){this.clear();this.translate();}};
+    this.$("location").onchange=()=>{if (!this.busy){this.clear();this.renderLanguage();}};
     this.$("check").onclick=()=>this.inspect();
     this.$("capture").onclick=()=>this.inspect(true);
     this.$("prepare").onclick=()=>this.openPreparation();
-    this.translate();
+    this.renderLanguage();
   }
-  disconnectedCallback() {this.closeWizard?.();void this.probe?.close().catch(()=>{});}
-  attributeChangedCallback() {if (this.root) this.translate();}
-  text(key) {return (strings[this.lang === "ru" ? "ru" : "en"])[key] || strings.en.failed;}
+  disconnectedCallback() {
+    this.wizard?.close();
+    this.wizard = undefined;
+    void this.probe?.close().catch(()=>{});
+  }
+  text(key) {
+    const messages = strings[this.language];
+    return Object.hasOwn(messages, key) ? messages[key] : messages.failed;
+  }
   clear() {this.$("identity").replaceChildren();this.$("status").textContent=this.$("error").textContent="";this.status=this.error=null;
     this.completed=undefined;this.$("progress").hidden=true;this.$("progress").removeAttribute("value");}
-  translate() {
+  renderLanguage() {
     this.root.querySelectorAll("[data-label]").forEach(node=>{node.textContent=this.text(node.dataset.label);});
     this.$("help").textContent=this.text(this.$("location").value === "ha" ? "ha_help" : "browser_help");
     this.$("check").textContent=this.text(this.$("location").value === "ha" ? "open_companion" : "inspect");
@@ -86,12 +102,20 @@ class UsbChoice extends HTMLElement {
       this.$("location").disabled=this.$("check").disabled=this.$("capture").disabled=this.$("prepare").disabled=false;}
   }
   async openCompanion() {
-    if(this.closeWizard) return;
-    const container=document.createElement("section");
-    container.setAttribute("aria-label",this.lang === "ru" ? "Мастер Monitor 1" : "Monitor 1 wizard");
+    if (this.wizard) return;
+    const container = document.createElement("section");
     this.root.append(container);
-    try {this.closeWizard=await openCoreWizard(container,this._hass,this.lang);}
-    catch(error) {container.remove();throw error;}
+    try {
+      const wizard = await openCoreWizard(container, this._hass, this.language);
+      if (!this.isConnected) {
+        wizard.close();
+        container.remove();
+        return;
+      }
+      this.wizard = wizard;
+      // The parent may have changed languages during the awaited page load.
+      wizard.setLanguage(this.language);
+    } catch (error) {container.remove();throw error;}
   }
   async openPreparation() {
     if (this.busy) return;

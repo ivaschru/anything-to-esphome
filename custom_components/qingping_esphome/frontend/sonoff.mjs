@@ -10,6 +10,7 @@ const TEXT = {
     devices: "Device", empty: "No supported owned plugs found. Add the plug to eWeLink, then sign in below.",
     source: "Existing Sonoff integration", cloud: "eWeLink account", account: "Sign into eWeLink", accountHelp: "Needed when HA has no compatible authenticated Sonoff session. The plug must already belong to this account.",
     username: "Email or phone", password: "Password", region: "Account region", country: "Phone country code", login: "Sign in and load plugs",
+    regionEurope: "Europe", regionAmerica: "America", regionAsia: "Asia", regionChina: "China",
     manual: "Not found? Enter an IP address", address: "Plug LAN IPv4", check: "Check selected plug",
     checking: "Checking account ownership, factory version and a fresh encrypted LAN reply…", ready: "Identity verified. Review the connected load before installation.",
     load: "The connected appliance may lose power and the relay will be tested. I allow this interruption.",
@@ -39,6 +40,7 @@ const TEXT = {
     devices: "Устройство", empty: "Поддерживаемые розетки не найдены. Добавьте розетку в eWeLink и войдите в аккаунт ниже.",
     source: "Настроенная интеграция Sonoff", cloud: "Аккаунт eWeLink", account: "Войти в eWeLink", accountHelp: "Нужно, если в HA нет совместимой авторизованной Sonoff-сессии. Розетка уже должна быть добавлена в этот аккаунт.",
     username: "Почта или телефон", password: "Пароль", region: "Регион аккаунта", country: "Телефонный код страны", login: "Войти и загрузить розетки",
+    regionEurope: "Европа", regionAmerica: "Америка", regionAsia: "Азия", regionChina: "Китай",
     manual: "Не найдена? Указать IP", address: "Локальный IPv4 розетки", check: "Проверить выбранную розетку",
     checking: "Проверяем владельца, заводскую версию и свежий зашифрованный ответ по LAN…", ready: "Устройство проверено. Перед установкой проверьте подключённый потребитель.",
     load: "Питание подключённого прибора может прерываться, реле будет проверяться. Разрешаю этот перерыв.",
@@ -54,17 +56,20 @@ const TEXT = {
     identity: "Устройство, модель или заводская версия изменились. Выберите розетку заново.",
     expired: "Выбор устройства истёк. Повторите поиск и выбор розетки.",
     template: "Нет подходящего шаблона S60TPF. Установите полный ZIP релиза.",
-    enrolling: "Подключение в HA", existing_entry_check_required: "Нужно проверить существующий ESPHome entry", created: "Добавлено в ESPHome",
-    manual_flow_required: "Добавьте проверенную розетку через интеграцию ESPHome", existing_or_pending_flow: "ESPHome entry или настройка уже существует",
+    enrolling: "Подключение в HA", existing_entry_check_required: "Нужно проверить существующую запись ESPHome", created: "Добавлено в ESPHome",
+    manual_flow_required: "Добавьте проверенную розетку через интеграцию ESPHome", existing_or_pending_flow: "Запись ESPHome или процесс настройки уже существует",
     history: "История установок", historyChoose: "Выберите установку", more: "Загрузить более ранние установки",
     diagnostics: "Скачать диагностику", recover: "Проверить установленный ESPHome", recoveryHelp: "Читает уже установленную прошивку по защищённому API. Не прошивает повторно, не переключает реле и Bluetooth. Если DHCP сменил адрес, укажите текущий локальный IP.",
     recoveryHost: "Текущий локальный IP (необязательно)", recovering: "Проверяем исходный ключ, устройство и свежие измерения…",
-    app_verified: "Установленная прошивка проверена, исходный worker завершён.", app_unavailable: "Не удалось проверить прошивку. Сохраните бэкап и проверьте питание и сеть перед следующей проверкой.",
-    writer_unconfirmed: "Прошивка отвечает, но завершение исходного worker не подтверждено. Попытка остаётся заблокированной, конверсия не повторялась.",
+    app_verified: "Установленная прошивка проверена, исходный процесс установки завершён.", app_unavailable: "Не удалось проверить прошивку. Сохраните бэкап и проверьте питание и сеть перед следующей проверкой.",
+    writer_unconfirmed: "Прошивка отвечает, но завершение процесса установки не подтверждено. Попытка остаётся заблокированной, конверсия не повторялась.",
   },
 };
 
-export const sonoffText = (lang, key) => TEXT[lang === "ru" ? "ru" : "en"][key] || TEXT.en.generic;
+export const sonoffText = (lang, key) => {
+  const messages = TEXT[lang === "ru" ? "ru" : "en"];
+  return Object.hasOwn(messages, key) ? messages[key] : messages.generic;
+};
 const ERROR_KEYS = {
   sonoff_auth_required: "auth", sonoff_auth_failed: "auth", sonoff_busy: "busy",
   sonoff_unavailable: "unavailable", sonoff_unsupported: "identity", sonoff_identity_changed: "identity",
@@ -72,7 +77,15 @@ const ERROR_KEYS = {
 };
 
 class SonoffInstaller extends HTMLElement {
-  static get observedAttributes() { return ["lang"]; }
+  language = "en";
+
+  setLanguage(language) {
+    this.language = language === "ru" ? "ru" : "en";
+    // Render explicitly, including in HA hosts that do not notify the child
+    // when a reflected HTML language property changes.
+    this.setAttribute("lang", this.language);
+    if (this.initialized) this.translate();
+  }
   set hass(value) { this._hass = value; if (this.isConnected && !this.initialized) this.initialize(); }
   get hass() { return this._hass; }
   get busy() { return this.pending || this.jobs?.some(job => ["running", "verifying"].includes(job.state)
@@ -82,8 +95,7 @@ class SonoffInstaller extends HTMLElement {
     else if (this.initialized && this.job) this.poll();
   }
   disconnectedCallback() { clearTimeout(this.timer); }
-  attributeChangedCallback() { if (this.initialized) this.translate(); }
-  t(key) { return sonoffText(this.lang, key); }
+  t(key) { return sonoffText(this.language, key); }
   rpc(operation, data = {}) { return this.hass.callWS({type: "qingping_esphome/command", operation, data}); }
   $(selector) { return this.shadowRoot.querySelector(selector); }
 
@@ -105,7 +117,7 @@ class SonoffInstaller extends HTMLElement {
         <details id="account"><summary data-t="account"></summary><p class="muted" data-t="accountHelp"></p><form id="login">
           <label for="username" data-t="username"></label><input id="username" autocomplete="username" type="text" required maxlength="254">
           <label for="password" data-t="password"></label><input id="password" autocomplete="current-password" type="password" required maxlength="256">
-          <div class="grid"><div><label for="region" data-t="region"></label><select id="region"><option value="eu">Europe</option><option value="us">America</option><option value="as">Asia</option><option value="cn">China</option></select></div><div><label for="country" data-t="country"></label><input id="country" value="+7" maxlength="5"></div></div>
+          <div class="grid"><div><label for="region" data-t="region"></label><select id="region"><option value="eu" data-t="regionEurope"></option><option value="us" data-t="regionAmerica"></option><option value="as" data-t="regionAsia"></option><option value="cn" data-t="regionChina"></option></select></div><div><label for="country" data-t="country"></label><input id="country" value="+7" maxlength="5"></div></div>
           <button type="submit" data-t="login"></button></form></details>
         <details><summary data-t="manual"></summary><label for="address" data-t="address"></label><input id="address" inputmode="decimal" autocomplete="off" placeholder="192.168.1.100"></details>
         <button id="check" data-t="check" disabled></button>
@@ -181,7 +193,14 @@ class SonoffInstaller extends HTMLElement {
       const device = this.devices.find(value => value.selection === option.value);
       option.textContent = device ? `${device.name} · ${device.mac} · ${this.t(device.source === "sonoff" ? "source" : "cloud")}${device.host ? " · " + device.host : ""}` : this.t("choose");
     }
-    if (this.job) this.$("#state").textContent = this.t(this.state);
+    const job = this.jobs.find(value => value.job === this.job);
+    if (job) {
+      this.$("#state").textContent = this.t(this.state);
+      // Keep the status key with the job so a switch also translates details
+      // already on screen, without polling or changing the selected history.
+      this.$("#detail").textContent = [job.name, job.mac, `${job.completed}/${job.total}`,
+        job.enrollment ? this.t(job.enrollment) : ""].filter(Boolean).join(" · ");
+    }
     this.$("#recoveryResult").textContent = this.recoveryMessage ? this.t(this.recoveryMessage) : "";
     this.renderHistory();
     this.$("#progress").setAttribute("aria-label", this.t("running"));
@@ -205,7 +224,6 @@ class SonoffInstaller extends HTMLElement {
     this.recoveryMessage = value.recovery;
     this.$("#setup").hidden = true; this.$("#job").hidden = false;
     this.$("#progress").value = value.completed * 100 / Math.max(1, value.total);
-    this.$("#detail").textContent = `${value.name}${value.mac ? " · " + value.mac : ""} · ${value.completed}/${value.total}${value.enrollment ? " · " + this.t(value.enrollment) : ""}`;
     this.$("#another").hidden = !value.writer_settled && value.state !== "verified";
     this.$("#recovery").hidden = !["verified", "outcome_unknown"].includes(value.state);
     this.$("#diagnostics").hidden = false;
@@ -225,7 +243,7 @@ class SonoffInstaller extends HTMLElement {
     this.$("#historyBox").hidden = !this.jobs.length;
     const options = this.jobs.map(job => {
       const option = document.createElement("option"); option.value = job.job;
-      const date = job.created_at ? new Date(job.created_at * 1000).toLocaleString(this.lang === "ru" ? "ru-RU" : "en-US") : "";
+      const date = job.created_at ? new Date(job.created_at * 1000).toLocaleString(this.language === "ru" ? "ru-RU" : "en-US") : "";
       option.textContent = [job.name, job.mac, date, this.t(job.state)].filter(Boolean).join(" · ");
       return option;
     });

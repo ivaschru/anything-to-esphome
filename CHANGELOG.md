@@ -1,9 +1,13 @@
-## 0.3.13 – Keep USB checks off the Home Assistant event loop
+## 0.3.12 – Responsive USB checks and installer language
 
 - Read and verify Monitor 1 USB package files in Home Assistant's executor so
   slow storage does not stall other integrations during setup and review.
 - Keep fresh source checks and reject expired or replaced operations after
   each background check. Cancellation never retries a device write.
+- Apply the selected language to the first Monitor 1 screen, its open USB
+  wizard and the Sonoff installer without reloading forms or restarting a session.
+- Translate Sonoff regions, saved enrollment results and generic errors.
+- Load the embedded Monitor 1 wizard from the same versioned assets as the panel.
 
 ## 0.3.11 – Monitor 1 USB setup
 

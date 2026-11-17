@@ -25,6 +25,7 @@ class Shadow {
 let Component;
 const context = vm.createContext({HTMLElement: class {
   constructor() { this.lang = "en"; this.isConnected = false; }
+  setAttribute(key, value) { this[key] = value; }
   attachShadow() { this.shadowRoot = new Shadow(); }
 }, document: {createElement: () => new Node()}, console,
 customElements: {define(_name, value) { Component = value; }},
@@ -56,7 +57,12 @@ assert.equal(view.ready, true);
 assert.equal(view.$("#install").disabled, true);
 view.$("#username").value = "fixture@example.invalid";
 view.$("#password").value = "fixture-password";
-view.lang = "ru"; view.translate();
+const callsBeforeLanguage = calls.length;
+view.$("#region").value = "as";
+view.setLanguage("ru");
+assert.deepEqual(view.shadowRoot.labels.filter(node => node.dataset.t.startsWith("region") && node.dataset.t !== "region").map(node => node.textContent), ["Европа", "Америка", "Азия", "Китай"]);
+assert.equal(view.$("#region").value, "as", "Language preserves the selected region");
+assert.equal(calls.length, callsBeforeLanguage, "Language alone makes no HA request");
 assert.equal(view.$("#password").value, "fixture-password", "Language never rebuilds the live form");
 view.$("#load").checked = true; view.$("#power").checked = true; view.controls();
 assert.equal(view.$("#install").disabled, false);
@@ -78,7 +84,7 @@ const reloaded = new Component(); reloaded._hass = view._hass;
 reloaded.initialize(); await new Promise(resolve => setImmediate(resolve));
 assert.equal(reloaded.job, "verified-job", "Verified backup remains reachable after a page reload");
 assert.equal(reloaded.$("#another").hidden, false);
-const older = {job: "older-job", name: "<script>untrusted</script>", mac: "AA:BB:CC:11:22:44", state: "outcome_unknown", completed: 4, total: 11};
+const older = {job: "older-job", name: "<script>untrusted</script>", mac: "AA:BB:CC:11:22:44", state: "outcome_unknown", completed: 4, total: 11, enrollment: "existing_entry_check_required"};
 reloaded.jobs.push(older); reloaded.renderHistory();
 assert.equal(reloaded.$("#history").children[1].textContent.includes("<script>"), true);
 reloaded.$("#history").value = older.job; reloaded.$("#history").onchange();
@@ -92,7 +98,9 @@ assert.equal(calls.at(-1).operation, "sonoff_recover");
 assert.equal(calls.at(-1).data.job, older.job);
 assert.equal(calls.at(-1).data.host, "192.168.1.44");
 assert.equal(calls.filter(call => call.operation === "sonoff_install").length, installsBeforeRecovery);
-reloaded.lang = "ru"; reloaded.translate();
+assert.match(reloaded.$("#detail").textContent, /Existing ESPHome entry needs review/);
+reloaded.setLanguage("ru");
+assert.match(reloaded.$("#detail").textContent, /Нужно проверить существующую запись ESPHome/);
 assert.equal(reloaded.$("#history").value, older.job, "Language preserves selected installation");
 assert.equal(reloaded.$("#recoveryHost").value, "192.168.1.44");
 // An older status reply may not undo a deliberate history selection.
@@ -127,3 +135,22 @@ panel.selectBrand("sonoff"); assert.equal(panel.brand, "sonoff", "Restored job s
 panel.selectBrand("qingping"); assert.equal(panel.brand, "sonoff", "Active conversion blocks leaving its brand");
 panel.$("#sonoff").busy = false;
 panel.selectBrand("qingping"); assert.equal(panel.brand, "qingping");
+
+// Exercise the actual parent language change with children that do not react
+// to reflected property setters, like the HA custom-elements polyfill.
+panel.updateModelText = Panel.prototype.updateModelText;
+panel.setAttribute = () => {};
+panel.t = key => key;
+for (const method of ["renderSidebar", "updatePasswordLabel", "renderProfileInfo",
+  "renderSavedWifi", "renderLiteInstallation", "updateTransport"]) panel[method] = () => {};
+panel.$("#brands").setAttribute = () => {};
+const selectedLanguages = new Map();
+for (const child of ["#sonoff", "#usb-choice"]) {
+  panel.$(child).setLanguage = language => selectedLanguages.set(child, language);
+}
+for (const language of ["ru", "en"]) {
+  panel.language = language;
+  panel.applyLanguage();
+  assert.equal(selectedLanguages.get("#sonoff"), language);
+  assert.equal(selectedLanguages.get("#usb-choice"), language);
+}
