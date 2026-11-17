@@ -1,5 +1,6 @@
 """Real async registry/frames joined to synthetic private terminal-stage data."""
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import copy
 import hashlib
 import importlib.util
@@ -38,7 +39,7 @@ class DisabledReviewTests(unittest.IsolatedAsyncioTestCase):
             'source_commit':review.SOURCE,'stage_state':'staged_disabled_verified','meta':self.meta,
             'reader_source_sha256':self.reader['source_sha256'],'sdk_policy_checked':False,'writer_enabled':False}
         self.data={key:f.data[key] for key in ('job_id','expected_plan_sha256','channel_id')}
-        self.service=SimpleNamespace(browser_registry=f.registry,exchange=AsyncMock(side_effect=self.exchange))
+        self.service=SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=f.registry,exchange=AsyncMock(side_effect=self.exchange))
         flag=[hashlib.sha256(b'').hexdigest(),0,0o600,0,1,False]
         self.scope={'kind':'browser_disabled_scope','target':f.target,'plan_id':f.desc['plan_id'],'plan_sha256':f.desc['plan_sha256'],
             'stage_intent_sha256':f.desc['intent_sha256'],'root_identity':[1,2],'install_marker':f.desc['plan_id']+' '+f.desc['plan_sha256'],
@@ -87,6 +88,7 @@ class DisabledReviewTests(unittest.IsolatedAsyncioTestCase):
         finally:
             pump.cancel();await asyncio.gather(pump,return_exceptions=True)
 
+    @off_loop_package_reads
     async def test_owned_terminal_context_fresh_scope_and_close_return_only_redacted_nonwriter_state(self):
         result=await self.run_review()
         self.assertEqual(result['state'],'browser_disabled_policy_assessed')

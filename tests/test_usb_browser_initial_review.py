@@ -43,7 +43,7 @@ class InitialReviewTests(unittest.IsolatedAsyncioTestCase):
             'api_ota_listeners_free':True,'ram_scope_checked':False,'image_fd_admitted':False,
             'execution_authority':False,'device_writes':0}
         self.events=[];self.context_reads=0
-        self.service=SimpleNamespace(browser_registry=f.fixture.registry,exchange=AsyncMock(side_effect=self.exchange))
+        self.service=SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=f.fixture.registry,exchange=AsyncMock(side_effect=self.exchange))
 
     async def exchange(self, owner, nonce, operation, data):
         f=self.f

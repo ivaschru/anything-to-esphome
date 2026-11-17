@@ -7,8 +7,8 @@
 <script type="module" src="app.mjs"></script>
 </head>
 <body><main>
-<header><h1>Qingping USB</h1><label><span data-text="language"></span>
-<select id="language"><option value="en">English</option><option value="ru">Русский</option></select></label></header>
+<header><h1>Qingping USB</h1><label id="language-picker"><span data-text="language"></span>
+<select id="language"><option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option></select></label></header>
 <p class="muted" data-text="intro"></p>
 <section id="core-tools" hidden aria-labelledby="core-tools-title">
 <h2 id="core-tools-title" data-text="core_tools_title"></h2>
@@ -76,7 +76,7 @@
 <button id="browser-wizard-full-review" class="secondary" data-text="full_review" hidden></button>
 <button id="browser-wizard-status" class="secondary" data-text="browser_wizard_status"></button>
 <p id="browser-wizard-result" role="status" aria-live="polite"></p>
-<progress id="browser-wizard-progress" aria-label="USB" hidden></progress>
+<progress id="browser-wizard-progress" hidden></progress>
 </div>
 <div id="install-controls" hidden>
 <h3 data-text="install_title"></h3>

@@ -13,7 +13,7 @@ import copy
 import time
 
 from .monitor1_browser_channel import guardian_record
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_initial_ram import PreparedBrowserRam, proof, same, actor_live, producer
 from .monitor1_browser_initial_review import context
 from .monitor1_browser_relay import RelayRefusal
@@ -22,12 +22,12 @@ from .monitor1_browser_process_observation import BINDING, validate_observation,
 
 async def _checked(ram):
     """Rehash the same private SDK/plan/commit/guardian, never read a key."""
-    ram.live()
+    await ram.async_live()
     packet = ram.packet
     request = {'job_id': packet['job_id'], 'expected_plan_sha256': packet['plan_sha256']}
-    value, reader = context(await ram._service.exchange(ram.owner, ram.nonce,
+    value, reader = await async_checked(ram._service, ram.live, context, await ram._service.exchange(ram.owner, ram.nonce,
         'internal-browser-initial-trial-context', request), request)
-    ram.live()  # A replacement actor/task or expired capability cannot inherit the answer.
+    await ram.async_live()  # A replacement actor/task or expired capability cannot inherit the answer.
     if not same(value, packet['context']):
         raise RelayRefusal
     observed = ram.proof
@@ -86,6 +86,11 @@ class RunningBrowserGuardian:
             raise RelayRefusal
         self._ram.live()
 
+    async def async_live(self):
+        self.live()
+        await self._ram.async_live()
+        self.live()
+
     @property
     def reported_start(self):
         return copy.deepcopy(self._started)
@@ -97,17 +102,17 @@ class RunningBrowserGuardian:
         return self._issued_at
 
     async def finish_records(self):
-        self.live()
+        await self.async_live()
         if self._finished or self._busy:
             raise RelayRefusal
         self._finished = True  # Consume before a possibly lost END/close answer.
         try:
             value = await self._ram.capability.finish_initial_guardian()
             received_at = time.monotonic()  # Before SDK hashing; never accept a browser timestamp.
-            self.live()
+            await self.async_live()
             packet = await _checked(self._ram)
             records(value, packet, self._started)
-            self.live()
+            await self.async_live()
             self._ended, self._end_observed_at = copy.deepcopy(value), received_at
             return copy.deepcopy(value)  # Still records_only; no lease/journal/status write.
         except BaseException:
@@ -119,22 +124,22 @@ class RunningBrowserGuardian:
 
         No cached observer packet can acquire a handle or extend its deadline.
         Keep SDK verification around start/end, rather than adding heavyweight
-        artifact hashing to every read. live() still checks current producers,
+        artifact hashing to every read. async_live() still checks current producers,
         actor, reservation, owner/page and original capability before/after IO.
         """
-        self.live()
+        await self.async_live()
         if self._finished or self._busy or self._observations >= 32:
             raise RelayRefusal
         self._busy = True
         self._observations += 1
         try:
             value = await self._ram.capability.observe_initial_guardian_processes()
-            self.live()
+            await self.async_live()
             packet, ram = self._ram.packet, self._ram.proof
             binding = {k: packet[k] for k in BINDING}
             validate_observation(value, binding, self._started, packet['context']['committed_scope']['root_identity'][0],
                                  ram['uploaded']['guardian_file_identity'])
-            self.live()
+            await self.async_live()
             return copy.deepcopy(value)
         except BaseException:
             await self.close()
@@ -149,18 +154,18 @@ class RunningBrowserGuardian:
         This checks context only and does not open the separate API relay or
         qualify authenticated samples, device FD admission or terminal proof.
         """
-        self.live()
+        await self.async_live()
         if self._finished or self._busy or self._observations >= 32:
             raise RelayRefusal
         self._busy, self._observations = True, self._observations + 1
         began = time.monotonic()
         try:
             value = await self._ram.capability.observe_initial_guardian_scope()
-            self.live()
+            await self.async_live()
             packet, ram = self._ram.packet, self._ram.proof
             validate_scope(value, {k: packet[k] for k in BINDING}, self._started,
                            ram['uploaded']['guardian_file_identity'], ram['uploaded']['ram_root_identity'], scope_basis(packet))
-            self.live()
+            await self.async_live()
             if time.monotonic() - began > SCOPE_WINDOW:
                 raise RelayRefusal
             return copy.deepcopy(value)
@@ -181,7 +186,7 @@ class RunningBrowserGuardian:
         This still cannot release the journal or claim USB/channel closure.
         """
         from .monitor1_browser_initial_noise import InitialWireObservation
-        self.live()
+        await self.async_live()
         wire = self._wire_observation
         if (not self._finished or self._ended is None or self._end_observed_at is None or self._busy or
                 self._return_used or self._observations >= 32 or type(wire) is not InitialWireObservation or
@@ -198,11 +203,11 @@ class RunningBrowserGuardian:
                     self._ended['end']['child'] != wire.reported['child']):
                 raise RelayRefusal
             value = await self._ram.capability.observe_initial_guardian_return()
-            self.live()
+            await self.async_live()
             packet, ram = self._ram.packet, self._ram.proof
             validate_return(value, {k: packet[k] for k in BINDING}, self._started,
                             ram['uploaded']['guardian_file_identity'], ram['uploaded']['ram_root_identity'], scope_basis(packet))
-            self.live()
+            await self.async_live()
             if time.monotonic() - began > SCOPE_WINDOW:
                 raise RelayRefusal
             self._return_observation = copy.deepcopy(value)
@@ -221,13 +226,13 @@ class RunningBrowserGuardian:
         Only a newly created original in-memory closed continuation can carry
         these checked results to the private actor terminal verifier.
         """
-        self.live()
+        await self.async_live()
         if self._return_observation is None or self._return_close_used or self._busy:
             raise RelayRefusal
         self._return_close_used, self._busy = True, True
         try:
             value = await self._ram.capability.close_initial_guardian_return()
-            self.live()
+            await self.async_live()
             if (value['observation'] != self._return_observation or value['transport_closed'] is not True or
                     value['context_only'] is not True):
                 raise RelayRefusal
@@ -235,7 +240,7 @@ class RunningBrowserGuardian:
             self._closed = True
             result = ClosedBrowserGuardian(self, value)
             self._closed_transport = result
-            result.live()
+            await result.async_live()
             return result  # No journal write, release, boot or installation readiness.
         except BaseException:
             await self.close()
@@ -268,8 +273,13 @@ class ClosedBrowserGuardian:
         if (running._closed_transport is not self or running._closed is not True or
                 ram.registry.current is not ram.current or
                 ram.registry.capability(ram.owner, ram.nonce, ram.channel_id) is not ram.capability or
-                ram.capability.closed is not True or ram.capability.failed or
-                ram._packet['producer_sha256'] != producer()):
+                ram.capability.closed is not True or ram.capability.failed):
+            raise RelayRefusal
+
+    async def async_live(self):
+        ram = self._running._ram
+        pins = await async_checked(ram._service, self.live, producer)
+        if ram._packet['producer_sha256'] != pins:
             raise RelayRefusal
 
     @property
@@ -286,7 +296,7 @@ class ClosedBrowserGuardian:
         obtain this call. Consume before pipe IO. If the answer is lost, only
         read historical actor status; never resend the record/launch/packet.
         """
-        self.live()
+        await self.async_live()
         if self._record_used:
             raise RelayRefusal
         self._record_used = True
@@ -305,7 +315,7 @@ class ClosedBrowserGuardian:
             value = document(await ram._service.exchange(ram.owner, ram.nonce,
                 'internal-browser-initial-trial-record', {'job_id': packet['job_id'],
                  'intent_sha256': packet['intent_sha256'], 'proof': proof}), mime='application/json', limit=16384)
-            self.live()
+            await self.async_live()
             fields = {'job_id', 'state', 'replay_allowed', 'installed', 'installation_ready', 'writer_enabled',
                       'activated', 'device_write_attempted', 'launch_attempted', 'live_recheck_required'}
             if (not isinstance(value, dict) or set(value) != fields or value['job_id'] != packet['job_id'] or
@@ -332,11 +342,11 @@ async def start_guardian(ram):
         packet = await _checked(ram)
         issued_at = time.monotonic()
         started = await ram.capability.start_initial_guardian()
-        ram.live()
+        await ram.async_live()
         records(started, packet)
         if not same(await _checked(ram), packet):
             raise RelayRefusal
-        ram.live()
+        await ram.async_live()
         return RunningBrowserGuardian(ram, started, issued_at)
     except BaseException:
         try:

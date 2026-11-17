@@ -1,4 +1,4 @@
-import {embedded, coreFetch} from "./core-bridge.mjs";
+import {embedded, coreFetch, watchCoreLanguage} from "./core-bridge.mjs";
 import {createProbe, strings, downloadCapture, prepareProfile, readPrepared, savedPreparations, startBuild, readBuild, preparePlan, readPlan,prepareBrowserPlan,readBrowserPlan,reviewBrowserPlan,createNativeChannel,openBrowserControl,openBrowserReviewControl,openBrowserFullUiControl,readBrowserWizard,startBrowserWizard,
   startInstall, readInstall, readInstallReview, observeBoot,reviewFullUi, startFullUiTrial,readFullUiTrial,startFullUiActivation,readFullUiActivation,startPmExtension,readPmExtension,startEnrollment,readEnrollment,
   downloadPrivateProfile,downloadComputerPackage} from "./usb-probe-bundle.mjs";
@@ -26,8 +26,17 @@ let pmState,pmRunning=false;
 const attemptedPm=new Set();
 let enrollmentState,enrollmentRunning=false;
 const attemptedEnrollments=new Set();
-try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
-const text = key => strings[language][key] || strings[language].failed;
+if (embedded) {
+  language = document.documentElement.lang === "ru" ? "ru" : "en";
+  watchCoreLanguage(next => {
+    if (language === next) return;
+    language = next;
+    translate();
+  });
+} else {
+  try {language = localStorage.getItem("qingping-esphome-language") === "ru" ? "ru" : "en";} catch {}
+}
+const text = key => Object.hasOwn(strings[language], key) ? strings[language][key] : strings[language].failed;
 function translate() {
   document.documentElement.lang = language; $("language").value = language;
   document.querySelectorAll("[data-text]").forEach(node => {node.textContent = text(node.dataset.text);});
@@ -81,6 +90,7 @@ function renderBuild() {
   $("browser-wizard-full-review").disabled=busy;
   $("browser-wizard-result").textContent=browserWizardMessage ? text("browser_state_"+browserWizardMessage) : "";
   $("browser-wizard-progress").hidden=!busy || !browserWizardMessage || browserWizardMessage!=="running";
+  $("browser-wizard-progress").setAttribute("aria-label", text("browser_state_running"));
   $("browser-wizard-controls").setAttribute("aria-busy",String(busy && browserWizardMessage==="running"));
   const consumed=installState && installState.state!=="not_started";
   $("computer-controls").hidden=buildState?.state!=="built_not_installed" || !!consumed;
@@ -231,7 +241,7 @@ async function rpc(operation, data, binary=false) {
   if (!response.ok || result.error_code) throw {code:result.error_code || "failed"};
   return result;
 }
-$("language").onchange = () => {
+if (!embedded) $("language").onchange = () => {
   language = $("language").value === "ru" ? "ru" : "en";
   try {localStorage.setItem("qingping-esphome-language",language);} catch {}
   translate(); // Same DOM/transport; language never restarts USB or repeats a read.
@@ -661,6 +671,7 @@ $("observe-boot").onclick=async()=>{
 };
 window.addEventListener("pagehide",()=>{unloading=true;clearTimeout(buildTimer);void browserLink?.close().catch(()=>{});void probe?.close().catch(()=>{});void browserControl?.close().catch(()=>{});});
 if(embedded) {
+  $("language-picker").hidden = true; // The HACS panel owns the embedded locale.
   $("core-tools").hidden=false;
   $("core-tools-prepare").onclick=async()=>{
     if(busy || coreToolsReady) return;

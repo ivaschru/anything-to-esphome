@@ -6,6 +6,7 @@ qualify its physical samples, timer or first installation. The actual host
 terminal journal verifier/fsync/flock are exercised with synthetic device IO.
 """
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import base64
 import copy
 from dataclasses import dataclass
@@ -578,6 +579,7 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         self.f.assert_fenced()
 
 
+    @off_loop_package_reads
     async def test_private_composition_runs_original_grant_through_real_noise_and_actor_record(self):
         await self.composed_trial()
 
@@ -604,6 +606,14 @@ class EncryptedObserverTests(unittest.IsolatedAsyncioTestCase):
         async def remember_running(ram):
             running = await original_start(ram)
             self.composed_running = running
+            # Keep positive sensor samples off the exact 20s freshness edge,
+            # just like flow() for separately exercised continuations. Extra
+            # executor yields can deliver the first real vector immediately
+            # at start, leaving the last 10s generation at exactly t=40. END
+            # is intentionally nextafter(t=60), so that boundary is stale.
+            # Advance only this fixture's clock before Noise subscription;
+            # retain production's strict age and minimum-stop comparisons.
+            self.clock += .5
             return running
         with patch.object(module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait), \
                 patch.object(guardian, 'time', SimpleNamespace(monotonic=lambda: self.clock)), \

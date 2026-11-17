@@ -10,6 +10,7 @@ import time
 
 from .monitor1_browser_initial_api import InitialApiContext
 from .monitor1_browser_initial_ram import producer
+from .monitor1_browser_stage import async_checked
 from .monitor1_browser_relay import BrowserApiRelay, RelayRefusal
 
 
@@ -60,12 +61,19 @@ class InitialGuardianApiRelay:
                 ram.capability is not self.cap or self.cap.closed or self.cap.failed or
                 running._closed or running._finished or running._api_context is not self.context or
                 running._api_relay is not self or self.context._noise_psk is None or
-                ram._packet['producer_sha256'] != producer() or time.monotonic() >= self.deadline):
+                time.monotonic() >= self.deadline):
+            raise RelayRefusal
+
+    async def _async_live(self, *, io=False):
+        # Preserve the restricted serve/pump-task delegation on both sides of
+        # disk IO. The executor must never evaluate asyncio.current_task().
+        pins = await async_checked(self.ram._service, lambda: self._live(io=io), producer)
+        if self.ram._packet['producer_sha256'] != pins:
             raise RelayRefusal
 
     async def start(self):
-        self.context.live()
-        self._live()
+        await self.context.async_live()
+        await self._async_live()
         if self.started or self.closing:
             raise RelayRefusal
         self.started = True
@@ -73,12 +81,12 @@ class InitialGuardianApiRelay:
             # Core independently validates the complete scope; NativeChannel
             # repeats it again before every fixed tcp:6053 open.
             await self.running.observe_scope()
-            self._live()
+            await self._async_live()
             port = await self.relay.start()
             # No await between start's return and pinning the shorter deadline:
             # its newly scheduled timer has not yet read the old 240s value.
             self.relay.deadline = self.deadline
-            self._live()
+            await self._async_live()
             return port  # Private Core loopback port, never a browser selector.
         except BaseException:
             await self._retire()
@@ -115,8 +123,8 @@ class InitialGuardianApiRelay:
             self._cleanup = asyncio.create_task(self._close_owned())
         try:
             await asyncio.shield(self._cleanup)
-            self.context.live()
-            self._live()
+            await self.context.async_live()
+            await self._async_live()
             if not self.started:
                 raise RelayRefusal
             return {'api_closed': True, 'transport_closed': False, 'context_only': True}
@@ -135,12 +143,12 @@ class _GuardianChannel:
 
     async def open_api(self):
         owner = self.owner
-        owner._live(io=True)
+        await owner._async_live(io=True)
         if owner.closing:
             raise RelayRefusal
         remote = await owner.cap.open_initial_guardian_api()
         try:
-            owner._live(io=True)
+            await owner._async_live(io=True)
             return _GuardianStream(owner, remote)
         except BaseException:
             # A late socket cannot survive actor/channel/deadline replacement.
@@ -160,15 +168,15 @@ class _GuardianStream:
         self.owner, self.remote = owner, remote
 
     async def read(self, size):
-        self.owner._live(io=True)
+        await self.owner._async_live(io=True)
         data = await self.remote.read(size)
-        self.owner._live(io=True)
+        await self.owner._async_live(io=True)
         return data
 
     async def write(self, data):
-        self.owner._live(io=True)
+        await self.owner._async_live(io=True)
         await self.remote.write(data)
-        self.owner._live(io=True)
+        await self.owner._async_live(io=True)
 
     async def close(self):
         # Cleanup may run in wait_for's own task after its parent is cancelled.

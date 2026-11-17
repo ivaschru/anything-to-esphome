@@ -37,7 +37,7 @@ class BrowserEnrollmentTests(previous.ActivationTransferFixture, unittest.Isolat
             'result': result, 'final_scope': self.scope(), 'api_closed': True, 'transport_closed': True, 'channel_closed': True})
         self.runtime.started = True; self.runtime.bridge_reads = 2; self.runtime.stored = self.runtime.enabled = True
         self.entries = []; self.flow = SimpleNamespace(async_init=AsyncMock(), async_configure=AsyncMock(), async_progress=Mock(return_value=[]), async_abort=Mock())
-        self.service.hass = SimpleNamespace(config_entries=SimpleNamespace(async_entries=lambda domain: self.entries, flow=self.flow))
+        self.service.hass = SimpleNamespace(async_add_executor_job=asyncio.to_thread, config_entries=SimpleNamespace(async_entries=lambda domain: self.entries, flow=self.flow))
         self.flow.async_init.return_value = {'type': 'form', 'step_id': 'encryption_key', 'flow_id': 'OWN_FLOW', 'errors': {}}
         async def configure(identity, data):
             self.assertEqual(identity, 'OWN_FLOW'); self.assertEqual(data, {'noise_psk': self.key})

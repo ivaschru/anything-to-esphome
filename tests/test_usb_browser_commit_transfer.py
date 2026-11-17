@@ -5,6 +5,7 @@ is explicit and no byte reaches a monitor; reported scope/close evidence here
 must never be called physical qualification.
 """
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import copy
 import importlib.util
 import json
@@ -42,7 +43,7 @@ class CommitTransferTests(unittest.IsolatedAsyncioTestCase):
         context=patch.object(j.stages,'disabled_context',return_value=j.context)
         context.start();self.addCleanup(context.stop)
         self.data={'job_id':j.id,'expected_plan_sha256':j.sha,'channel_id':self.id,'experimental_reviewed':True}
-        self.service=SimpleNamespace(browser_registry=self.registry,exchange=AsyncMock(side_effect=self.exchange))
+        self.service=SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry,exchange=AsyncMock(side_effect=self.exchange))
         self.events=[];self.operations=[];self.packet=None;self.lost_packet=False;self.bad_packet=False
         self.mutate_scope=False;self.close_acks=0
 
@@ -90,6 +91,7 @@ class CommitTransferTests(unittest.IsolatedAsyncioTestCase):
         try:return await asyncio.wait_for(transfer.commit(self.service,self.owner,self.nonce,self.data),3)
         finally:pump.cancel();await asyncio.gather(pump,return_exceptions=True)
 
+    @off_loop_package_reads
     async def test_fixed_probe_fresh_scope_consumed_packet_each_readback_and_both_closes_precede_record(self):
         value=await self.run_commit()
         self.assertEqual(value['state'],'committed_disabled_verified')
@@ -100,6 +102,17 @@ class CommitTransferTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(self.j.stages.lease_fd);self.usb.assert_not_called()
         self.assertNotIn(self.j.channel_nonce,json.dumps(value));self.assertNotIn('producer_sha256',value)
         self.assertEqual((self.j.directory/'profile.json').read_bytes(),self.j.before)
+
+    async def test_expiry_during_context_executor_refuses_before_probe_or_intent(self):
+        async def execute(check, *args):
+            result = await asyncio.to_thread(check, *args)
+            self.registry.current['deadline'] = 0
+            return result
+        self.service.hass.async_add_executor_job = execute
+        with self.assertRaises(Refusal):
+            await self.run_commit()
+        self.assertEqual(self.operations, ['internal-browser-disabled-context'])
+        self.assertEqual(self.events, ['channel-close'])
 
     async def test_unsupported_probe_stops_before_new_intent_without_a_fallback(self):
         with self.assertRaises(Refusal):await self.run_commit(fail='commit-stream-check')

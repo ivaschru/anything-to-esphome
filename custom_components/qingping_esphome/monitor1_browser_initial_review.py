@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import re
 
-from .monitor1_browser_stage import document, ROLES, SOURCE
+from .monitor1_browser_stage import async_checked, document, ROLES, SOURCE
 from .monitor1_browser_disabled_review import validate_scope
 from .monitor1_browser_relay import RelayRefusal
 from .monitor1_worker.browser_initial_observation import validate_preparation as check_preparation, ObservationRefusal
@@ -95,14 +95,14 @@ async def review(service, owner, nonce, data):
             raise RelayRefusal
     request = {k: data[k] for k in ('job_id', 'expected_plan_sha256')}
     try:
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
+        checked, reader = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
         live()
         observed = await registry.initial_trial_preparation(owner, nonce, data['channel_id'], checked['meta'])
         validate_preparation(observed, checked['meta'], reader, checked['committed_scope'])
         live()
         # Rehash the same terminal proof/candidate/artifact after device IO.
         # A changed file or expired registry does not renew this observation.
-        after, _ = context(await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
+        after, _ = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
         if after != checked:
             raise RelayRefusal
         live()

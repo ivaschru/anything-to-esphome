@@ -5,6 +5,7 @@ terminal trial record. A positive handoff keeps the original live capability
 and the actor's retained lease, not a reconstructed or serializable handle.
 """
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import base64
 import copy
 import importlib.util
@@ -53,7 +54,7 @@ class InitialRamTransferTests(unittest.IsolatedAsyncioTestCase):
         await self.lock.acquire()
         self.addCleanup(self.lock.release)
         self.process = SimpleNamespace(returncode=None)  # Synthetic actor boundary, no subprocess is executed.
-        self.service = SimpleNamespace(browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange),
+        self.service = SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange),
                                        process=self.process, lock=self.lock, failed=False, closing=False)
 
     async def exchange(self, owner, nonce, operation, data):
@@ -140,6 +141,7 @@ class InitialRamTransferTests(unittest.IsolatedAsyncioTestCase):
             pump.cancel()
             await asyncio.gather(pump, return_exceptions=True)
 
+    @off_loop_package_reads
     async def test_real_consumption_fixed_frames_private_bytes_and_live_nonterminal_handoff(self):
         handoff = await self.run_prepare()
         self.assertIsInstance(handoff, transfer.PreparedBrowserRam)
@@ -261,6 +263,24 @@ class InitialRamTransferTests(unittest.IsolatedAsyncioTestCase):
         self.cap.answer({'id': frame['id'], 'ok': True, 'data': None})
         await task
 
+
+    async def test_actor_replacement_during_context_executor_refuses_before_probe(self):
+        async def execute(check, *args):
+            result = await asyncio.to_thread(check, *args)
+            self.service.process = SimpleNamespace(returncode=None)
+            return result
+        self.service.hass.async_add_executor_job = execute
+        with self.assertRaises(Refusal):
+            await self.run_prepare()
+        self.assertEqual(self.operations, ['internal-browser-initial-trial-context'])
+        self.assertEqual(self.events, ['channel-close'])
+        self.assertIsNone(self.prepared)
+
+    async def test_live_continuation_rejects_new_source_hashes_from_executor(self):
+        handoff = await self.run_prepare()
+        with patch.object(transfer, 'producer', return_value={'changed': '0' * 64}):
+            with self.assertRaises(Refusal):
+                await handoff.async_live()
 
     async def test_missing_original_operation_reservation_refuses_before_worker_pipe(self):
         self.service.pending = None

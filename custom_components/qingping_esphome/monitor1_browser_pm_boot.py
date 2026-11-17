@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from .monitor1_browser_boot_observer import _Observation, context, _wire, MIME
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_initial_ram import same
 from .monitor1_browser_relay import RelayRefusal
 from .monitor1_worker.browser_pm_boot_observation import validate_scope, validate_wire
@@ -63,7 +63,7 @@ async def arm(service, owner, nonce, data):
     o = _Observation(service, owner, nonce, args)  # Strict original task/actor before any IO or cleanup.
     request = {k: data[k] for k in ('job_id', 'expected_plan_sha256')}
     try:
-        o.live(); o.checked = context(await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), args); o.live()
+        o.live(); o.checked = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), args); o.live()
         evidence = o.current['reported_evidence']; old = o.checked['arming']['context']['meta']['target']
         o.target = {'kind': 'browser_webusb', 'usb_serial': evidence['serial'], **{k: evidence[k] for k in ('wlan_mac', 'boot_id', 'co2_type', 'stock_version')}}
         if not same({**o.target, 'boot_id': old['boot_id']}, old) or o.target['boot_id'] == old['boot_id']: raise RelayRefusal
@@ -86,7 +86,7 @@ async def arm(service, owner, nonce, data):
         observation = {'scope': o.first, 'wire': {'samples': wire['samples'], 'last_sample_age_at_prepare_s': time.monotonic() - sample_at,
                        'identity': o.checked['api_identity'], 'api_closed': True, 'final_scope_checked': True}}
         validate_scope(observation['scope'], o.checked); validate_wire(observation['wire'], o.checked)
-        prepared = packet(await service.exchange(owner, nonce, 'internal-browser-pm-boot-prepare', {**request, 'experimental_reviewed': True,
+        prepared = await async_checked(service, o.live, packet, await service.exchange(owner, nonce, 'internal-browser-pm-boot-prepare', {**request, 'experimental_reviewed': True,
             'scope': {'channel_id': data['channel_id'], 'channel_nonce': evidence['channel'], 'observation': observation}}), o, observation)
         o.live(); await o.cap.begin_pm_boot(prepared); o.live()
         for phase in ('arm', 'complete'): await o.cap.pm_boot_step(phase); o.live()

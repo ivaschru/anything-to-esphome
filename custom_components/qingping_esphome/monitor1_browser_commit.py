@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 
 from .monitor1_browser_relay import RelayRefusal
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_disabled_review import context, validate_scope
 from .monitor1_worker.browser_disabled_observation import validate_commit_observations
 
@@ -70,7 +70,7 @@ async def commit(service, owner, nonce, data):
 
     try:
         live()
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-disabled-context',
+        checked, reader = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-disabled-context',
             {key: data[key] for key in ('job_id', 'expected_plan_sha256')}), data)
         # This probe sends only fixed harmless stdin, before consuming a write
         # intent. Unsupported old-daemon exec never falls back to PTY/shell-v2.
@@ -80,7 +80,7 @@ async def commit(service, owner, nonce, data):
         validate_scope(observed, checked['meta'], reader)
         live()
         channel_nonce = original['reported_evidence']['channel']
-        prepared = packet(await service.exchange(owner, nonce, 'internal-browser-commit-prepare',
+        prepared = await async_checked(service, live, packet, await service.exchange(owner, nonce, 'internal-browser-commit-prepare',
             {'job_id': data['job_id'], 'expected_plan_sha256': data['expected_plan_sha256'], 'experimental_reviewed': True,
              'scope': {'channel_id': data['channel_id'], 'channel_nonce': channel_nonce, 'observation': observed}}),
             checked, observed, data['channel_id'], channel_nonce)

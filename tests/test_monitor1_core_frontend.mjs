@@ -6,7 +6,11 @@ globalThis.location={origin:"https://ha.invalid"};
 globalThis.window={addEventListener:(type,listener)=>listeners.add(listener),removeEventListener:(type,listener)=>listeners.delete(listener)};
 const frame={style:{},setAttribute(){},contentWindow:{postMessage:value=>messages.push(value)},remove(){this.removed=true;}};
 globalThis.document={createElement:()=>frame};
-globalThis.fetch=async()=>new Response('<head><meta content="__PAGE_NONCE__"></head>');
+const assets = new URL("../custom_components/qingping_esphome/frontend/monitor1/", import.meta.url).pathname;
+globalThis.fetch=async path=>{
+  assert.equal(path, assets + "index.html");
+  return new Response('<html lang="en"><head><meta content="__PAGE_NONCE__"></head></html>');
+};
 const container={replaceChildren(value){this.frame=value;}};
 const hass={user:{is_admin:true},fetchWithAuth:async(path,init)=>{
   calls.push({path,init});
@@ -15,11 +19,20 @@ const hass={user:{is_admin:true},fetchWithAuth:async(path,init)=>{
 }};
 await assert.rejects(openCoreWizard(container,{...hass,user:{is_admin:false}}),{code:"usb_unauthorized"});
 assert.equal(calls.length,0);
-const close=await openCoreWizard(container,hass,"ru");
+const wizard=await openCoreWizard(container,hass,"ru");
 assert.match(frame.title,/Установка/);
-assert.match(frame.srcdoc,/static\/monitor1/);
+assert.ok(frame.srcdoc.includes(`<base href="${assets}">`));
 assert.equal(calls.length,1,"Opening the frame only creates an owner page, never starts USB/tools");
 const channel=frame.srcdoc.match(/qingping-core-channel" content="([^"]+)"/)[1];
+assert.match(frame.srcdoc, /<html lang="ru">/);
+assert.deepEqual(messages.at(-1), {kind:"qingping-core-language", channel, language:"ru"});
+const originalDocument = frame.srcdoc;
+wizard.setLanguage("en");
+frame.onload(); // The parent can switch before the child starts listening.
+assert.equal(frame.title, "Qingping Monitor 1 installation");
+assert.deepEqual(messages.at(-1), {kind:"qingping-core-language", channel, language:"en"});
+assert.equal(frame.srcdoc, originalDocument, "Locale does not reload the active frame");
+assert.equal(calls.length, 1, "Locale changes do not contact Home Assistant");
 const listener=[...listeners][0];
 const event={origin:location.origin,source:frame.contentWindow,data:{channel,kind:"qingping-core-request",
   id:"12345678-1234-4234-8234-123456789abc",operation:"jobs"}};
@@ -77,7 +90,7 @@ await listener({...event,data:{...event.data,id:crypto.randomUUID(),operation:'b
 await send('browser/poll');assert.equal(calls.length,stopped+2);assert.equal(messages.at(-1).status,200);
 hass.fetchWithAuth=oldFetch;
 const beforeClose=calls.length;
-close();
+wizard.close();
 assert.equal(listeners.size,0);
 assert.equal(frame.removed,true);
 await listener({...event,data:{...event.data,id:"32345678-1234-4234-8234-123456789abc"}});

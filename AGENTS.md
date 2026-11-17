@@ -1,5 +1,17 @@
 # Anything to ESPHome
 
+- Monitor 1 browser host validators read/parse/hash package files through
+  `monitor1_browser_stage.async_checked` and HA's `async_add_executor_job`.
+  Keep complete disk operations off the HA loop, including nested validators
+  and packet decoding. Recompute pins on every check; no persistent cache.
+  The executor is read-only. Check original actor/task/owner/channel/deadline
+  in the calling coroutine before and after every wait, before further IO.
+  Initial-trial `live()` guards/properties are memory-only; async continuations
+  use `async_live()` (relay `_async_live`) to recheck source pins as well.
+  Preserve the same original-task/delegated-pump boundaries and never replay
+  a consumed request after cancellation. Run browser lifecycle tests with
+  off-loop package-read assertions and `test_usb_browser_executor.py`.
+
 
 - The historical `qingping_esphome` domain, API routes, Store keys, service device
   identifier, language key and HACS ZIP filename are compatibility contracts.
@@ -24,8 +36,9 @@
   shutdown from 4.3.4 polling-only PM OFF. Explain the unverified factory
   wizard transition for 4.3.4 and keep 4.2.1 without an installation image.
   Load the panel and its relative imports from a release-versioned static
-  directory to avoid stale Home Assistant service worker responses. Keep the
-  unversioned static route for the embedded USB wizard.
+  directory to avoid stale Home Assistant service worker responses. Resolve
+  the embedded USB wizard HTML and modules under that same versioned directory.
+  Retain the unversioned static route for existing clients.
 - Monitor 1 source release notices use the existing catalog refresh and the
   cached identity, project name and version of a connected ESPHome entry.
   Preserve the separate S8 and SCD40 source lines. Report releases on the
@@ -1277,7 +1290,12 @@ separate even though the HACS wizard is shared.
   Store only the language preference in localStorage. Translate text nodes in
   place: never rebuild the form, repeat setup, disconnect BLE or restart a
   session when switching languages. Keep UI/backend error code coverage in
-  `tests/test_i18n.mjs`; unknown errors must not expose arbitrary details.
+  `tests/test_i18n.mjs`; unknown errors must use a generic message in the
+  selected language. Pass the panel locale explicitly to its USB and Sonoff
+  children and the open Core frame. A reflected `lang` property can change
+  without triggering a redraw in HA. The standalone USB page keeps its own
+  selector. Verify both initial render and live language changes with jobs,
+  selections, dialogs and transport state still in place.
 - On the first Air Monitor 1 screen, show how to enable `#adb=on#` on the
   monitor and use a USB-C data cable before either connection option. Reuse
   the detailed wizard's EN/RU USB labels and keep the empty picker hint

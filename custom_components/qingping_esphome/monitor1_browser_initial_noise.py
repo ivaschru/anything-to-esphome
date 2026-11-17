@@ -102,11 +102,11 @@ async def _idle(relay):
     """A reconnect needs the previous actual socket-close ACK, not TCP EOF."""
     async with asyncio.timeout(3):
         while relay.relay.active is not None or relay.relay.tasks or relay.relay.pumps:
-            relay._live()
+            await relay._async_live()
             if relay.relay.failed:
                 raise RelayRefusal
             await asyncio.sleep(.01)
-    relay._live()
+    await relay._async_live()
     if relay.relay.failed or relay.cap.opened or relay.cap.opening or relay.cap.pending:
         raise RelayRefusal
 
@@ -140,7 +140,7 @@ async def observe_initial_noise(context):
     """
     if type(context) is not InitialApiContext:
         raise RelayRefusal
-    context.live()
+    await context.async_live()
     running = context._running
     if running._noise_used:
         raise RelayRefusal
@@ -153,8 +153,8 @@ async def observe_initial_noise(context):
         port = await relay.start()
         connect_until = min(running.issued_at + 30, relay.deadline - 5)
         for _ in range(16):
-            context.live()
-            relay._live()
+            await context.async_live()
+            await relay._async_live()
             left = connect_until - _now()
             if left <= 0:
                 break
@@ -169,8 +169,8 @@ async def observe_initial_noise(context):
                 # Keep the original issued_at+30 connect and +50 observation
                 # ceilings; this does not renew any capability/device timer.
                 await asyncio.wait_for(client.connect(login=True, log_errors=False), min(12, left))
-                context.live()
-                relay._live()
+                await context.async_live()
+                await relay._async_live()
                 break
             except Exception:
                 await _disconnect(client)
@@ -189,11 +189,11 @@ async def observe_initial_noise(context):
         samples = _WireSamples(entities)
         client.subscribe_states(samples.received)
         while _now() < stop_at:
-            context.live()
-            relay._live()
+            await context.async_live()
+            await relay._async_live()
             async with asyncio.timeout(max(.001, stop_at - _now())):
                 await running.observe_scope()
-            context.live()
+            await context.async_live()
             now = _now()
             if now >= stop_at:
                 break
@@ -205,7 +205,7 @@ async def observe_initial_noise(context):
         client = None
         await _idle(relay)
         closed = await relay.close()
-        context.live()
+        await context.async_live()
         result = InitialWireObservation(running, samples.samples, samples.last_accepted_at, closed)
         running._wire_observation = result
         return result  # Still no stop/stock-return/USB-close/terminal proof.

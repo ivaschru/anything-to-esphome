@@ -11,10 +11,21 @@ globalThis.ResizeObserver=class {
   constructor(callback){this.callback=callback;}
   observe(element){assert.equal(element,body);this.callback();}
 };
-const {coreFetch,embedded}=await import("../apps/monitor1_usb/rootfs/static/core-bridge.mjs");
+const {coreFetch,embedded,watchCoreLanguage}=await import("../apps/monitor1_usb/rootfs/static/core-bridge.mjs");
 assert.equal(embedded,true);
 assert.equal(sent[0].origin,"https://ha.invalid");
 assert.equal(sent[0].message.height,1800,"Intrinsic body height must not feed back from the iframe viewport");
+const locales=[];
+watchCoreLanguage(language=>locales.push(language));
+const locale={source:window.parent,origin:"https://ha.invalid",data:{kind:"qingping-core-language",channel:"test-frame-channel",language:"ru"}};
+listeners[0]({...locale,source:{}});
+listeners[0]({...locale,origin:"https://other.invalid"});
+listeners[0]({...locale,data:{...locale.data,channel:"wrong"}});
+listeners[0]({...locale,data:{...locale.data,language:"invalid"}});
+assert.deepEqual(locales,[]);
+listeners[0](locale);
+assert.deepEqual(locales,["ru"]);
+assert.equal(sent.length,1,"Locale updates do not start a request");
 const pending=coreFetch("jobs",undefined,1000);
 const {message,origin}=sent.at(-1);
 assert.equal(origin,"https://ha.invalid","Never post to srcdoc's null origin or wildcard");

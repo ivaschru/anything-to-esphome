@@ -9,7 +9,7 @@ import re
 import time
 
 from .monitor1_browser_full_ui import FullUiObservation, FullUiRelay, prepare, key, client_factory, ROOT
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_initial_ram import same
 from .monitor1_browser_initial_noise import _idle
 from .monitor1_browser_relay import RelayRefusal
@@ -78,7 +78,7 @@ async def activate(service, owner, nonce, data):
     try:
         request = await prepare(o)
         if o.first['kind'] != 'browser_full_ui_scope': raise RelayRefusal
-        c = activation_context(await service.exchange(owner, nonce, 'internal-browser-full-ui-activation-context', request), o); o.live()
+        c = await async_checked(service, o.live, activation_context, await service.exchange(owner, nonce, 'internal-browser-full-ui-activation-context', request), o); o.live()
         if c['trial_proof_sha256'] != data['expected_trial_proof_sha256']: raise RelayRefusal
         await preflight(o, c)
         if o.deadline - time.monotonic() < 730: raise RelayRefusal
@@ -97,7 +97,7 @@ async def activate(service, owner, nonce, data):
         result = await run(port, profile, o.checked['native_pair'], o.checked['bridge'], c['boot_id'], c['trial_job'], factory=client_factory(o))
         o.live(); await _idle(relay); await relay.close(); relay = None
         final = await o.scope()
-        after = activation_context(await service.exchange(owner, nonce, 'internal-browser-full-ui-activation-context', request), o); o.live()
+        after = await async_checked(service, o.live, activation_context, await service.exchange(owner, nonce, 'internal-browser-full-ui-activation-context', request), o); o.live()
         if not same(after, c) or result['state'] != 'full_ui_active_observed': raise RelayRefusal
         await o.cap.close(); o.live(closed=True)
         proof = {'schema_version': 1, **{k: p[k] for k in ('job_id', 'plan_sha256', 'channel_id', 'channel_nonce', 'intent_sha256')},

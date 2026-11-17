@@ -40,7 +40,7 @@ const browserPlans=await import("../custom_components/qingping_esphome/frontend/
 const appSource=await readFile(new URL("../apps/monitor1_usb/rootfs/static/app.mjs",import.meta.url),"utf8");
 async function appFixture(lost=false,late=false) {
   const elements=new Map(),requests=[],events=new Map();
-  let releaseSelection,closedLinks=0;
+  let releaseSelection,updateLanguage,closedLinks=0;
   function element(id) {
     if(!elements.has(id)) elements.set(id,{value:id==="transport" ? "browser" : "",hidden:false,disabled:false,checked:false,textContent:"",
       dataset:{},style:{},setAttribute(){},removeAttribute(){},replaceChildren(){},append(){}});
@@ -50,7 +50,7 @@ async function appFixture(lost=false,late=false) {
     node_name:"fixture-cgs1",friendly_name:"Synthetic monitor",live_recheck_required:true,installed:false,installation_ready:false};
   let status=empty;
   const control={channel_id:"e".repeat(32),close:async()=>({state:"closed"})};
-  const deps={embedded:true,strings,createNativeChannel:()=>({close:async()=>{closedLinks++;}}),
+  const deps={embedded:true,watchCoreLanguage: callback => {updateLanguage = callback;},strings,createNativeChannel:()=>({close:async()=>{closedLinks++;}}),
     openBrowserControl:()=>late ? new Promise(resolve=>{releaseSelection=()=>resolve(control);}) : Promise.resolve(control),...preparation,...builds,...nativePlans,...browserPlans,
     coreFetch:async(operation,data)=>{
       requests.push([operation,data]);
@@ -98,8 +98,7 @@ async function appFixture(lost=false,late=false) {
   }
   assert.ok(element("prepare-plan").disabled,"Consumed/unknown preparation is not repeatable");
   const before=requests.length;
-  element("language").value="ru";
-  element("language").onchange();
+  updateLanguage("ru");
   assert.equal(requests.length,before,"Language changes preserve the operation instead of sending it again");
   assert.ok(element("plan-result").textContent.includes(strings.ru[lost ? "plan_browser_plan_unverified" : "plan_browser_plan_prepared"]));
   await element("prepare-plan").onclick();

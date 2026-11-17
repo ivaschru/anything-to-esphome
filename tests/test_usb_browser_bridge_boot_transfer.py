@@ -34,7 +34,7 @@ class BootTransferTests(unittest.IsolatedAsyncioTestCase):
         self.data = {'job_id': self.j.job, 'expected_plan_sha256': self.j.sha, 'channel_id': self.channel, 'experimental_reviewed': True}
         self.lock = asyncio.Lock(); await self.lock.acquire(); self.addCleanup(self.lock.release)
         self.process = SimpleNamespace(returncode=None)
-        self.service = SimpleNamespace(browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange),
+        self.service = SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange),
             lock=self.lock, process=self.process, failed=False, closing=False)
         self.frames, self.operations = [], []
         self.prepared = None; self.record_calls = 0
