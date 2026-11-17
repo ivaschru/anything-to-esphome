@@ -1,5 +1,17 @@
 # Anything to ESPHome
 
+- Monitor 1 browser host validators read/parse/hash package files through
+  `monitor1_browser_stage.async_checked` and HA's `async_add_executor_job`.
+  Keep complete disk operations off the HA loop, including nested validators
+  and packet decoding. Recompute pins on every check; no persistent cache.
+  The executor is read-only. Check original actor/task/owner/channel/deadline
+  in the calling coroutine before and after every wait, before further IO.
+  Initial-trial `live()` guards/properties are memory-only; async continuations
+  use `async_live()` (relay `_async_live`) to recheck source pins as well.
+  Preserve the same original-task/delegated-pump boundaries and never replay
+  a consumed request after cancellation. Run browser lifecycle tests with
+  off-loop package-read assertions and `test_usb_browser_executor.py`.
+
 
 - The historical `qingping_esphome` domain, API routes, Store keys, service device
   identifier, language key and HACS ZIP filename are compatibility contracts.

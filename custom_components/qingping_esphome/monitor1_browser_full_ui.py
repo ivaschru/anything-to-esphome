@@ -11,7 +11,7 @@ import re
 import time
 
 from .monitor1_browser_relay import BrowserApiRelay, RelayRefusal
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_initial_ram import same
 from .monitor1_browser_boot_observer import _Observation, _Relay, _Stream, ROOT
 from .monitor1_browser_initial_noise import _idle
@@ -104,7 +104,7 @@ def request(data):
 
 async def prepare(o):
     payload = request(o.data)
-    o.live(); o.checked = context(await o.service.exchange(o.owner, o.nonce, 'internal-browser-full-ui-context', payload), o.data); o.live()
+    o.live(); o.checked = await async_checked(o.service, o.live, context, await o.service.exchange(o.owner, o.nonce, 'internal-browser-full-ui-context', payload), o.data); o.live()
     e, old = o.current['reported_evidence'], o.checked['target']
     o.target = {'kind': 'browser_webusb', 'usb_serial': e['serial'], **{k: e[k] for k in ('wlan_mac', 'boot_id', 'co2_type', 'stock_version')}}
     if not same({**o.target, 'boot_id': old['boot_id']}, old) or o.target['boot_id'] == old['boot_id']: raise RelayRefusal
@@ -157,7 +157,7 @@ async def inspect(service, owner, nonce, data):
         else:
             result = await api_review(o)
             await o.scope()
-        after = context(await service.exchange(owner, nonce, 'internal-browser-full-ui-context', payload), data); o.live()
+        after = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-full-ui-context', payload), data); o.live()
         if not same(after, o.checked): raise RelayRefusal
         await o.cap.close(); o.live(closed=True)
         return {'job_id': data['job_id'], **result, 'hardware_contacted': True, 'transport_closed': True, 'channel_closed': True}
@@ -219,14 +219,14 @@ async def trial(service, owner, nonce, data):
                     'observation': {'scope': o.first, 'preflight': preflight}}
         result = await service.exchange(owner, nonce, 'internal-browser-full-ui-trial-prepare',
             {**payload, 'scope': selected, 'experimental_reviewed': True}); o.live()
-        packet, images = trial_packet(result, o, preflight)
+        packet, images = await async_checked(service, o.live, trial_packet, result, o, preflight)
         profile = await key(o); relay = FullUiRelay(o); port = await relay.start()
         from .monitor1_worker.full_ui_trial import run
         result = await run(port, profile, o.checked['native_pair'], o.checked['bridge']['sha256'], o.target['boot_id'],
                            packet['trial_job'], images, factory=client_factory(o))
         o.live(); await _idle(relay); await relay.close(); relay = None
         final_scope = await o.scope()
-        after = context(await service.exchange(owner, nonce, 'internal-browser-full-ui-context', payload), request_data); o.live()
+        after = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-full-ui-context', payload), request_data); o.live()
         if not same(after, o.checked) or result['state'] != 'full_ui_trial_returned_observed': raise RelayRefusal
         await o.cap.close(); o.live(closed=True)
         proof = {'schema_version': 1, **{k: packet[k] for k in ('job_id', 'plan_sha256', 'channel_id', 'channel_nonce', 'intent_sha256', 'trial_job')},

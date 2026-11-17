@@ -15,7 +15,7 @@ from .monitor1_browser_full_ui import FullUiObservation, FullUiRelay, prepare, k
 from .monitor1_browser_initial_ram import same
 from .monitor1_browser_initial_noise import _idle
 from .monitor1_browser_relay import RelayRefusal
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_enrollment import payload, enroll, existing, MIME
 from .monitor1_worker.full_ui_trial import native_sample, rpc, services_named
 
@@ -90,7 +90,7 @@ async def run(service, owner, nonce, data):
     try:
         request = await prepare(o)
         if o.first['kind'] != 'browser_full_ui_scope': raise RelayRefusal
-        c = context(await service.exchange(owner, nonce, 'internal-browser-enrollment-context', request), o); o.live()
+        c = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-enrollment-context', request), o); o.live()
         if o.deadline - time.monotonic() < 120: raise RelayRefusal
         selected = {'channel_id': data['channel_id'], 'channel_nonce': o.current['reported_evidence']['channel'], 'observation': o.first}
         p = document(await service.exchange(owner, nonce, 'internal-browser-enrollment-prepare', {**request, 'scope': selected, 'reviewed': True}), limit=49152); o.live()
@@ -101,7 +101,7 @@ async def run(service, owner, nonce, data):
                 not same(p['context'], c) or not same(p['scope'], o.first) or p['producer_sha256'] != c['producer_sha256'] or
                 not isinstance(p['intent_sha256'], str) or not re.fullmatch('[a-f0-9]{64}', p['intent_sha256'])): raise RelayRefusal
         host = await observe(o, c)
-        after = context(await service.exchange(owner, nonce, 'internal-browser-enrollment-context', request), o); o.live()
+        after = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-enrollment-context', request), o); o.live()
         if not same(after, c): raise RelayRefusal
         final = await o.scope()
         await o.cap.close(); o.live(closed=True)

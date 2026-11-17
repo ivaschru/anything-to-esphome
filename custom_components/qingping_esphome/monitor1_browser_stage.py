@@ -42,6 +42,23 @@ def document(result, mime='application/json', limit=8192):
     return value
 
 
+async def async_checked(service, live, check, *args):
+    """Run a complete disk-backed check outside HA's event loop.
+
+    Opening, reading, JSON decoding and hashing belong to the same executor
+    job. Do not cache source fingerprints: every phase must still detect a
+    changed installed package. The worker receives read-only inputs and never
+    touches the actor, channel or asyncio reservation. Both liveness checks
+    run in the original coroutine, including after an arbitrarily slow disk
+    read. Cancellation discards the result; it cannot issue a device frame or
+    retry the consumed actor request, even if the worker finishes later.
+    """
+    live()
+    result = await service.hass.async_add_executor_job(check, *args)
+    live()
+    return result
+
+
 def packet(raw, context):
     """Rehash all private bodies before issuing even the first device frame.
 
@@ -129,7 +146,7 @@ async def stage(service, owner, nonce, data):
         live()
         result = await service.exchange(owner, nonce, 'internal-browser-stage-prepare', {'job_id': data['job_id'],
             'expected_plan_sha256': data['expected_plan_sha256'], 'scope': scope, 'experimental_reviewed': True})
-        meta, stock, bodies = packet(result, context)
+        meta, stock, bodies = await async_checked(service, live, packet, result, context)
         live()
         await cap.begin_stage(meta, stock)
         for role in ROLES:

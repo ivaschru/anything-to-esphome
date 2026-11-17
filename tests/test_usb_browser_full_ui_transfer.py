@@ -4,6 +4,7 @@ The peer models the unchanged device API; no ARM, shell, image FD, actual panel
 or sixty-second hardware timer executes. It is host composition proof only.
 """
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import base64
 import json
 from types import SimpleNamespace
@@ -74,6 +75,7 @@ class FullUiTransferTests(fixtures.EncryptedFullUiFixture, unittest.IsolatedAsyn
             for task in self.tasks: task.cancel()
             await asyncio.gather(*self.tasks, return_exceptions=True)
 
+    @off_loop_package_reads
     async def test_real_noise_transfers_exact_original_pair_once_and_records_after_both_closes(self):
         await self.start_peer(); self.waiting_open = 1
         try:

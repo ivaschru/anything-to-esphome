@@ -42,7 +42,7 @@ class FullUiBrowserFixture:
         self.cap = self.registry.capability(self.owner, self.nonce, self.channel)
         self.data = {'job_id': self.j.job, 'expected_plan_sha256': self.j.sha, 'channel_id': self.channel}
         self.lock = asyncio.Lock(); await self.lock.acquire(); self.addCleanup(self.lock.release)
-        self.service = types.SimpleNamespace(browser_registry=self.registry, lock=self.lock, process=types.SimpleNamespace(returncode=None),
+        self.service = types.SimpleNamespace(hass=types.SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry, lock=self.lock, process=types.SimpleNamespace(returncode=None),
             failed=False, closing=False, exchange=AsyncMock(side_effect=self.exchange))
         self.frames, self.operations = [], []; self.tasks = set(); self.stop = self.bad_scope = False; self.fail_op = None
         self.remote_reader = self.remote_writer = None

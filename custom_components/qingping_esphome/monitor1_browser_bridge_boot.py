@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import re
 
-from .monitor1_browser_stage import document, ROLES, SOURCE
+from .monitor1_browser_stage import async_checked, document, ROLES, SOURCE
 from .monitor1_browser_disabled_review import validate_scope
 from .monitor1_browser_initial_review import validate_preparation
 from .monitor1_browser_relay import RelayRefusal
@@ -102,12 +102,12 @@ async def review(service, owner, nonce, data):
     request = {k: data[k] for k in ('job_id', 'expected_plan_sha256')}
     try:
         live()
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
+        checked, reader = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
         live()
         value = await registry.bridge_boot_preparation(owner, nonce, data['channel_id'], checked['meta'], checked['trial_marker'])
         live()
         observation(value, checked, reader)
-        after, _ = context(await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
+        after, _ = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
         if json.dumps(after, sort_keys=True) != json.dumps(checked, sort_keys=True):
             raise RelayRefusal
         live()
@@ -182,14 +182,14 @@ async def arm(service, owner, nonce, data):
     request = {k: data[k] for k in ('job_id', 'expected_plan_sha256')}
     try:
         live()
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
+        checked, reader = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-bridge-boot-context', request), data)
         live()
         await cap.probe_bridge_boot_stream()  # Harmless fixed exec, no PTY/fallback, BEFORE intent consumption.
         live()
         observed = await registry.bridge_boot_preparation(owner, nonce, data['channel_id'], checked['meta'], checked['trial_marker'])
         observation(observed, checked, reader)
         live()
-        prepared = packet(await service.exchange(owner, nonce, 'internal-browser-bridge-boot-prepare',
+        prepared = await async_checked(service, live, packet, await service.exchange(owner, nonce, 'internal-browser-bridge-boot-prepare',
             {**request, 'experimental_reviewed': True, 'scope': {'channel_id': data['channel_id'],
              'channel_nonce': current['reported_evidence']['channel'], 'observation': observed}}),
             checked, observed, data['channel_id'], current['reported_evidence']['channel'])

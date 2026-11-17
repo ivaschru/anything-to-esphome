@@ -1,3 +1,10 @@
+## 0.3.13 – Keep USB checks off the Home Assistant event loop
+
+- Read and verify Monitor 1 USB package files in Home Assistant's executor so
+  slow storage does not stall other integrations during setup and review.
+- Keep fresh source checks and reject expired or replaced operations after
+  each background check. Cancellation never retries a device write.
+
 ## 0.3.11 – Monitor 1 USB setup
 
 - Show how to enable ADB and connect a USB-C data cable on the first Air

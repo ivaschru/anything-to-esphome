@@ -1,5 +1,6 @@
 """Actual registry/finite Core frames; synthetic stopped journal/device DTOs."""
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import copy
 import hashlib
 import importlib.util
@@ -48,7 +49,7 @@ class BootReviewTests(unittest.IsolatedAsyncioTestCase):
         self.value = {'kind': 'browser_bridge_boot_preparation', 'preparation': self.f.preparation,
                       'trial_marker': copy.deepcopy(self.marker), 'trial_marker_checked': True, 'context_only': True}
         self.reads = 0; self.events = []
-        self.service = SimpleNamespace(browser_registry=self.b.registry, exchange=AsyncMock(side_effect=self.exchange))
+        self.service = SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.b.registry, exchange=AsyncMock(side_effect=self.exchange))
 
     async def exchange(self, owner, nonce, operation, data):
         self.assertEqual((owner, nonce), (self.b.owner, self.b.nonce))
@@ -77,6 +78,7 @@ class BootReviewTests(unittest.IsolatedAsyncioTestCase):
         finally:
             pump.cancel(); await asyncio.gather(pump, return_exceptions=True)
 
+    @off_loop_package_reads
     async def test_original_stopped_basis_fresh_scope_and_independent_close_are_all_required(self):
         self.f.scope['data_available_bytes'] -= 4096  # Capacity alone may vary.
         result = await self.run_review()

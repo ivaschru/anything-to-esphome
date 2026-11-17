@@ -56,7 +56,7 @@ class TransferTests(unittest.IsolatedAsyncioTestCase):
         self.public = {'job_id': self.data['job_id'], 'state': 'staged_disabled_verified', 'replay_allowed': False,
             'installed': False, 'installation_ready': False, 'device_write_attempted': True, 'live_recheck_required': True}
         self.operations, self.events, self.received, self.close_acks = [], [], {}, 0
-        self.service = SimpleNamespace(browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange))
+        self.service = SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry, exchange=AsyncMock(side_effect=self.exchange))
 
     async def exchange(self, owner, nonce, operation, data):
         self.assertEqual((owner,nonce),(self.owner,self.nonce))

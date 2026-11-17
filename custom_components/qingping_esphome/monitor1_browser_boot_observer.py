@@ -14,7 +14,7 @@ import time
 
 from .monitor1_browser_relay import BrowserApiRelay, RelayRefusal
 from .monitor1_browser_initial_ram import actor_live, same
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_bridge_boot import context as boot_context, packet as boot_packet, ROOT
 from .monitor1_browser_initial_noise import _WireSamples, _disconnect, _idle, REQUIRED
 
@@ -114,6 +114,11 @@ class _Relay:
         self.o.live(io=io)
         if _now() >= self.deadline or self.o.psk is None: raise RelayRefusal
 
+    async def _async_live(self):
+        # Shared observer cleanup can await this interface; this relay has no
+        # disk-backed checks and keeps its guard in the original loop task.
+        self._live()
+
     async def start(self):
         self._live(); port = await self.relay.start(); self.relay.deadline = self.deadline; self._live(); return port
 
@@ -191,7 +196,7 @@ async def observe(service, owner, nonce, data):
     o = _Observation(service, owner, nonce, data)
     request = {k: data[k] for k in ('job_id', 'expected_plan_sha256')}
     try:
-        o.live(); o.checked = context(await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), data); o.live()
+        o.live(); o.checked = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), data); o.live()
         evidence = o.current['reported_evidence']; old = o.checked['arming']['context']['meta']['target']
         o.target = {'kind': 'browser_webusb', 'usb_serial': evidence['serial'], **{k: evidence[k] for k in ('wlan_mac', 'boot_id', 'co2_type', 'stock_version')}}
         if not same({**o.target, 'boot_id': old['boot_id']}, old): raise RelayRefusal
@@ -207,7 +212,7 @@ async def observe(service, owner, nonce, data):
             raw = base64.b64decode(value['noise_psk'], validate=True)
             if len(raw) != 32 or base64.b64encode(raw).decode() != value['noise_psk']: raise RelayRefusal
             o.psk = value.pop('noise_psk'); api = await _wire(o)
-        after = context(await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), data); o.live()
+        after = await async_checked(service, o.live, context, await service.exchange(owner, nonce, 'internal-browser-boot-observer-context', request), data); o.live()
         if not same(after, o.checked): raise RelayRefusal
         await o.cap.close(); o.live(closed=True)
         return {'job_id': data['job_id'], 'state': 'bridge_autostart_waiting_for_boot' if waiting else 'post_boot_bridge_observed',

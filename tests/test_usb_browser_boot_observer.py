@@ -1,5 +1,6 @@
 """Real actor, registry, loopback/Noise SDK; emulated monitor and accelerated time."""
 import asyncio
+from browser_executor_fixture import off_loop_package_reads
 import base64
 import copy
 import importlib.util
@@ -37,7 +38,7 @@ class BootObserverTests(unittest.IsolatedAsyncioTestCase):
         self.register()
         self.lock = asyncio.Lock(); await self.lock.acquire(); self.addCleanup(self.lock.release)
         self.process = SimpleNamespace(returncode=None)
-        self.service = SimpleNamespace(browser_registry=self.registry, lock=self.lock, process=self.process,
+        self.service = SimpleNamespace(hass=SimpleNamespace(async_add_executor_job=asyncio.to_thread), browser_registry=self.registry, lock=self.lock, process=self.process,
             failed=False, closing=False, exchange=AsyncMock(side_effect=self.exchange))
         self.frames, self.operations = [], []
         self.tasks = set(); self.stop = self.bad_scope = self.change_actor = False; self.fail_op = None
@@ -156,6 +157,7 @@ class EncryptedBootObserverTests(BootObserverTests):
         self.server = await asyncio.start_server(self.accept, '127.0.0.1', 0)
         self.addAsyncCleanup(self.stop_server)
 
+    @off_loop_package_reads
     async def test_real_noise_and_two_fresh_vectors_need_final_scope_api_and_usb_close(self):
         await self.start_peer()
         with patch.object(module, '_now', lambda: self.clock), patch.object(noise.module, '_now', lambda: self.clock), patch.object(module, '_wait', self.fast_wait):

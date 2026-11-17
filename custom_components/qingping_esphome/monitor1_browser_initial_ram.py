@@ -16,7 +16,7 @@ from pathlib import Path
 import re
 
 from .monitor1_browser_relay import RelayRefusal
-from .monitor1_browser_stage import document
+from .monitor1_browser_stage import async_checked, document
 from .monitor1_browser_initial_review import context, validate_preparation
 
 ROOT = Path(__file__).parent / 'monitor1_worker'
@@ -139,10 +139,17 @@ class PreparedBrowserRam:
         return copy.deepcopy(self._proof)
 
     def live(self):
+        # Synchronous properties/claims check in-memory ownership only. Every
+        # async continuation also awaits async_live() before and after IO.
         actor_live(self._service, self._actor, self._operation)
         if (self.registry.current is not self.current or
                 self.registry.capability(self.owner, self.nonce, self.channel_id) is not self.capability or
-                self.capability.closed or self.capability.failed or self._packet['producer_sha256'] != producer()):
+                self.capability.closed or self.capability.failed):
+            raise RelayRefusal
+
+    async def async_live(self):
+        pins = await async_checked(self._service, self.live, producer)
+        if self._packet['producer_sha256'] != pins:
             raise RelayRefusal
 
     async def close(self):
@@ -185,21 +192,24 @@ async def prepare_ram(service, owner, nonce, data):
     body = None
     try:
         live()
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
+        raw_context = await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request)
+        # The first exchange may start the actor. Bind it before the executor
+        # wait so a replacement during disk IO cannot inherit this response.
         actor = getattr(service, 'process', None)
         actor_live(service, actor, operation)
+        checked, reader = await async_checked(service, live, context, raw_context, data)
         live()
         await cap.probe_initial_ram_stream()  # Positive harmless exec BEFORE consuming actor intent.
         live()
         observed = await registry.initial_trial_preparation(owner, nonce, data['channel_id'], checked['meta'])
         validate_preparation(observed, checked['meta'], reader, checked['committed_scope'])
         live()
-        prepared, body = packet(await service.exchange(owner, nonce, 'internal-browser-initial-trial-prepare',
+        prepared, body = await async_checked(service, live, packet, await service.exchange(owner, nonce, 'internal-browser-initial-trial-prepare',
             {**request, 'experimental_reviewed': True, 'scope': {'channel_id': data['channel_id'],
              'channel_nonce': original['reported_evidence']['channel'], 'observation': observed}}),
             checked, observed, data['channel_id'], original['reported_evidence']['channel'])
         live()
-        if prepared['producer_sha256'] != producer():
+        if prepared['producer_sha256'] != await async_checked(service, live, producer):
             raise RelayRefusal
         precreated = await cap.begin_initial_ram(prepared)
         observation(precreated, prepared)
@@ -211,12 +221,12 @@ async def prepare_ram(service, owner, nonce, data):
         result = await cap.finish_initial_ram()
         proof(result, prepared, precreated, reader)
         live()
-        after, _ = context(await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
-        if not same(after, checked) or prepared['producer_sha256'] != producer():
+        after, _ = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-initial-trial-context', request), data)
+        if not same(after, checked) or prepared['producer_sha256'] != await async_checked(service, live, producer):
             raise RelayRefusal
         live()
         handoff = PreparedBrowserRam(service, actor, operation, registry, original, cap, owner, nonce, data['channel_id'], prepared, result)
-        handoff.live()
+        await handoff.async_live()
         return handoff  # Not a public response, terminal record or execution grant.
     except BaseException:
         try:

@@ -38,6 +38,11 @@ class InitialApiContext:
         if self._noise_psk is None or self._running._finished or self._running._api_context is not self:
             raise RelayRefusal
 
+    async def async_live(self):
+        self.live()
+        await self._running.async_live()
+        self.live()
+
     @property
     def identity(self):
         self.live()
@@ -79,7 +84,7 @@ async def read_initial_api_context(running):
     from .monitor1_browser_initial_guardian import RunningBrowserGuardian
     if type(running) is not RunningBrowserGuardian:
         raise RelayRefusal
-    running.live()
+    await running.async_live()
     if running._finished or running._busy or running._api_used:
         raise RelayRefusal
     running._api_used, running._busy = True, True
@@ -88,7 +93,7 @@ async def read_initial_api_context(running):
         request = {k: ram.packet[k] for k in BINDING}
         value = _payload(await ram._service.exchange(ram.owner, ram.nonce,
             'internal-browser-initial-trial-api', request), ram.packet)
-        running.live()
+        await running.async_live()
         result = InitialApiContext(running, value)
         running._api_context = result
         return result

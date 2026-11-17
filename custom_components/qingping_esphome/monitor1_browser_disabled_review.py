@@ -9,7 +9,7 @@ from pathlib import Path
 import json
 import re
 
-from .monitor1_browser_stage import document, ROLES, SOURCE
+from .monitor1_browser_stage import async_checked, document, ROLES, SOURCE
 from .monitor1_browser_relay import RelayRefusal
 
 from .monitor1_worker.browser_disabled_observation import policy_input, validate_assessment
@@ -70,8 +70,12 @@ async def review(service, owner, nonce, data):
     registry = service.browser_registry
     cap = registry.capability(owner, nonce, data['channel_id'])
     original = registry.current
+    def live():
+        if (registry.current is not original or registry.capability(owner, nonce, data['channel_id']) is not cap or
+                cap.closed or cap.failed):
+            raise RelayRefusal
     try:
-        checked, reader = context(await service.exchange(owner, nonce, 'internal-browser-disabled-context',
+        checked, reader = await async_checked(service, live, context, await service.exchange(owner, nonce, 'internal-browser-disabled-context',
             {'job_id': data['job_id'], 'expected_plan_sha256': data['expected_plan_sha256']}), data)
         observed = await registry.disabled_scope(owner, nonce, data['channel_id'], checked['meta'])
         validate_scope(observed, checked['meta'], reader)
