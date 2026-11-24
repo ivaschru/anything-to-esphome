@@ -7,48 +7,48 @@
       4
     ],
     [
-      19296,
+      19355,
       4
     ],
     [
-      270738,
+      270834,
       8
     ],
     [
-      272122,
+      272218,
       7
     ],
     [
-      272186,
+      272282,
       6
     ],
     [
-      272250,
+      272346,
       5
     ],
     [
-      272283,
+      272379,
       3
     ],
     [
-      272347,
+      272443,
       2
     ],
     [
-      272380,
+      272476,
       1
     ],
     [
-      272415,
+      272511,
       0
     ]
   ],
   "profile": "lite-434",
-  "public_version": 5,
-  "revision": 8,
-  "sha256": "dd4f7374e70c24aa471e4a33195539a46e2e53d6a0c6d51eb2ae737e3cb90711",
-  "size": 1700064,
+  "public_version": 6,
+  "revision": 9,
+  "sha256": "608df3dff10de69c811a50d53c1ac4f5ed949b8dce0556aa65dcb358d16a85a3",
+  "size": 1701072,
   "source_stock_version": "4.3.4",
-  "summary": "Lite 4.3.4 / HW0001 firmware 5. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. PM OFF stops readings only; fan shutdown is not supported.",
-  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v5/lite-434-template.bin"
+  "summary": "Charge-current temperature compensation and cooldown in Measured mode. / \u041f\u043e\u043f\u0440\u0430\u0432\u043a\u0430 \u043f\u043e \u0442\u043e\u043a\u0443 \u0437\u0430\u0440\u044f\u0434\u043a\u0438 \u0438 \u043e\u0441\u0442\u044b\u0432\u0430\u043d\u0438\u044e \u0432 \u0440\u0435\u0436\u0438\u043c\u0435 Measured.",
+  "url": "https://raw.githubusercontent.com/ivaschru/qingping-esphome/firmware-lite-434-v6/lite-434-template.bin"
 }

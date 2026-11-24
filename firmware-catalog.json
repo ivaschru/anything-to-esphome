@@ -10,25 +10,29 @@
         {
           "revision": 7,
           "version": "2026.11.08-ui25-434native4"
+        },
+        {
+          "revision": 8,
+          "version": "2026.11.10-ui25-434sources5"
         }
       ],
       "backend": "esp32-noise-app-v1",
       "image": {
-        "sha256": "dd4f7374e70c24aa471e4a33195539a46e2e53d6a0c6d51eb2ae737e3cb90711",
-        "size": 1700064,
-        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.bin"
+        "sha256": "608df3dff10de69c811a50d53c1ac4f5ed949b8dce0556aa65dcb358d16a85a3",
+        "size": 1701072,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v6/lite-434-template.bin"
       },
       "manifest": {
-        "sha256": "11aa09f59fdeb4e0350b379592188ddf033dac35a93c0311d05fbf3a106511de",
-        "size": 1269,
-        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v5/lite-434-template.json"
+        "sha256": "a8bc94eeeaaa69ea67eda1e396a2bbdd404e09a0c22dd7c451e615c7c2a0a6e2",
+        "size": 1268,
+        "url": "https://raw.githubusercontent.com/ivaschru/anything-to-esphome/firmware-lite-434-v6/lite-434-template.json"
       },
       "minimum_integration": "0.2.9",
-      "public_version": 5,
-      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v5",
-      "revision": 8,
-      "summary": "Lite 4.3.4 / HW0001 firmware 5. Six native HA display sources with per-measurement local fallback and temporary night touch wake. Native ESPHome updates preserve private settings. PM OFF stops readings only; fan shutdown is not supported.",
-      "version": "2026.11.10-ui25-434sources5"
+      "public_version": 6,
+      "release_url": "https://github.com/ivaschru/anything-to-esphome/tree/firmware-lite-434-v6",
+      "revision": 9,
+      "summary": "Charge-current temperature compensation and cooldown in Measured mode. / \u041f\u043e\u043f\u0440\u0430\u0432\u043a\u0430 \u043f\u043e \u0442\u043e\u043a\u0443 \u0437\u0430\u0440\u044f\u0434\u043a\u0438 \u0438 \u043e\u0441\u0442\u044b\u0432\u0430\u043d\u0438\u044e \u0432 \u0440\u0435\u0436\u0438\u043c\u0435 Measured.",
+      "version": "2026.11.24-ui25-434charge6"
     }
   },
   "releases": {
