@@ -172,8 +172,10 @@ static constexpr double MAGNUS_L = 243.12;  // degC
 // bright_target: 100 while the display is on, else 0. batt_pct: 0..100.
 // heat_c: measured display + Bluetooth heat [degC] (heat.h). NaN -> Stock: bright() term and the
 // stock humidity transfer; otherwise Measured: heat_c and the vapour-pressure humidity transfer.
+// charge_heat_c: measured charger heat [degC]. When supplied in Measured mode it replaces the
+// stock charging term, including its cooling tail. Keep the stock state advancing for mode changes.
 inline Out step(State &s, float t_raw, float rh_raw, int cstate, int bright_target, int batt_pct,
-                const Calib &cal = Calib(), float heat_c = NAN) {
+                const Calib &cal = Calib(), float heat_c = NAN, float charge_heat_c = NAN) {
   // FUN_40225f40(S, 1)
   s.on = (int16_t) (s.on + 1 > ON_MAX ? ON_MAX : s.on + 1);
   // FUN_400e8adc(S, cstate, 1, batt_pct); x is taken from the PREVIOUS state
@@ -214,7 +216,9 @@ inline Out step(State &s, float t_raw, float rh_raw, int cstate, int bright_targ
   const bool measured = !std::isnan(heat_c);
   t = (float) ((double) t + (measured ? -(double) heat_c : bright(s.bacc / 20)));
   const float t_stock_h = t;
-  t = (float) ((double) (300 - bs) * cc / 300.0 + (double) t);
+  const double charge_term = measured && std::isfinite(charge_heat_c) ? -(double) charge_heat_c :
+                                                                    (double) (300 - bs) * cc / 300.0;
+  t = (float) ((double) t + charge_term);
   // Measured: the charging heat warms the sensor too, so the humidity transfer takes the full model T.
   const float t_h = measured ? t : t_stock_h;
   if (s.last > -100.0f) {  // slew limiter: a jump of more than 3 C moves only 0.3 C per second
@@ -303,6 +307,7 @@ struct Inputs {
   bool usb = false;       // USB present (GPIO34 low)
   float vbat_mv = NAN;    // battery voltage, mV
   float ichg_ma = NAN;    // charge current, mA
+  bool ichg_fresh = true; // whether the ADC has published recently
   float batt_pct = NAN;   // battery level, %
   int bright_target = 0;  // 100 while the display is on, else 0
   Calib cal;
@@ -314,13 +319,16 @@ struct Inputs {
 
 class Engine {
  public:
-  // Call once per second. Returns false (and steps nothing) while T or RH is not available.
+  // Call once per second. Returns false while T or RH is not available. After initialization
+  // the charge history still advances on missing T/RH, since its inputs are independent.
   // The first valid call restores the model from `saved` (stock FUN_400e8330).
   // The heat model (heat.h) advances on every valid tick, whichever mode is selected, so
   // switching Stock <-> Measured never resets it; `heat_saved` is its restore record.
-  bool tick(const Inputs &in, const Saved &saved, const heat::Saved *heat_saved = nullptr) {
+  bool tick(const Inputs &in, const Saved &saved, const heat::Saved *heat_saved = nullptr,
+            int16_t charge_saved_c100 = 0) {
     this->ticks_++;
-    if (std::isnan(in.t_raw) || std::isnan(in.rh_raw)) return false;
+    const bool valid_th = std::isfinite(in.t_raw) && std::isfinite(in.rh_raw);
+    if (!this->ready_ && !valid_th) return false;
     if (!this->ready_) {
       if (saved.magic == SAVED_MAGIC)
         init(this->s_, saved.on, saved.bright, saved.t100, saved.chg, t100(in.t_raw));
@@ -341,9 +349,14 @@ class Engine {
         this->hs_.p_a = this->hs_.p_b = (float) this->s_.bacc / (float) BACC_MAX;
         this->hs_.q_a = this->hs_.q_b = this->hs_.p_a * heat::level_weight(in.level);
       }
+      if (saved.magic == SAVED_MAGIC)
+        this->charge_heat_c_ = heat::restore_charge(charge_saved_c100, saved.t100, t100(in.t_raw));
       this->cstate_ = this->s_.cst;
       this->ready_ = true;
     }
+    this->charge_heat_c_ =
+        heat::step_charge(this->charge_heat_c_, in.usb, in.ichg_fresh ? in.ichg_ma : NAN);
+    if (!valid_th) return false;
     this->hp_ = heat::sanitize(in.heat);
     heat::step(this->hs_, this->hp_, in.bright_target > 0, in.level, in.ble);
     this->cstate_ = charge_state(this->cstate_, in.usb, in.vbat_mv, in.ichg_ma);
@@ -351,7 +364,8 @@ class Engine {
     this->t100_ = t100(in.t_raw);
     this->out_ = step(this->s_, in.t_raw, in.rh_raw, this->cstate_, in.bright_target, pct, in.cal,
                           in.measured ? heat::display_heat(this->hs_, this->hp_) + heat::bt_heat(this->hs_, this->hp_)
-                                      : NAN);
+                                      : NAN,
+                          this->charge_heat_c_);
     return true;
   }
   bool ready() const { return this->ready_; }
@@ -363,6 +377,8 @@ class Engine {
   bool heat_restored() const { return this->heat_restored_; }
   float display_heat() const { return heat::display_heat(this->hs_, this->hp_); }
   float bt_heat() const { return heat::bt_heat(this->hs_, this->hp_); }
+  float charge_heat() const { return this->charge_heat_c_; }
+  int16_t charge_snapshot() const { return (int16_t) std::lround(this->charge_heat_c_ * 100.0f); }
   heat::Saved heat_snapshot() const { return heat::snapshot(this->hs_); }
   uint32_t ticks() const { return this->ticks_; }
   // What stock's save (FUN_400e9224) would write now.
@@ -382,6 +398,7 @@ class Engine {
   State s_;
   heat::State hs_;
   heat::Params hp_;
+  float charge_heat_c_ = 0.0f;
   Out out_{NAN, NAN, NAN};
   int cstate_ = 2;
   int t100_ = 0;

@@ -1,3 +1,10 @@
+## Unreleased
+
+- Direct-I2C Lite's Measured heat model now compensates for charger heat from
+  measured current, including short top-ups and cooling after charging.
+- В режиме Measured у Lite с прямым I²C поправка на нагрев учитывает измеренный
+  ток, короткие подзарядки и остывание после зарядки.
+
 ## 0.3.13 – Monitor 1 USB diagnostics
 
 ### English

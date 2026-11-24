@@ -1,5 +1,12 @@
 # Anything to ESPHome
 
+- Direct-I2C Lite's `Measured` temperature compensation estimates charge heat from
+  the USB-gated ADC current with separate heating and cooling time constants.
+  Keep the existing `Stock` calculation and the display/BLE NVS layout. Charge
+  history has a separate quantized restore key. A missing or stale ADC sample
+  supplies zero heat input and keeps the cooling tail. An offline replay with
+  one device's history does not qualify a hardware profile or release.
+
 - Monitor 1 browser host validators read/parse/hash package files through
   `monitor1_browser_stage.async_checked` and HA's `async_add_executor_job`.
   Keep complete disk operations off the HA loop, including nested validators

@@ -36,6 +36,7 @@ esphome:
         if (id(tc_engine).ready()) {
           id(tc_saved) = id(tc_engine).snapshot();
           id(tc_heat_saved) = id(tc_engine).heat_snapshot();
+          id(tc_charge_heat_saved) = id(tc_engine).charge_snapshot();
         }
 
 esp32:
@@ -491,9 +492,10 @@ sensor:
       - lambda: |-
           static constexpr float ADC_FLOOR_MA = 39.0f;  // ~78 mV floor at 2.5 dB (see above)
           return std::isnan(x) ? x : std::max(0.0f, x - ADC_FLOOR_MA);
+    on_value:
+      - lambda: id(tc_charge_sample_ms) = millis();
 
-  # Heat-model diagnostics (ours, not stock): the display and Bluetooth heat the Measured model
-  # currently subtracts, published by the 1 s interval every 10 s (NaN until the engine is ok).
+  # Measured heat-model diagnostics, published every 10 s from the per-second model.
   - platform: template
     id: hc_display_heat
     name: "Display heat estimate"
@@ -504,6 +506,13 @@ sensor:
   - platform: template
     id: hc_bt_heat
     name: "Bluetooth heat estimate"
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: hc_charge_heat
+    name: "Charge heat estimate"
     unit_of_measurement: "°C"
     accuracy_decimals: 2
     entity_category: diagnostic
@@ -737,6 +746,14 @@ globals:
   - id: tc_heat_saved
     type: tcomp::heat::Saved
     restore_value: true
+  # Separate centidegree record to keep existing display/BLE NVS data readable.
+  - id: tc_charge_heat_saved
+    type: int16_t
+    restore_value: true
+    initial_value: "0"
+  - id: tc_charge_sample_ms
+    type: uint32_t
+    initial_value: "0"
   # Display hook: mirrors id(oled).is_on(), refreshed by the 1 s interval below (stock feeds
   # brightness target 100 while the panel is on, 0 when off; the -1 C term ramps 20 s/%).
   # Feeds the Stock model only (on/off, stock never varies the OLED contrast); the Measured
@@ -961,6 +978,9 @@ interval:
           in.usb = id(usb_power).state;  // GPIO34 low = USB present
           in.vbat_mv = id(battery_voltage).state * 1000.0f;
           in.ichg_ma = id(charge_current).state;
+          // The ADC publishes once a minute. On a missed sample keep the thermal
+          // tail, but after three intervals stop adding heat from the stale current.
+          in.ichg_fresh = millis() - id(tc_charge_sample_ms) < 180000U;
           in.batt_pct = id(battery_level).state;
           id(tc_display_on) = id(oled).is_on();
           in.level = id(display_level).state;
@@ -978,7 +998,7 @@ interval:
           const float toff = id(tc_temp_offset).state, rhoff = id(tc_rh_offset).state;
           in.cal.t_off_c100 = std::isnan(toff) ? 0 : (int) lroundf(toff * 100.0f);
           in.cal.rh_off_d10 = std::isnan(rhoff) ? 0 : (int) lroundf(rhoff * 10.0f);
-          const bool ok = tc.tick(in, id(tc_saved), &id(tc_heat_saved));
+          const bool ok = tc.tick(in, id(tc_saved), &id(tc_heat_saved), id(tc_charge_heat_saved));
           const auto &st = tc.state();
           if (ok && !was_ready)
             ESP_LOGI("tcomp", "start: %s on=%d chg=%d cst=%d bacc=%d, heat %s (raw %.2f C)",
@@ -992,18 +1012,21 @@ interval:
               id(rh_comp).publish_state(tc.out().rh);
               id(hc_display_heat).publish_state(tc.display_heat());
               id(hc_bt_heat).publish_state(tc.bt_heat());
+              id(hc_charge_heat).publish_state(tc.charge_heat());
             } else if (!std::isnan(id(temp_comp).state)) {
               id(temp_comp).publish_state(NAN);
               id(rh_comp).publish_state(NAN);
               id(hc_display_heat).publish_state(NAN);
               id(hc_bt_heat).publish_state(NAN);
+              id(hc_charge_heat).publish_state(NAN);
             }
           }
           if (ok && tc.ticks() % 300 == 0) {
             id(tc_saved) = tc.snapshot();
             id(tc_heat_saved) = tc.heat_snapshot();
-            ESP_LOGD("tcomp", "on=%d chg=%d dis=%d cst=%d bacc=%d H_d=%.2f H_bt=%.2f: raw %.2f C %.1f%% -> %.2f C %.1f%%",
-                     st.on, st.chg, st.dis, st.cst, st.bacc, tc.display_heat(), tc.bt_heat(),
+            id(tc_charge_heat_saved) = tc.charge_snapshot();
+            ESP_LOGD("tcomp", "on=%d chg=%d dis=%d cst=%d bacc=%d H_d=%.2f H_bt=%.2f H_chg=%.2f: raw %.2f C %.1f%% -> %.2f C %.1f%%",
+                     st.on, st.chg, st.dis, st.cst, st.bacc, tc.display_heat(), tc.bt_heat(), tc.charge_heat(),
                      in.t_raw, in.rh_raw, tc.out().t, tc.out().rh);
           }
 

@@ -95,6 +95,39 @@ inline void step(State &s, const Params &p, bool display_on, float level, bool b
 inline float display_heat(const State &s, const Params &p) { return p.a1 * s.p_b + (p.a6 - p.a1) * s.q_b; }
 inline float bt_heat(const State &s, const Params &p) { return p.bt_comp ? p.a_bt * s.b_bt : 0.0f; }
 
+// Fit of five isolated charging cycles on one direct-I2C device, with the
+// non-charging temperature interpolated from before/after each cycle.
+// Unlike the stock voltage gate, this also responds to top-ups at high Vbat.
+// The constants are initial calibration, not a guarantee across units.
+static constexpr float CHARGE_REFERENCE_MA = 460.0f;
+static constexpr float CHARGE_HEAT_AT_REFERENCE_C = 3.9f;
+static constexpr float CHARGE_MAX_MA = 550.0f;
+static constexpr float CHARGE_MAX_HEAT_C = CHARGE_HEAT_AT_REFERENCE_C * CHARGE_MAX_MA / CHARGE_REFERENCE_MA;
+static constexpr float CHARGE_WARMUP_SECONDS = 390.0f;
+static constexpr float CHARGE_COOLDOWN_SECONDS = 810.0f;
+
+// One second of thermal history. The current is already corrected for the ADC
+// floor. Reject small offsets and bound improbable readings so an ADC fault
+// cannot drive an unbounded temperature correction. When USB or valid current
+// disappears, the drive goes to zero and existing heat decays gradually.
+inline float step_charge(float previous_c, bool usb, float current_ma) {
+  const float bounded_ma = usb && std::isfinite(current_ma) && current_ma > 20.0f
+                               ? std::fmin(current_ma, CHARGE_MAX_MA)
+                               : 0.0f;
+  const float target_c = CHARGE_HEAT_AT_REFERENCE_C * bounded_ma / CHARGE_REFERENCE_MA;
+  const float lag = target_c > previous_c ? CHARGE_WARMUP_SECONDS : CHARGE_COOLDOWN_SECONDS;
+  return previous_c + (target_c - previous_c) / lag;
+}
+
+// The estimate has its own NVS key so the existing display/BLE record keeps
+// its layout. A missing key starts at zero. The raw sensor's fall since the
+// same saved snapshot accounts for probable cooling while the device was off.
+inline float restore_charge(int16_t saved_heat_c100, int saved_raw_c100, int current_raw_c100) {
+  const float saved_c = std::fmin(std::fmax(saved_heat_c100 / 100.0f, 0.0f), CHARGE_MAX_HEAT_C);
+  const float cooled_c = std::fmax((saved_raw_c100 - current_raw_c100) / 100.0f, 0.0f);
+  return std::fmax(saved_c - cooled_c, 0.0f);
+}
+
 // ---- persistence (ESPHome restore_value global: raw bytes in NVS, keep trivially copyable) ----
 static constexpr uint16_t HEAT_MAGIC = 0x4E02;
 struct Saved {
