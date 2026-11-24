@@ -1,4 +1,0 @@
-#!/bin/sh
-# Zig supplies a static C++ runtime, avoiding the old stock libstdc++ ABI.
-base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "$base/.venv/bin/python" "$base/zig_driver.py" c++ "$@"

@@ -1,4 +1,0 @@
-#!/bin/sh
-# Use an ARM-compatible GNU archive index, never the macOS ranlib default.
-base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "$base/zig-ar" s "$@"

@@ -1,0 +1,72 @@
+{
+  "pm_policy": "lite-434-polling-only-v1",
+  "profile": "lite-434",
+  "source_stock_version": "4.3.4",
+  "hardware": "0001",
+  "fan_shutdown": false,
+  "model": "CGDN1",
+  "ui": "2026.11.24-ui25-434charge6",
+  "public_version": 6,
+  "font": "Inter + Roboto Condensed (OFL)",
+  "esphome": "2026.9.1",
+  "size": 1701072,
+  "sha256": "608df3dff10de69c811a50d53c1ac4f5ed949b8dce0556aa65dcb358d16a85a3",
+  "release_source_sha256": "29e346005f8a57e499c33d9c02cb286d53b0e7f8e37aa51adfc677830be3fbb5",
+  "slots": {
+    "display_feed_entity": 1,
+    "source_stock_version": 1,
+    "ssid": 1,
+    "wifi_password": 1,
+    "name": 2,
+    "ap_ssid": 1,
+    "ap_password": 1,
+    "ota_password": 1,
+    "noise_psk": 1
+  },
+  "format": "esp32-app-fixed-slots-v1",
+  "native_update": {
+    "format": "qingping-native-update-v1",
+    "patches": [
+      [
+        80,
+        4
+      ],
+      [
+        19355,
+        4
+      ],
+      [
+        270834,
+        8
+      ],
+      [
+        272218,
+        7
+      ],
+      [
+        272282,
+        6
+      ],
+      [
+        272346,
+        5
+      ],
+      [
+        272379,
+        3
+      ],
+      [
+        272443,
+        2
+      ],
+      [
+        272476,
+        1
+      ],
+      [
+        272511,
+        0
+      ]
+    ]
+  }
+}
